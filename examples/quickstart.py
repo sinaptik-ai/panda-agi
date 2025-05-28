@@ -17,7 +17,7 @@ async def main():
     # First request - will automatically connect
     # The run method now returns a generator of AgentEvent
     async for event in agent.run(
-        "cerca informazioni su pandas ai e fai un sito web con le informazioni. cerca di usare tutti i tools disponibili.",
+        "fai un sito web con una storia di un gatto",
     ):
         print(f"[{event.timestamp}] {event.type}: {event.data}")
 

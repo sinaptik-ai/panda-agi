@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel, Field
 
 # Message types that indicate completion/blocking operations
-COMPLETION_MESSAGE_TYPES = ["user_ask_question", "completed_task"]
+COMPLETION_MESSAGE_TYPES = ["user_ask_question", "completed_task", "error"]
 
 
 class MessageType(Enum):
