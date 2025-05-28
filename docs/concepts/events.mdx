@@ -1,0 +1,598 @@
+---
+title: 'Events'
+description: 'Understanding real-time event streaming in Panda AGI SDK'
+---
+
+## What are Events?
+
+Events are real-time notifications that provide insight into what your AI agents are doing. They allow you to monitor agent behavior, track tool usage, and build interactive applications with live updates.
+
+<CardGroup cols={2}>
+  <Card
+    title="Real-time Monitoring"
+    icon="eye"
+  >
+    Watch your agents work in real-time with detailed event streams
+  </Card>
+  <Card
+    title="Interactive UIs"
+    icon="desktop"
+  >
+    Build responsive interfaces that update as agents process requests
+  </Card>
+  <Card
+    title="Debugging & Analytics"
+    icon="bug"
+  >
+    Debug agent behavior and analyze performance with event data
+  </Card>
+  <Card
+    title="Custom Integrations"
+    icon="plug"
+  >
+    Integrate agent events into your existing systems and workflows
+  </Card>
+</CardGroup>
+
+## Event Types
+
+### Core Events
+
+<AccordionGroup>
+  <Accordion title="agent_start">
+    Fired when an agent begins processing a request:
+    
+    ```json
+    {
+      "type": "agent_start",
+      "timestamp": "2024-01-15T10:30:00Z",
+      "agent_id": "research_agent_001",
+      "query": "What are the latest developments in AI?",
+      "session_id": "session_123"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="agent_thinking">
+    Shows the agent's reasoning process:
+    
+    ```json
+    {
+      "type": "agent_thinking",
+      "timestamp": "2024-01-15T10:30:01Z",
+      "agent_id": "research_agent_001",
+      "thought": "I need to search for recent AI developments and analyze the results",
+      "plan": ["search_web", "analyze_results", "synthesize_response"]
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="tool_start">
+    Indicates a tool is about to be executed:
+    
+    ```json
+    {
+      "type": "tool_start",
+      "timestamp": "2024-01-15T10:30:02Z",
+      "tool_name": "WebSearchTool",
+      "parameters": {
+        "query": "latest AI developments 2024",
+        "max_results": 10
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="tool_result">
+    Contains the results from tool execution:
+    
+    ```json
+    {
+      "type": "tool_result",
+      "timestamp": "2024-01-15T10:30:05Z",
+      "tool_name": "WebSearchTool",
+      "success": true,
+      "result": {
+        "results": [...],
+        "total_found": 1250
+      },
+      "execution_time": 3.2
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="agent_response">
+    The final response from the agent:
+    
+    ```json
+    {
+      "type": "agent_response",
+      "timestamp": "2024-01-15T10:30:10Z",
+      "agent_id": "research_agent_001",
+      "response": "Based on my research, here are the latest AI developments...",
+      "confidence": 0.95
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Error Events
+
+<AccordionGroup>
+  <Accordion title="tool_error">
+    When a tool encounters an error:
+    
+    ```json
+    {
+      "type": "tool_error",
+      "timestamp": "2024-01-15T10:30:03Z",
+      "tool_name": "WebSearchTool",
+      "error": "Connection timeout",
+      "error_code": "TIMEOUT",
+      "retry_count": 2
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="agent_error">
+    When the agent encounters an error:
+    
+    ```json
+    {
+      "type": "agent_error",
+      "timestamp": "2024-01-15T10:30:08Z",
+      "agent_id": "research_agent_001",
+      "error": "Maximum iterations exceeded",
+      "error_code": "MAX_ITERATIONS",
+      "context": {...}
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Event Streaming
+
+### Basic Streaming
+
+Stream events in real-time as your agent works:
+
+```python
+from panda_agi.client import Agent
+
+agent = Agent(name="StreamingAgent")
+
+# Stream events
+for event in agent.run_stream("Tell me about quantum computing"):
+    print(f"[{event.timestamp}] {event.type}: {event.data}")
+```
+
+### WebSocket Streaming
+
+For web applications, use WebSocket streaming:
+
+```python
+from panda_agi.client import WebSocketClient
+import asyncio
+
+async def stream_events():
+    client = WebSocketClient("ws://localhost:8000/ws")
+    
+    # Send query
+    await client.send({
+        "type": "agent_query",
+        "query": "Research the latest in machine learning",
+        "agent_config": {
+            "name": "ResearchAgent",
+            "tools": ["WebSearchTool", "WebNavigationTool"]
+        }
+    })
+    
+    # Receive events
+    async for event in client.stream():
+        print(f"Received: {event}")
+
+# Run the streaming client
+asyncio.run(stream_events())
+```
+
+### Server-Sent Events (SSE)
+
+For web frontends, use Server-Sent Events:
+
+```javascript
+// Frontend JavaScript
+const eventSource = new EventSource('/api/agent/stream');
+
+eventSource.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    
+    switch(data.type) {
+        case 'agent_thinking':
+            showThinking(data.thought);
+            break;
+        case 'tool_start':
+            showToolExecution(data.tool_name);
+            break;
+        case 'tool_result':
+            showToolResult(data.result);
+            break;
+        case 'agent_response':
+            showFinalResponse(data.response);
+            break;
+    }
+};
+```
+
+## Event Filtering
+
+Filter events based on type, source, or custom criteria:
+
+### Type-based Filtering
+
+```python
+from panda_agi.client import Agent
+from panda_agi.events import EventFilter
+
+# Only show tool-related events
+tool_filter = EventFilter(types=["tool_start", "tool_result", "tool_error"])
+
+agent = Agent(name="FilteredAgent")
+
+for event in agent.run_stream("Search for information", event_filter=tool_filter):
+    print(f"Tool event: {event.type}")
+```
+
+### Custom Filtering
+
+```python
+from panda_agi.events import EventFilter
+
+# Custom filter function
+def important_events_only(event):
+    return event.type in ["agent_response", "tool_error"] or \
+           (event.type == "tool_result" and event.data.get("success") == False)
+
+custom_filter = EventFilter(predicate=important_events_only)
+
+for event in agent.run_stream("Complex query", event_filter=custom_filter):
+    print(f"Important event: {event}")
+```
+
+## Event Handlers
+
+Create custom handlers to process events:
+
+### Simple Event Handler
+
+```python
+from panda_agi.events import EventHandler
+
+class LoggingHandler(EventHandler):
+    def handle_agent_start(self, event):
+        print(f"Agent {event.agent_id} started processing: {event.query}")
+    
+    def handle_tool_result(self, event):
+        if event.success:
+            print(f"Tool {event.tool_name} completed successfully")
+        else:
+            print(f"Tool {event.tool_name} failed: {event.error}")
+    
+    def handle_agent_response(self, event):
+        print(f"Agent response: {event.response[:100]}...")
+
+# Use the handler
+handler = LoggingHandler()
+agent = Agent(name="HandledAgent", event_handlers=[handler])
+```
+
+### Advanced Event Handler
+
+```python
+from panda_agi.events import EventHandler
+import json
+import time
+
+class AnalyticsHandler(EventHandler):
+    def __init__(self):
+        self.session_data = {}
+        self.performance_metrics = {}
+    
+    def handle_agent_start(self, event):
+        self.session_data[event.session_id] = {
+            "start_time": time.time(),
+            "query": event.query,
+            "tools_used": [],
+            "errors": []
+        }
+    
+    def handle_tool_start(self, event):
+        session = self.session_data.get(event.session_id, {})
+        session.setdefault("tools_used", []).append({
+            "tool": event.tool_name,
+            "start_time": time.time(),
+            "parameters": event.parameters
+        })
+    
+    def handle_tool_result(self, event):
+        # Track performance metrics
+        tool_name = event.tool_name
+        execution_time = event.execution_time
+        
+        if tool_name not in self.performance_metrics:
+            self.performance_metrics[tool_name] = {
+                "total_calls": 0,
+                "total_time": 0,
+                "success_count": 0,
+                "error_count": 0
+            }
+        
+        metrics = self.performance_metrics[tool_name]
+        metrics["total_calls"] += 1
+        metrics["total_time"] += execution_time
+        
+        if event.success:
+            metrics["success_count"] += 1
+        else:
+            metrics["error_count"] += 1
+    
+    def get_analytics_report(self):
+        return {
+            "sessions": len(self.session_data),
+            "performance": self.performance_metrics
+        }
+```
+
+## Event Storage
+
+Store events for later analysis:
+
+### Database Storage
+
+```python
+from panda_agi.events import DatabaseEventStore
+import sqlite3
+
+# SQLite storage
+store = DatabaseEventStore("sqlite:///agent_events.db")
+
+class StorageHandler(EventHandler):
+    def __init__(self, store):
+        self.store = store
+    
+    def handle_event(self, event):
+        # Store all events
+        self.store.save_event(event)
+
+# Use with agent
+handler = StorageHandler(store)
+agent = Agent(name="StoredAgent", event_handlers=[handler])
+```
+
+### File Storage
+
+```python
+from panda_agi.events import FileEventStore
+import json
+
+class FileHandler(EventHandler):
+    def __init__(self, filename):
+        self.filename = filename
+    
+    def handle_event(self, event):
+        with open(self.filename, "a") as f:
+            json.dump(event.to_dict(), f)
+            f.write("\n")
+
+# Use with agent
+handler = FileHandler("agent_events.jsonl")
+agent = Agent(name="FileStoredAgent", event_handlers=[handler])
+```
+
+## Building Interactive UIs
+
+### React Component Example
+
+```jsx
+import React, { useState, useEffect } from 'react';
+
+function AgentChat() {
+    const [events, setEvents] = useState([]);
+    const [isThinking, setIsThinking] = useState(false);
+    const [currentTool, setCurrentTool] = useState(null);
+
+    useEffect(() => {
+        const eventSource = new EventSource('/api/agent/stream');
+        
+        eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            
+            setEvents(prev => [...prev, data]);
+            
+            switch(data.type) {
+                case 'agent_thinking':
+                    setIsThinking(true);
+                    break;
+                case 'tool_start':
+                    setCurrentTool(data.tool_name);
+                    break;
+                case 'tool_result':
+                    setCurrentTool(null);
+                    break;
+                case 'agent_response':
+                    setIsThinking(false);
+                    break;
+            }
+        };
+        
+        return () => eventSource.close();
+    }, []);
+
+    return (
+        <div className="agent-chat">
+            {isThinking && (
+                <div className="thinking-indicator">
+                    Agent is thinking...
+                    {currentTool && <span>Using {currentTool}</span>}
+                </div>
+            )}
+            
+            <div className="events-list">
+                {events.map((event, index) => (
+                    <EventComponent key={index} event={event} />
+                ))}
+            </div>
+        </div>
+    );
+}
+```
+
+### Vue.js Component Example
+
+```vue
+<template>
+  <div class="agent-interface">
+    <div v-if="isProcessing" class="status-bar">
+      <span>{{ currentStatus }}</span>
+      <div class="progress-bar">
+        <div :style="{ width: progress + '%' }"></div>
+      </div>
+    </div>
+    
+    <div class="event-stream">
+      <div v-for="event in events" :key="event.id" 
+           :class="['event', event.type]">
+        <span class="timestamp">{{ formatTime(event.timestamp) }}</span>
+        <span class="type">{{ event.type }}</span>
+        <span class="content">{{ formatEventContent(event) }}</span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      events: [],
+      isProcessing: false,
+      currentStatus: '',
+      progress: 0
+    };
+  },
+  
+  mounted() {
+    this.connectEventStream();
+  },
+  
+  methods: {
+    connectEventStream() {
+      const eventSource = new EventSource('/api/agent/stream');
+      
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        this.handleEvent(data);
+      };
+    },
+    
+    handleEvent(event) {
+      this.events.push(event);
+      
+      switch(event.type) {
+        case 'agent_start':
+          this.isProcessing = true;
+          this.currentStatus = 'Starting...';
+          this.progress = 10;
+          break;
+        case 'tool_start':
+          this.currentStatus = `Using ${event.tool_name}...`;
+          this.progress = 50;
+          break;
+        case 'agent_response':
+          this.isProcessing = false;
+          this.progress = 100;
+          break;
+      }
+    }
+  }
+};
+</script>
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Event Filtering">
+    Filter events to avoid overwhelming your UI:
+    
+    ```python
+    # Only show user-relevant events
+    ui_filter = EventFilter(types=[
+        "agent_thinking",
+        "tool_start", 
+        "agent_response"
+    ])
+    ```
+  </Accordion>
+
+  <Accordion title="Error Handling">
+    Always handle connection errors gracefully:
+    
+    ```javascript
+    eventSource.onerror = function(event) {
+        console.error('EventSource failed:', event);
+        // Implement reconnection logic
+        setTimeout(() => {
+            connectEventStream();
+        }, 5000);
+    };
+    ```
+  </Accordion>
+
+  <Accordion title="Performance">
+    Limit the number of events stored in memory:
+    
+    ```javascript
+    const MAX_EVENTS = 100;
+    
+    setEvents(prev => {
+        const newEvents = [...prev, data];
+        return newEvents.slice(-MAX_EVENTS);
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="User Experience">
+    Provide meaningful feedback to users:
+    
+    ```python
+    class UIEventHandler(EventHandler):
+        def handle_agent_thinking(self, event):
+            # Show what the agent is thinking
+            self.ui.show_status(f"💭 {event.thought}")
+        
+        def handle_tool_start(self, event):
+            # Show tool usage with appropriate icons
+            icon = self.get_tool_icon(event.tool_name)
+            self.ui.show_status(f"{icon} Using {event.tool_name}...")
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Environments"
+    icon="globe"
+    href="/concepts/environments"
+  >
+    Learn about agent execution environments
+  </Card>
+  <Card
+    title="Examples"
+    icon="play"
+    href="/examples/chat-interface"
+  >
+    See event streaming in action
+  </Card>
+</CardGroup> 

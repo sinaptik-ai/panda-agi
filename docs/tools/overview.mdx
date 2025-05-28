@@ -1,0 +1,303 @@
+---
+title: 'Tools Overview'
+description: 'Comprehensive guide to all available tools in Panda AGI SDK'
+---
+
+## Available Tools
+
+The Panda AGI SDK comes with a rich set of built-in tools that extend your agents' capabilities. Tools are organized into categories based on their functionality.
+
+<CardGroup cols={3}>
+  <Card
+    title="Search Tools"
+    icon="magnifying-glass"
+    href="/tools/search"
+  >
+    Web search, knowledge base queries, and information retrieval
+  </Card>
+  <Card
+    title="Navigation Tools"
+    icon="compass"
+    href="/tools/navigation"
+  >
+    Web browsing, page interaction, and content extraction
+  </Card>
+  <Card
+    title="File System Tools"
+    icon="folder"
+    href="/tools/file-system"
+  >
+    File operations, code execution, and workspace management
+  </Card>
+</CardGroup>
+
+## Quick Reference
+
+### Search Tools
+
+| Tool | Description | Use Case |
+|------|-------------|----------|
+| `WebSearchTool` | Search the web using various engines | Finding current information |
+| `KnowledgeSearchTool` | Search internal knowledge bases | Company docs, custom data |
+| `ImageSearchTool` | Search for images | Visual content discovery |
+
+### Navigation Tools
+
+| Tool | Description | Use Case |
+|------|-------------|----------|
+| `WebNavigationTool` | Browse and interact with websites | Content extraction, form filling |
+| `APINavigationTool` | Interact with REST APIs | Data retrieval, service integration |
+| `DatabaseTool` | Query databases | Data analysis, reporting |
+
+### File System Tools
+
+| Tool | Description | Use Case |
+|------|-------------|----------|
+| `FileSystemTool` | File and directory operations | File management, data processing |
+| `CodeExecutionTool` | Execute code in various languages | Script running, computation |
+| `TextProcessingTool` | Process and analyze text | Content analysis, formatting |
+
+## Tool Usage Patterns
+
+### Basic Tool Usage
+
+```python
+from panda_agi.client import Agent
+from panda_agi.tools.search import WebSearchTool
+
+# Create agent with a single tool
+agent = Agent(
+    name="SearchAgent",
+    tools=[WebSearchTool()]
+)
+
+response = agent.run("What's the latest news about AI?")
+```
+
+### Multiple Tools
+
+```python
+from panda_agi.tools.search import WebSearchTool
+from panda_agi.tools.navigation import WebNavigationTool
+from panda_agi.tools.file_system import FileSystemTool
+
+# Agent with multiple complementary tools
+research_agent = Agent(
+    name="ResearchAgent",
+    tools=[
+        WebSearchTool(max_results=10),
+        WebNavigationTool(),
+        FileSystemTool()
+    ]
+)
+```
+
+### Tool Configuration
+
+```python
+# Configure tools for specific use cases
+search_tool = WebSearchTool(
+    engine="google",
+    max_results=5,
+    safe_search=True,
+    region="US"
+)
+
+nav_tool = WebNavigationTool(
+    headless=True,
+    timeout=30,
+    user_agent="PandaAGI/1.0"
+)
+```
+
+## Tool Categories
+
+<AccordionGroup>
+  <Accordion title="Information Retrieval">
+    Tools for finding and gathering information:
+    - **WebSearchTool**: Search engines (Google, Bing, DuckDuckGo)
+    - **KnowledgeSearchTool**: Internal knowledge bases
+    - **DatabaseTool**: Structured data queries
+    - **APINavigationTool**: External service integration
+  </Accordion>
+
+  <Accordion title="Content Processing">
+    Tools for processing and analyzing content:
+    - **TextProcessingTool**: Text analysis and manipulation
+    - **ImageProcessingTool**: Image analysis and editing
+    - **DocumentTool**: PDF, Word, and other document formats
+    - **DataAnalysisTool**: Statistical analysis and visualization
+  </Accordion>
+
+  <Accordion title="Automation">
+    Tools for automating tasks:
+    - **WebNavigationTool**: Browser automation
+    - **FileSystemTool**: File and directory operations
+    - **CodeExecutionTool**: Script and code execution
+    - **EmailTool**: Email sending and management
+  </Accordion>
+
+  <Accordion title="Communication">
+    Tools for external communication:
+    - **SlackTool**: Slack integration
+    - **EmailTool**: Email operations
+    - **WebhookTool**: HTTP webhooks
+    - **NotificationTool**: Push notifications
+  </Accordion>
+</AccordionGroup>
+
+## Tool Security
+
+All tools implement security best practices:
+
+### Sandboxing
+- Tools run in isolated environments
+- Limited file system access
+- Network restrictions where appropriate
+
+### Rate Limiting
+- Built-in rate limiting for external APIs
+- Configurable limits per tool
+- Automatic backoff and retry
+
+### Input Validation
+- All inputs are validated and sanitized
+- Protection against injection attacks
+- Safe handling of user data
+
+### Permission System
+```python
+from panda_agi.tools.permissions import PermissionManager
+
+# Configure tool permissions
+permissions = PermissionManager()
+permissions.allow_tool("WebSearchTool", domains=["*.wikipedia.org"])
+permissions.deny_tool("FileSystemTool", paths=["/etc/*"])
+
+agent = Agent(
+    name="SecureAgent",
+    tools=[WebSearchTool(), FileSystemTool()],
+    permissions=permissions
+)
+```
+
+## Performance Optimization
+
+### Caching
+Many tools support caching to improve performance:
+
+```python
+from panda_agi.tools.search import WebSearchTool
+
+# Enable caching
+search_tool = WebSearchTool(
+    cache_enabled=True,
+    cache_ttl=3600  # 1 hour
+)
+```
+
+### Parallel Execution
+Tools can be executed in parallel when possible:
+
+```python
+from panda_agi.tools.parallel import ParallelToolExecutor
+
+# Execute multiple searches simultaneously
+parallel_search = ParallelToolExecutor([
+    WebSearchTool(engine="google"),
+    WebSearchTool(engine="bing"),
+    WebSearchTool(engine="duckduckgo")
+])
+```
+
+### Resource Management
+Configure resource limits to prevent abuse:
+
+```python
+tool = WebNavigationTool(
+    timeout=30,           # 30 second timeout
+    memory_limit="512MB", # Memory limit
+    concurrent_limit=5    # Max concurrent operations
+)
+```
+
+## Custom Tools
+
+Create your own tools for specific needs:
+
+```python
+from panda_agi.tools.base import BaseTool
+
+class CustomTool(BaseTool):
+    name = "custom_tool"
+    description = "A custom tool for specific tasks"
+    
+    def execute(self, **kwargs):
+        # Your custom logic here
+        return {"result": "success"}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Tool Selection">
+    Choose the right tools for your use case:
+    - Use specific tools rather than general ones when possible
+    - Consider tool combinations for complex workflows
+    - Balance functionality with security requirements
+  </Accordion>
+
+  <Accordion title="Configuration">
+    Properly configure tools for optimal performance:
+    - Set appropriate timeouts and limits
+    - Enable caching for repeated operations
+    - Configure security settings based on your environment
+  </Accordion>
+
+  <Accordion title="Error Handling">
+    Implement robust error handling:
+    - Handle tool failures gracefully
+    - Implement retry logic for transient failures
+    - Log errors for debugging and monitoring
+  </Accordion>
+
+  <Accordion title="Monitoring">
+    Monitor tool usage and performance:
+    - Track tool execution times
+    - Monitor error rates and types
+    - Set up alerts for unusual behavior
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Search Tools"
+    icon="magnifying-glass"
+    href="/tools/search"
+  >
+    Learn about web search and knowledge retrieval tools
+  </Card>
+  <Card
+    title="Navigation Tools"
+    icon="compass"
+    href="/tools/navigation"
+  >
+    Explore web browsing and API interaction tools
+  </Card>
+  <Card
+    title="File System Tools"
+    icon="folder"
+    href="/tools/file-system"
+  >
+    Discover file operations and code execution tools
+  </Card>
+  <Card
+    title="Custom Tools"
+    icon="wrench"
+    href="/examples/custom-tools"
+  >
+    Learn how to create your own custom tools
+  </Card>
+</CardGroup> 

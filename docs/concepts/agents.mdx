@@ -1,0 +1,393 @@
+---
+title: 'Agents'
+description: 'Understanding AI agents in Panda AGI SDK'
+---
+
+## What are Agents?
+
+Agents are the core building blocks of the Panda AGI SDK. They are autonomous AI entities that can understand natural language, make decisions, use tools, and interact with their environment to accomplish tasks.
+
+<img
+  className="block dark:hidden"
+  src="/images/agent-architecture-light.svg"
+  alt="Agent Architecture"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/agent-architecture-dark.svg"
+  alt="Agent Architecture"
+/>
+
+## Agent Components
+
+<CardGroup cols={2}>
+  <Card
+    title="Core Intelligence"
+    icon="brain"
+  >
+    The LLM-powered reasoning engine that processes queries and makes decisions
+  </Card>
+  <Card
+    title="Tool Integration"
+    icon="wrench"
+  >
+    Access to various tools for web search, file operations, and more
+  </Card>
+  <Card
+    title="Memory System"
+    icon="database"
+  >
+    Persistent memory for context and conversation history
+  </Card>
+  <Card
+    title="Environment"
+    icon="globe"
+  >
+    Isolated execution environment for safe code execution
+  </Card>
+</CardGroup>
+
+## Creating Agents
+
+### Basic Agent
+
+The simplest way to create an agent:
+
+```python
+from panda_agi.client import Agent
+
+agent = Agent(
+    name="MyAgent",
+    description="A helpful assistant"
+)
+
+response = agent.run("What's the weather like today?")
+```
+
+### Agent with Configuration
+
+For more control over agent behavior:
+
+```python
+from panda_agi.client import Agent, AgentConfig
+
+config = AgentConfig(
+    model="gpt-4",
+    temperature=0.7,
+    max_iterations=10,
+    timeout=60
+)
+
+agent = Agent(
+    name="ConfiguredAgent",
+    description="A precisely configured assistant",
+    config=config
+)
+```
+
+### Agent with Tools
+
+Agents become powerful when equipped with tools:
+
+```python
+from panda_agi.client import Agent
+from panda_agi.tools.search import WebSearchTool
+from panda_agi.tools.navigation import WebNavigationTool
+from panda_agi.tools.file_system import FileSystemTool
+
+agent = Agent(
+    name="ResearchAgent",
+    description="An agent that can research and analyze information",
+    tools=[
+        WebSearchTool(),
+        WebNavigationTool(),
+        FileSystemTool()
+    ]
+)
+```
+
+## Agent Configuration
+
+<AccordionGroup>
+  <Accordion title="Model Selection">
+    Choose the underlying language model:
+    
+    ```python
+    config = AgentConfig(
+        model="gpt-4",           # OpenAI GPT-4
+        # model="gpt-3.5-turbo", # OpenAI GPT-3.5
+        # model="claude-3",      # Anthropic Claude
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Temperature Control">
+    Control creativity vs consistency:
+    
+    ```python
+    config = AgentConfig(
+        temperature=0.0,  # Deterministic, consistent
+        # temperature=0.7,  # Balanced
+        # temperature=1.0,  # Creative, varied
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Execution Limits">
+    Set safety boundaries:
+    
+    ```python
+    config = AgentConfig(
+        max_iterations=10,    # Max tool calls per query
+        timeout=60,          # Max execution time (seconds)
+        max_tokens=4000,     # Max response length
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Memory Settings">
+    Configure memory behavior:
+    
+    ```python
+    config = AgentConfig(
+        memory_size=1000,        # Max conversation history
+        persistent_memory=True,   # Save between sessions
+        memory_compression=True,  # Compress old memories
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Agent Lifecycle
+
+Understanding how agents work internally:
+
+<Steps>
+  <Step title="Initialization">
+    Agent loads configuration, tools, and establishes environment connection
+  </Step>
+  
+  <Step title="Query Processing">
+    Agent analyzes the user query and determines the best approach
+  </Step>
+  
+  <Step title="Planning">
+    Agent creates a plan of action, identifying which tools to use
+  </Step>
+  
+  <Step title="Execution">
+    Agent executes the plan, using tools and processing results iteratively
+  </Step>
+  
+  <Step title="Response Generation">
+    Agent synthesizes results into a coherent response for the user
+  </Step>
+</Steps>
+
+## Agent Patterns
+
+### Research Agent
+
+Perfect for information gathering and analysis:
+
+```python
+research_agent = Agent(
+    name="ResearchAgent",
+    description="""
+    A thorough research assistant that can:
+    - Search the web for current information
+    - Visit and analyze web pages
+    - Synthesize findings into comprehensive reports
+    """,
+    tools=[WebSearchTool(), WebNavigationTool()],
+    config=AgentConfig(
+        model="gpt-4",
+        temperature=0.3,  # More focused
+        max_iterations=15
+    )
+)
+```
+
+### Code Assistant
+
+Specialized for programming tasks:
+
+```python
+code_agent = Agent(
+    name="CodeAssistant",
+    description="""
+    A programming assistant that can:
+    - Write and debug code
+    - Analyze codebases
+    - Create documentation
+    - Run tests and scripts
+    """,
+    tools=[FileSystemTool(), CodeExecutionTool()],
+    config=AgentConfig(
+        model="gpt-4",
+        temperature=0.1,  # Very precise
+        max_iterations=20
+    )
+)
+```
+
+### Creative Agent
+
+For content creation and brainstorming:
+
+```python
+creative_agent = Agent(
+    name="CreativeAgent",
+    description="""
+    A creative assistant that can:
+    - Generate original content
+    - Brainstorm ideas
+    - Create stories and scripts
+    - Design concepts
+    """,
+    tools=[WebSearchTool(), ImageGenerationTool()],
+    config=AgentConfig(
+        model="gpt-4",
+        temperature=0.8,  # More creative
+        max_iterations=10
+    )
+)
+```
+
+## Advanced Features
+
+### Custom Personalities
+
+Give your agent a unique personality:
+
+```python
+agent = Agent(
+    name="FriendlyBot",
+    description="""
+    You are a friendly, enthusiastic assistant who loves helping people.
+    Always be positive, use emojis occasionally, and provide encouraging
+    responses. You're knowledgeable but humble, and you love learning
+    new things from users.
+    """,
+    config=AgentConfig(temperature=0.7)
+)
+```
+
+### Multi-Agent Collaboration
+
+Agents can work together:
+
+```python
+# Specialist agents
+researcher = Agent(name="Researcher", tools=[WebSearchTool()])
+analyst = Agent(name="Analyst", tools=[DataAnalysisTool()])
+writer = Agent(name="Writer", tools=[FileSystemTool()])
+
+# Orchestrator agent
+coordinator = Agent(
+    name="Coordinator",
+    description="Coordinates work between specialist agents",
+    agents=[researcher, analyst, writer]
+)
+```
+
+### Persistent Memory
+
+Agents can remember across sessions:
+
+```python
+agent = Agent(
+    name="PersonalAssistant",
+    config=AgentConfig(
+        persistent_memory=True,
+        memory_file="assistant_memory.json"
+    )
+)
+
+# First session
+agent.run("My name is Alice and I love hiking")
+
+# Later session (agent remembers)
+agent.run("What outdoor activities do I enjoy?")
+# Response: "You mentioned that you love hiking!"
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Clear Descriptions">
+    Write clear, specific agent descriptions:
+    
+    ```python
+    # Good
+    description = """
+    A financial analysis agent that can:
+    - Analyze stock market data
+    - Calculate financial ratios
+    - Generate investment reports
+    - Track portfolio performance
+    """
+    
+    # Avoid
+    description = "A helpful agent"
+    ```
+  </Accordion>
+
+  <Accordion title="Appropriate Tools">
+    Only include tools the agent actually needs:
+    
+    ```python
+    # For a research agent
+    tools = [WebSearchTool(), WebNavigationTool()]
+    
+    # Don't include unrelated tools
+    # tools = [WebSearchTool(), ImageGenerationTool(), MusicTool()]
+    ```
+  </Accordion>
+
+  <Accordion title="Resource Management">
+    Set appropriate limits to prevent runaway execution:
+    
+    ```python
+    config = AgentConfig(
+        timeout=120,        # 2 minutes max
+        max_iterations=15,  # Reasonable limit
+        max_tokens=2000     # Control response length
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Error Handling">
+    Always handle potential errors:
+    
+    ```python
+    try:
+        response = agent.run(query, timeout=60)
+        return response
+    except AgentError as e:
+        logger.error(f"Agent error: {e}")
+        return "I encountered an error processing your request."
+    except TimeoutError:
+        return "The request took too long to process."
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Tools"
+    icon="wrench"
+    href="/concepts/tools"
+  >
+    Learn about the tools agents can use
+  </Card>
+  <Card
+    title="Events"
+    icon="bolt"
+    href="/concepts/events"
+  >
+    Understand agent event streaming
+  </Card>
+</CardGroup> 

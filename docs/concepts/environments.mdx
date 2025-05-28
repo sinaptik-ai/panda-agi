@@ -1,0 +1,595 @@
+---
+title: 'Environments'
+description: 'Understanding execution environments in Panda AGI SDK'
+---
+
+## What are Environments?
+
+Environments provide isolated, secure execution contexts for AI agents. They ensure that agents can safely run code, access files, and interact with external systems without compromising the host system's security.
+
+<CardGroup cols={2}>
+  <Card
+    title="Security Isolation"
+    icon="shield"
+  >
+    Run agents in sandboxed environments to prevent security risks
+  </Card>
+  <Card
+    title="Resource Control"
+    icon="gauge"
+  >
+    Limit CPU, memory, and disk usage to prevent resource exhaustion
+  </Card>
+  <Card
+    title="Reproducibility"
+    icon="repeat"
+  >
+    Ensure consistent execution across different systems and deployments
+  </Card>
+  <Card
+    title="Scalability"
+    icon="arrow-up"
+  >
+    Scale agent execution across multiple containers or processes
+  </Card>
+</CardGroup>
+
+## Environment Types
+
+### Docker Environment
+
+The most secure and isolated environment option:
+
+```python
+from panda_agi.envs import DockerEnvironment
+from panda_agi.client import Agent
+
+# Basic Docker environment
+docker_env = DockerEnvironment(
+    image="python:3.11-slim",
+    workspace="/workspace"
+)
+
+agent = Agent(
+    name="DockerAgent",
+    environment=docker_env
+)
+```
+
+### Process Environment
+
+Lightweight isolation using separate processes:
+
+```python
+from panda_agi.envs import ProcessEnvironment
+
+process_env = ProcessEnvironment(
+    workspace="/tmp/agent_workspace",
+    timeout=300,  # 5 minutes
+    memory_limit="512MB"
+)
+
+agent = Agent(
+    name="ProcessAgent",
+    environment=process_env
+)
+```
+
+### Local Environment
+
+Direct execution on the host system (least secure):
+
+```python
+from panda_agi.envs import LocalEnvironment
+
+local_env = LocalEnvironment(
+    workspace="/home/user/agent_workspace",
+    restricted_paths=["/etc", "/home"]
+)
+
+agent = Agent(
+    name="LocalAgent",
+    environment=local_env
+)
+```
+
+## Docker Environment Configuration
+
+### Basic Configuration
+
+```python
+from panda_agi.envs import DockerEnvironment
+
+env = DockerEnvironment(
+    image="python:3.11-slim",
+    workspace="/workspace",
+    timeout=600,  # 10 minutes
+    memory_limit="1GB",
+    cpu_limit="1.0"  # 1 CPU core
+)
+```
+
+### Custom Docker Image
+
+Create a custom image with pre-installed dependencies:
+
+```dockerfile
+# Dockerfile
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# Set up workspace
+WORKDIR /workspace
+```
+
+```python
+# Use custom image
+env = DockerEnvironment(
+    image="my-custom-agent-image:latest",
+    workspace="/workspace"
+)
+```
+
+### Volume Mounting
+
+Mount host directories for persistent storage:
+
+```python
+env = DockerEnvironment(
+    image="python:3.11-slim",
+    workspace="/workspace",
+    volumes={
+        "/host/data": "/workspace/data",
+        "/host/models": "/workspace/models"
+    }
+)
+```
+
+### Environment Variables
+
+Pass environment variables to the container:
+
+```python
+env = DockerEnvironment(
+    image="python:3.11-slim",
+    workspace="/workspace",
+    environment_vars={
+        "OPENAI_API_KEY": "your-api-key",
+        "PYTHONPATH": "/workspace/lib",
+        "DEBUG": "true"
+    }
+)
+```
+
+## Advanced Environment Features
+
+### Network Configuration
+
+Control network access for security:
+
+```python
+from panda_agi.envs import DockerEnvironment, NetworkPolicy
+
+# Restricted network access
+network_policy = NetworkPolicy(
+    allow_outbound=True,
+    allowed_domains=["api.openai.com", "*.github.com"],
+    blocked_ports=[22, 3389]  # Block SSH and RDP
+)
+
+env = DockerEnvironment(
+    image="python:3.11-slim",
+    network_policy=network_policy
+)
+```
+
+### Resource Monitoring
+
+Monitor resource usage in real-time:
+
+```python
+from panda_agi.envs import DockerEnvironment
+from panda_agi.monitoring import ResourceMonitor
+
+env = DockerEnvironment(
+    image="python:3.11-slim",
+    memory_limit="1GB",
+    cpu_limit="1.0"
+)
+
+monitor = ResourceMonitor(env)
+
+# Start monitoring
+monitor.start()
+
+# Get current usage
+usage = monitor.get_usage()
+print(f"Memory: {usage.memory_mb}MB / {usage.memory_limit_mb}MB")
+print(f"CPU: {usage.cpu_percent}%")
+```
+
+### Persistent Storage
+
+Configure persistent storage for agent data:
+
+```python
+from panda_agi.envs import DockerEnvironment, PersistentVolume
+
+# Create persistent volume
+volume = PersistentVolume(
+    name="agent-data",
+    size="10GB",
+    backup_enabled=True
+)
+
+env = DockerEnvironment(
+    image="python:3.11-slim",
+    persistent_volumes={"data": volume}
+)
+```
+
+## Environment Security
+
+### Sandboxing
+
+Implement strict sandboxing for maximum security:
+
+```python
+from panda_agi.envs import DockerEnvironment, SecurityPolicy
+
+security_policy = SecurityPolicy(
+    # File system restrictions
+    read_only_filesystem=True,
+    allowed_write_paths=["/workspace", "/tmp"],
+    
+    # Process restrictions
+    disable_sudo=True,
+    max_processes=50,
+    
+    # Network restrictions
+    disable_network=False,
+    allowed_outbound_ports=[80, 443],
+    
+    # System call restrictions
+    disable_dangerous_syscalls=True
+)
+
+env = DockerEnvironment(
+    image="python:3.11-slim",
+    security_policy=security_policy
+)
+```
+
+### User Management
+
+Run containers with non-root users:
+
+```python
+env = DockerEnvironment(
+    image="python:3.11-slim",
+    user="agent:agent",  # user:group
+    user_id=1000,
+    group_id=1000
+)
+```
+
+### Secret Management
+
+Securely handle sensitive data:
+
+```python
+from panda_agi.envs import DockerEnvironment, SecretManager
+
+secret_manager = SecretManager()
+secret_manager.add_secret("api_key", "your-secret-api-key")
+
+env = DockerEnvironment(
+    image="python:3.11-slim",
+    secret_manager=secret_manager
+)
+
+# Secrets are automatically injected as environment variables
+# with the prefix PANDA_SECRET_
+```
+
+## Environment Lifecycle
+
+### Startup and Shutdown
+
+Control environment lifecycle:
+
+```python
+from panda_agi.envs import DockerEnvironment
+
+env = DockerEnvironment(image="python:3.11-slim")
+
+# Start environment
+await env.start()
+
+# Check if running
+if env.is_running():
+    print("Environment is ready")
+
+# Execute commands
+result = await env.execute("python --version")
+print(result.stdout)
+
+# Stop environment
+await env.stop()
+
+# Clean up resources
+await env.cleanup()
+```
+
+### Health Checks
+
+Monitor environment health:
+
+```python
+from panda_agi.envs import DockerEnvironment, HealthCheck
+
+health_check = HealthCheck(
+    command="python -c 'import sys; print(sys.version)'",
+    interval=30,  # seconds
+    timeout=10,
+    retries=3
+)
+
+env = DockerEnvironment(
+    image="python:3.11-slim",
+    health_check=health_check
+)
+
+# Check health status
+status = await env.get_health_status()
+print(f"Health: {status.status}")  # healthy, unhealthy, starting
+```
+
+### Auto-scaling
+
+Automatically scale environments based on load:
+
+```python
+from panda_agi.envs import EnvironmentPool, AutoScaler
+
+# Create environment pool
+pool = EnvironmentPool(
+    environment_factory=lambda: DockerEnvironment(image="python:3.11-slim"),
+    min_size=2,
+    max_size=10
+)
+
+# Configure auto-scaling
+scaler = AutoScaler(
+    pool=pool,
+    scale_up_threshold=0.8,   # Scale up at 80% utilization
+    scale_down_threshold=0.3, # Scale down at 30% utilization
+    cooldown_period=300       # 5 minutes between scaling events
+)
+
+# Use with agents
+agent = Agent(
+    name="ScalableAgent",
+    environment_pool=pool
+)
+```
+
+## Environment Templates
+
+### Development Environment
+
+Perfect for development and testing:
+
+```python
+from panda_agi.envs import DockerEnvironment
+
+dev_env = DockerEnvironment(
+    image="python:3.11-slim",
+    workspace="/workspace",
+    volumes={
+        "./code": "/workspace/code",
+        "./data": "/workspace/data"
+    },
+    environment_vars={
+        "DEBUG": "true",
+        "LOG_LEVEL": "debug"
+    },
+    memory_limit="2GB",
+    timeout=3600  # 1 hour for development
+)
+```
+
+### Production Environment
+
+Optimized for production workloads:
+
+```python
+from panda_agi.envs import DockerEnvironment, SecurityPolicy
+
+production_security = SecurityPolicy(
+    read_only_filesystem=True,
+    allowed_write_paths=["/workspace/output"],
+    disable_sudo=True,
+    max_processes=20,
+    allowed_outbound_ports=[80, 443]
+)
+
+prod_env = DockerEnvironment(
+    image="my-production-agent:v1.0",
+    security_policy=production_security,
+    memory_limit="1GB",
+    cpu_limit="0.5",
+    timeout=300,  # 5 minutes
+    restart_policy="always"
+)
+```
+
+### Research Environment
+
+For data science and research tasks:
+
+```python
+research_env = DockerEnvironment(
+    image="jupyter/datascience-notebook:latest",
+    workspace="/workspace",
+    volumes={
+        "./datasets": "/workspace/datasets",
+        "./models": "/workspace/models"
+    },
+    memory_limit="8GB",
+    cpu_limit="4.0",
+    gpu_enabled=True,  # Enable GPU support
+    timeout=7200  # 2 hours
+)
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Security First">
+    Always use the most restrictive environment possible:
+    
+    ```python
+    # Prefer Docker over Process over Local
+    env = DockerEnvironment(
+        image="python:3.11-slim",
+        security_policy=SecurityPolicy(
+            read_only_filesystem=True,
+            disable_sudo=True,
+            allowed_outbound_ports=[80, 443]
+        )
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Resource Limits">
+    Set appropriate resource limits to prevent abuse:
+    
+    ```python
+    env = DockerEnvironment(
+        image="python:3.11-slim",
+        memory_limit="1GB",      # Prevent memory exhaustion
+        cpu_limit="1.0",         # Limit CPU usage
+        timeout=600,             # 10 minute timeout
+        max_disk_usage="5GB"     # Limit disk usage
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Image Optimization">
+    Use optimized Docker images for better performance:
+    
+    ```dockerfile
+    # Use multi-stage builds
+    FROM python:3.11-slim as builder
+    COPY requirements.txt .
+    RUN pip install --user -r requirements.txt
+    
+    FROM python:3.11-slim
+    COPY --from=builder /root/.local /root/.local
+    ENV PATH=/root/.local/bin:$PATH
+    ```
+  </Accordion>
+
+  <Accordion title="Monitoring">
+    Always monitor environment health and performance:
+    
+    ```python
+    from panda_agi.monitoring import EnvironmentMonitor
+    
+    monitor = EnvironmentMonitor()
+    monitor.track_environment(env)
+    
+    # Set up alerts
+    monitor.alert_on_high_memory(threshold=0.9)
+    monitor.alert_on_timeout()
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Container Won't Start">
+    Common issues and solutions:
+    
+    ```python
+    # Check Docker daemon
+    import docker
+    client = docker.from_env()
+    print(client.ping())
+    
+    # Check image availability
+    try:
+        client.images.get("python:3.11-slim")
+    except docker.errors.ImageNotFound:
+        print("Image not found, pulling...")
+        client.images.pull("python:3.11-slim")
+    ```
+  </Accordion>
+
+  <Accordion title="Permission Errors">
+    Fix file permission issues:
+    
+    ```python
+    env = DockerEnvironment(
+        image="python:3.11-slim",
+        user="1000:1000",  # Match host user ID
+        volumes={
+            "./data": "/workspace/data"
+        }
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Network Issues">
+    Debug network connectivity:
+    
+    ```python
+    # Test network connectivity
+    result = await env.execute("curl -I https://api.openai.com")
+    if result.return_code != 0:
+        print(f"Network error: {result.stderr}")
+    ```
+  </Accordion>
+
+  <Accordion title="Resource Exhaustion">
+    Handle resource limits gracefully:
+    
+    ```python
+    try:
+        result = await env.execute(command, timeout=60)
+    except ResourceExhaustedError as e:
+        print(f"Resource limit exceeded: {e}")
+        # Implement fallback or retry logic
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Client SDK"
+    icon="code"
+    href="/client/overview"
+  >
+    Learn about the client SDK components
+  </Card>
+  <Card
+    title="Examples"
+    icon="play"
+    href="/examples/chat-interface"
+  >
+    See environments in action with examples
+  </Card>
+</CardGroup> 

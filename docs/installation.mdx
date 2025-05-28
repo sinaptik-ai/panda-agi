@@ -1,0 +1,321 @@
+---
+title: 'Installation'
+description: 'Complete installation guide for Panda AGI SDK'
+---
+
+## System Requirements
+
+Before installing Panda AGI SDK, ensure your system meets the following requirements:
+
+<AccordionGroup>
+  <Accordion title="Python Version">
+    - Python 3.8 or higher
+    - Python 3.11+ recommended for best performance
+  </Accordion>
+
+  <Accordion title="Operating System">
+    - Linux (Ubuntu 18.04+, CentOS 7+)
+    - macOS 10.15+
+    - Windows 10+ (with WSL2 recommended)
+  </Accordion>
+
+  <Accordion title="Dependencies">
+    - Docker (for environment isolation)
+    - Git (for development)
+    - 4GB+ RAM recommended
+  </Accordion>
+</AccordionGroup>
+
+## Installation Methods
+
+### Using pip (Recommended)
+
+The easiest way to install Panda AGI SDK is using pip:
+
+```bash
+pip install panda-agi
+```
+
+For the latest development version:
+
+```bash
+pip install git+https://github.com/panda-agi/sdk.git
+```
+
+### Using Poetry
+
+If you're using Poetry for dependency management:
+
+```bash
+poetry add panda-agi
+```
+
+### Using Conda
+
+For Conda users:
+
+```bash
+conda install -c conda-forge panda-agi
+```
+
+### From Source
+
+For development or the latest features:
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/panda-agi/sdk.git
+    cd panda-agi-sdk
+    ```
+  </Step>
+  
+  <Step title="Install Dependencies">
+    ```bash
+    pip install -e .
+    ```
+    
+    Or with Poetry:
+    ```bash
+    poetry install
+    ```
+  </Step>
+  
+  <Step title="Verify Installation">
+    ```bash
+    python -c "import panda_agi; print(panda_agi.__version__)"
+    ```
+  </Step>
+</Steps>
+
+## Optional Dependencies
+
+Install additional features based on your needs:
+
+<CodeGroup>
+
+```bash Web Tools
+# For web search and navigation tools
+pip install panda-agi[web]
+```
+
+```bash Development
+# For development and testing
+pip install panda-agi[dev]
+```
+
+```bash All Features
+# Install everything
+pip install panda-agi[all]
+```
+
+</CodeGroup>
+
+## Docker Setup
+
+For isolated agent environments, install Docker:
+
+<Tabs>
+  <Tab title="Ubuntu/Debian">
+    ```bash
+    # Update package index
+    sudo apt-get update
+    
+    # Install Docker
+    sudo apt-get install docker.io
+    
+    # Start Docker service
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    
+    # Add user to docker group
+    sudo usermod -aG docker $USER
+    ```
+  </Tab>
+  
+  <Tab title="macOS">
+    ```bash
+    # Install Docker Desktop
+    brew install --cask docker
+    
+    # Or download from https://docker.com/products/docker-desktop
+    ```
+  </Tab>
+  
+  <Tab title="Windows">
+    ```powershell
+    # Install Docker Desktop for Windows
+    # Download from https://docker.com/products/docker-desktop
+    
+    # Or using Chocolatey
+    choco install docker-desktop
+    ```
+  </Tab>
+</Tabs>
+
+## Environment Variables
+
+Configure your environment for optimal performance:
+
+```bash
+# Optional: Set default model
+export PANDA_AGI_MODEL="gpt-4"
+
+# Optional: Set API keys
+export OPENAI_API_KEY="your-openai-key"
+export ANTHROPIC_API_KEY="your-anthropic-key"
+
+# Optional: Configure Docker
+export PANDA_AGI_DOCKER_IMAGE="python:3.11-slim"
+```
+
+## Verification
+
+Verify your installation is working correctly:
+
+<CodeGroup>
+
+```python Basic Test
+import panda_agi
+from panda_agi.client import Agent
+
+# Check version
+print(f"Panda AGI SDK version: {panda_agi.__version__}")
+
+# Create a simple agent
+agent = Agent(name="TestAgent")
+print("✅ Installation successful!")
+```
+
+```python Full Test
+from panda_agi.client import Agent
+from panda_agi.tools.search import WebSearchTool
+
+# Test with tools
+agent = Agent(
+    name="TestAgent",
+    tools=[WebSearchTool()]
+)
+
+# Run a simple test
+try:
+    response = agent.run("Hello, world!")
+    print("✅ Full installation test passed!")
+except Exception as e:
+    print(f"❌ Test failed: {e}")
+```
+
+</CodeGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Import Errors">
+    If you encounter import errors:
+    
+    ```bash
+    # Reinstall with force
+    pip uninstall panda-agi
+    pip install panda-agi --force-reinstall
+    
+    # Check Python path
+    python -c "import sys; print(sys.path)"
+    ```
+  </Accordion>
+
+  <Accordion title="Docker Issues">
+    Common Docker problems:
+    
+    ```bash
+    # Check Docker is running
+    docker --version
+    docker ps
+    
+    # Fix permissions (Linux)
+    sudo usermod -aG docker $USER
+    newgrp docker
+    
+    # Test Docker
+    docker run hello-world
+    ```
+  </Accordion>
+
+  <Accordion title="Permission Errors">
+    On Unix systems:
+    
+    ```bash
+    # Use user installation
+    pip install --user panda-agi
+    
+    # Or use virtual environment
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    pip install panda-agi
+    ```
+  </Accordion>
+
+  <Accordion title="Network Issues">
+    If you have network restrictions:
+    
+    ```bash
+    # Use proxy
+    pip install panda-agi --proxy http://proxy.company.com:8080
+    
+    # Use trusted hosts
+    pip install panda-agi --trusted-host pypi.org --trusted-host pypi.python.org
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Development Setup
+
+For contributing to Panda AGI SDK:
+
+<Steps>
+  <Step title="Fork and Clone">
+    ```bash
+    git clone https://github.com/yourusername/panda-agi-sdk.git
+    cd panda-agi-sdk
+    ```
+  </Step>
+  
+  <Step title="Create Virtual Environment">
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
+  </Step>
+  
+  <Step title="Install Development Dependencies">
+    ```bash
+    pip install -e ".[dev]"
+    ```
+  </Step>
+  
+  <Step title="Run Tests">
+    ```bash
+    pytest tests/
+    ```
+  </Step>
+</Steps>
+
+## Next Steps
+
+Now that you have Panda AGI SDK installed, check out:
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart Guide"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Build your first agent in minutes
+  </Card>
+  <Card
+    title="Core Concepts"
+    icon="lightbulb"
+    href="/concepts/agents"
+  >
+    Understand the fundamental concepts
+  </Card>
+</CardGroup> 

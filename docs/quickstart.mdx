@@ -1,0 +1,293 @@
+---
+title: 'Quickstart'
+description: 'Get up and running with Panda AGI SDK in under 5 minutes'
+---
+
+## Installation
+
+Get started by installing the Panda AGI SDK using pip:
+
+<CodeGroup>
+
+```bash pip
+pip install panda-agi
+```
+
+```bash poetry
+poetry add panda-agi
+```
+
+```bash conda
+conda install -c conda-forge panda-agi
+```
+
+</CodeGroup>
+
+## Your First Interaction
+
+The Panda AGI SDK connects you to a pre-configured autonomous agent that already has access to web browsing and file system tools. You simply submit tasks and receive results:
+
+<CodeGroup>
+
+```python Deep Research
+import asyncio
+from panda_agi.client import Agent
+from panda_agi.envs import DockerEnv
+
+async def main():
+    # Create environment for the agent to work in
+    agent_env = DockerEnv("./workspace")
+    agent = Agent(environment=agent_env)
+    
+    # Submit a task and stream results
+    async for event in agent.run(
+        "Research the latest AI developments and create a summary report",
+    ):
+        # The agent will:
+        # 1. Search multiple sources for recent AI news and developments
+        # 2. Analyze and synthesize information from various websites
+        # 3. Create a structured report with key findings
+        # 4. Save the report as a markdown file in your workspace
+        # 5. Include citations and sources for all information
+
+        print(f"[EVENT]: {event}")
+    
+    await agent.disconnect()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+```python Data Analysis
+import asyncio
+from panda_agi.client import Agent
+from panda_agi.envs import LocalEnv
+
+async def main():
+    # Use local environment for file operations
+    agent_env = LocalEnv("./my_workspace")
+    agent = Agent(environment=agent_env)
+    
+    # Agent can read, write, and analyze files
+    async for event in agent.run(
+        "Analyze the data in sales.csv and create a visualization report"
+    ):
+        # The agent will:
+        # 1. Read and parse the sales.csv file
+        # 2. Perform statistical analysis on the data
+        # 3. Identify trends, patterns, and insights
+        # 4. Generate charts and visualizations
+        # 5. Create an HTML report with interactive graphs
+        # 6. Provide actionable recommendations based on findings
+
+        print(f"[EVENT]: {event}")
+
+    await agent.disconnect()
+
+asyncio.run(main())
+```
+
+</CodeGroup>
+
+## Real-time Event Streaming
+
+Monitor the agent's progress as it works through complex tasks:
+
+```python
+import asyncio
+from panda_agi.client import Agent
+from panda_agi.envs import DockerEnv
+
+async def main():
+    agent_env = DockerEnv("./workspace")
+    agent = Agent(environment=agent_env)
+    
+    # Stream events to see what the agent is doing
+    async for event in agent.run(
+        "Create a competitive analysis of the top 5 CRM software solutions"
+    ):
+        # The agent will automatically:
+        # - Search the web for information
+        # - Analyze and compare features
+        # - Create structured reports
+        # - Save results to files
+        print(f"Agent progress: {event}")
+    
+    await agent.disconnect()
+
+asyncio.run(main())
+```
+
+## Environment Options
+
+Choose where the agent operates based on your security and isolation needs:
+
+```python
+import asyncio
+from panda_agi.client import Agent
+from panda_agi.envs import DockerEnv, LocalEnv
+
+async def main():
+    # Option 1: Isolated Docker environment (recommended)
+    docker_env = DockerEnv("./secure_workspace")
+    
+    # Option 2: Local environment (direct file system access)
+    local_env = LocalEnv("./local_workspace")
+    
+    # Choose your environment
+    agent = Agent(environment=docker_env)
+    
+    async for event in agent.run(
+        "Build a website prototype with HTML, CSS, and JavaScript"
+    ):
+        print(f"[EVENT]: {event}")
+    
+    await agent.disconnect()
+
+asyncio.run(main())
+```
+
+## What the Agent Can Do
+
+The autonomous agent comes pre-equipped with powerful capabilities:
+
+<CardGroup cols={2}>
+  <Card
+    title="Web Research"
+    icon="globe"
+  >
+    Search, browse, and extract information from websites automatically
+  </Card>
+  <Card
+    title="File Operations"
+    icon="folder"
+  >
+    Create, read, modify, and organize files in your workspace
+  </Card>
+  <Card
+    title="Data Analysis"
+    icon="chart-line"
+  >
+    Process and analyze data, create visualizations and reports
+  </Card>
+  <Card
+    title="Content Creation"
+    icon="pen-tool"
+  >
+    Generate documents, code, presentations, and structured content
+  </Card>
+</CardGroup>
+
+## Example Tasks
+
+Here are some tasks you can submit to the agent:
+
+### Research & Analysis
+```python
+# Market research
+"Research the electric vehicle market and create a comprehensive report"
+# → 50-page report with market size, key players, trends, forecasts, and investment opportunities
+
+# Competitive analysis  
+"Analyze the top 3 project management tools and compare their features"
+# → Feature comparison matrix, pricing analysis, user reviews summary, and recommendations
+
+# Technical research
+"Research best practices for API security and create implementation guidelines"
+# → Technical documentation with code examples, security checklist, and implementation roadmap
+```
+
+### Content & Documentation
+```python
+# Documentation
+"Create user documentation for our REST API with examples"
+# → Complete API docs with endpoint descriptions, request/response examples, and SDKs
+
+# Business content
+"Draft a business proposal for implementing AI in customer service"
+# → Professional proposal with ROI analysis, implementation timeline, and budget breakdown
+
+# Technical content
+"Write a technical blog post about microservices architecture"
+# → 3000-word article with diagrams, code examples, and best practices
+```
+
+### Data & Development
+```python
+# Data analysis
+"Analyze our sales data and identify trends and opportunities"
+# → Interactive dashboard, trend analysis, forecasting models, and actionable insights
+
+# Code generation
+"Create a Python script to automate our daily reporting process"
+# → Complete Python application with error handling, logging, and documentation
+
+# System design
+"Design a database schema for an e-commerce platform"
+# → ER diagrams, SQL scripts, data flow documentation, and scalability considerations
+```
+
+## Error Handling
+
+Handle timeouts and connection issues gracefully:
+
+```python
+import asyncio
+from panda_agi.client import Agent, AgentError
+from panda_agi.envs import DockerEnv
+
+async def main():
+    agent_env = DockerEnv("./workspace")
+    agent = Agent(environment=agent_env)
+    
+    try:
+        async for event in agent.run(
+            "Complex research task",
+            timeout=300  # 5 minute timeout
+        ):
+            print(f"[EVENT]: {event}")
+    
+    except AgentError as e:
+        print(f"Agent error: {e}")
+    except asyncio.TimeoutError:
+        print("Task timed out")
+    finally:
+        await agent.disconnect()
+
+asyncio.run(main())
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Core Concepts"
+    icon="lightbulb"
+    href="/concepts/agents"
+  >
+    Understand how the autonomous agent works
+  </Card>
+  <Card
+    title="Environment Setup"
+    icon="server"
+    href="/concepts/environments"
+  >
+    Learn about Docker vs Local environments
+  </Card>
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api-reference/introduction"
+  >
+    Detailed API documentation and examples
+  </Card>
+  <Card
+    title="Examples"
+    icon="play"
+    href="/examples/research-tasks"
+  >
+    See complete examples and use cases
+  </Card>
+</CardGroup>
+
+That's it! You're now ready to submit tasks to the autonomous agent and receive professional-grade results. The agent handles all the complexity of web research, file operations, and task execution automatically. 

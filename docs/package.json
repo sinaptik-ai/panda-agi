@@ -1,0 +1,23 @@
+{
+  "name": "panda-agi-docs",
+  "version": "1.0.0",
+  "description": "Documentation for Panda AGI SDK",
+  "scripts": {
+    "dev": "mintlify dev",
+    "start": "mintlify dev",
+    "build": "mintlify build",
+    "preview": "mintlify preview"
+  },
+  "devDependencies": {
+    "mintlify": "^4.0.0"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "sdk",
+    "documentation",
+    "mintlify"
+  ],
+  "author": "Panda AGI Team",
+  "license": "MIT"
+}

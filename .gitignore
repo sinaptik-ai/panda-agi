@@ -43,3 +43,4 @@ app/examples/output/
 agent_states/
 my_agent_workspace/
 *.log
+docs/node_modules/

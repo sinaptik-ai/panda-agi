@@ -1,0 +1,110 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Panda AGI SDK",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#0D9373",
+    "light": "#07C983",
+    "dark": "#0D9373",
+    "anchors": {
+      "from": "#0D9373",
+      "to": "#07C983"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:support@panda-agi.com"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Dashboard",
+    "url": "https://dashboard.panda-agi.com"
+  },
+  "tabs": [
+    {
+      "name": "API Reference",
+      "url": "api-reference"
+    },
+    {
+      "name": "Examples",
+      "url": "examples"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "Documentation",
+      "icon": "book-open-cover",
+      "url": "https://docs.panda-agi.com"
+    },
+    {
+      "name": "Community",
+      "icon": "slack",
+      "url": "https://community.panda-agi.com"
+    },
+    {
+      "name": "Blog",
+      "icon": "newspaper",
+      "url": "https://blog.panda-agi.com"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": ["introduction", "quickstart", "installation"]
+    },
+    {
+      "group": "Core Concepts",
+      "pages": [
+        "concepts/agents",
+        "concepts/tools",
+        "concepts/events",
+        "concepts/environments"
+      ]
+    },
+    {
+      "group": "Client SDK",
+      "pages": [
+        "client/overview",
+        "client/agent-client",
+        "client/websocket-client",
+        "client/models"
+      ]
+    },
+    {
+      "group": "Tools",
+      "pages": [
+        "tools/overview",
+        "tools/search",
+        "tools/navigation",
+        "tools/file-system"
+      ]
+    },
+    {
+      "group": "Examples",
+      "pages": [
+        "examples/chat-interface",
+        "examples/basic-usage",
+        "examples/custom-tools"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/introduction",
+        "api-reference/agent",
+        "api-reference/websocket",
+        "api-reference/events"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "x": "https://x.com/panda-agi",
+    "github": "https://github.com/panda-agi/sdk",
+    "linkedin": "https://www.linkedin.com/company/panda-agi"
+  }
+}
