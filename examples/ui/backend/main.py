@@ -12,8 +12,8 @@ from pydantic import BaseModel
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from client.agent import Agent
-from envs import LocalEnv
+from panda_agi.client.agent import Agent
+from panda_agi.envs import LocalEnv
 
 app = FastAPI(title="Panda AGI SDK API", version="1.0.0")
 

@@ -19,7 +19,6 @@ async def main():
         timeout=None,
     ):
         print(f"[EVENT]: {event}")
-        print(f"[EVENT]: {event.keys()}")
 
     await asyncio.sleep(100)
     # Manually disconnect when completely done
