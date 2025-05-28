@@ -30,7 +30,9 @@ def tavily_search_web(query: str, max_results: int = 5) -> Dict[str, Any]:
         Dict containing search results
     """
     if not tavily_api_key:
-        raise ValueError("TAVILY_API_KEY not found in environment variables")
+        return [
+            "I'm sorry, I don't have access to the internet. I dont have Tavily API key"
+        ]
 
     try:
         # Search using Tavily API
