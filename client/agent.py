@@ -21,7 +21,7 @@ from handlers import (
 )
 from tools.file_system.file_ops import file_explore_directory
 
-from .models import COMPLETION_MESSAGE_TYPES, MessageType, WebSocketMessage
+from .models import COMPLETION_MESSAGE_TYPES, EventSource, MessageType, WebSocketMessage
 from .websocket_client import WebSocketClient
 
 # Configure logging
@@ -153,7 +153,7 @@ class Agent:
             payload = data.get("payload")
             await self.ws_client.put_event(
                 {
-                    "event_source": "input",
+                    "event_source": EventSource.AGENT.value,
                     "data": data,
                 }
             )
@@ -163,7 +163,9 @@ class Agent:
         if msg_type in COMPLETION_MESSAGE_TYPES:
             logger.info(f"Received stop event: {msg_type}")
             if self._current_request_future and not self._current_request_future.done():
-                self._current_request_future.set_result({"event_source": "completion"})
+                self._current_request_future.set_result(
+                    {"event_source": EventSource.COMPLETION.value}
+                )
                 return
 
     async def send_message(self, message: Union[WebSocketMessage, dict]) -> str:
@@ -290,8 +292,6 @@ class Agent:
                             f"DEBUG: Current request future: {self._current_request_future}"
                         )
                         if task == self._current_request_future:
-                            print("STOPPING")
-                            print(f"DEBUG: Task: {task}")
                             logger.info("Request completed due to stop event")
                             return
 

@@ -17,6 +17,14 @@ class MessageType(Enum):
     TOOL_CALL = "tool_call"
 
 
+class EventSource(Enum):
+    """Event sources"""
+
+    CLIENT = "client"
+    AGENT = "agent"
+    COMPLETION = "completion"
+
+
 class MessageStatus(Enum):
     """Status of messages"""
 

@@ -31,20 +31,19 @@ class DockerEnv(BaseEnv):
 
     # Common development ports to expose by default
     DEFAULT_PORTS = {
-        3000: 3000,  # React, Node.js dev servers
-        3001: 3001,  # Alternative React dev server
-        4200: 4200,  # Angular CLI dev server
-        5173: 5173,  # Vite dev server
-        5432: 5432,  # PostgreSQL
-        6379: 6379,  # Redis
-        8000: 8000,  # Django, Python HTTP servers
-        8080: 8080,  # Alternative HTTP, Tomcat, Jenkins
-        8081: 8081,  # Alternative HTTP
-        8888: 8888,  # Jupyter Notebook
-        9000: 9000,  # Various services
-        3306: 3306,  # MySQL
-        27017: 27017,  # MongoDB
-        2664: 2664,  # PANDA AGI DEFAULT PORT
+        # 3000: 3000,  # React, Node.js dev servers
+        # 3001: 3001,  # Alternative React dev server
+        # 4200: 4200,  # Angular CLI dev server
+        # 5173: 5173,  # Vite dev server
+        # 5432: 5432,  # PostgreSQL
+        # 6379: 6379,  # Redis
+        # 8000: 8000,  # Django, Python HTTP servers
+        # 8080: 8080,  # Alternative HTTP, Tomcat, Jenkins
+        # 8081: 8081,  # Alternative HTTP
+        # 9000: 9000,  # Various services
+        # 3306: 3306,  # MySQL
+        # 27017: 27017,  # MongoDB
+        2664: 2664,  # Panda AGI Default Port
     }
 
     def __init__(

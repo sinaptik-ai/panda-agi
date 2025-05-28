@@ -6,7 +6,7 @@ from typing import Dict, Optional, Union
 
 import websockets
 
-from .models import WebSocketMessage
+from .models import EventSource, WebSocketMessage
 
 logger = logging.getLogger("AgentClient")
 logger.setLevel(logging.INFO)
@@ -176,7 +176,7 @@ class WebSocketClient:
         await self.websocket.send(message.to_json())
         await self._event_queue.put(
             {
-                "event_source": "output",
+                "event_source": EventSource.CLIENT.value,
                 "data": message.to_dict(),
             }
         )
