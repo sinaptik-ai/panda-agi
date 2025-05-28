@@ -42,5 +42,4 @@ poetry.lock
 app/examples/output/
 agent_states/
 my_agent_workspace/
-fastapi-server/*
 *.log
