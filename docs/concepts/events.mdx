@@ -5,34 +5,272 @@ description: 'Understanding real-time event streaming in Panda AGI SDK'
 
 ## What are Events?
 
-Events are real-time notifications that provide insight into what your AI agents are doing. They allow you to monitor agent behavior, track tool usage, and build interactive applications with live updates.
+Events are real-time notifications streamed asynchronously from the remote autonomous agent as it executes tasks. They provide complete transparency into the agent's workflow, allowing you to monitor progress, debug issues, and build interactive applications that respond to the agent's activities in real-time.
+
+Unlike traditional polling-based systems, Panda AGI events are pushed from the remote agent immediately as they occur, ensuring minimal latency and maximum responsiveness.
 
 <CardGroup cols={2}>
   <Card
-    title="Real-time Monitoring"
+    title="Real-time Streaming"
+    icon="radio"
+  >
+    Events stream live from the remote agent with zero polling delay
+  </Card>
+  <Card
+    title="Complete Workflow Visibility"
     icon="eye"
   >
-    Watch your agents work in real-time with detailed event streams
+    See every action: web searches, file operations, shell commands, and more
   </Card>
   <Card
     title="Interactive UIs"
     icon="desktop"
   >
-    Build responsive interfaces that update as agents process requests
+    Build responsive interfaces that update as agents work autonomously
   </Card>
   <Card
     title="Debugging & Analytics"
     icon="bug"
   >
-    Debug agent behavior and analyze performance with event data
-  </Card>
-  <Card
-    title="Custom Integrations"
-    icon="plug"
-  >
-    Integrate agent events into your existing systems and workflows
+    Track performance, analyze agent behavior, and debug complex workflows
   </Card>
 </CardGroup>
+
+## Event Architecture
+
+The Panda AGI SDK streams events from a remote autonomous agent that operates independently. Events are generated as the agent:
+
+- Connects to its execution environment
+- Performs web searches and navigation
+- Creates, reads, and modifies files
+- Executes shell commands and scripts
+- Provides progress updates and notifications
+- Completes tasks and reports results
+
+```python
+# Events stream asynchronously from the remote agent
+async for event in agent.run("Research AI trends and create a report"):
+    # Each event represents a real action the agent is taking
+    print(f"[{event.timestamp}] {event.type}: {event.data}")
+```
+
+## Core Event Types
+
+### Connection & Environment Events
+
+<AccordionGroup>
+  <Accordion title="AGENT_CONNECTION_SUCCESS">
+    Fired when the agent successfully connects and initializes its workspace:
+    
+    ```json
+    {
+      "type": "AGENT_CONNECTION_SUCCESS",
+      "timestamp": "2025-05-29T00:20:46.066499",
+      "data": {
+        "file_system": {
+          "directory": "/workspace/my_agent_workspace",
+          "structure": {"my_agent_workspace/": {}}
+        }
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="AGENT_CONNECTION_ERROR">
+    When the agent fails to connect or initialize:
+    
+    ```json
+    {
+      "type": "AGENT_CONNECTION_ERROR",
+      "timestamp": "2025-05-29T00:20:46.066499",
+      "data": {
+        "error": "Failed to initialize Docker environment",
+        "error_code": "ENV_INIT_FAILED",
+        "retry_count": 2
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Web Research Events
+
+<AccordionGroup>
+  <Accordion title="WEB_SEARCH">
+    Indicates the agent is performing a web search:
+    
+    ```json
+    {
+      "type": "WEB_SEARCH",
+      "timestamp": "2025-05-29T00:20:55.196858",
+      "data": {
+        "query": "latest developments in artificial intelligence 2024",
+        "max_results": 8
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="WEB_SEARCH_RESULT">
+    Contains the results from a web search:
+    
+    ```json
+    {
+      "type": "WEB_SEARCH_RESULT",
+      "timestamp": "2025-05-29T00:20:58.018191",
+      "data": [
+        {
+          "url": "https://www.analyticsinsight.net/artificial-intelligence/top-ai-developments-we-saw-in-2024",
+          "title": "Top AI developments We Saw in 2024 - Analytics Insight"
+        },
+        {
+          "url": "https://blog.google/technology/ai/2024-ai-extraordinary-progress-advancement/",
+          "title": "Year in review: Google's biggest AI advancements of 2024"
+        }
+      ]
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="WEB_NAVIGATION">
+    When the agent navigates to a specific webpage:
+    
+    ```json
+    {
+      "type": "WEB_NAVIGATION",
+      "timestamp": "2025-05-29T00:21:06.297879",
+      "data": {
+        "url": "https://www.analyticsinsight.net/artificial-intelligence/top-ai-developments-we-saw-in-2024"
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="WEB_NAVIGATION_RESULT">
+    Contains the content extracted from a webpage:
+    
+    ```json
+    {
+      "type": "WEB_NAVIGATION_RESULT",
+      "timestamp": "2025-05-29T00:21:06.874471",
+      "data": {
+        "url": "https://www.analyticsinsight.net/artificial-intelligence/top-ai-developments-we-saw-in-2024",
+        "content": "Top AI developments We Saw in 2024...",
+        "status_code": 200
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### File System Events
+
+<AccordionGroup>
+  <Accordion title="FILE_WRITE">
+    When the agent creates or modifies files:
+    
+    ```json
+    {
+      "type": "FILE_WRITE",
+      "timestamp": "2025-05-29T00:21:46.050300",
+      "data": {
+        "file": "ai_developments_2024_report.md",
+        "content": "# AI Developments 2024 Report\n\n## Introduction...",
+        "append": false
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="FILE_READ">
+    When the agent reads file contents:
+    
+    ```json
+    {
+      "type": "FILE_READ",
+      "timestamp": "2025-05-29T00:22:15.123456",
+      "data": {
+        "file": "data.csv",
+        "size_bytes": 2048
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Command Execution Events
+
+<AccordionGroup>
+  <Accordion title="SHELL_EXEC">
+    When the agent executes shell commands:
+    
+    ```json
+    {
+      "type": "SHELL_EXEC",
+      "timestamp": "2025-05-29T00:24:12.290811",
+      "data": {
+        "id": "ai_chart",
+        "exec_dir": "./",
+        "command": "python3 generate_ai_adoption_chart.py",
+        "blocking": "true"
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="SHELL_EXEC_RESULT">
+    Contains the output from shell command execution:
+    
+    ```json
+    {
+      "type": "SHELL_EXEC_RESULT",
+      "timestamp": "2025-05-29T00:24:15.123456",
+      "data": {
+        "id": "ai_chart",
+        "exit_code": 0,
+        "stdout": "Chart generated successfully",
+        "stderr": "",
+        "execution_time": 2.8
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Communication Events
+
+<AccordionGroup>
+  <Accordion title="USER_NOTIFICATION">
+    Progress updates and notifications from the agent:
+    
+    ```json
+    {
+      "type": "USER_NOTIFICATION",
+      "timestamp": "2025-05-29T00:27:09.611663",
+      "data": {
+        "text": "The AI Developments 2024 summary report is complete. The attached markdown document provides a comprehensive analysis...",
+        "attachments": [
+          "ai_developments_2024_report.md",
+          "ai_adoption_by_industry_2024.png",
+          "ai_investment_by_sector_2024.png"
+        ]
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="COMPLETED_TASK">
+    Indicates the agent has finished the requested task:
+    
+    ```json
+    {
+      "type": "COMPLETED_TASK",
+      "timestamp": "2025-05-29T00:27:10.305395",
+      "data": {}
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
 
 ## Event Types
 
@@ -154,92 +392,166 @@ Events are real-time notifications that provide insight into what your AI agents
 
 ### Basic Streaming
 
-Stream events in real-time as your agent works:
+Stream events in real-time as your remote agent works through complex tasks:
 
 ```python
 from panda_agi.client import Agent
+from panda_agi.envs import DockerEnv
+import asyncio
 
-agent = Agent(name="StreamingAgent")
+async def main():
+    # Initialize the remote agent environment
+    agent_env = DockerEnv("./workspace")
+    agent = Agent(environment=agent_env)
 
-# Stream events
-for event in agent.run_stream("Tell me about quantum computing"):
-    print(f"[{event.timestamp}] {event.type}: {event.data}")
+    # Stream events as the agent works autonomously
+    async for event in agent.run("Research machine learning trends and create a comprehensive report"):
+        # Events stream live from the remote agent
+        if event.type == "AGENT_CONNECTION_SUCCESS":
+            print(f"🔗 Agent connected: {event.data['file_system']['directory']}")
+        
+        elif event.type == "WEB_SEARCH":
+            print(f"🔍 Searching: {event.data['query']}")
+        
+        elif event.type == "WEB_NAVIGATION":
+            print(f"🌐 Reading: {event.data['url']}")
+        
+        elif event.type == "FILE_WRITE":
+            print(f"📝 Created: {event.data['file']}")
+        
+        elif event.type == "SHELL_EXEC":
+            print(f"⚙️ Executing: {event.data['command']}")
+        
+        elif event.type == "USER_NOTIFICATION":
+            print(f"📢 Update: {event.data['text']}")
+            if event.data.get('attachments'):
+                print(f"📎 Files: {', '.join(event.data['attachments'])}")
+        
+        elif event.type == "COMPLETED_TASK":
+            print("🎉 Task completed!")
+    
+    await agent.disconnect()
+
+asyncio.run(main())
 ```
 
 ### WebSocket Streaming
 
-For web applications, use WebSocket streaming:
+For web applications, connect to the agent's event stream via WebSocket:
 
 ```python
 from panda_agi.client import WebSocketClient
 import asyncio
+import json
 
-async def stream_events():
+async def stream_agent_events():
     client = WebSocketClient("ws://localhost:8000/ws")
     
-    # Send query
+    # Send task to the remote agent
     await client.send({
-        "type": "agent_query",
-        "query": "Research the latest in machine learning",
-        "agent_config": {
-            "name": "ResearchAgent",
-            "tools": ["WebSearchTool", "WebNavigationTool"]
+        "type": "agent_task",
+        "query": "Analyze sales data and generate insights",
+        "environment": {
+            "type": "docker",
+            "workspace": "./analysis_workspace"
         }
     })
     
-    # Receive events
+    # Stream events from the remote agent
     async for event in client.stream():
-        print(f"Received: {event}")
+        event_data = json.loads(event)
+        
+        # Handle different event types from the agent
+        if event_data['type'] == 'WEB_SEARCH':
+            print(f"Agent searching: {event_data['data']['query']}")
+        
+        elif event_data['type'] == 'FILE_WRITE':
+            filename = event_data['data']['file']
+            print(f"Agent created file: {filename}")
+        
+        elif event_data['type'] == 'USER_NOTIFICATION':
+            print(f"Agent update: {event_data['data']['text']}")
 
 # Run the streaming client
-asyncio.run(stream_events())
+asyncio.run(stream_agent_events())
 ```
 
 ### Server-Sent Events (SSE)
 
-For web frontends, use Server-Sent Events:
+For web frontends, stream agent events using Server-Sent Events:
 
 ```javascript
-// Frontend JavaScript
+// Frontend JavaScript - Connect to agent event stream
 const eventSource = new EventSource('/api/agent/stream');
 
 eventSource.onmessage = function(event) {
     const data = JSON.parse(event.data);
     
     switch(data.type) {
-        case 'agent_thinking':
-            showThinking(data.thought);
+        case 'AGENT_CONNECTION_SUCCESS':
+            showStatus('Agent connected and ready', 'success');
             break;
-        case 'tool_start':
-            showToolExecution(data.tool_name);
+            
+        case 'WEB_SEARCH':
+            showActivity(`Searching: ${data.data.query}`, 'search');
             break;
-        case 'tool_result':
-            showToolResult(data.result);
+            
+        case 'WEB_NAVIGATION':
+            showActivity(`Reading: ${data.data.url}`, 'web');
             break;
-        case 'agent_response':
-            showFinalResponse(data.response);
+            
+        case 'FILE_WRITE':
+            showActivity(`Created: ${data.data.file}`, 'file');
+            updateFileList(data.data.file);
+            break;
+            
+        case 'SHELL_EXEC':
+            showActivity(`Running: ${data.data.command}`, 'terminal');
+            break;
+            
+        case 'USER_NOTIFICATION':
+            showNotification(data.data.text, data.data.attachments);
+            break;
+            
+        case 'COMPLETED_TASK':
+            showStatus('Task completed successfully!', 'complete');
             break;
     }
+};
+
+eventSource.onerror = function(event) {
+    console.error('Agent event stream error:', event);
+    // Implement reconnection logic
+    setTimeout(() => {
+        connectToAgentStream();
+    }, 5000);
 };
 ```
 
 ## Event Filtering
 
-Filter events based on type, source, or custom criteria:
+Filter events to focus on specific aspects of the agent's workflow:
 
 ### Type-based Filtering
 
 ```python
 from panda_agi.client import Agent
 from panda_agi.events import EventFilter
+import asyncio
 
-# Only show tool-related events
-tool_filter = EventFilter(types=["tool_start", "tool_result", "tool_error"])
+async def main():
+    agent_env = DockerEnv("./workspace")
+    agent = Agent(environment=agent_env)
 
-agent = Agent(name="FilteredAgent")
+    # Only show file operations and notifications
+    file_filter = EventFilter(types=["FILE_WRITE", "FILE_READ", "USER_NOTIFICATION"])
 
-for event in agent.run_stream("Search for information", event_filter=tool_filter):
-    print(f"Tool event: {event.type}")
+    async for event in agent.run("Create a data analysis report", event_filter=file_filter):
+        print(f"File event: {event.type} - {event.data}")
+
+    await agent.disconnect()
+
+asyncio.run(main())
 ```
 
 ### Custom Filtering
@@ -247,99 +559,249 @@ for event in agent.run_stream("Search for information", event_filter=tool_filter
 ```python
 from panda_agi.events import EventFilter
 
-# Custom filter function
-def important_events_only(event):
-    return event.type in ["agent_response", "tool_error"] or \
-           (event.type == "tool_result" and event.data.get("success") == False)
+# Custom filter for important events only
+def critical_events_only(event):
+    return event.type in ["USER_NOTIFICATION", "COMPLETED_TASK"] or \
+           (event.type == "SHELL_EXEC" and "error" in event.data.get("command", "").lower())
 
-custom_filter = EventFilter(predicate=important_events_only)
+async def main():
+    agent_env = DockerEnv("./workspace")
+    agent = Agent(environment=agent_env)
+    
+    custom_filter = EventFilter(predicate=critical_events_only)
 
-for event in agent.run_stream("Complex query", event_filter=custom_filter):
-    print(f"Important event: {event}")
+    async for event in agent.run("Complex analysis task", event_filter=custom_filter):
+        print(f"Critical event: {event.type}")
+
+    await agent.disconnect()
+
+asyncio.run(main())
 ```
 
 ## Event Handlers
 
-Create custom handlers to process events:
+Create custom handlers to process events as they stream from the remote agent:
 
 ### Simple Event Handler
 
 ```python
 from panda_agi.events import EventHandler
+from panda_agi.client import Agent
+from panda_agi.envs import DockerEnv
+import asyncio
 
-class LoggingHandler(EventHandler):
-    def handle_agent_start(self, event):
-        print(f"Agent {event.agent_id} started processing: {event.query}")
+class AgentProgressHandler(EventHandler):
+    def __init__(self):
+        self.search_count = 0
+        self.files_created = []
+        self.commands_executed = []
     
-    def handle_tool_result(self, event):
-        if event.success:
-            print(f"Tool {event.tool_name} completed successfully")
-        else:
-            print(f"Tool {event.tool_name} failed: {event.error}")
+    async def handle_agent_connection_success(self, event):
+        workspace = event.data['file_system']['directory']
+        print(f"🔗 Agent connected to workspace: {workspace}")
     
-    def handle_agent_response(self, event):
-        print(f"Agent response: {event.response[:100]}...")
+    async def handle_web_search(self, event):
+        query = event.data['query']
+        self.search_count += 1
+        print(f"🔍 Search #{self.search_count}: {query}")
+    
+    async def handle_file_write(self, event):
+        filename = event.data['file']
+        self.files_created.append(filename)
+        print(f"📝 Created file: {filename}")
+    
+    async def handle_shell_exec(self, event):
+        command = event.data['command']
+        self.commands_executed.append(command)
+        print(f"⚙️ Executing: {command}")
+    
+    async def handle_user_notification(self, event):
+        message = event.data['text']
+        attachments = event.data.get('attachments', [])
+        print(f"📢 Agent update: {message}")
+        if attachments:
+            print(f"📎 Files attached: {', '.join(attachments)}")
+    
+    async def handle_completed_task(self, event):
+        print(f"🎉 Task completed!")
+        print(f"📊 Summary:")
+        print(f"  - Web searches: {self.search_count}")
+        print(f"  - Files created: {len(self.files_created)}")
+        print(f"  - Commands executed: {len(self.commands_executed)}")
 
 # Use the handler
-handler = LoggingHandler()
-agent = Agent(name="HandledAgent", event_handlers=[handler])
+async def main():
+    handler = AgentProgressHandler()
+    agent_env = DockerEnv("./workspace")
+    agent = Agent(environment=agent_env, event_handlers=[handler])
+    
+    async for event in agent.run("Research renewable energy trends and create a presentation"):
+        # Handler processes events automatically
+        pass
+    
+    await agent.disconnect()
+
+asyncio.run(main())
 ```
 
-### Advanced Event Handler
+### Advanced Analytics Handler
 
 ```python
 from panda_agi.events import EventHandler
 import json
 import time
+from collections import defaultdict
 
-class AnalyticsHandler(EventHandler):
+class AdvancedAnalyticsHandler(EventHandler):
     def __init__(self):
         self.session_data = {}
-        self.performance_metrics = {}
+        self.performance_metrics = defaultdict(lambda: {
+            "total_calls": 0,
+            "total_time": 0,
+            "success_count": 0,
+            "error_count": 0
+        })
+        self.workflow_timeline = []
+        self.current_session = None
     
-    def handle_agent_start(self, event):
-        self.session_data[event.session_id] = {
+    async def handle_agent_connection_success(self, event):
+        self.current_session = f"session_{int(time.time())}"
+        self.session_data[self.current_session] = {
             "start_time": time.time(),
-            "query": event.query,
-            "tools_used": [],
-            "errors": []
+            "workspace": event.data['file_system']['directory'],
+            "events": [],
+            "files_created": [],
+            "searches_performed": [],
+            "commands_executed": []
         }
-    
-    def handle_tool_start(self, event):
-        session = self.session_data.get(event.session_id, {})
-        session.setdefault("tools_used", []).append({
-            "tool": event.tool_name,
-            "start_time": time.time(),
-            "parameters": event.parameters
+        self.workflow_timeline.append({
+            "timestamp": event.timestamp,
+            "event": "session_start",
+            "data": {"workspace": event.data['file_system']['directory']}
         })
     
-    def handle_tool_result(self, event):
-        # Track performance metrics
-        tool_name = event.tool_name
-        execution_time = event.execution_time
-        
-        if tool_name not in self.performance_metrics:
-            self.performance_metrics[tool_name] = {
-                "total_calls": 0,
-                "total_time": 0,
-                "success_count": 0,
-                "error_count": 0
+    async def handle_web_search(self, event):
+        if self.current_session:
+            query = event.data['query']
+            search_data = {
+                "timestamp": event.timestamp,
+                "query": query,
+                "max_results": event.data.get('max_results', 0)
             }
-        
-        metrics = self.performance_metrics[tool_name]
-        metrics["total_calls"] += 1
-        metrics["total_time"] += execution_time
-        
-        if event.success:
-            metrics["success_count"] += 1
-        else:
-            metrics["error_count"] += 1
+            self.session_data[self.current_session]["searches_performed"].append(search_data)
+            self.workflow_timeline.append({
+                "timestamp": event.timestamp,
+                "event": "web_search",
+                "data": search_data
+            })
     
-    def get_analytics_report(self):
-        return {
-            "sessions": len(self.session_data),
-            "performance": self.performance_metrics
+    async def handle_web_search_result(self, event):
+        # Track search performance
+        results_count = len(event.data) if isinstance(event.data, list) else 0
+        metrics = self.performance_metrics["web_search"]
+        metrics["total_calls"] += 1
+        metrics["success_count"] += 1 if results_count > 0 else 0
+        
+        self.workflow_timeline.append({
+            "timestamp": event.timestamp,
+            "event": "search_results",
+            "data": {"results_count": results_count}
+        })
+    
+    async def handle_file_write(self, event):
+        if self.current_session:
+            filename = event.data['file']
+            file_data = {
+                "timestamp": event.timestamp,
+                "filename": filename,
+                "size_chars": len(event.data.get('content', ''))
+            }
+            self.session_data[self.current_session]["files_created"].append(file_data)
+            self.workflow_timeline.append({
+                "timestamp": event.timestamp,
+                "event": "file_created",
+                "data": file_data
+            })
+    
+    async def handle_shell_exec(self, event):
+        if self.current_session:
+            command = event.data['command']
+            exec_data = {
+                "timestamp": event.timestamp,
+                "command": command,
+                "exec_dir": event.data.get('exec_dir', './'),
+                "blocking": event.data.get('blocking', 'false')
+            }
+            self.session_data[self.current_session]["commands_executed"].append(exec_data)
+            self.workflow_timeline.append({
+                "timestamp": event.timestamp,
+                "event": "command_executed",
+                "data": exec_data
+            })
+    
+    async def handle_completed_task(self, event):
+        if self.current_session:
+            session = self.session_data[self.current_session]
+            session["end_time"] = time.time()
+            session["duration"] = session["end_time"] - session["start_time"]
+            
+            self.workflow_timeline.append({
+                "timestamp": event.timestamp,
+                "event": "task_completed",
+                "data": {"duration": session["duration"]}
+            })
+    
+    def export_analytics(self, filename="agent_analytics.json"):
+        """Export comprehensive analytics data"""
+        analytics_data = {
+            "sessions": self.session_data,
+            "performance_metrics": dict(self.performance_metrics),
+            "workflow_timeline": self.workflow_timeline,
+            "summary": self.get_summary()
         }
+        
+        with open(filename, 'w') as f:
+            json.dump(analytics_data, f, indent=2, default=str)
+        
+        print(f"📊 Analytics exported to {filename}")
+    
+    def get_summary(self):
+        """Get summary statistics"""
+        total_sessions = len(self.session_data)
+        total_files = sum(len(session["files_created"]) for session in self.session_data.values())
+        total_searches = sum(len(session["searches_performed"]) for session in self.session_data.values())
+        total_commands = sum(len(session["commands_executed"]) for session in self.session_data.values())
+        
+        return {
+            "total_sessions": total_sessions,
+            "total_files_created": total_files,
+            "total_searches": total_searches,
+            "total_commands": total_commands,
+            "performance_metrics": dict(self.performance_metrics)
+        }
+
+# Usage with analytics
+async def main():
+    analytics = AdvancedAnalyticsHandler()
+    agent_env = DockerEnv("./workspace")
+    agent = Agent(environment=agent_env, event_handlers=[analytics])
+    
+    try:
+        async for event in agent.run("Create a comprehensive market analysis with visualizations"):
+            # Analytics handler tracks everything automatically
+            pass
+    finally:
+        await agent.disconnect()
+        analytics.export_analytics("market_analysis_session.json")
+        
+        # Print summary
+        summary = analytics.get_summary()
+        print("\n📈 Session Summary:")
+        print(f"Files created: {summary['total_files_created']}")
+        print(f"Web searches: {summary['total_searches']}")
+        print(f"Commands executed: {summary['total_commands']}")
+
+asyncio.run(main())
 ```
 
 ## Event Storage
