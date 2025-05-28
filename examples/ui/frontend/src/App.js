@@ -422,7 +422,7 @@ function App() {
             </div>
             <div>
               <h1 className="text-xl font-semibold text-gray-900">
-                Panda AGI Assistant
+                PandaAGI Assistant
               </h1>
               <p className="text-sm text-gray-500">
                 {isConnected ? (
@@ -449,7 +449,7 @@ function App() {
             <div className="text-center py-12">
               <Bot className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Welcome to Panda AGI
+                Welcome to PandaAGI
               </h3>
               <p className="text-gray-500">
                 Start a conversation to see real-time agent events

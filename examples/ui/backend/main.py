@@ -15,7 +15,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from panda_agi.client.agent import Agent
 from panda_agi.envs import LocalEnv
 
-app = FastAPI(title="Panda AGI SDK API", version="1.0.0")
+app = FastAPI(title="PandaAGI SDK API", version="1.0.0")
 
 # Create environment and agent
 agent_env = LocalEnv("./workspace")
@@ -85,7 +85,7 @@ async def health_check():
 async def root():
     """Root endpoint with API information"""
     return {
-        "message": "Panda AGI SDK API",
+        "message": "PandaAGI SDK API",
         "version": "1.0.0",
         "endpoints": {
             "POST /agent/run": "Run an agent with streaming events",

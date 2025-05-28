@@ -43,7 +43,7 @@ async def main():
     # First request - will automatically connect
     # The run method now returns a generator of AgentEvent
     async for event in agent.run(
-        "fammi una domanda a caso con il tool per farmi domande",
+        "Make a report about the AI market trend",
     ):
         print(f"[{event.timestamp}] {event.type}: {truncate(event.data)}")
 

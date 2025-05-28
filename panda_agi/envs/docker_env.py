@@ -43,7 +43,7 @@ class DockerEnv(BaseEnv):
         # 9000: 9000,  # Various services
         # 3306: 3306,  # MySQL
         # 27017: 27017,  # MongoDB
-        2664: 2664,  # Panda AGI Default Port
+        2664: 2664,  # PandaAGI Default Port
     }
 
     def __init__(

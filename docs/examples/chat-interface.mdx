@@ -67,7 +67,7 @@ from panda_agi.client import Agent
 from panda_agi.tools.search import WebSearchTool
 from panda_agi.tools.navigation import WebNavigationTool
 
-app = FastAPI(title="Panda AGI Chat API")
+app = FastAPI(title="PandaAGI Chat API")
 
 # Enable CORS for frontend
 app.add_middleware(
@@ -309,7 +309,7 @@ const ChatInterface = () => {
       <div className="bg-white shadow-sm border-b px-6 py-4">
         <h1 className="text-xl font-semibold text-gray-800 flex items-center">
           <Bot className="w-6 h-6 mr-2 text-blue-500" />
-          Panda AGI Chat
+          PandaAGI Chat
         </h1>
       </div>
 

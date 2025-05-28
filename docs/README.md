@@ -1,6 +1,6 @@
-# Panda AGI SDK Documentation
+# PandaAGI SDK Documentation
 
-This directory contains the Mintlify documentation for the Panda AGI SDK.
+This directory contains the Mintlify documentation for the PandaAGI SDK.
 
 ## Getting Started
 

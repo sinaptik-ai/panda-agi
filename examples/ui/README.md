@@ -1,6 +1,6 @@
-# Panda AGI SDK - Chat Interface
+# PandaAGI SDK - Chat Interface
 
-A modern React frontend for the Panda AGI SDK that provides a beautiful chat interface to interact with AI agents and visualize real-time streaming events.
+A modern React frontend for the PandaAGI SDK that provides a beautiful chat interface to interact with AI agents and visualize real-time streaming events.
 
 ## Features
 
@@ -186,4 +186,4 @@ Events that don't match the expected JSON format will be logged to the console b
 
 ## License
 
-This project is part of the Panda AGI SDK. Please refer to the main project license. 
+This project is part of the PandaAGI SDK. Please refer to the main project license. 
