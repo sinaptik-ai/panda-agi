@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 # Import the BaseEnv base class
-from envs import BaseEnv
+from panda_agi.envs import BaseEnv
 
 
 async def file_read(

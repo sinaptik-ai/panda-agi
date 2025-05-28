@@ -10,7 +10,7 @@ import asyncio
 import time
 from typing import Any, Dict, Optional
 
-from envs import BaseEnv
+from panda_agi.envs import BaseEnv
 
 # Dictionary to store shell sessions
 _shell_sessions: Dict[str, Dict[str, Any]] = {}

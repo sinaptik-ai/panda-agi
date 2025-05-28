@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional, Union
 from .base_env import BaseEnv
 
 logger = logging.getLogger("DockerEnv")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 # Store active non-blocking processes for Docker
 _docker_processes: Dict[str, Dict[str, Any]] = {}

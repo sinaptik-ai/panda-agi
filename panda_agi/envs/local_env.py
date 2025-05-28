@@ -29,7 +29,7 @@ except ImportError:
         PDF_AVAILABLE = False
 
 logger = logging.getLogger("LocalEnv")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 # Store active non-blocking processes
 _active_processes: Dict[str, subprocess.Popen] = {}

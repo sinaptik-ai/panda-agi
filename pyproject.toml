@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "panda-agi"
+version = "0.1.0"
+description = "Panda AGI SDK"
+authors = [
+    {name = "Your Name", email = "you@example.com"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "pydantic>=2.0.0",
+    "docker",
+    "asyncio",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "flake8",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["panda_agi*"] 

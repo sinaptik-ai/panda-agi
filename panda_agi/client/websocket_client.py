@@ -6,10 +6,10 @@ from typing import Dict, Optional, Union
 
 import websockets
 
-from .models import EventSource, WebSocketMessage
+from .models import WebSocketMessage
 
 logger = logging.getLogger("AgentClient")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 
 class WebSocketClient:
@@ -33,7 +33,6 @@ class WebSocketClient:
         self.running = False
         self.is_connected = False
         self._message_loop_task = None
-        self._event_queue = asyncio.Queue()
 
         # Message handler callback
         self._message_handler = None
@@ -174,19 +173,5 @@ class WebSocketClient:
             message = WebSocketMessage(**message)
 
         await self.websocket.send(message.to_json())
-        await self._event_queue.put(
-            {
-                "event_source": EventSource.CLIENT.value,
-                "data": message.to_dict(),
-            }
-        )
         logger.info(f"📤 Sent message: {message.type}")
         return message.id
-
-    async def get_event(self):
-        """Get an event from the event queue"""
-        return await self._event_queue.get()
-
-    async def put_event(self, event):
-        """Put an event into the event queue"""
-        await self._event_queue.put(event)

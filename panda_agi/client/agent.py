@@ -3,30 +3,29 @@ import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, Optional, Union
 
 from dotenv import load_dotenv
 
-from envs import BaseEnv, LocalEnv
-from handlers import (
-    ConnectionSuccessHandler,
-    DefaultMessageHandler,
-    FileSystemHandler,
-    ImageGenerationHandler,
-    ShellOpsHandler,
-    ToolHandler,
-    UserNotificationHandler,
-    WebNavigation,
-    WebSearchHandler,
+from ..envs import BaseEnv, LocalEnv
+from ..handlers import ConnectionSuccessHandler
+from ..handlers.base import ToolHandler
+from ..handlers.registry import HandlerRegistry
+from ..tools.file_system.file_ops import file_explore_directory
+from .event_manager import EventManager
+from .models import (
+    COMPLETION_MESSAGE_TYPES,
+    EventType,
+    MessageType,
+    StreamEvent,
+    WebSocketMessage,
 )
-from tools.file_system.file_ops import file_explore_directory
-
-from .models import COMPLETION_MESSAGE_TYPES, EventSource, MessageType, WebSocketMessage
 from .websocket_client import WebSocketClient
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.WARNING,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
@@ -45,7 +44,7 @@ class Agent:
         conversation_id: Optional[str] = None,
         auto_reconnect: bool = False,
         reconnect_interval: float = 5.0,
-        tools_handlers: Optional[Dict[str, ToolHandler]] = None,
+        tools_handlers: Optional[Dict[str, Any]] = None,
         environment: Optional[BaseEnv] = None,
     ):
         load_dotenv()
@@ -57,6 +56,9 @@ class Agent:
 
         self.conversation_id = conversation_id or str(uuid.uuid4())
         self.environment = environment or LocalEnv("./tmp/agent_workspace")
+
+        # Initialize event manager
+        self.event_manager = EventManager()
 
         # Initialize WebSocket client
         self.ws_client = WebSocketClient(
@@ -78,45 +80,18 @@ class Agent:
         )
 
         # Set up message handlers with environment support
-        self.tool_handlers = tools_handlers or self._create_default_handlers()
+        self.tool_handlers = tools_handlers or self._create_handlers()
 
-        # Set agent reference for all handlers
+        # Set agent and event manager references for all handlers
         for handler in self.tool_handlers.values():
             handler.set_agent(self)
+            handler.set_event_manager(self.event_manager)
 
-    def _create_default_handlers(self) -> Dict[str, ToolHandler]:
-        """Create default tool handlers"""
-        handlers = {}
-        handlers["default"] = DefaultMessageHandler(logger, self.environment)
-        handlers["user_send_message"] = UserNotificationHandler(self.environment)
-        handlers["user_ask_question"] = UserNotificationHandler(self.environment)
-        handlers["error"] = UserNotificationHandler(self.environment)
-        handlers["completed_task"] = UserNotificationHandler(self.environment)
-        handlers["web_search"] = WebSearchHandler("tavily", self.environment)
-        handlers["web_visit_page"] = WebNavigation("beautifulsoup", self.environment)
-        handlers["generate_image"] = ImageGenerationHandler(self.environment)
-        handlers["connection_success"] = ConnectionSuccessHandler(self.environment)
-        handlers["file_read"] = FileSystemHandler("file_read", self.environment)
-        handlers["file_write"] = FileSystemHandler("file_write", self.environment)
-        handlers["file_replace"] = FileSystemHandler("file_replace", self.environment)
-        handlers["file_find_in_content"] = FileSystemHandler(
-            "file_find_in_content", self.environment
-        )
-        handlers["file_search_by_name"] = FileSystemHandler(
-            "file_search_by_name", self.environment
-        )
-        handlers["explore_directory"] = FileSystemHandler(
-            "explore_directory", self.environment
-        )
-        handlers["shell_exec_command"] = ShellOpsHandler(
-            "shell_exec_command", self.environment
-        )
-        handlers["shell_view_output"] = ShellOpsHandler(
-            "shell_view_output", self.environment
-        )
-        handlers["shell_write_to_process"] = ShellOpsHandler(
-            "shell_write_to_process", self.environment
-        )
+    def _create_handlers(self) -> Dict[str, ToolHandler]:
+        """Create handlers using the registry system"""
+        # Use registry to create all registered handlers
+        handlers = HandlerRegistry.create_all_handlers(self.environment)
+
         return handlers
 
     @property
@@ -151,20 +126,17 @@ class Agent:
             logger.info(f"Handling message with handler: {handler}")
             msg_id = data.get("id")
             payload = data.get("payload")
-            await self.ws_client.put_event(
-                {
-                    "event_source": EventSource.AGENT.value,
-                    "data": data,
-                }
-            )
             await handler.handle(msg_id, payload)
 
-            # Check if this is related to the current request
         if msg_type in COMPLETION_MESSAGE_TYPES:
             logger.info(f"Received stop event: {msg_type}")
             if self._current_request_future and not self._current_request_future.done():
                 self._current_request_future.set_result(
-                    {"event_source": EventSource.COMPLETION.value}
+                    StreamEvent(
+                        type=EventType.COMPLETED_TASK,
+                        data={},
+                        timestamp=datetime.now().isoformat(),
+                    )
                 )
                 return
 
@@ -206,10 +178,9 @@ class Agent:
     async def run(
         self,
         query: str,
-        context: Optional[Dict[str, Any]] = None,
-        timeout: Optional[float] = 30.0,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
+    ) -> AsyncGenerator[StreamEvent, None]:
         """Send a request and stream events from both in and out queues as they occur"""
+
         # Restart the connection for each run
         if self.is_connected:
             logger.info("Restarting connection for new request...")
@@ -228,13 +199,8 @@ class Agent:
             type=MessageType.REQUEST.value,
             payload={
                 "query": query,
-                "context": context or {},
             },
         )
-
-        # Store the message ID to track related events
-        message_id = message.id
-
         # Create a new future for this request
         self._current_request_future = asyncio.get_event_loop().create_future()
 
@@ -242,65 +208,14 @@ class Agent:
             # Send the message
             await self.send_message(message)
 
-            # Setup monitoring of both queues
-            queue_task = None
+            # Set the request future in the event manager
+            self.event_manager.set_request_future(self._current_request_future)
 
-            # Track if we've seen events or if we've timed out
-            seen_events = False
-            start_time = asyncio.get_event_loop().time()
-
-            while True:
-                # Check for timeout if specified
-                if (
-                    timeout
-                    and (asyncio.get_event_loop().time() - start_time > timeout)
-                    and not seen_events
-                ):
-                    raise TimeoutError(f"No events received within {timeout} seconds")
-
-                # Create task for event queue if not already monitoring
-                if queue_task is None or queue_task.done():
-                    queue_task = asyncio.create_task(self.ws_client.get_event())
-
-                # Add the current request future to our wait set
-                wait_tasks = [queue_task]
-                if (
-                    self._current_request_future
-                    and not self._current_request_future.done()
-                ):
-                    wait_tasks.append(self._current_request_future)
-
-                # Wait for either queue to have an event or the request to complete
-                done, pending = await asyncio.wait(
-                    wait_tasks,
-                    return_when=asyncio.FIRST_COMPLETED,
-                    timeout=1.0,  # Short timeout to check for cancellation
-                )
-
-                # No events ready yet, continue waiting
-                if not done:
-                    continue
-
-                # Process completed tasks
-                for task in done:
-                    try:
-                        event = task.result()
-                        seen_events = True
-                        yield event
-                        logger.info(f"DEBUG: Task: {task}")
-                        logger.info(
-                            f"DEBUG: Current request future: {self._current_request_future}"
-                        )
-                        if task == self._current_request_future:
-                            logger.info("Request completed due to stop event")
-                            return
-
-                    except Exception as e:
-                        logger.error(f"Error processing event: {e}")
+            # Stream events using the event manager
+            async for event in self.event_manager.stream_events():
+                yield event
 
         except asyncio.CancelledError:
-            # Handle cancellation gracefully
-            logger.info(f"Request {message_id} cancelled")
             # Clean up the current request future
             self._current_request_future = None
             raise
@@ -339,7 +254,13 @@ class Agent:
         Returns:
             Dictionary representing the file system structure
         """
-        return await file_explore_directory(self.environment, path="/", max_depth=2)
+        file_system = await file_explore_directory(
+            self.environment, path="/", max_depth=2
+        )
+        return {
+            "directory": file_system.get("directory", {}),
+            "structure": file_system.get("structure", {}),
+        }
 
     @asynccontextmanager
     async def connection(self):
