@@ -128,8 +128,7 @@ import asyncio
 from typing import AsyncGenerator
 import uuid
 
-from panda_agi.client import Agent
-from panda_agi.client.models import EventType
+from panda_agi import Agent, EventType
 from panda_agi.envs import DockerEnv
 
 app = FastAPI(title="PandaAGI Chat API")

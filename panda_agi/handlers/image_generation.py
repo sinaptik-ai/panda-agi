@@ -2,8 +2,7 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from panda_agi.client.models import EventType
-
+from ..client.models import EventType
 from ..envs import BaseEnv
 from .base import HandlerResult, ToolHandler
 from .registry import HandlerRegistry

@@ -380,7 +380,7 @@ The Panda AGI SDK uses a comprehensive set of event types defined in the `EventT
 ## Complete EventType Reference
 
 ```python
-from panda_agi.client.models import EventType
+from panda_agi import EventType
 
 # All available event types:
 EventType.AGENT_CONNECTION_SUCCESS  # Agent connected and workspace initialized
@@ -409,8 +409,7 @@ EventType.SHELL_WRITE              # Writing shell scripts
 Stream events in real-time as your remote agent works through complex tasks:
 
 ```python
-from panda_agi.client import Agent
-from panda_agi.client.models import EventType
+from panda_agi import Agent, EventType
 from panda_agi.envs import DockerEnv
 import asyncio
 
@@ -454,8 +453,7 @@ asyncio.run(main())
 ### Advanced Event Handling with Enums
 
 ```python
-from panda_agi.client import Agent
-from panda_agi.client.models import EventType
+from panda_agi import Agent, EventType
 from panda_agi.envs import DockerEnv
 import asyncio
 

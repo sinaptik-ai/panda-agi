@@ -1,7 +1,7 @@
 import asyncio
 from typing import Any, Dict, Optional
 
-from panda_agi.client.models import EventType
+from panda_agi import EventType
 
 from ..envs import BaseEnv
 from .base import HandlerResult, ToolHandler

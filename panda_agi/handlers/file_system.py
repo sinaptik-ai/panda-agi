@@ -1,7 +1,6 @@
 from typing import Any, Dict, Optional
 
-from panda_agi.client.models import EventType
-
+from ..client.models import EventType
 from ..tools.file_system.file_ops import (
     file_explore_directory,
     file_find_by_name,

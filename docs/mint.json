@@ -50,7 +50,12 @@
     },
     {
       "group": "Core Concepts",
-      "pages": ["concepts/agents", "concepts/events", "concepts/environments"]
+      "pages": [
+        "concepts/architecture",
+        "concepts/agents",
+        "concepts/events",
+        "concepts/environments"
+      ]
     },
     {
       "group": "Examples",

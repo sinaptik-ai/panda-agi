@@ -21,8 +21,8 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
-from panda_agi import Agent
-from panda_agi.client.models import EventType, MessageStatus
+from panda_agi import Agent, EventType
+from panda_agi.client.models import MessageStatus
 from panda_agi.envs import LocalEnv
 
 # Status-specific styling for events

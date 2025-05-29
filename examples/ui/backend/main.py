@@ -12,8 +12,7 @@ from pydantic import BaseModel
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from panda_agi.client.agent import Agent
-from panda_agi.client.models import EventType
+from panda_agi import Agent, EventType
 from panda_agi.envs import LocalEnv
 
 app = FastAPI(title="PandaAGI SDK API", version="1.0.0")
@@ -43,11 +42,11 @@ def should_render_event(event_type: str) -> bool:
     if event_type == EventType.WEB_NAVIGATION.value:
         # Skip WEB_NAVIGATION since WEB_NAVIGATION_RESULT provides the same info + content
         return False
-        
+
     # Skip task completion events - not needed in UI
     if event_type == EventType.COMPLETED_TASK.value:
         return False
-        
+
     return True
 
 
@@ -57,12 +56,14 @@ async def event_stream(query: str) -> AsyncGenerator[str, None]:
         # Stream events
         async for event in agent.run(query):
             # Convert StreamEvent to dictionary format for frontend compatibility
-            event_type = event.type.value if hasattr(event.type, 'value') else str(event.type)
-            
+            event_type = (
+                event.type.value if hasattr(event.type, "value") else str(event.type)
+            )
+
             # Apply same filtering as CLI
             if not should_render_event(event_type):
                 continue
-                
+
             # Convert to expected format
             event_dict = {
                 "event_source": "output",  # Default source
@@ -70,10 +71,10 @@ async def event_stream(query: str) -> AsyncGenerator[str, None]:
                     "type": event_type,
                     "payload": event.data,
                     "timestamp": event.timestamp,
-                    "id": getattr(event, 'id', None)
-                }
+                    "id": getattr(event, "id", None),
+                },
             }
-            
+
             # Format as SSE
             yield f"data: {json.dumps(event_dict)}\n\n"
 
@@ -82,11 +83,11 @@ async def event_stream(query: str) -> AsyncGenerator[str, None]:
         error_data = {
             "event_source": "error",
             "data": {
-                "type": "error", 
+                "type": "error",
                 "payload": {"error": str(e)},
                 "timestamp": "",
-                "id": None
-            }
+                "id": None,
+            },
         }
         yield f"data: {json.dumps(error_data)}\n\n"
 

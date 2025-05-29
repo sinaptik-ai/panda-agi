@@ -86,7 +86,7 @@ The PandaAGI SDK connects you to a pre-configured autonomous agent that already 
 
 ```python Deep Research
 import asyncio
-from panda_agi.client import Agent
+from panda_agi import Agent
 from panda_agi.envs import DockerEnv
 
 async def main():
@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
 ```python Data Analysis
 import asyncio
-from panda_agi.client import Agent
+from panda_agi import Agent
 from panda_agi.envs import LocalEnv
 
 async def main():
@@ -200,8 +200,7 @@ Monitor your agent's progress in real-time as it works through complex tasks. Ev
 
 ```python
 import asyncio
-from panda_agi.client import Agent
-from panda_agi.client.models import EventType
+from panda_agi import Agent, EventType
 from panda_agi.envs import DockerEnv
 
 async def main():
@@ -327,8 +326,7 @@ Build responsive interfaces that update as the agent works:
 
 ```python
 import asyncio
-from panda_agi.client import Agent
-from panda_agi.client.models import EventType
+from panda_agi import Agent, EventType
 from panda_agi.envs import DockerEnv
 
 class AgentMonitor:
@@ -410,7 +408,7 @@ Choose where the agent operates based on your security and isolation needs:
 
 ```python
 import asyncio
-from panda_agi.client import Agent
+from panda_agi import Agent
 from panda_agi.envs import DockerEnv, LocalEnv
 
 async def main():

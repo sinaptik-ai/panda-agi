@@ -46,7 +46,7 @@ The simplest way to create an agent:
 
 ```python
 import asyncio
-from panda_agi.client import Agent
+from panda_agi import Agent
 
 async def main():
     agent = Agent()
@@ -90,7 +90,7 @@ For more control over agent behavior:
 
 ```python
 import uuid
-from panda_agi.client import Agent
+from panda_agi import Agent
 from panda_agi.envs import LocalEnv
 
 agent = Agent(
@@ -111,7 +111,7 @@ export PANDA_AGI_KEY="your-api-key-here"
 ```
 
 ```python
-from panda_agi.client import Agent
+from panda_agi import Agent
 
 # Agent will automatically use PANDA_AGI_KEY from environment
 agent = Agent()
@@ -250,8 +250,7 @@ Agents can work with files in their environment:
 
 ```python
 import asyncio
-from panda_agi.client import Agent
-from panda_agi.client.models import EventType
+from panda_agi import Agent, EventType
 
 async def file_operations():
     agent = Agent()
@@ -284,7 +283,7 @@ Maintain context across multiple requests:
 ```python
 import asyncio
 import uuid
-from panda_agi.client import Agent
+from panda_agi import Agent
 
 async def persistent_conversation():
     # Use same conversation_id for related requests
@@ -310,8 +309,7 @@ Build complex interactions with follow-up questions:
 ```python
 import asyncio
 import uuid
-from panda_agi.client import Agent
-from panda_agi.client.models import EventType
+from panda_agi import Agent, EventType
 
 async def multi_turn_conversation():
     # Consistent conversation_id enables follow-up questions
@@ -356,8 +354,7 @@ Maintain conversations across different script executions:
 # session1.py
 import asyncio
 import uuid
-from panda_agi.client import Agent
-from panda_agi.client.models import EventType
+from panda_agi import Agent, EventType
 
 # Generate and save conversation ID for reuse
 CONVERSATION_ID = str(uuid.uuid4())
@@ -383,8 +380,7 @@ asyncio.run(start_research())
 ```python
 # session2.py - Run this later with the same conversation ID
 import asyncio
-from panda_agi.client import Agent
-from panda_agi.client.models import EventType
+from panda_agi import Agent, EventType
 
 # Use the same conversation ID from session1.py
 CONVERSATION_ID = "your-uuid-from-session1"  # Replace with actual UUID
