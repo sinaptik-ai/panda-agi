@@ -61,10 +61,8 @@ class WebSocketClient:
             if not self.api_key:
                 logger.error("Cannot connect: No API key provided")
                 raise ValueError(
-                    "API key is required for connection. Please set PANDA_API_KEY or ANNIE_API_KEY environment variable or pass api_key parameter."
+                    "API key is required for connection. Please set PANDA_AGI_KEY environment variable or pass api_key parameter."
                 )
-            print("connecting to", self.url)
-            print("headers", self._headers())
             self.websocket = await websockets.connect(
                 self.url, additional_headers=self._headers()
             )

@@ -47,10 +47,10 @@ class Agent:
         environment: Optional[BaseEnv] = None,
     ):
         load_dotenv()
-        self.api_key = api_key or os.getenv("PANDA_API_KEY")
+        self.api_key = api_key or os.getenv("PANDA_AGI_KEY")
         if not self.api_key:
             logger.warning(
-                "No API key provided. Please set PANDA_API_KEY in environment or pass api_key parameter"
+                "No API key provided. Please set PANDA_AGI_KEY in environment or pass api_key parameter"
             )
 
         self.conversation_id = conversation_id or str(uuid.uuid4())

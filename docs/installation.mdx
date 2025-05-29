@@ -9,7 +9,7 @@ Before installing PandaAGI SDK, ensure your system meets the following requireme
 
 <AccordionGroup>
   <Accordion title="Python Version">
-    - Python 3.8 or higher
+    - Python 3.9 or higher
     - Python 3.11+ recommended for best performance
   </Accordion>
 
@@ -21,8 +21,6 @@ Before installing PandaAGI SDK, ensure your system meets the following requireme
 
   <Accordion title="Dependencies">
     - Docker (for environment isolation)
-    - Git (for development)
-    - 4GB+ RAM recommended
   </Accordion>
 </AccordionGroup>
 
@@ -40,6 +38,30 @@ For the latest development version:
 
 ```bash
 pip install git+https://github.com/panda-agi/sdk.git
+```
+
+### Using uv
+
+For faster installation using uv (a fast Python package installer):
+
+```bash
+uv pip install panda-agi
+```
+
+Or install uv first if you don't have it:
+
+```bash
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Then install panda-agi
+uv pip install panda-agi
+```
+
+For the latest development version with uv:
+
+```bash
+uv pip install git+https://github.com/panda-agi/sdk.git
 ```
 
 ### Using Poetry
@@ -130,22 +152,76 @@ For isolated agent environments, install Docker:
   </Tab>
 </Tabs>
 
+## API Key Configuration
+
+To use Panda AGI SDK, you need an API key that you can obtain from the PandaAGI platform:
+
+<Steps>
+  <Step title="Get Your API Key">
+    1. Visit [https://agi.pandas-ai.com/](https://agi.pandas-ai.com/)
+    2. Sign in with your GitHub account
+    3. Navigate to your dashboard to access your API keys
+    4. Copy your `PANDA_AGI_KEY`
+  </Step>
+  
+  <Step title="Set Environment Variable">
+    Configure your API key as an environment variable:
+    
+    <Tabs>
+      <Tab title="Linux/macOS">
+        ```bash
+        export PANDA_AGI_KEY="your-api-key-here"
+        ```
+        
+        To make it persistent, add to your shell profile:
+        ```bash
+        echo 'export PANDA_AGI_KEY="your-api-key-here"' >> ~/.bashrc
+        # or ~/.zshrc if using zsh
+        ```
+      </Tab>
+      
+      <Tab title="Windows">
+        ```powershell
+        # PowerShell
+        $env:PANDA_AGI_KEY="your-api-key-here"
+        
+        # Or set permanently via System Properties
+        setx PANDA_AGI_KEY "your-api-key-here"
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+  
+  <Step title="Verify Configuration">
+    Test that your API key is properly configured:
+    ```python
+    import os
+    
+    api_key = os.getenv('PANDA_AGI_KEY')
+    if api_key:
+        print("✅ API key configured successfully")
+    else:
+        print("❌ API key not found")
+    ```
+  </Step>
+</Steps>
+
 ## Environment Variables
 
-Configure your environment for optimal performance:
+Configure your environment with the required API keys:
 
 ```bash
-# Optional: Set default model
-export PANDA_AGI_MODEL="gpt-4"
+# Required: Panda AGI API Key (get from https://agi.pandas-ai.com/)
+export PANDA_AGI_KEY="your-panda-agi-api-key"
 
-# Optional: Set API keys
-export OPENAI_API_KEY="your-openai-key"
-export ANTHROPIC_API_KEY="your-anthropic-key"
-
-# Optional: Configure Docker
-export PANDA_AGI_DOCKER_IMAGE="python:3.11-slim"
+# Optional: Tavily API Key for enhanced web search functionality
+export TAVILY_API_KEY="your-tavily-api-key"
 ```
 
+<Note>
+  **Important**: Keep your API keys secure and never commit them to version control. 
+  Consider using environment files (`.env`) or secure key management systems for production use.
+</Note>
 
 ## Next Steps
 

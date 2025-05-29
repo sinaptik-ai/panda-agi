@@ -62,10 +62,11 @@ from pydantic import BaseModel
 import json
 import asyncio
 from typing import AsyncGenerator
+import uuid
 
 from panda_agi.client import Agent
-from panda_agi.tools.search import WebSearchTool
-from panda_agi.tools.navigation import WebNavigationTool
+from panda_agi.client.models import EventType
+from panda_agi.envs import DockerEnv
 
 app = FastAPI(title="PandaAGI Chat API")
 
@@ -80,60 +81,64 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     message: str
-    agent_config: dict = {}
+    conversation_id: str = None
 
-class ChatAgent:
-    def __init__(self):
-        self.agent = Agent(
-            name="ChatAgent",
-            description="A helpful assistant that can search the web and answer questions",
-            tools=[
-                WebSearchTool(max_results=5),
-                WebNavigationTool()
-            ]
+async def event_stream(query: str, conversation_id: str = None) -> AsyncGenerator[str, None]:
+    """Stream agent events as Server-Sent Events"""
+    agent = None
+    try:
+        # Create environment for the agent
+        agent_env = DockerEnv("./workspace")
+        
+        # Create agent with conversation ID for session persistence
+        agent = Agent(
+            environment=agent_env,
+            conversation_id=conversation_id or str(uuid.uuid4())
         )
-    
-    async def stream_response(self, message: str) -> AsyncGenerator[str, None]:
-        """Stream agent events as Server-Sent Events"""
-        try:
-            async for event in self.agent.run_stream(message):
-                # Format event for SSE
-                event_data = {
-                    "type": event.type,
-                    "timestamp": event.timestamp.isoformat(),
-                    "data": event.data
-                }
-                
-                yield f"data: {json.dumps(event_data)}\n\n"
-                
-                # Add small delay to prevent overwhelming the client
-                await asyncio.sleep(0.1)
-                
-        except Exception as e:
-            error_event = {
-                "type": "error",
-                "timestamp": "",
-                "data": {"error": str(e)}
+        
+        # Stream events from the agent
+        async for event in agent.run(query):
+            # Convert event to dictionary for JSON serialization
+            event_data = {
+                "type": event.type.value,
+                "timestamp": event.timestamp,
+                "data": event.data
             }
-            yield f"data: {json.dumps(error_event)}\n\n"
-
-# Global agent instance
-chat_agent = ChatAgent()
+            
+            # Format as Server-Sent Event
+            yield f"data: {json.dumps(event_data)}\n\n"
+            
+            # Add small delay to prevent overwhelming the client
+            await asyncio.sleep(0.05)
+            
+    except Exception as e:
+        # Send error event
+        error_event = {
+            "type": "error",
+            "timestamp": "",
+            "data": {"error": str(e)}
+        }
+        yield f"data: {json.dumps(error_event)}\n\n"
+        
+    finally:
+        # Clean up agent connection
+        if agent:
+            try:
+                await agent.disconnect()
+            except Exception as e:
+                print(f"Error disconnecting agent: {e}")
 
 @app.post("/api/chat/stream")
 async def stream_chat(request: ChatRequest):
     """Stream chat responses using Server-Sent Events"""
     
-    def generate():
-        return chat_agent.stream_response(request.message)
-    
     return StreamingResponse(
-        generate(),
-        media_type="text/plain",
+        event_stream(request.message, request.conversation_id),
+        media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "Content-Type": "text/event-stream",
+            "Access-Control-Allow-Origin": "*",
         }
     )
 
@@ -152,7 +157,7 @@ if __name__ == "__main__":
 # backend/requirements.txt
 fastapi==0.104.1
 uvicorn==0.24.0
-panda-agi==0.1.0
+panda-agi>=0.1.0
 pydantic==2.5.0
 ```
 
@@ -163,69 +168,91 @@ pydantic==2.5.0
 Now let's create the React frontend:
 
 ```jsx
-// frontend/src/components/ChatInterface.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Search, Globe, FileText, AlertCircle } from 'lucide-react';
+// src/components/ChatInterface.jsx
+import React, { useState, useRef, useEffect } from 'react';
+import { Send, Loader2, Globe, FileText, Terminal, CheckCircle, AlertCircle } from 'lucide-react';
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+  const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [currentEvents, setCurrentEvents] = useState([]);
+  const [conversationId] = useState(() => 
+    crypto.randomUUID ? crypto.randomUUID() : 'session-' + Date.now()
+  );
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, currentEvents]);
+  useEffect(scrollToBottom, [messages]);
 
   const getEventIcon = (eventType) => {
     switch (eventType) {
-      case 'tool_start':
-        return <Search className="w-4 h-4 text-blue-500" />;
+      case 'web_search':
       case 'web_navigation':
-        return <Globe className="w-4 h-4 text-green-500" />;
-      case 'file_operation':
-        return <FileText className="w-4 h-4 text-purple-500" />;
+        return <Globe className="w-4 h-4 text-blue-500" />;
+      case 'file_write':
+      case 'file_read':
+        return <FileText className="w-4 h-4 text-green-500" />;
+      case 'shell_exec':
+        return <Terminal className="w-4 h-4 text-purple-500" />;
+      case 'completed_task':
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'error':
         return <AlertCircle className="w-4 h-4 text-red-500" />;
       default:
-        return <Bot className="w-4 h-4 text-gray-500" />;
+        return <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />;
     }
   };
 
-  const getEventColor = (eventType) => {
+  const formatEventData = (eventType, data) => {
     switch (eventType) {
-      case 'agent_thinking':
-        return 'bg-blue-50 border-blue-200';
-      case 'tool_start':
-        return 'bg-yellow-50 border-yellow-200';
-      case 'tool_result':
-        return 'bg-green-50 border-green-200';
+      case 'web_search':
+        return `Searching: ${data.query}`;
+      case 'web_navigation':
+        return `Reading: ${data.url}`;
+      case 'file_write':
+        return `Created file: ${data.file}`;
+      case 'file_read':
+        return `Reading file: ${data.file}`;
+      case 'shell_exec':
+        return `Executing: ${data.command}`;
+      case 'user_notification':
+        return data.text || 'Agent update';
+      case 'completed_task':
+        return 'Task completed successfully!';
       case 'error':
-        return 'bg-red-50 border-red-200';
+        return `Error: ${data.error}`;
       default:
-        return 'bg-gray-50 border-gray-200';
+        return JSON.stringify(data).substring(0, 100) + '...';
     }
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!inputMessage.trim() || isLoading) return;
 
     const userMessage = {
       id: Date.now(),
       type: 'user',
-      content: input,
-      timestamp: new Date()
+      content: inputMessage,
+      timestamp: new Date().toISOString()
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setInput('');
+    setInputMessage('');
     setIsLoading(true);
-    setCurrentEvents([]);
+
+    const agentMessage = {
+      id: Date.now() + 1,
+      type: 'agent',
+      content: '',
+      events: [],
+      timestamp: new Date().toISOString(),
+      isStreaming: true
+    };
+
+    setMessages(prev => [...prev, agentMessage]);
 
     try {
       const response = await fetch('http://localhost:8000/api/chat/stream', {
@@ -233,12 +260,18 @@ const ChatInterface = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({
+          message: inputMessage,
+          conversation_id: conversationId
+        }),
       });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let agentResponse = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -252,47 +285,53 @@ const ChatInterface = () => {
             try {
               const eventData = JSON.parse(line.slice(6));
               
-              if (eventData.type === 'agent_response') {
-                agentResponse = eventData.data.response;
-              } else if (eventData.type === 'error') {
-                console.error('Agent error:', eventData.data.error);
-              } else {
-                // Add to current events
-                setCurrentEvents(prev => [...prev, {
-                  ...eventData,
-                  id: Date.now() + Math.random()
-                }]);
-              }
+              setMessages(prev => prev.map(msg => {
+                if (msg.id === agentMessage.id) {
+                  const newEvents = [...msg.events, eventData];
+                  let content = msg.content;
+                  
+                  // Update content based on event type
+                  if (eventData.type === 'user_notification') {
+                    content = eventData.data.text || content;
+                  } else if (eventData.type === 'completed_task') {
+                    return {
+                      ...msg,
+                      events: newEvents,
+                      content: content || 'Task completed successfully!',
+                      isStreaming: false
+                    };
+                  }
+                  
+                  return {
+                    ...msg,
+                    events: newEvents,
+                    content: content
+                  };
+                }
+                return msg;
+              }));
+              
             } catch (e) {
               console.error('Error parsing event:', e);
             }
           }
         }
       }
-
-      // Add final agent response
-      if (agentResponse) {
-        const botMessage = {
-          id: Date.now(),
-          type: 'bot',
-          content: agentResponse,
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, botMessage]);
-      }
-
     } catch (error) {
-      console.error('Error sending message:', error);
-      const errorMessage = {
-        id: Date.now(),
-        type: 'bot',
-        content: 'Sorry, I encountered an error processing your request.',
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      console.error('Error:', error);
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === agentMessage.id) {
+          return {
+            ...msg,
+            content: 'Sorry, there was an error processing your request.',
+            isStreaming: false,
+            error: true
+          };
+        }
+        return msg;
+      }));
     } finally {
       setIsLoading(false);
-      setCurrentEvents([]);
     }
   };
 
@@ -304,120 +343,114 @@ const ChatInterface = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100">
+    <div className="flex flex-col h-screen max-w-4xl mx-auto bg-white">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b px-6 py-4">
-        <h1 className="text-xl font-semibold text-gray-800 flex items-center">
-          <Bot className="w-6 h-6 mr-2 text-blue-500" />
-          PandaAGI Chat
-        </h1>
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg">
+        <h1 className="text-2xl font-bold">Panda AGI Chat Interface</h1>
+        <p className="text-blue-100">Real-time AI agent interactions</p>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      {/* Messages Container */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 && (
+          <div className="text-center text-gray-500 mt-20">
+            <div className="text-6xl mb-4">🐼</div>
+            <h2 className="text-xl font-semibold mb-2">Welcome to Panda AGI</h2>
+            <p>Ask me anything and I'll help you with research, analysis, coding, and more!</p>
+          </div>
+        )}
+
         {messages.map((message) => (
           <div
             key={message.id}
             className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+              className={`max-w-3xl rounded-lg p-4 ${
                 message.type === 'user'
                   ? 'bg-blue-500 text-white'
-                  : 'bg-white text-gray-800 shadow-sm'
+                  : 'bg-gray-100 text-gray-800'
               }`}
             >
-              <div className="flex items-start space-x-2">
-                {message.type === 'bot' && (
-                  <Bot className="w-5 h-5 mt-0.5 text-blue-500 flex-shrink-0" />
-                )}
-                <div className="flex-1">
-                  <p className="text-sm">{message.content}</p>
-                  <p className={`text-xs mt-1 ${
-                    message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
-                  }`}>
-                    {message.timestamp.toLocaleTimeString()}
-                  </p>
+              {message.type === 'user' ? (
+                <p>{message.content}</p>
+              ) : (
+                <div className="space-y-3">
+                  {/* Agent Response Content */}
+                  {message.content && (
+                    <div className="bg-white rounded p-3 border">
+                      <p className="text-gray-800">{message.content}</p>
+                    </div>
+                  )}
+
+                  {/* Event Stream */}
+                  {message.events && message.events.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+                        <Terminal className="w-4 h-4" />
+                        Agent Activity:
+                      </h4>
+                      <div className="bg-gray-50 rounded p-3 space-y-2 max-h-40 overflow-y-auto">
+                        {message.events.map((event, index) => (
+                          <div key={index} className="flex items-start gap-2 text-sm">
+                            {getEventIcon(event.type)}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-gray-700">
+                                  {event.type.replace('_', ' ')}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {new Date(event.timestamp).toLocaleTimeString()}
+                                </span>
+                              </div>
+                              <p className="text-gray-600 mt-1">
+                                {formatEventData(event.type, event.data)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Loading indicator */}
+                  {message.isStreaming && (
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">Agent is thinking...</span>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
           </div>
         ))}
-
-        {/* Current Events */}
-        {isLoading && currentEvents.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">
-              Agent Activity
-            </h3>
-            <div className="space-y-2">
-              {currentEvents.slice(-5).map((event) => (
-                <div
-                  key={event.id}
-                  className={`flex items-center space-x-3 p-2 rounded border ${getEventColor(event.type)}`}
-                >
-                  {getEventIcon(event.type)}
-                  <div className="flex-1">
-                    <p className="text-xs font-medium text-gray-700">
-                      {event.type.replace('_', ' ').toUpperCase()}
-                    </p>
-                    {event.data && (
-                      <p className="text-xs text-gray-600 mt-1">
-                        {typeof event.data === 'string' 
-                          ? event.data 
-                          : JSON.stringify(event.data).slice(0, 100)
-                        }
-                      </p>
-                    )}
-                  </div>
-                  <span className="text-xs text-gray-500">
-                    {new Date(event.timestamp).toLocaleTimeString()}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Loading indicator */}
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-white rounded-lg shadow-sm p-4">
-              <div className="flex items-center space-x-2">
-                <Bot className="w-5 h-5 text-blue-500" />
-                <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                </div>
-                <span className="text-sm text-gray-600">Thinking...</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="bg-white border-t px-6 py-4">
-        <div className="flex space-x-4">
+      {/* Input Area */}
+      <div className="border-t bg-gray-50 p-4">
+        <div className="flex gap-2">
           <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type your message..."
-            className="flex-1 resize-none border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ask me anything..."
+            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             rows="1"
             disabled={isLoading}
           />
           <button
             onClick={sendMessage}
-            disabled={!input.trim() || isLoading}
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            disabled={!inputMessage.trim() || isLoading}
+            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            <Send className="w-4 h-4" />
-            <span>Send</span>
+            {isLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+            Send
           </button>
         </div>
       </div>
@@ -431,7 +464,7 @@ export default ChatInterface;
 ### App Component
 
 ```jsx
-// frontend/src/App.js
+// src/App.jsx
 import React from 'react';
 import ChatInterface from './components/ChatInterface';
 import './App.css';
@@ -447,109 +480,42 @@ function App() {
 export default App;
 ```
 
-### Styling
-
-```css
-/* frontend/src/App.css */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-.App {
-  height: 100vh;
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
-/* Animation for typing indicator */
-@keyframes bounce {
-  0%, 80%, 100% {
-    transform: scale(0);
-  }
-  40% {
-    transform: scale(1);
-  }
-}
-
-.animate-bounce {
-  animation: bounce 1.4s infinite ease-in-out both;
-}
-```
-
 ### Package Configuration
 
 ```json
+// package.json
 {
-  "name": "panda-agi-chat-frontend",
-  "version": "0.1.0",
+  "name": "panda-agi-chat-interface",
+  "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "@testing-library/jest-dom": "^5.16.4",
-    "@testing-library/react": "^13.3.0",
-    "@testing-library/user-event": "^13.5.0",
-    "lucide-react": "^0.294.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+    "lucide-react": "^0.263.1"
   },
   "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.3",
     "autoprefixer": "^10.4.14",
     "postcss": "^8.4.24",
-    "tailwindcss": "^3.3.0"
+    "tailwindcss": "^3.3.0",
+    "vite": "^4.4.5"
   },
-  "proxy": "http://localhost:8000"
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
 }
 ```
 
 ### Tailwind Configuration
 
 ```js
-// frontend/tailwind.config.js
-/** @type {import('tailwindcss').Config} */
+// tailwind.config.js
 module.exports = {
   content: [
-    "./src/**/*.{js,jsx,ts,tsx}",
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {},
@@ -558,189 +524,30 @@ module.exports = {
 }
 ```
 
-## Running the Application
+## Usage
 
-### Start the Backend
+1. **Start the backend:**
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   python main.py
+   ```
 
-```bash
-# Navigate to backend directory
-cd backend
+2. **Start the frontend:**
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-# Install dependencies
-pip install -r requirements.txt
+3. **Open your browser** to `http://localhost:3000` and start chatting!
 
-# Start the server
-python main.py
-```
+## Key Features Demonstrated
 
-### Start the Frontend
-
-```bash
-# Navigate to frontend directory
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start the development server
-npm start
-```
-
-## Advanced Features
-
-### Message History
-
-Add persistent message history:
-
-```jsx
-// Add to ChatInterface component
-const [messageHistory, setMessageHistory] = useState([]);
-
-useEffect(() => {
-  // Load message history from localStorage
-  const saved = localStorage.getItem('chat-history');
-  if (saved) {
-    setMessages(JSON.parse(saved));
-  }
-}, []);
-
-useEffect(() => {
-  // Save message history to localStorage
-  localStorage.setItem('chat-history', JSON.stringify(messages));
-}, [messages]);
-```
-
-### Typing Indicators
-
-Add more sophisticated typing indicators:
-
-```jsx
-const TypingIndicator = ({ events }) => {
-  const [currentEvent, setCurrentEvent] = useState(null);
-
-  useEffect(() => {
-    if (events.length > 0) {
-      setCurrentEvent(events[events.length - 1]);
-    }
-  }, [events]);
-
-  if (!currentEvent) return null;
-
-  return (
-    <div className="flex items-center space-x-2 text-sm text-gray-600">
-      <div className="flex space-x-1">
-        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-      </div>
-      <span>
-        {currentEvent.type === 'agent_thinking' && 'Thinking...'}
-        {currentEvent.type === 'tool_start' && `Using ${currentEvent.data.tool_name}...`}
-        {currentEvent.type === 'web_search' && 'Searching the web...'}
-        {currentEvent.type === 'web_navigation' && 'Browsing website...'}
-      </span>
-    </div>
-  );
-};
-```
-
-### Error Handling
-
-Add comprehensive error handling:
-
-```jsx
-const [error, setError] = useState(null);
-
-const sendMessage = async () => {
-  // ... existing code ...
-  
-  try {
-    // ... existing fetch logic ...
-  } catch (error) {
-    setError('Failed to connect to the server. Please try again.');
-    console.error('Error sending message:', error);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-// Add error display in render
-{error && (
-  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-    <div className="flex items-center">
-      <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
-      <p className="text-red-700">{error}</p>
-      <button 
-        onClick={() => setError(null)}
-        className="ml-auto text-red-500 hover:text-red-700"
-      >
-        ×
-      </button>
-    </div>
-  </div>
-)}
-```
-
-## Deployment
-
-### Docker Deployment
-
-Create a Docker setup for easy deployment:
-
-```dockerfile
-# backend/Dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-EXPOSE 8000
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-```dockerfile
-# frontend/Dockerfile
-FROM node:18-alpine as build
-
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-
-COPY . .
-RUN npm run build
-
-FROM nginx:alpine
-COPY --from=build /app/build /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/nginx.conf
-
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-```yaml
-# docker-compose.yml
-version: '3.8'
-
-services:
-  backend:
-    build: ./backend
-    ports:
-      - "8000:8000"
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-    
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
-```
+- **Real-time streaming**: See agent events as they happen
+- **Event visualization**: Different icons and formatting for each event type
+- **Session persistence**: Conversation ID maintains context across messages
+- **Modern UI**: Responsive design with smooth animations
+- **Error handling**: Graceful error display and recovery
 
 ## Next Steps
 

@@ -23,7 +23,7 @@
   ],
   "topbarCtaButton": {
     "name": "Dashboard",
-    "url": "https://dashboard.panda-agi.com"
+    "url": "https://agi.pandas-ai.com/dashboard"
   },
   "tabs": [
     {
@@ -36,11 +36,6 @@
     }
   ],
   "anchors": [
-    {
-      "name": "Documentation",
-      "icon": "book-open-cover",
-      "url": "https://docs.panda-agi.com"
-    },
     {
       "name": "Community",
       "icon": "slack",
@@ -59,47 +54,11 @@
     },
     {
       "group": "Core Concepts",
-      "pages": [
-        "concepts/agents",
-        "concepts/tools",
-        "concepts/events",
-        "concepts/environments"
-      ]
-    },
-    {
-      "group": "Client SDK",
-      "pages": [
-        "client/overview",
-        "client/agent-client",
-        "client/websocket-client",
-        "client/models"
-      ]
-    },
-    {
-      "group": "Tools",
-      "pages": [
-        "tools/overview",
-        "tools/search",
-        "tools/navigation",
-        "tools/file-system"
-      ]
+      "pages": ["concepts/agents", "concepts/events", "concepts/environments"]
     },
     {
       "group": "Examples",
-      "pages": [
-        "examples/chat-interface",
-        "examples/basic-usage",
-        "examples/custom-tools"
-      ]
-    },
-    {
-      "group": "API Reference",
-      "pages": [
-        "api-reference/introduction",
-        "api-reference/agent",
-        "api-reference/websocket",
-        "api-reference/events"
-      ]
+      "pages": ["examples/chat-interface", "examples/cli"]
     }
   ],
   "footerSocials": {

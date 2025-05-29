@@ -45,8 +45,9 @@ class FileWriteHandler(ToolHandler):
         return None
 
     async def execute(self, tool_call: Dict[str, Any]) -> HandlerResult:
-        await self.add_event(EventType.FILE_WRITE, tool_call)
         result = await file_write(self.environment, **tool_call)
+        await self.add_event(EventType.FILE_WRITE, tool_call)
+
         return HandlerResult(
             success=result.get("status") == "success",
             data=result,
@@ -66,8 +67,9 @@ class FileReplaceHandler(ToolHandler):
         return None
 
     async def execute(self, tool_call: Dict[str, Any]) -> HandlerResult:
-        await self.add_event(EventType.FILE_REPLACE, tool_call)
         result = await file_str_replace(self.environment, **tool_call)
+        await self.add_event(EventType.FILE_REPLACE, tool_call)
+
         return HandlerResult(
             success=result.get("status") == "success",
             data=result,

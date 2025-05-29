@@ -5,47 +5,38 @@ description: 'Understanding AI agents in PandaAGI SDK'
 
 ## What are Agents?
 
-Agents are the core building blocks of the PandaAGI SDK. They are autonomous AI entities that can understand natural language, make decisions, use tools, and interact with their environment to accomplish tasks.
-
-<img
-  className="block dark:hidden"
-  src="/images/agent-architecture-light.svg"
-  alt="Agent Architecture"
-/>
-<img
-  className="hidden dark:block"
-  src="/images/agent-architecture-dark.svg"
-  alt="Agent Architecture"
-/>
+Agents are the core building blocks of the Panda AGI SDK. They are autonomous AI entities that can understand natural language, make decisions, use tools, and interact with their environment to accomplish tasks. Agents communicate via WebSocket connections and stream real-time events as they work.
 
 ## Agent Components
 
 <CardGroup cols={2}>
   <Card
-    title="Core Intelligence"
-    icon="brain"
+    title="WebSocket Communication"
+    icon="signal"
   >
-    The LLM-powered reasoning engine that processes queries and makes decisions
+    Real-time bidirectional communication with the AGI backend server
   </Card>
   <Card
-    title="Tool Integration"
+    title="Tool Handlers"
     icon="wrench"
   >
-    Access to various tools for web search, file operations, and more
+    Pluggable handlers for different tool types and capabilities
   </Card>
   <Card
-    title="Memory System"
-    icon="database"
+    title="Environment Integration"
+    icon="folder"
   >
-    Persistent memory for context and conversation history
+    Isolated workspace environment for safe file operations
   </Card>
   <Card
-    title="Environment"
-    icon="globe"
+    title="Event Streaming"
+    icon="radio"
   >
-    Isolated execution environment for safe code execution
+    Real-time streaming of agent thoughts, actions, and results
   </Card>
 </CardGroup>
+
+
 
 ## Creating Agents
 
@@ -54,109 +45,17 @@ Agents are the core building blocks of the PandaAGI SDK. They are autonomous AI 
 The simplest way to create an agent:
 
 ```python
+import asyncio
 from panda_agi.client import Agent
 
-agent = Agent(
-    name="MyAgent",
-    description="A helpful assistant"
-)
+async def main():
+    agent = Agent()
+    
+    async for event in agent.run("What's the weather like today?"):
+        print(f"Event: {event.type} - {event.data}")
 
-response = agent.run("What's the weather like today?")
+asyncio.run(main())
 ```
-
-### Agent with Configuration
-
-For more control over agent behavior:
-
-```python
-from panda_agi.client import Agent, AgentConfig
-
-config = AgentConfig(
-    model="gpt-4",
-    temperature=0.7,
-    max_iterations=10,
-    timeout=60
-)
-
-agent = Agent(
-    name="ConfiguredAgent",
-    description="A precisely configured assistant",
-    config=config
-)
-```
-
-### Agent with Tools
-
-Agents become powerful when equipped with tools:
-
-```python
-from panda_agi.client import Agent
-from panda_agi.tools.search import WebSearchTool
-from panda_agi.tools.navigation import WebNavigationTool
-from panda_agi.tools.file_system import FileSystemTool
-
-agent = Agent(
-    name="ResearchAgent",
-    description="An agent that can research and analyze information",
-    tools=[
-        WebSearchTool(),
-        WebNavigationTool(),
-        FileSystemTool()
-    ]
-)
-```
-
-## Agent Configuration
-
-<AccordionGroup>
-  <Accordion title="Model Selection">
-    Choose the underlying language model:
-    
-    ```python
-    config = AgentConfig(
-        model="gpt-4",           # OpenAI GPT-4
-        # model="gpt-3.5-turbo", # OpenAI GPT-3.5
-        # model="claude-3",      # Anthropic Claude
-    )
-    ```
-  </Accordion>
-
-  <Accordion title="Temperature Control">
-    Control creativity vs consistency:
-    
-    ```python
-    config = AgentConfig(
-        temperature=0.0,  # Deterministic, consistent
-        # temperature=0.7,  # Balanced
-        # temperature=1.0,  # Creative, varied
-    )
-    ```
-  </Accordion>
-
-  <Accordion title="Execution Limits">
-    Set safety boundaries:
-    
-    ```python
-    config = AgentConfig(
-        max_iterations=10,    # Max tool calls per query
-        timeout=60,          # Max execution time (seconds)
-        max_tokens=4000,     # Max response length
-    )
-    ```
-  </Accordion>
-
-  <Accordion title="Memory Settings">
-    Configure memory behavior:
-    
-    ```python
-    config = AgentConfig(
-        memory_size=1000,        # Max conversation history
-        persistent_memory=True,   # Save between sessions
-        memory_compression=True,  # Compress old memories
-    )
-    ```
-  </Accordion>
-</AccordionGroup>
 
 ## Agent Lifecycle
 
@@ -164,230 +63,403 @@ Understanding how agents work internally:
 
 <Steps>
   <Step title="Initialization">
-    Agent loads configuration, tools, and establishes environment connection
+    Agent initializes WebSocket client, event manager, and tool handlers
   </Step>
   
-  <Step title="Query Processing">
-    Agent analyzes the user query and determines the best approach
+  <Step title="Connection">
+    Agent establishes WebSocket connection and waits for initialization
   </Step>
   
-  <Step title="Planning">
-    Agent creates a plan of action, identifying which tools to use
+  <Step title="Request Processing">
+    Agent sends query and begins streaming events in real-time
   </Step>
   
-  <Step title="Execution">
-    Agent executes the plan, using tools and processing results iteratively
+  <Step title="Event Streaming">
+    Agent streams thoughts, tool usage, and results as they happen
   </Step>
   
-  <Step title="Response Generation">
-    Agent synthesizes results into a coherent response for the user
+  <Step title="Completion">
+    Agent signals task completion and can handle new requests
   </Step>
 </Steps>
 
-## Agent Patterns
 
-### Research Agent
+### Agent with Custom Configuration
 
-Perfect for information gathering and analysis:
+For more control over agent behavior:
 
 ```python
-research_agent = Agent(
-    name="ResearchAgent",
-    description="""
-    A thorough research assistant that can:
-    - Search the web for current information
-    - Visit and analyze web pages
-    - Synthesize findings into comprehensive reports
-    """,
-    tools=[WebSearchTool(), WebNavigationTool()],
-    config=AgentConfig(
-        model="gpt-4",
-        temperature=0.3,  # More focused
-        max_iterations=15
-    )
+import uuid
+from panda_agi.client import Agent
+from panda_agi.envs import LocalEnv
+
+agent = Agent(
+    api_key="your-api-key",      # API key for authentication
+    conversation_id=str(uuid.uuid4()), # Must be a UUID4 string
+    auto_reconnect=True,         # Automatic reconnection
+    reconnect_interval=5.0,      # Reconnection delay
+    environment=LocalEnv("./my_workspace")  # Custom workspace
 )
 ```
 
-### Code Assistant
+### Using Environment Variables
 
-Specialized for programming tasks:
+Set your API key in environment variables:
 
-```python
-code_agent = Agent(
-    name="CodeAssistant",
-    description="""
-    A programming assistant that can:
-    - Write and debug code
-    - Analyze codebases
-    - Create documentation
-    - Run tests and scripts
-    """,
-    tools=[FileSystemTool(), CodeExecutionTool()],
-    config=AgentConfig(
-        model="gpt-4",
-        temperature=0.1,  # Very precise
-        max_iterations=20
-    )
-)
+```bash
+export PANDA_AGI_KEY="your-api-key-here"
 ```
 
-### Creative Agent
-
-For content creation and brainstorming:
-
 ```python
-creative_agent = Agent(
-    name="CreativeAgent",
-    description="""
-    A creative assistant that can:
-    - Generate original content
-    - Brainstorm ideas
-    - Create stories and scripts
-    - Design concepts
-    """,
-    tools=[WebSearchTool(), ImageGenerationTool()],
-    config=AgentConfig(
-        model="gpt-4",
-        temperature=0.8,  # More creative
-        max_iterations=10
-    )
-)
+from panda_agi.client import Agent
+
+# Agent will automatically use PANDA_AGI_KEY from environment
+agent = Agent()
 ```
+
+## Agent Configuration
+
+<AccordionGroup>
+
+  <Accordion title="Environment Setup">
+    Configure the agent's workspace:
+    
+    ```python
+    from panda_agi.envs import LocalEnv
+    
+    # Custom workspace directory
+    env = LocalEnv("./agent_workspace")
+    
+    agent = Agent(environment=env)
+    
+    # Change working directory
+    agent.change_working_directory("/path/to/project")
+    
+    # Get current directory
+    current_dir = agent.get_working_directory()
+    ```
+  </Accordion>
+
+  <Accordion title="Conversation Context">
+    Enable follow-up questions and persistent conversations:
+    
+    ```python
+    import uuid
+    
+    # Use the same conversation_id for related requests
+    # Must be a proper UUID4 string
+    conversation_id = str(uuid.uuid4())
+    
+    agent = Agent(conversation_id=conversation_id)
+    
+    # First question
+    async for event in agent.run("What is machine learning?"):
+        if event.type == "completed_task":
+            break
+    
+    # Follow-up question - agent remembers previous context
+    async for event in agent.run("Can you give me some examples?"):
+        # Agent will provide ML examples, understanding the context
+        pass
+    
+    # Another follow-up
+    async for event in agent.run("Which one would you recommend for beginners?"):
+        # Agent maintains full conversation history
+        pass
+    ```
+    
+    **Key Benefits:**
+    - **Context Retention**: Agent remembers previous questions and answers
+    - **Natural Conversations**: Ask follow-up questions without repeating context
+    - **Session Persistence**: Maintain conversations across multiple script runs
+    - **Reference Previous Work**: Agent can refer back to earlier analysis or results
+    
+    **Important:** The `conversation_id` must be a valid UUID4 string generated with `str(uuid.uuid4())`. This ensures proper conversation tracking and prevents conflicts.
+  </Accordion>
+
+  <Accordion title="Tool Handlers">
+    Customize tool handling behavior:
+    
+    ```python
+    from panda_agi.handlers import CustomHandler
+    
+    custom_handlers = {
+        "custom_tool": CustomHandler(),
+        # Add your custom handlers here
+    }
+    
+    agent = Agent(tools_handlers=custom_handlers)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+
+### Available Event Types
+
+The agent can emit various types of events during execution:
+
+<AccordionGroup>
+  <Accordion title="File Operations">
+    ```python
+    EventType.FILE_READ      # Reading file contents
+    EventType.FILE_WRITE     # Writing to files
+    EventType.FILE_REPLACE   # Replacing file contents
+    EventType.FILE_FIND      # Finding files
+    EventType.FILE_EXPLORE   # Exploring directories
+    ```
+  </Accordion>
+
+  <Accordion title="Web Operations">
+    ```python
+    EventType.WEB_SEARCH         # Performing web search
+    EventType.WEB_SEARCH_RESULT  # Web search results
+    EventType.WEB_NAVIGATION     # Navigating web pages
+    EventType.WEB_NAVIGATION_RESULT  # Web navigation results
+    ```
+  </Accordion>
+
+  <Accordion title="Shell Operations">
+    ```python
+    EventType.SHELL_EXEC   # Executing shell commands
+    EventType.SHELL_VIEW   # Viewing shell output
+    EventType.SHELL_WRITE  # Writing to shell
+    ```
+  </Accordion>
+
+  <Accordion title="Communication Events">
+    ```python
+    EventType.AGENT_CONNECTION_SUCCESS  # Connection established
+    EventType.USER_NOTIFICATION        # Agent notifications
+    EventType.USER_QUESTION            # Agent asking questions
+    EventType.COMPLETED_TASK           # Task completion
+    ```
+  </Accordion>
+
+  <Accordion title="Media Generation">
+    ```python
+    EventType.IMAGE_GENERATION  # Generating images
+    ```
+  </Accordion>
+</AccordionGroup>
 
 ## Advanced Features
 
-### Custom Personalities
+### File System Integration
 
-Give your agent a unique personality:
+Agents can work with files in their environment:
 
 ```python
-agent = Agent(
-    name="FriendlyBot",
-    description="""
-    You are a friendly, enthusiastic assistant who loves helping people.
-    Always be positive, use emojis occasionally, and provide encouraging
-    responses. You're knowledgeable but humble, and you love learning
-    new things from users.
-    """,
-    config=AgentConfig(temperature=0.7)
-)
+import asyncio
+from panda_agi.client import Agent
+from panda_agi.client.models import EventType
+
+async def file_operations():
+    agent = Agent()
+    
+    # Get current file system structure
+    fs_structure = await agent.current_file_system
+    print(f"Current directory: {fs_structure['directory']}")
+    print(f"File structure: {fs_structure['structure']}")
+    
+    # Change working directory
+    agent.change_working_directory("./documents")
+    
+    async for event in agent.run("Organize these files by type"):
+        if event.type == EventType.FILE_EXPLORE:
+            print(f"Exploring files: {event.data}")
+        elif event.type == EventType.FILE_READ:
+            print(f"Reading file: {event.data}")
+        elif event.type == EventType.FILE_WRITE:
+            print(f"Organizing file: {event.data}")
+        elif event.type == EventType.USER_NOTIFICATION:
+            print(f"Organization update: {event.data}")
+
+asyncio.run(file_operations())
 ```
 
-### Multi-Agent Collaboration
+### Persistent Conversations
 
-Agents can work together:
+Maintain context across multiple requests:
 
 ```python
-# Specialist agents
-researcher = Agent(name="Researcher", tools=[WebSearchTool()])
-analyst = Agent(name="Analyst", tools=[DataAnalysisTool()])
-writer = Agent(name="Writer", tools=[FileSystemTool()])
+import asyncio
+import uuid
+from panda_agi.client import Agent
 
-# Orchestrator agent
-coordinator = Agent(
-    name="Coordinator",
-    description="Coordinates work between specialist agents",
-    agents=[researcher, analyst, writer]
-)
+async def persistent_conversation():
+    # Use same conversation_id for related requests
+    # Must be a proper UUID4 string
+    conversation_id = str(uuid.uuid4())
+    agent = Agent(conversation_id=conversation_id)
+    
+    # First request
+    async for event in agent.run("My name is Alice"):
+        print(event)
+    
+    # Second request - agent remembers context
+    async for event in agent.run("What's my name?"):
+        print(event) # Should mention "Alice"
+
+asyncio.run(persistent_conversation())
 ```
 
-### Persistent Memory
+### Multi-Turn Conversations
 
-Agents can remember across sessions:
+Build complex interactions with follow-up questions:
 
 ```python
-agent = Agent(
-    name="PersonalAssistant",
-    config=AgentConfig(
-        persistent_memory=True,
-        memory_file="assistant_memory.json"
-    )
-)
+import asyncio
+import uuid
+from panda_agi.client import Agent
+from panda_agi.client.models import EventType
 
-# First session
-agent.run("My name is Alice and I love hiking")
+async def multi_turn_conversation():
+    # Consistent conversation_id enables follow-up questions
+    # Must be a proper UUID4 string
+    conversation_id = str(uuid.uuid4())
+    agent = Agent(conversation_id=conversation_id)
+    
+    # Initial request
+    print("=== Initial Question ===")
+    async for event in agent.run("What are the main types of neural networks?"):
+        if event.type == EventType.USER_NOTIFICATION:
+            print(event.data)
+        elif event.type == EventType.COMPLETED_TASK:
+            break
+    
+    # Follow-up question - no need to repeat context
+    print("\n=== Follow-up Question ===")
+    async for event in agent.run("Which one is best for image recognition?"):
+        if event.type == EventType.USER_NOTIFICATION:
+            print(event.data)  # Agent knows we're talking about neural networks
+        elif event.type == EventType.COMPLETED_TASK:
+            break
+    
+    # Another follow-up
+    print("\n=== Another Follow-up ===")
+    async for event in agent.run("Can you show me a code example?"):
+        if event.type == EventType.USER_NOTIFICATION:
+            print(event.data)  # Agent will provide CNN code example
+        elif event.type == EventType.FILE_WRITE:
+            print(f"Creating code file: {event.data}")
+        elif event.type == EventType.COMPLETED_TASK:
+            break
 
-# Later session (agent remembers)
-agent.run("What outdoor activities do I enjoy?")
-# Response: "You mentioned that you love hiking!"
+asyncio.run(multi_turn_conversation())
+```
+
+### Cross-Session Persistence
+
+Maintain conversations across different script executions:
+
+```python
+# session1.py
+import asyncio
+import uuid
+from panda_agi.client import Agent
+from panda_agi.client.models import EventType
+
+# Generate and save conversation ID for reuse
+CONVERSATION_ID = str(uuid.uuid4())
+print(f"Conversation ID: {CONVERSATION_ID}")
+# Save this ID to reuse in session2.py
+
+async def start_research():
+    # Start a research session
+    agent = Agent(conversation_id=CONVERSATION_ID)
+    
+    async for event in agent.run("Please analyze the Python project in my workspace"):
+        if event.type == EventType.FILE_EXPLORE:
+            print(f"Exploring project: {event.data}")
+        elif event.type == EventType.USER_NOTIFICATION:
+            print(f"Analysis: {event.data}")
+        elif event.type == EventType.COMPLETED_TASK:
+            print("Initial analysis complete. Check session2.py for follow-ups.")
+            break
+
+asyncio.run(start_research())
+```
+
+```python
+# session2.py - Run this later with the same conversation ID
+import asyncio
+from panda_agi.client import Agent
+from panda_agi.client.models import EventType
+
+# Use the same conversation ID from session1.py
+CONVERSATION_ID = "your-uuid-from-session1"  # Replace with actual UUID
+
+async def continue_research():
+    # Continue the same conversation
+    agent = Agent(conversation_id=CONVERSATION_ID)
+    
+    # Agent remembers the previous analysis
+    async for event in agent.run("Based on your analysis, what improvements would you suggest?"):
+        if event.type == EventType.USER_NOTIFICATION:
+            print(event.data)
+        elif event.type == EventType.FILE_WRITE:
+            print(f"Creating improvement suggestions: {event.data}")
+        elif event.type == EventType.COMPLETED_TASK:
+            break
+
+asyncio.run(continue_research())
 ```
 
 ## Best Practices
 
 <AccordionGroup>
-  <Accordion title="Clear Descriptions">
-    Write clear, specific agent descriptions:
-    
-    ```python
-    # Good
-    description = """
-    A financial analysis agent that can:
-    - Analyze stock market data
-    - Calculate financial ratios
-    - Generate investment reports
-    - Track portfolio performance
-    """
-    
-    # Avoid
-    description = "A helpful agent"
-    ```
-  </Accordion>
-
-  <Accordion title="Appropriate Tools">
-    Only include tools the agent actually needs:
-    
-    ```python
-    # For a research agent
-    tools = [WebSearchTool(), WebNavigationTool()]
-    
-    # Don't include unrelated tools
-    # tools = [WebSearchTool(), ImageGenerationTool(), MusicTool()]
-    ```
-  </Accordion>
 
   <Accordion title="Resource Management">
-    Set appropriate limits to prevent runaway execution:
+    Properly manage connections and resources:
     
     ```python
-    config = AgentConfig(
-        timeout=120,        # 2 minutes max
-        max_iterations=15,  # Reasonable limit
-        max_tokens=2000     # Control response length
-    )
+    # Use context managers when possible
+    async with Agent() as agent:
+        # Work with agent
+        pass
+    
+    # Or ensure proper cleanup
+    agent = Agent()
+    try:
+        # Work with agent
+        pass
+    finally:
+        await agent.disconnect()
     ```
   </Accordion>
 
-  <Accordion title="Error Handling">
-    Always handle potential errors:
+  <Accordion title="Environment Setup">
+    Set up appropriate workspace environments:
     
     ```python
-    try:
-        response = agent.run(query, timeout=60)
-        return response
-    except AgentError as e:
-        logger.error(f"Agent error: {e}")
-        return "I encountered an error processing your request."
-    except TimeoutError:
-        return "The request took too long to process."
+    from panda_agi.envs import LocalEnv
+    
+    # Isolated workspace for each task
+    env = LocalEnv("./task_specific_workspace")
+    agent = Agent(environment=env)
+    
+    # Ensure proper permissions
+    agent.change_working_directory("/safe/working/directory")
     ```
   </Accordion>
+
 </AccordionGroup>
 
 ## Next Steps
 
 <CardGroup cols={2}>
   <Card
-    title="Tools"
-    icon="wrench"
-    href="/concepts/tools"
-  >
-    Learn about the tools agents can use
-  </Card>
-  <Card
     title="Events"
     icon="bolt"
     href="/concepts/events"
   >
-    Understand agent event streaming
+    Learn about agent event streaming in detail
+  </Card>
+  <Card
+    title="Environments"
+    icon="globe"
+    href="/concepts/environments"
+  >
+    Understand agent workspace environments
   </Card>
 </CardGroup> 

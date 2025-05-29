@@ -56,6 +56,8 @@ async for event in agent.run("Research AI trends and create a report"):
 
 ## Core Event Types
 
+The Panda AGI SDK uses a comprehensive set of event types defined in the `EventType` enum. Here are all available event types:
+
 ### Connection & Environment Events
 
 <AccordionGroup>
@@ -64,7 +66,7 @@ async for event in agent.run("Research AI trends and create a report"):
     
     ```json
     {
-      "type": "AGENT_CONNECTION_SUCCESS",
+      "type": "agent_connection_success",
       "timestamp": "2025-05-29T00:20:46.066499",
       "data": {
         "file_system": {
@@ -101,7 +103,7 @@ async for event in agent.run("Research AI trends and create a report"):
     
     ```json
     {
-      "type": "WEB_SEARCH",
+      "type": "web_search",
       "timestamp": "2025-05-29T00:20:55.196858",
       "data": {
         "query": "latest developments in artificial intelligence 2024",
@@ -116,7 +118,7 @@ async for event in agent.run("Research AI trends and create a report"):
     
     ```json
     {
-      "type": "WEB_SEARCH_RESULT",
+      "type": "web_search_result",
       "timestamp": "2025-05-29T00:20:58.018191",
       "data": [
         {
@@ -137,7 +139,7 @@ async for event in agent.run("Research AI trends and create a report"):
     
     ```json
     {
-      "type": "WEB_NAVIGATION",
+      "type": "web_navigation",
       "timestamp": "2025-05-29T00:21:06.297879",
       "data": {
         "url": "https://www.analyticsinsight.net/artificial-intelligence/top-ai-developments-we-saw-in-2024"
@@ -151,7 +153,7 @@ async for event in agent.run("Research AI trends and create a report"):
     
     ```json
     {
-      "type": "WEB_NAVIGATION_RESULT",
+      "type": "web_navigation_result",
       "timestamp": "2025-05-29T00:21:06.874471",
       "data": {
         "url": "https://www.analyticsinsight.net/artificial-intelligence/top-ai-developments-we-saw-in-2024",
@@ -166,12 +168,28 @@ async for event in agent.run("Research AI trends and create a report"):
 ### File System Events
 
 <AccordionGroup>
-  <Accordion title="FILE_WRITE">
-    When the agent creates or modifies files:
+  <Accordion title="FILE_READ">
+    When the agent reads file contents:
     
     ```json
     {
-      "type": "FILE_WRITE",
+      "type": "file_read",
+      "timestamp": "2025-05-29T00:22:15.123456",
+      "data": {
+        "file": "data.csv",
+        "size_bytes": 2048,
+        "content_preview": "Name,Age,City\nJohn,25,NYC..."
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="FILE_WRITE">
+    When the agent creates or writes to files:
+    
+    ```json
+    {
+      "type": "file_write",
       "timestamp": "2025-05-29T00:21:46.050300",
       "data": {
         "file": "ai_developments_2024_report.md",
@@ -182,16 +200,53 @@ async for event in agent.run("Research AI trends and create a report"):
     ```
   </Accordion>
 
-  <Accordion title="FILE_READ">
-    When the agent reads file contents:
+  <Accordion title="FILE_REPLACE">
+    When the agent replaces content in existing files:
     
     ```json
     {
-      "type": "FILE_READ",
-      "timestamp": "2025-05-29T00:22:15.123456",
+      "type": "file_replace",
+      "timestamp": "2025-05-29T00:23:30.123456",
       "data": {
-        "file": "data.csv",
-        "size_bytes": 2048
+        "file": "config.json",
+        "old_content": "\"debug\": false",
+        "new_content": "\"debug\": true",
+        "line_number": 15
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="FILE_FIND">
+    When the agent searches for files or content within files:
+    
+    ```json
+    {
+      "type": "file_find",
+      "timestamp": "2025-05-29T00:24:45.123456",
+      "data": {
+        "pattern": "*.py",
+        "directory": "./src",
+        "matches": ["main.py", "utils.py", "models.py"]
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="FILE_EXPLORE">
+    When the agent explores directory structure:
+    
+    ```json
+    {
+      "type": "file_explore",
+      "timestamp": "2025-05-29T00:25:10.123456",
+      "data": {
+        "directory": "./project",
+        "structure": {
+          "src/": ["main.py", "utils.py"],
+          "docs/": ["README.md"],
+          "tests/": ["test_main.py"]
+        }
       }
     }
     ```
@@ -206,7 +261,7 @@ async for event in agent.run("Research AI trends and create a report"):
     
     ```json
     {
-      "type": "SHELL_EXEC",
+      "type": "shell_exec",
       "timestamp": "2025-05-29T00:24:12.290811",
       "data": {
         "id": "ai_chart",
@@ -218,19 +273,32 @@ async for event in agent.run("Research AI trends and create a report"):
     ```
   </Accordion>
 
-  <Accordion title="SHELL_EXEC_RESULT">
-    Contains the output from shell command execution:
+  <Accordion title="SHELL_VIEW">
+    When the agent views output from shell commands:
     
     ```json
     {
-      "type": "SHELL_EXEC_RESULT",
+      "type": "shell_view",
       "timestamp": "2025-05-29T00:24:15.123456",
       "data": {
-        "id": "ai_chart",
-        "exit_code": 0,
-        "stdout": "Chart generated successfully",
-        "stderr": "",
-        "execution_time": 2.8
+        "command": "ls -la",
+        "output": "total 64\ndrwxr-xr-x  8 user  staff   256 May 29 00:24 .\n..."
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="SHELL_WRITE">
+    When the agent writes to shell or creates shell scripts:
+    
+    ```json
+    {
+      "type": "shell_write",
+      "timestamp": "2025-05-29T00:26:30.123456",
+      "data": {
+        "script": "setup.sh",
+        "content": "#!/bin/bash\npip install -r requirements.txt\n...",
+        "executable": true
       }
     }
     ```
@@ -245,7 +313,7 @@ async for event in agent.run("Research AI trends and create a report"):
     
     ```json
     {
-      "type": "USER_NOTIFICATION",
+      "type": "user_notification",
       "timestamp": "2025-05-29T00:27:09.611663",
       "data": {
         "text": "The AI Developments 2024 summary report is complete. The attached markdown document provides a comprehensive analysis...",
@@ -259,12 +327,28 @@ async for event in agent.run("Research AI trends and create a report"):
     ```
   </Accordion>
 
+  <Accordion title="USER_QUESTION">
+    When the agent needs clarification or input from the user:
+    
+    ```json
+    {
+      "type": "user_question",
+      "timestamp": "2025-05-29T00:28:00.123456",
+      "data": {
+        "question": "I found multiple configuration files. Which one should I modify?",
+        "options": ["config.json", "settings.yaml", ".env"],
+        "context": "Setting up database connection"
+      }
+    }
+    ```
+  </Accordion>
+
   <Accordion title="COMPLETED_TASK">
     Indicates the agent has finished the requested task:
     
     ```json
     {
-      "type": "COMPLETED_TASK",
+      "type": "completed_task",
       "timestamp": "2025-05-29T00:27:10.305395",
       "data": {}
     }
@@ -272,121 +356,51 @@ async for event in agent.run("Research AI trends and create a report"):
   </Accordion>
 </AccordionGroup>
 
-## Event Types
-
-### Core Events
+### Creative & Generation Events
 
 <AccordionGroup>
-  <Accordion title="agent_start">
-    Fired when an agent begins processing a request:
+  <Accordion title="IMAGE_GENERATION">
+    When the agent generates images or visual content:
     
     ```json
     {
-      "type": "agent_start",
-      "timestamp": "2024-01-15T10:30:00Z",
-      "agent_id": "research_agent_001",
-      "query": "What are the latest developments in AI?",
-      "session_id": "session_123"
-    }
-    ```
-  </Accordion>
-
-  <Accordion title="agent_thinking">
-    Shows the agent's reasoning process:
-    
-    ```json
-    {
-      "type": "agent_thinking",
-      "timestamp": "2024-01-15T10:30:01Z",
-      "agent_id": "research_agent_001",
-      "thought": "I need to search for recent AI developments and analyze the results",
-      "plan": ["search_web", "analyze_results", "synthesize_response"]
-    }
-    ```
-  </Accordion>
-
-  <Accordion title="tool_start">
-    Indicates a tool is about to be executed:
-    
-    ```json
-    {
-      "type": "tool_start",
-      "timestamp": "2024-01-15T10:30:02Z",
-      "tool_name": "WebSearchTool",
-      "parameters": {
-        "query": "latest AI developments 2024",
-        "max_results": 10
+      "type": "image_generation",
+      "timestamp": "2025-05-29T00:29:15.123456",
+      "data": {
+        "prompt": "Data visualization chart showing AI adoption trends",
+        "image_path": "ai_trends_chart.png",
+        "format": "png",
+        "dimensions": "1024x768"
       }
     }
     ```
   </Accordion>
-
-  <Accordion title="tool_result">
-    Contains the results from tool execution:
-    
-    ```json
-    {
-      "type": "tool_result",
-      "timestamp": "2024-01-15T10:30:05Z",
-      "tool_name": "WebSearchTool",
-      "success": true,
-      "result": {
-        "results": [...],
-        "total_found": 1250
-      },
-      "execution_time": 3.2
-    }
-    ```
-  </Accordion>
-
-  <Accordion title="agent_response">
-    The final response from the agent:
-    
-    ```json
-    {
-      "type": "agent_response",
-      "timestamp": "2024-01-15T10:30:10Z",
-      "agent_id": "research_agent_001",
-      "response": "Based on my research, here are the latest AI developments...",
-      "confidence": 0.95
-    }
-    ```
-  </Accordion>
 </AccordionGroup>
 
-### Error Events
+## Complete EventType Reference
 
-<AccordionGroup>
-  <Accordion title="tool_error">
-    When a tool encounters an error:
-    
-    ```json
-    {
-      "type": "tool_error",
-      "timestamp": "2024-01-15T10:30:03Z",
-      "tool_name": "WebSearchTool",
-      "error": "Connection timeout",
-      "error_code": "TIMEOUT",
-      "retry_count": 2
-    }
-    ```
-  </Accordion>
+```python
+from panda_agi.client.models import EventType
 
-  <Accordion title="agent_error">
-    When the agent encounters an error:
-    
-    ```json
-    {
-      "type": "agent_error",
-      "timestamp": "2024-01-15T10:30:08Z",
-      "agent_id": "research_agent_001",
-      "error": "Maximum iterations exceeded",
-      "error_code": "MAX_ITERATIONS",
-      "context": {...}
-    }
-    ```
-  </Accordion>
-</AccordionGroup>
+# All available event types:
+EventType.AGENT_CONNECTION_SUCCESS  # Agent connected and workspace initialized
+EventType.USER_NOTIFICATION        # Progress updates and notifications
+EventType.USER_QUESTION            # Agent asking for user input/clarification
+EventType.COMPLETED_TASK           # Task completion notification
+EventType.WEB_SEARCH               # Web search initiated
+EventType.WEB_SEARCH_RESULT        # Web search results received
+EventType.WEB_NAVIGATION           # Navigating to specific webpage
+EventType.WEB_NAVIGATION_RESULT    # Webpage content extracted
+EventType.FILE_READ                # Reading file contents
+EventType.FILE_WRITE               # Writing/creating files
+EventType.FILE_REPLACE             # Replacing content in files
+EventType.FILE_FIND                # Searching for files/content
+EventType.FILE_EXPLORE             # Exploring directory structure
+EventType.IMAGE_GENERATION         # Generating images/visual content
+EventType.SHELL_EXEC               # Executing shell commands
+EventType.SHELL_VIEW               # Viewing shell command output
+EventType.SHELL_WRITE              # Writing shell scripts
+```
 
 ## Event Streaming
 
@@ -396,6 +410,7 @@ Stream events in real-time as your remote agent works through complex tasks:
 
 ```python
 from panda_agi.client import Agent
+from panda_agi.client.models import EventType
 from panda_agi.envs import DockerEnv
 import asyncio
 
@@ -407,27 +422,27 @@ async def main():
     # Stream events as the agent works autonomously
     async for event in agent.run("Research machine learning trends and create a comprehensive report"):
         # Events stream live from the remote agent
-        if event.type == "AGENT_CONNECTION_SUCCESS":
+        if event.type == EventType.AGENT_CONNECTION_SUCCESS:
             print(f"🔗 Agent connected: {event.data['file_system']['directory']}")
         
-        elif event.type == "WEB_SEARCH":
+        elif event.type == EventType.WEB_SEARCH:
             print(f"🔍 Searching: {event.data['query']}")
         
-        elif event.type == "WEB_NAVIGATION":
+        elif event.type == EventType.WEB_NAVIGATION:
             print(f"🌐 Reading: {event.data['url']}")
         
-        elif event.type == "FILE_WRITE":
+        elif event.type == EventType.FILE_WRITE:
             print(f"📝 Created: {event.data['file']}")
         
-        elif event.type == "SHELL_EXEC":
+        elif event.type == EventType.SHELL_EXEC:
             print(f"⚙️ Executing: {event.data['command']}")
         
-        elif event.type == "USER_NOTIFICATION":
+        elif event.type == EventType.USER_NOTIFICATION:
             print(f"📢 Update: {event.data['text']}")
             if event.data.get('attachments'):
                 print(f"📎 Files: {', '.join(event.data['attachments'])}")
         
-        elif event.type == "COMPLETED_TASK":
+        elif event.type == EventType.COMPLETED_TASK:
             print("🎉 Task completed!")
     
     await agent.disconnect()
@@ -435,610 +450,44 @@ async def main():
 asyncio.run(main())
 ```
 
-### WebSocket Streaming
 
-For web applications, connect to the agent's event stream via WebSocket:
-
-```python
-from panda_agi.client import WebSocketClient
-import asyncio
-import json
-
-async def stream_agent_events():
-    client = WebSocketClient("ws://localhost:8000/ws")
-    
-    # Send task to the remote agent
-    await client.send({
-        "type": "agent_task",
-        "query": "Analyze sales data and generate insights",
-        "environment": {
-            "type": "docker",
-            "workspace": "./analysis_workspace"
-        }
-    })
-    
-    # Stream events from the remote agent
-    async for event in client.stream():
-        event_data = json.loads(event)
-        
-        # Handle different event types from the agent
-        if event_data['type'] == 'WEB_SEARCH':
-            print(f"Agent searching: {event_data['data']['query']}")
-        
-        elif event_data['type'] == 'FILE_WRITE':
-            filename = event_data['data']['file']
-            print(f"Agent created file: {filename}")
-        
-        elif event_data['type'] == 'USER_NOTIFICATION':
-            print(f"Agent update: {event_data['data']['text']}")
-
-# Run the streaming client
-asyncio.run(stream_agent_events())
-```
-
-### Server-Sent Events (SSE)
-
-For web frontends, stream agent events using Server-Sent Events:
-
-```javascript
-// Frontend JavaScript - Connect to agent event stream
-const eventSource = new EventSource('/api/agent/stream');
-
-eventSource.onmessage = function(event) {
-    const data = JSON.parse(event.data);
-    
-    switch(data.type) {
-        case 'AGENT_CONNECTION_SUCCESS':
-            showStatus('Agent connected and ready', 'success');
-            break;
-            
-        case 'WEB_SEARCH':
-            showActivity(`Searching: ${data.data.query}`, 'search');
-            break;
-            
-        case 'WEB_NAVIGATION':
-            showActivity(`Reading: ${data.data.url}`, 'web');
-            break;
-            
-        case 'FILE_WRITE':
-            showActivity(`Created: ${data.data.file}`, 'file');
-            updateFileList(data.data.file);
-            break;
-            
-        case 'SHELL_EXEC':
-            showActivity(`Running: ${data.data.command}`, 'terminal');
-            break;
-            
-        case 'USER_NOTIFICATION':
-            showNotification(data.data.text, data.data.attachments);
-            break;
-            
-        case 'COMPLETED_TASK':
-            showStatus('Task completed successfully!', 'complete');
-            break;
-    }
-};
-
-eventSource.onerror = function(event) {
-    console.error('Agent event stream error:', event);
-    // Implement reconnection logic
-    setTimeout(() => {
-        connectToAgentStream();
-    }, 5000);
-};
-```
-
-## Event Filtering
-
-Filter events to focus on specific aspects of the agent's workflow:
-
-### Type-based Filtering
+### Advanced Event Handling with Enums
 
 ```python
 from panda_agi.client import Agent
-from panda_agi.events import EventFilter
-import asyncio
-
-async def main():
-    agent_env = DockerEnv("./workspace")
-    agent = Agent(environment=agent_env)
-
-    # Only show file operations and notifications
-    file_filter = EventFilter(types=["FILE_WRITE", "FILE_READ", "USER_NOTIFICATION"])
-
-    async for event in agent.run("Create a data analysis report", event_filter=file_filter):
-        print(f"File event: {event.type} - {event.data}")
-
-    await agent.disconnect()
-
-asyncio.run(main())
-```
-
-### Custom Filtering
-
-```python
-from panda_agi.events import EventFilter
-
-# Custom filter for important events only
-def critical_events_only(event):
-    return event.type in ["USER_NOTIFICATION", "COMPLETED_TASK"] or \
-           (event.type == "SHELL_EXEC" and "error" in event.data.get("command", "").lower())
-
-async def main():
-    agent_env = DockerEnv("./workspace")
-    agent = Agent(environment=agent_env)
-    
-    custom_filter = EventFilter(predicate=critical_events_only)
-
-    async for event in agent.run("Complex analysis task", event_filter=custom_filter):
-        print(f"Critical event: {event.type}")
-
-    await agent.disconnect()
-
-asyncio.run(main())
-```
-
-## Event Handlers
-
-Create custom handlers to process events as they stream from the remote agent:
-
-### Simple Event Handler
-
-```python
-from panda_agi.events import EventHandler
-from panda_agi.client import Agent
+from panda_agi.client.models import EventType
 from panda_agi.envs import DockerEnv
 import asyncio
 
-class AgentProgressHandler(EventHandler):
-    def __init__(self):
-        self.search_count = 0
-        self.files_created = []
-        self.commands_executed = []
-    
-    async def handle_agent_connection_success(self, event):
-        workspace = event.data['file_system']['directory']
-        print(f"🔗 Agent connected to workspace: {workspace}")
-    
-    async def handle_web_search(self, event):
-        query = event.data['query']
-        self.search_count += 1
-        print(f"🔍 Search #{self.search_count}: {query}")
-    
-    async def handle_file_write(self, event):
-        filename = event.data['file']
-        self.files_created.append(filename)
-        print(f"📝 Created file: {filename}")
-    
-    async def handle_shell_exec(self, event):
-        command = event.data['command']
-        self.commands_executed.append(command)
-        print(f"⚙️ Executing: {command}")
-    
-    async def handle_user_notification(self, event):
-        message = event.data['text']
-        attachments = event.data.get('attachments', [])
-        print(f"📢 Agent update: {message}")
-        if attachments:
-            print(f"📎 Files attached: {', '.join(attachments)}")
-    
-    async def handle_completed_task(self, event):
-        print(f"🎉 Task completed!")
-        print(f"📊 Summary:")
-        print(f"  - Web searches: {self.search_count}")
-        print(f"  - Files created: {len(self.files_created)}")
-        print(f"  - Commands executed: {len(self.commands_executed)}")
-
-# Use the handler
-async def main():
-    handler = AgentProgressHandler()
+async def advanced_event_monitoring():
     agent_env = DockerEnv("./workspace")
-    agent = Agent(environment=agent_env, event_handlers=[handler])
+    agent = Agent(environment=agent_env)
     
-    async for event in agent.run("Research renewable energy trends and create a presentation"):
-        # Handler processes events automatically
-        pass
+    # Track different types of activities
+    web_activities = [EventType.WEB_SEARCH, EventType.WEB_NAVIGATION]
+    file_activities = [EventType.FILE_READ, EventType.FILE_WRITE, EventType.FILE_REPLACE, EventType.FILE_EXPLORE]
+    shell_activities = [EventType.SHELL_EXEC, EventType.SHELL_VIEW, EventType.SHELL_WRITE]
+    
+    async for event in agent.run("Analyze codebase and generate documentation"):
+        if event.type in web_activities:
+            print(f"🌐 Web activity: {event.type.value}")
+        elif event.type in file_activities:
+            print(f"📁 File activity: {event.type.value}")
+        elif event.type in shell_activities:
+            print(f"💻 Shell activity: {event.type.value}")
+        elif event.type == EventType.IMAGE_GENERATION:
+            print(f"🎨 Generated image: {event.data.get('image_path', 'unknown')}")
+        elif event.type == EventType.USER_QUESTION:
+            print(f"❓ Agent question: {event.data['question']}")
+        elif event.type == EventType.USER_NOTIFICATION:
+            print(f"📢 Progress update: {event.data['text']}")
+        elif event.type == EventType.COMPLETED_TASK:
+            print("✅ Task completed successfully!")
     
     await agent.disconnect()
 
-asyncio.run(main())
+asyncio.run(advanced_event_monitoring())
 ```
-
-### Advanced Analytics Handler
-
-```python
-from panda_agi.events import EventHandler
-import json
-import time
-from collections import defaultdict
-
-class AdvancedAnalyticsHandler(EventHandler):
-    def __init__(self):
-        self.session_data = {}
-        self.performance_metrics = defaultdict(lambda: {
-            "total_calls": 0,
-            "total_time": 0,
-            "success_count": 0,
-            "error_count": 0
-        })
-        self.workflow_timeline = []
-        self.current_session = None
-    
-    async def handle_agent_connection_success(self, event):
-        self.current_session = f"session_{int(time.time())}"
-        self.session_data[self.current_session] = {
-            "start_time": time.time(),
-            "workspace": event.data['file_system']['directory'],
-            "events": [],
-            "files_created": [],
-            "searches_performed": [],
-            "commands_executed": []
-        }
-        self.workflow_timeline.append({
-            "timestamp": event.timestamp,
-            "event": "session_start",
-            "data": {"workspace": event.data['file_system']['directory']}
-        })
-    
-    async def handle_web_search(self, event):
-        if self.current_session:
-            query = event.data['query']
-            search_data = {
-                "timestamp": event.timestamp,
-                "query": query,
-                "max_results": event.data.get('max_results', 0)
-            }
-            self.session_data[self.current_session]["searches_performed"].append(search_data)
-            self.workflow_timeline.append({
-                "timestamp": event.timestamp,
-                "event": "web_search",
-                "data": search_data
-            })
-    
-    async def handle_web_search_result(self, event):
-        # Track search performance
-        results_count = len(event.data) if isinstance(event.data, list) else 0
-        metrics = self.performance_metrics["web_search"]
-        metrics["total_calls"] += 1
-        metrics["success_count"] += 1 if results_count > 0 else 0
-        
-        self.workflow_timeline.append({
-            "timestamp": event.timestamp,
-            "event": "search_results",
-            "data": {"results_count": results_count}
-        })
-    
-    async def handle_file_write(self, event):
-        if self.current_session:
-            filename = event.data['file']
-            file_data = {
-                "timestamp": event.timestamp,
-                "filename": filename,
-                "size_chars": len(event.data.get('content', ''))
-            }
-            self.session_data[self.current_session]["files_created"].append(file_data)
-            self.workflow_timeline.append({
-                "timestamp": event.timestamp,
-                "event": "file_created",
-                "data": file_data
-            })
-    
-    async def handle_shell_exec(self, event):
-        if self.current_session:
-            command = event.data['command']
-            exec_data = {
-                "timestamp": event.timestamp,
-                "command": command,
-                "exec_dir": event.data.get('exec_dir', './'),
-                "blocking": event.data.get('blocking', 'false')
-            }
-            self.session_data[self.current_session]["commands_executed"].append(exec_data)
-            self.workflow_timeline.append({
-                "timestamp": event.timestamp,
-                "event": "command_executed",
-                "data": exec_data
-            })
-    
-    async def handle_completed_task(self, event):
-        if self.current_session:
-            session = self.session_data[self.current_session]
-            session["end_time"] = time.time()
-            session["duration"] = session["end_time"] - session["start_time"]
-            
-            self.workflow_timeline.append({
-                "timestamp": event.timestamp,
-                "event": "task_completed",
-                "data": {"duration": session["duration"]}
-            })
-    
-    def export_analytics(self, filename="agent_analytics.json"):
-        """Export comprehensive analytics data"""
-        analytics_data = {
-            "sessions": self.session_data,
-            "performance_metrics": dict(self.performance_metrics),
-            "workflow_timeline": self.workflow_timeline,
-            "summary": self.get_summary()
-        }
-        
-        with open(filename, 'w') as f:
-            json.dump(analytics_data, f, indent=2, default=str)
-        
-        print(f"📊 Analytics exported to {filename}")
-    
-    def get_summary(self):
-        """Get summary statistics"""
-        total_sessions = len(self.session_data)
-        total_files = sum(len(session["files_created"]) for session in self.session_data.values())
-        total_searches = sum(len(session["searches_performed"]) for session in self.session_data.values())
-        total_commands = sum(len(session["commands_executed"]) for session in self.session_data.values())
-        
-        return {
-            "total_sessions": total_sessions,
-            "total_files_created": total_files,
-            "total_searches": total_searches,
-            "total_commands": total_commands,
-            "performance_metrics": dict(self.performance_metrics)
-        }
-
-# Usage with analytics
-async def main():
-    analytics = AdvancedAnalyticsHandler()
-    agent_env = DockerEnv("./workspace")
-    agent = Agent(environment=agent_env, event_handlers=[analytics])
-    
-    try:
-        async for event in agent.run("Create a comprehensive market analysis with visualizations"):
-            # Analytics handler tracks everything automatically
-            pass
-    finally:
-        await agent.disconnect()
-        analytics.export_analytics("market_analysis_session.json")
-        
-        # Print summary
-        summary = analytics.get_summary()
-        print("\n📈 Session Summary:")
-        print(f"Files created: {summary['total_files_created']}")
-        print(f"Web searches: {summary['total_searches']}")
-        print(f"Commands executed: {summary['total_commands']}")
-
-asyncio.run(main())
-```
-
-## Event Storage
-
-Store events for later analysis:
-
-### Database Storage
-
-```python
-from panda_agi.events import DatabaseEventStore
-import sqlite3
-
-# SQLite storage
-store = DatabaseEventStore("sqlite:///agent_events.db")
-
-class StorageHandler(EventHandler):
-    def __init__(self, store):
-        self.store = store
-    
-    def handle_event(self, event):
-        # Store all events
-        self.store.save_event(event)
-
-# Use with agent
-handler = StorageHandler(store)
-agent = Agent(name="StoredAgent", event_handlers=[handler])
-```
-
-### File Storage
-
-```python
-from panda_agi.events import FileEventStore
-import json
-
-class FileHandler(EventHandler):
-    def __init__(self, filename):
-        self.filename = filename
-    
-    def handle_event(self, event):
-        with open(self.filename, "a") as f:
-            json.dump(event.to_dict(), f)
-            f.write("\n")
-
-# Use with agent
-handler = FileHandler("agent_events.jsonl")
-agent = Agent(name="FileStoredAgent", event_handlers=[handler])
-```
-
-## Building Interactive UIs
-
-### React Component Example
-
-```jsx
-import React, { useState, useEffect } from 'react';
-
-function AgentChat() {
-    const [events, setEvents] = useState([]);
-    const [isThinking, setIsThinking] = useState(false);
-    const [currentTool, setCurrentTool] = useState(null);
-
-    useEffect(() => {
-        const eventSource = new EventSource('/api/agent/stream');
-        
-        eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            
-            setEvents(prev => [...prev, data]);
-            
-            switch(data.type) {
-                case 'agent_thinking':
-                    setIsThinking(true);
-                    break;
-                case 'tool_start':
-                    setCurrentTool(data.tool_name);
-                    break;
-                case 'tool_result':
-                    setCurrentTool(null);
-                    break;
-                case 'agent_response':
-                    setIsThinking(false);
-                    break;
-            }
-        };
-        
-        return () => eventSource.close();
-    }, []);
-
-    return (
-        <div className="agent-chat">
-            {isThinking && (
-                <div className="thinking-indicator">
-                    Agent is thinking...
-                    {currentTool && <span>Using {currentTool}</span>}
-                </div>
-            )}
-            
-            <div className="events-list">
-                {events.map((event, index) => (
-                    <EventComponent key={index} event={event} />
-                ))}
-            </div>
-        </div>
-    );
-}
-```
-
-### Vue.js Component Example
-
-```vue
-<template>
-  <div class="agent-interface">
-    <div v-if="isProcessing" class="status-bar">
-      <span>{{ currentStatus }}</span>
-      <div class="progress-bar">
-        <div :style="{ width: progress + '%' }"></div>
-      </div>
-    </div>
-    
-    <div class="event-stream">
-      <div v-for="event in events" :key="event.id" 
-           :class="['event', event.type]">
-        <span class="timestamp">{{ formatTime(event.timestamp) }}</span>
-        <span class="type">{{ event.type }}</span>
-        <span class="content">{{ formatEventContent(event) }}</span>
-      </div>
-    </div>
-  </div>
-</template>
-
-<script>
-export default {
-  data() {
-    return {
-      events: [],
-      isProcessing: false,
-      currentStatus: '',
-      progress: 0
-    };
-  },
-  
-  mounted() {
-    this.connectEventStream();
-  },
-  
-  methods: {
-    connectEventStream() {
-      const eventSource = new EventSource('/api/agent/stream');
-      
-      eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        this.handleEvent(data);
-      };
-    },
-    
-    handleEvent(event) {
-      this.events.push(event);
-      
-      switch(event.type) {
-        case 'agent_start':
-          this.isProcessing = true;
-          this.currentStatus = 'Starting...';
-          this.progress = 10;
-          break;
-        case 'tool_start':
-          this.currentStatus = `Using ${event.tool_name}...`;
-          this.progress = 50;
-          break;
-        case 'agent_response':
-          this.isProcessing = false;
-          this.progress = 100;
-          break;
-      }
-    }
-  }
-};
-</script>
-```
-
-## Best Practices
-
-<AccordionGroup>
-  <Accordion title="Event Filtering">
-    Filter events to avoid overwhelming your UI:
-    
-    ```python
-    # Only show user-relevant events
-    ui_filter = EventFilter(types=[
-        "agent_thinking",
-        "tool_start", 
-        "agent_response"
-    ])
-    ```
-  </Accordion>
-
-  <Accordion title="Error Handling">
-    Always handle connection errors gracefully:
-    
-    ```javascript
-    eventSource.onerror = function(event) {
-        console.error('EventSource failed:', event);
-        // Implement reconnection logic
-        setTimeout(() => {
-            connectEventStream();
-        }, 5000);
-    };
-    ```
-  </Accordion>
-
-  <Accordion title="Performance">
-    Limit the number of events stored in memory:
-    
-    ```javascript
-    const MAX_EVENTS = 100;
-    
-    setEvents(prev => {
-        const newEvents = [...prev, data];
-        return newEvents.slice(-MAX_EVENTS);
-    });
-    ```
-  </Accordion>
-
-  <Accordion title="User Experience">
-    Provide meaningful feedback to users:
-    
-    ```python
-    class UIEventHandler(EventHandler):
-        def handle_agent_thinking(self, event):
-            # Show what the agent is thinking
-            self.ui.show_status(f"💭 {event.thought}")
-        
-        def handle_tool_start(self, event):
-            # Show tool usage with appropriate icons
-            icon = self.get_tool_icon(event.tool_name)
-            self.ui.show_status(f"{icon} Using {event.tool_name}...")
-    ```
-  </Accordion>
-</AccordionGroup>
 
 ## Next Steps
 

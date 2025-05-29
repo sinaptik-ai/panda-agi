@@ -38,7 +38,7 @@ async def main():
     # agent_env = DockerEnv("./my_agent_workspace")
 
     # Create the agent
-    agent = Agent(environment=agent_env)
+    agent = Agent(environment=agent_env, conversation_id="research-session")
 
     # First request - will automatically connect
     # The run method now returns a generator of AgentEvent

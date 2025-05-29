@@ -13,6 +13,10 @@ Get started by installing the PandaAGI SDK using pip:
 pip install panda-agi
 ```
 
+```bash uv
+uv pip install panda-agi
+```
+
 ```bash poetry
 poetry add panda-agi
 ```
@@ -22,6 +26,26 @@ conda install -c conda-forge panda-agi
 ```
 
 </CodeGroup>
+
+## API Key Setup
+
+Before you can start using the SDK, you'll need to configure your API key:
+
+<Warning>
+  **Required**: You must obtain an API key from [https://agi.pandas-ai.com/](https://agi.pandas-ai.com/) to use the Panda AGI SDK.
+</Warning>
+
+1. Visit [https://agi.pandas-ai.com/](https://agi.pandas-ai.com/) and sign in with GitHub
+2. Access your dashboard to get your API key
+3. Set the `PANDA_AGI_KEY` environment variable:
+
+```bash
+export PANDA_AGI_KEY="your-api-key-here"
+```
+
+<Info>
+  For detailed setup instructions including platform-specific configuration, see the [Installation Guide](/installation#api-key-configuration).
+</Info>
 
 ## What the Agent Can Do
 
@@ -177,6 +201,7 @@ Monitor your agent's progress in real-time as it works through complex tasks. Ev
 ```python
 import asyncio
 from panda_agi.client import Agent
+from panda_agi.client.models import EventType
 from panda_agi.envs import DockerEnv
 
 async def main():
@@ -189,7 +214,7 @@ async def main():
     ):
         # Events are generated asynchronously by the remote agent
         # You'll see the actual workflow unfold step by step:
-        print(f"[{event.timestamp}] {event.type}: {event.data}")
+        print(f"[{event.timestamp}] {event.type.value}: {event.data}")
     
     await agent.disconnect()
 
@@ -202,7 +227,7 @@ Here's what you'll actually see when running the above code - events stream live
 
 ```bash
 # Agent connects and initializes workspace
-[2025-05-29T00:20:46.066499] EventType.AGENT_CONNECTION_SUCCESS: {
+[2025-05-29T00:20:46.066499] agent_connection_success: {
     'file_system': {
         'directory': '/workspace/my_agent_workspace', 
         'structure': {'my_agent_workspace/': {}}
@@ -210,13 +235,13 @@ Here's what you'll actually see when running the above code - events stream live
 }
 
 # Agent begins web research
-[2025-05-29T00:20:55.196858] EventType.WEB_SEARCH: {
+[2025-05-29T00:20:55.196858] web_search: {
     'query': 'latest developments in artificial intelligence 2024', 
     'max_results': 8
 }
 
 # Search results come back
-[2025-05-29T00:20:58.018191] EventType.WEB_SEARCH_RESULT: [
+[2025-05-29T00:20:58.018191] web_search_result: [
     {
         'url': 'https://www.analyticsinsight.net/artificial-intelligence/top-ai-developments-we-saw-in-2024', 
         'title': 'Top AI developments We Saw in 2024 - Analytics Insight'
@@ -228,25 +253,25 @@ Here's what you'll actually see when running the above code - events stream live
 ]
 
 # Agent navigates to specific pages
-[2025-05-29T00:21:06.297879] EventType.WEB_NAVIGATION: {
+[2025-05-29T00:21:06.297879] web_navigation: {
     'url': 'https://www.analyticsinsight.net/artificial-intelligence/top-ai-developments-we-saw-in-2024'
 }
 
-[2025-05-29T00:21:06.874471] EventType.WEB_NAVIGATION_RESULT: {
+[2025-05-29T00:21:06.874471] web_navigation_result: {
     'url': 'https://www.analyticsinsight.net/artificial-intelligence/top-ai-developments-we-saw-in-2024', 
     'content': 'Top AI developments We Saw in 2024...', 
     'status_code': 200
 }
 
 # Agent creates files with research findings
-[2025-05-29T00:21:46.050300] EventType.FILE_WRITE: {
+[2025-05-29T00:21:46.050300] file_write: {
     'file': 'ai_developments_2024_report_todo.md', 
     'content': '# AI Developments 2024 Report: To-Do List\n\n## 1. Introduction...',
     'append': False
 }
 
 # Agent generates data and visualizations
-[2025-05-29T00:24:12.290811] EventType.SHELL_EXEC: {
+[2025-05-29T00:24:12.290811] shell_exec: {
     'id': 'ai_chart', 
     'exec_dir': './', 
     'command': 'python3 generate_ai_adoption_chart.py', 
@@ -254,7 +279,7 @@ Here's what you'll actually see when running the above code - events stream live
 }
 
 # Agent provides updates to user
-[2025-05-29T00:25:09.611663] EventType.USER_NOTIFICATION: {
+[2025-05-29T00:25:09.611663] user_notification: {
     'text': 'The AI Developments 2024 summary report is complete...',
     'attachments': [
         'ai_developments_2024_report.md', 
@@ -264,7 +289,7 @@ Here's what you'll actually see when running the above code - events stream live
 }
 
 # Task completion
-[2025-05-29T00:27:10.305395] EventType.COMPLETED_TASK: {}
+[2025-05-29T00:27:10.305395] completed_task: {}
 ```
 
 ### Key Event Streaming Features
@@ -303,6 +328,7 @@ Build responsive interfaces that update as the agent works:
 ```python
 import asyncio
 from panda_agi.client import Agent
+from panda_agi.client.models import EventType
 from panda_agi.envs import DockerEnv
 
 class AgentMonitor:
@@ -325,33 +351,33 @@ class AgentMonitor:
     async def handle_event(self, event):
         """Process events as they stream from the remote agent"""
         
-        if event.type == "AGENT_CONNECTION_SUCCESS":
+        if event.type == EventType.AGENT_CONNECTION_SUCCESS:
             self.status = "Connected - Workspace initialized"
             print(f"🔗 {self.status}")
         
-        elif event.type == "WEB_SEARCH":
+        elif event.type == EventType.WEB_SEARCH:
             query = event.data.get('query', '')
             self.search_queries.append(query)
             self.status = f"🔍 Searching: {query}"
             print(f"🔍 Web search: {query}")
         
-        elif event.type == "WEB_NAVIGATION":
+        elif event.type == EventType.WEB_NAVIGATION:
             url = event.data.get('url', '')
             self.status = f"🌐 Reading: {url}"
             print(f"🌐 Navigating to: {url}")
         
-        elif event.type == "FILE_WRITE":
+        elif event.type == EventType.FILE_WRITE:
             filename = event.data.get('file', '')
             self.files_created.append(filename)
             self.status = f"📝 Created: {filename}"
             print(f"📝 File created: {filename}")
         
-        elif event.type == "SHELL_EXEC":
+        elif event.type == EventType.SHELL_EXEC:
             command = event.data.get('command', '')
             self.status = f"⚙️ Running: {command}"
             print(f"⚙️ Executing: {command}")
         
-        elif event.type == "USER_NOTIFICATION":
+        elif event.type == EventType.USER_NOTIFICATION:
             message = event.data.get('text', '')
             attachments = event.data.get('attachments', [])
             self.status = "✅ Task update available"
@@ -359,7 +385,7 @@ class AgentMonitor:
             if attachments:
                 print(f"📎 Files: {', '.join(attachments)}")
         
-        elif event.type == "COMPLETED_TASK":
+        elif event.type == EventType.COMPLETED_TASK:
             self.status = "✅ Task completed"
             print(f"🎉 Task completed!")
             print(f"📊 Summary:")
