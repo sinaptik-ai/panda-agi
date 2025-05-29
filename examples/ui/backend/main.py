@@ -13,6 +13,7 @@ from pydantic import BaseModel
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from panda_agi.client.agent import Agent
+from panda_agi.client.models import EventType
 from panda_agi.envs import LocalEnv
 
 app = FastAPI(title="PandaAGI SDK API", version="1.0.0")
@@ -36,17 +37,57 @@ class AgentQuery(BaseModel):
     timeout: Optional[int] = None
 
 
-async def event_stream(query: str, timeout: int = None) -> AsyncGenerator[str, None]:
+def should_render_event(event_type: str) -> bool:
+    """Check if event should be rendered - same logic as CLI"""
+    # Skip redundant events
+    if event_type == EventType.WEB_NAVIGATION.value:
+        # Skip WEB_NAVIGATION since WEB_NAVIGATION_RESULT provides the same info + content
+        return False
+        
+    # Skip task completion events - not needed in UI
+    if event_type == EventType.COMPLETED_TASK.value:
+        return False
+        
+    return True
+
+
+async def event_stream(query: str) -> AsyncGenerator[str, None]:
     """Stream agent events as Server-Sent Events"""
     try:
         # Stream events
-        async for event in agent.run(query, timeout=timeout):
+        async for event in agent.run(query):
+            # Convert StreamEvent to dictionary format for frontend compatibility
+            event_type = event.type.value if hasattr(event.type, 'value') else str(event.type)
+            
+            # Apply same filtering as CLI
+            if not should_render_event(event_type):
+                continue
+                
+            # Convert to expected format
+            event_dict = {
+                "event_source": "output",  # Default source
+                "data": {
+                    "type": event_type,
+                    "payload": event.data,
+                    "timestamp": event.timestamp,
+                    "id": getattr(event, 'id', None)
+                }
+            }
+            
             # Format as SSE
-            yield f"data: {json.dumps(event)}\n\n"
+            yield f"data: {json.dumps(event_dict)}\n\n"
 
     except Exception as e:
         # Send error event
-        error_data = {"type": "error", "data": {"error": str(e)}}
+        error_data = {
+            "event_source": "error",
+            "data": {
+                "type": "error", 
+                "payload": {"error": str(e)},
+                "timestamp": "",
+                "id": None
+            }
+        }
         yield f"data: {json.dumps(error_data)}\n\n"
 
     finally:
@@ -63,7 +104,7 @@ async def run_agent(query_data: AgentQuery):
     """Run an agent with the given query and stream events"""
     try:
         return StreamingResponse(
-            event_stream(query_data.query, query_data.timeout),
+            event_stream(query_data.query),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",

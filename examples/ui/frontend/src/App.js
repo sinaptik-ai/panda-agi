@@ -77,26 +77,66 @@ function App() {
 
   const getEventIcon = (eventType) => {
     switch (eventType) {
+      // Connection events
+      case "agent_connection_success":
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+
+      // User events
+      case "user_notification":
+      case "user_question":
+        return <MessageSquare className="w-4 h-4 text-indigo-500" />;
+
+      // Web operations
+      case "web_search":
+        return <Globe className="w-4 h-4 text-orange-500" />;
+      case "web_search_result":
+        return <Activity className="w-4 h-4 text-orange-500" />;
+      case "web_navigation":
+        return <Globe className="w-4 h-4 text-orange-600" />;
+      case "web_navigation_result":
+        return <Globe className="w-4 h-4 text-orange-600" />;
+
+      // File operations
+      case "file_read":
+        return <FileText className="w-4 h-4 text-cyan-500" />;
+      case "file_write":
+        return <FileText className="w-4 h-4 text-green-600" />;
+      case "file_replace":
+        return <FileText className="w-4 h-4 text-yellow-600" />;
+      case "file_find":
+        return <FileText className="w-4 h-4 text-blue-500" />;
+      case "file_explore":
+        return <FileText className="w-4 h-4 text-blue-600" />;
+
+      // Shell operations
+      case "shell_exec":
+        return <Activity className="w-4 h-4 text-purple-600" />;
+      case "shell_view":
+        return <Activity className="w-4 h-4 text-gray-600" />;
+      case "shell_write":
+        return <Activity className="w-4 h-4 text-yellow-600" />;
+
+      // Image operations
+      case "image_generation":
+        return <Activity className="w-4 h-4 text-magenta-500" />;
+
+      // Legacy event types (for backwards compatibility)
       case "connection_success":
         return <CheckCircle className="w-4 h-4 text-green-500" />;
       case "tool_result":
         return <Activity className="w-4 h-4 text-blue-500" />;
       case "agent_request":
         return <Bot className="w-4 h-4 text-purple-500" />;
-      case "web_search":
-        return <Globe className="w-4 h-4 text-orange-500" />;
       case "web_visit_page":
         return <Globe className="w-4 h-4 text-orange-600" />;
-      case "file_write":
-        return <FileText className="w-4 h-4 text-green-600" />;
       case "user_send_message":
         return <MessageSquare className="w-4 h-4 text-indigo-500" />;
-      case "error":
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
       case "shell_exec_command":
         return <Activity className="w-4 h-4 text-purple-600" />;
       case "completion":
         return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case "error":
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
       case "unknown":
       default:
         return <Clock className="w-4 h-4 text-gray-500" />;
@@ -105,26 +145,66 @@ function App() {
 
   const getEventColor = (eventType) => {
     switch (eventType) {
+      // Connection events
+      case "agent_connection_success":
+        return "bg-green-50 border-green-200";
+
+      // User events
+      case "user_notification":
+      case "user_question":
+        return "bg-indigo-50 border-indigo-200";
+
+      // Web operations
+      case "web_search":
+        return "bg-orange-50 border-orange-200";
+      case "web_search_result":
+        return "bg-orange-50 border-orange-300";
+      case "web_navigation":
+        return "bg-orange-50 border-orange-300";
+      case "web_navigation_result":
+        return "bg-orange-50 border-orange-400";
+
+      // File operations
+      case "file_read":
+        return "bg-cyan-50 border-cyan-200";
+      case "file_write":
+        return "bg-green-50 border-green-300";
+      case "file_replace":
+        return "bg-yellow-50 border-yellow-300";
+      case "file_find":
+        return "bg-blue-50 border-blue-200";
+      case "file_explore":
+        return "bg-blue-50 border-blue-300";
+
+      // Shell operations
+      case "shell_exec":
+        return "bg-purple-50 border-purple-300";
+      case "shell_view":
+        return "bg-gray-50 border-gray-300";
+      case "shell_write":
+        return "bg-yellow-50 border-yellow-300";
+
+      // Image operations
+      case "image_generation":
+        return "bg-purple-50 border-purple-200";
+
+      // Legacy event types (for backwards compatibility)
       case "connection_success":
         return "bg-green-50 border-green-200";
       case "tool_result":
         return "bg-blue-50 border-blue-200";
       case "agent_request":
         return "bg-purple-50 border-purple-200";
-      case "web_search":
-        return "bg-orange-50 border-orange-200";
       case "web_visit_page":
         return "bg-orange-50 border-orange-300";
-      case "file_write":
-        return "bg-green-50 border-green-300";
       case "user_send_message":
         return "bg-indigo-50 border-indigo-200";
-      case "error":
-        return "bg-red-50 border-red-200";
       case "shell_exec_command":
         return "bg-purple-50 border-purple-300";
       case "completion":
         return "bg-green-50 border-green-400";
+      case "error":
+        return "bg-red-50 border-red-200";
       case "unknown":
       default:
         return "bg-gray-50 border-gray-200";
@@ -154,6 +234,65 @@ function App() {
   const renderEventPayload = (payload, eventType) => {
     if (!payload) return null;
 
+    // Handle list payloads (like web search results)
+    if (Array.isArray(payload)) {
+      if (eventType === "web_search_result") {
+        return (
+          <div className="mt-2">
+            <p className="text-sm text-gray-700 font-medium">Search Results:</p>
+            <div className="mt-1 space-y-1">
+              {payload.slice(0, 5).map((result, index) => (
+                <div
+                  key={index}
+                  className="text-sm text-gray-600 bg-gray-50 p-2 rounded"
+                >
+                  <a
+                    href={result.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline font-medium"
+                  >
+                    {result.title}
+                  </a>
+                  <p className="text-xs text-gray-500 mt-1">{result.url}</p>
+                </div>
+              ))}
+              {payload.length > 5 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  ... and {payload.length - 5} more results
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      } else {
+        // Generic list handling
+        return (
+          <div className="mt-2">
+            <p className="text-sm text-gray-700 font-medium">
+              Results ({payload.length} items):
+            </p>
+            <div className="mt-1 space-y-1">
+              {payload.slice(0, 3).map((item, index) => (
+                <div
+                  key={index}
+                  className="text-sm text-gray-600 bg-gray-50 p-2 rounded"
+                >
+                  {String(item).slice(0, 100)}...
+                </div>
+              ))}
+              {payload.length > 3 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  ... and {payload.length - 3} more items
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      }
+    }
+
+    // Handle dictionary/object payloads
     switch (eventType) {
       case "agent_request":
         return (
@@ -175,6 +314,127 @@ function App() {
           </div>
         );
 
+      case "web_navigation":
+      case "web_navigation_result":
+        return (
+          <div className="mt-2">
+            <p className="text-sm text-gray-700 font-medium">URL:</p>
+            <div className="mt-1">
+              <a
+                href={payload.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline text-sm"
+              >
+                {payload.url}
+              </a>
+            </div>
+            {payload.content && (
+              <div className="mt-2">
+                <p className="text-sm text-gray-700 font-medium">
+                  Content Preview:
+                </p>
+                <div className="mt-1 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                  {String(payload.content).slice(0, 200)}...
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case "file_write":
+      case "file_read":
+      case "file_replace":
+        return (
+          <div className="mt-2">
+            <p className="text-sm text-gray-700 font-medium">File:</p>
+            <div className="mt-1">
+              <code className="text-sm bg-gray-100 px-2 py-1 rounded">
+                {payload.file || payload.path}
+              </code>
+            </div>
+            {payload.content && (
+              <div className="mt-2">
+                <p className="text-sm text-gray-700 font-medium">
+                  Content Preview:
+                </p>
+                <div className="mt-1 text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                  {String(payload.content).slice(0, 200)}...
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case "shell_exec":
+        return (
+          <div className="mt-2">
+            <p className="text-sm text-gray-700 font-medium">Command:</p>
+            <div className="mt-1">
+              <code className="text-sm bg-gray-100 px-2 py-1 rounded">
+                {payload.command}
+              </code>
+            </div>
+            {payload.id && (
+              <div className="mt-1">
+                <p className="text-xs text-gray-500">Session: {payload.id}</p>
+              </div>
+            )}
+          </div>
+        );
+
+      case "user_notification":
+      case "user_question":
+        return (
+          <div className="mt-2">
+            <MarkdownRenderer>
+              {payload.text || payload.message}
+            </MarkdownRenderer>
+            {payload.attachments && payload.attachments.length > 0 && (
+              <div className="mt-2">
+                <p className="text-sm text-gray-700 font-medium">
+                  Attachments:
+                </p>
+                <div className="mt-1 space-y-1">
+                  {payload.attachments.map((attachment, index) => (
+                    <div
+                      key={index}
+                      className="text-sm text-gray-600 bg-gray-50 p-1 rounded"
+                    >
+                      📎 {attachment}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      case "image_generation":
+        return (
+          <div className="mt-2">
+            {payload.prompt && (
+              <div>
+                <p className="text-sm text-gray-700 font-medium">Prompt:</p>
+                <div className="mt-1">
+                  <MarkdownRenderer>{payload.prompt}</MarkdownRenderer>
+                </div>
+              </div>
+            )}
+            {payload.filename && (
+              <div className="mt-2">
+                <p className="text-sm text-gray-700 font-medium">Generated:</p>
+                <div className="mt-1">
+                  <code className="text-sm bg-gray-100 px-2 py-1 rounded">
+                    {payload.filename}
+                  </code>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+      // Legacy handling for tool_result
       case "tool_result":
         if (Array.isArray(payload)) {
           return (
@@ -199,123 +459,11 @@ function App() {
                   </div>
                 ))}
                 {payload.length > 3 && (
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 mt-1">
                     ... and {payload.length - 3} more results
                   </p>
                 )}
               </div>
-            </div>
-          );
-        }
-
-        if (payload.message) {
-          return (
-            <div className="mt-2">
-              <MarkdownRenderer>{payload.message}</MarkdownRenderer>
-            </div>
-          );
-        }
-
-        if (payload.file_system) {
-          return (
-            <div className="mt-2">
-              <p className="text-sm text-gray-700 font-medium">File System:</p>
-              <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded mt-1">
-                <p>
-                  <strong>Status:</strong> {payload.file_system.status}
-                </p>
-                {payload.file_system.directory && (
-                  <p>
-                    <strong>Directory:</strong> {payload.file_system.directory}
-                  </p>
-                )}
-                {payload.file_system.structure && (
-                  <div className="mt-1">
-                    <strong>Structure:</strong>
-                    <pre className="text-xs mt-1 overflow-x-auto">
-                      {JSON.stringify(payload.file_system.structure, null, 2)}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        }
-
-        if (payload.status) {
-          return (
-            <div className="mt-2">
-              <span
-                className={`event-badge ${
-                  payload.status === "success"
-                    ? "bg-green-100 text-green-800"
-                    : "bg-red-100 text-red-800"
-                }`}
-              >
-                {payload.status}
-              </span>
-              {payload.message && (
-                <div className="mt-1">
-                  <MarkdownRenderer>{payload.message}</MarkdownRenderer>
-                </div>
-              )}
-            </div>
-          );
-        }
-
-        // Handle generic object payloads
-        if (typeof payload === "object" && payload !== null) {
-          return (
-            <div className="mt-2">
-              <p className="text-sm text-gray-700 font-medium">Details:</p>
-              <pre className="text-xs text-gray-600 bg-gray-50 p-2 rounded mt-1 overflow-x-auto">
-                {JSON.stringify(payload, null, 2)}
-              </pre>
-            </div>
-          );
-        }
-        break;
-
-      case "file_write":
-        return (
-          <div className="mt-2">
-            <p className="text-sm text-gray-700 font-medium">File:</p>
-            <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded mt-1 font-mono">
-              {payload.file}
-            </p>
-          </div>
-        );
-
-      case "user_send_message":
-        return (
-          <div className="mt-2">
-            <MarkdownRenderer>{payload.text}</MarkdownRenderer>
-          </div>
-        );
-
-      case "shell_exec_command":
-        return (
-          <div className="mt-2">
-            <p className="text-sm text-gray-700 font-medium">Command:</p>
-            <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded mt-1 font-mono">
-              {payload.command}
-            </p>
-            {payload.exec_dir && (
-              <div className="mt-1">
-                <p className="text-sm text-gray-700 font-medium">Directory:</p>
-                <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded mt-1 font-mono">
-                  {payload.exec_dir}
-                </p>
-              </div>
-            )}
-          </div>
-        );
-
-      default:
-        if (typeof payload === "string") {
-          return (
-            <div className="mt-2">
-              <MarkdownRenderer>{payload}</MarkdownRenderer>
             </div>
           );
         }
@@ -340,14 +488,17 @@ function App() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8001/agent/run", {
+      const apiUrl =
+        process.env.NODE_ENV === "production"
+          ? "/api/agent/run"
+          : "http://localhost:8001/agent/run";
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           query: inputValue,
-          timeout: null,
         }),
       });
 

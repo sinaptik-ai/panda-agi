@@ -51,7 +51,7 @@ fastapi-server/
 
 1. Navigate to the backend directory:
 ```bash
-cd fastapi-server/backend
+cd backend
 ```
 
 2. Install Python dependencies:
@@ -70,7 +70,7 @@ The backend will be available at `http://localhost:8001`
 
 1. Navigate to the frontend directory:
 ```bash
-cd fastapi-server/frontend
+cd frontend
 ```
 
 2. Install dependencies:
