@@ -18,4 +18,4 @@ class UserNotificationHandler(ToolHandler):
             data=tool_call,
         )
 
-        return HandlerResult(success=True, data={"message_received": True})
+        return HandlerResult(success=True, data={})
