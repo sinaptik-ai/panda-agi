@@ -468,6 +468,24 @@ function App() {
           );
         }
         break;
+
+      default:
+        // For unknown event types, show a generic payload view
+        if (
+          payload &&
+          typeof payload === "object" &&
+          Object.keys(payload).length > 0
+        ) {
+          return (
+            <div className="mt-2">
+              <p className="text-sm text-gray-700 font-medium">Details:</p>
+              <div className="mt-1 text-xs text-gray-600 bg-gray-50 p-2 rounded overflow-x-auto">
+                <pre>{JSON.stringify(payload, null, 2)}</pre>
+              </div>
+            </div>
+          );
+        }
+        break;
     }
 
     return null;

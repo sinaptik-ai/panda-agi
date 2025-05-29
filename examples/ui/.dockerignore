@@ -1,0 +1,17 @@
+# Node modules
+frontend/node_modules
+frontend/build
+frontend/.git
+
+# Python
+backend/__pycache__
+backend/*.pyc
+backend/.git
+
+# General
+.git
+.gitignore
+*.md
+.env
+.DS_Store
+Thumbs.db 

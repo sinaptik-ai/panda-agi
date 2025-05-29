@@ -1,0 +1,36 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: panda-agi-backend
+    ports:
+      - "8001:8001"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./backend/workspace:/app/workspace
+      - ../../:/sdk # Mount entire SDK root to /sdk in container
+    networks:
+      - panda-agi-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: panda-agi-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - panda-agi-network
+    restart: unless-stopped
+
+networks:
+  panda-agi-network:
+    driver: bridge
+
+volumes:
+  workspace:
