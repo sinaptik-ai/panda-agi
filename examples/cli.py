@@ -5,7 +5,6 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from client.agent import Agent
 from rich.box import DOUBLE, HEAVY, ROUNDED
 from rich.console import Console, Group
 from rich.panel import Panel
@@ -22,20 +21,47 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
-from ..envs import LocalEnv
+from panda_agi import Agent
+from panda_agi.client.models import EventType, MessageStatus
+from panda_agi.envs import LocalEnv
+
+# Status-specific styling for events
+STATUS_STYLES = {
+    MessageStatus.PENDING.value: {
+        "color": "yellow",
+        "icon": "⏳",
+        "label": "PENDING"
+    },
+    MessageStatus.SUCCESS.value: {
+        "color": "bright_green",
+        "icon": "✅",
+        "label": "SUCCESS"
+    },
+    MessageStatus.ERROR.value: {
+        "color": "red",
+        "icon": "❌",
+        "label": "ERROR"
+    },
+    # Default status style for unknown statuses
+    "default": {
+        "color": "white",
+        "icon": "🔄",
+        "label": "UNKNOWN"
+    }
+}
 
 # Enhanced event type styles with comprehensive visual configuration
 EVENT_STYLES = {
     # System events
-    "connection_success": {
+    EventType.AGENT_CONNECTION_SUCCESS.value: {
         "color": "bright_green",
         "icon": "🔗",
         "title": "Connection Established",
         "category": "system",
         "priority": "high",
-        "box": DOUBLE,
+        "box": ROUNDED,
     },
-    "completed_task": {
+    EventType.COMPLETED_TASK.value: {
         "color": "bright_green",
         "icon": "🎯",
         "title": "Task Completed",
@@ -44,41 +70,24 @@ EVENT_STYLES = {
         "box": HEAVY,
     },
     # User interaction events
-    "user_send_message": {
+    EventType.USER_NOTIFICATION.value: {
         "color": "cyan",
         "icon": "💬",
-        "title": "User Message",
+        "title": "User Notification",
         "category": "user",
         "priority": "high",
-        "box": DOUBLE,
+        "box": ROUNDED,
     },
-    "user_ask_question": {
+    EventType.USER_QUESTION.value: {
         "color": "yellow",
         "icon": "❓",
         "title": "User Question",
         "category": "user",
         "priority": "high",
-        "box": DOUBLE,
-    },
-    # Agent operations
-    "agent_request": {
-        "color": "bright_blue",
-        "icon": "🤖",
-        "title": "Agent Processing",
-        "category": "agent",
-        "priority": "high",
-        "box": ROUNDED,
-    },
-    "planning": {
-        "color": "purple",
-        "icon": "🧠",
-        "title": "Planning",
-        "category": "agent",
-        "priority": "medium",
         "box": ROUNDED,
     },
     # Web operations
-    "web_search": {
+    EventType.WEB_SEARCH.value: {
         "color": "magenta",
         "icon": "🔍",
         "title": "Web Search",
@@ -86,16 +95,32 @@ EVENT_STYLES = {
         "priority": "medium",
         "box": ROUNDED,
     },
-    "web_visit_page": {
+    EventType.WEB_SEARCH_RESULT.value: {
+        "color": "magenta",
+        "icon": "📊",
+        "title": "Web Search Results",
+        "category": "web",
+        "priority": "medium",
+        "box": ROUNDED,
+    },
+    EventType.WEB_NAVIGATION.value: {
         "color": "blue",
         "icon": "🌐",
-        "title": "Visit Webpage",
+        "title": "Web Navigation",
+        "category": "web",
+        "priority": "medium",
+        "box": ROUNDED,
+    },
+    EventType.WEB_NAVIGATION_RESULT.value: {
+        "color": "blue",
+        "icon": "📄",
+        "title": "Web Page Content",
         "category": "web",
         "priority": "medium",
         "box": ROUNDED,
     },
     # File operations
-    "file_read": {
+    EventType.FILE_READ.value: {
         "color": "cyan",
         "icon": "📖",
         "title": "File Read",
@@ -103,7 +128,7 @@ EVENT_STYLES = {
         "priority": "low",
         "box": ROUNDED,
     },
-    "file_write": {
+    EventType.FILE_WRITE.value: {
         "color": "yellow",
         "icon": "✏️",
         "title": "File Write",
@@ -111,7 +136,7 @@ EVENT_STYLES = {
         "priority": "medium",
         "box": ROUNDED,
     },
-    "file_replace": {
+    EventType.FILE_REPLACE.value: {
         "color": "orange3",
         "icon": "🔄",
         "title": "File Replace",
@@ -119,23 +144,15 @@ EVENT_STYLES = {
         "priority": "medium",
         "box": ROUNDED,
     },
-    "file_find_in_content": {
+    EventType.FILE_FIND.value: {
         "color": "bright_cyan",
         "icon": "🔎",
-        "title": "Search in File",
+        "title": "Find in Files",
         "category": "file",
         "priority": "low",
         "box": ROUNDED,
     },
-    "file_search_by_name": {
-        "color": "bright_cyan",
-        "icon": "🔍",
-        "title": "Find Files",
-        "category": "file",
-        "priority": "low",
-        "box": ROUNDED,
-    },
-    "explore_directory": {
+    EventType.FILE_EXPLORE.value: {
         "color": "bright_blue",
         "icon": "📂",
         "title": "Explore Directory",
@@ -143,8 +160,17 @@ EVENT_STYLES = {
         "priority": "low",
         "box": ROUNDED,
     },
+    # Image operations
+    EventType.IMAGE_GENERATION.value: {
+        "color": "magenta",
+        "icon": "🎨",
+        "title": "Image Generation",
+        "category": "image",
+        "priority": "medium",
+        "box": ROUNDED,
+    },
     # Shell operations
-    "shell_exec_command": {
+    EventType.SHELL_EXEC.value: {
         "color": "bright_black",
         "icon": "💻",
         "title": "Shell Execute",
@@ -152,7 +178,7 @@ EVENT_STYLES = {
         "priority": "medium",
         "box": ROUNDED,
     },
-    "shell_view_output": {
+    EventType.SHELL_VIEW.value: {
         "color": "white",
         "icon": "👁️",
         "title": "View Output",
@@ -160,20 +186,11 @@ EVENT_STYLES = {
         "priority": "low",
         "box": ROUNDED,
     },
-    "shell_write_to_process": {
+    EventType.SHELL_WRITE.value: {
         "color": "yellow",
         "icon": "⌨️",
         "title": "Write to Process",
         "category": "shell",
-        "priority": "medium",
-        "box": ROUNDED,
-    },
-    # Image operations
-    "generate_image": {
-        "color": "magenta",
-        "icon": "🎨",
-        "title": "Image Generation",
-        "category": "image",
         "priority": "medium",
         "box": ROUNDED,
     },
@@ -316,16 +333,30 @@ class EnhancedEventRenderer:
                 "box": ROUNDED,
             },
         )
+        
+    def get_status_style(self, status: str) -> Dict[str, str]:
+        """Get styling information for a status"""
+        return STATUS_STYLES.get(status, STATUS_STYLES["default"])
 
     def should_render_event(self, event_data: Dict[str, Any]) -> bool:
         """Check if event should be rendered"""
         event_type = event_data.get("type", "default")
+        
+        # Skip redundant events
+        if event_type == EventType.WEB_NAVIGATION.value:
+            # Skip WEB_NAVIGATION since WEB_NAVIGATION_RESULT provides the same info + content
+            return False
+            
+        # Skip task completion events - user doesn't want to see them
+        if event_type == EventType.COMPLETED_TASK.value:
+            return False
+            
         return event_type != "default" and event_type in EVENT_STYLES
 
     def create_event_header(
-        self, style_info: Dict[str, str], event_number: int
+        self, style_info: Dict[str, str], event_number: int, status: Optional[str] = None
     ) -> Text:
-        """Create a rich header for events with numbering and categorization"""
+        """Create a rich header for events with numbering, categorization, and status"""
         header = Text()
 
         if self.show_timestamps:
@@ -342,6 +373,14 @@ class EnhancedEventRenderer:
             header.append(
                 f" [{category.upper()}]",
                 style=f"dim {CATEGORY_COLORS.get(category, 'white')}",
+            )
+            
+        # Add status badge if provided
+        if status:
+            status_style = self.get_status_style(status)
+            header.append(
+                f" {status_style['icon']} [{status_style['label']}]",
+                style=f"bold {status_style['color']}",
             )
 
         return header
@@ -417,14 +456,14 @@ class EnhancedEventRenderer:
         self.event_counter += 1
 
         content = Text()
-        content.append("🎉 Task completed successfully!\n", style="bold bright_green")
+        content.append("🎉 Task completed successfully!", style="bold bright_green")
 
         if payload.get("result"):
-            content.append(f"Result: {payload['result']}\n", style="bright_green")
+            content.append(f"\nResult: {payload['result']}", style="bright_green")
         if payload.get("message"):
-            content.append(f"Message: {payload['message']}\n", style="bright_green")
+            content.append(f"\nMessage: {payload['message']}", style="bright_green")
         if payload.get("text"):
-            content.append(f"Details: {payload['text']}\n", style="bright_green")
+            content.append(f"\nDetails: {payload['text']}", style="bright_green")
 
         header = self.create_event_header(style_info, self.event_counter)
 
@@ -433,7 +472,7 @@ class EnhancedEventRenderer:
             title=header,
             border_style=style_info["color"],
             box=style_info.get("box", HEAVY),
-            padding=(1, 2),
+            padding=(0, 1),
             title_align="left",
         )
 
@@ -474,94 +513,132 @@ class EnhancedEventRenderer:
 
         content = Text()
         color = style_info["color"]
+        
+        # Handle list payloads (like web search results)
+        if isinstance(payload, list):
+            if event_type == EventType.WEB_SEARCH_RESULT.value:
+                content.append("🔍 Search Results:\n", style=f"bold {color}")
+                for i, result in enumerate(payload[:5]):  # Show first 5 results
+                    if isinstance(result, dict):
+                        title = result.get("title", "No title")
+                        url = result.get("url", "No URL")
+                        content.append(f"  {i+1}. {title}\n", style=color)
+                        content.append(f"     {url}\n", style=f"dim {color}")
+                if len(payload) > 5:
+                    content.append(f"  ... and {len(payload) - 5} more results\n", style=f"dim {color}")
+            else:
+                content.append(f"📋 Results ({len(payload)} items):\n", style=f"bold {color}")
+                for i, item in enumerate(payload[:3]):  # Show first 3 items
+                    content.append(f"  {i+1}. {str(item)[:50]}...\n", style=f"dim {color}")
+                if len(payload) > 3:
+                    content.append(f"  ... and {len(payload) - 3} more items\n", style=f"dim {color}")
+        else:
+            # Handle dictionary payloads (existing logic)
+            status = payload.get("status") if isinstance(payload, dict) else None
 
-        # File operations
-        if payload.get("file"):
-            content.append("📄 File: ", style=f"bold {color}")
-            content.append(f"{payload['file']}\n", style=color)
+            # File operations
+            if payload.get("file"):
+                content.append("📄 File: ", style=f"bold {color}")
+                content.append(f"{payload['file']}\n", style=color)
 
-        if payload.get("path"):
-            content.append("📁 Path: ", style=f"bold {color}")
-            content.append(f"{payload['path']}\n", style=color)
+            if payload.get("path"):
+                content.append("📁 Path: ", style=f"bold {color}")
+                content.append(f"{payload['path']}\n", style=color)
 
-        # Web operations
-        if payload.get("url"):
-            content.append("🌐 URL: ", style=f"bold {color}")
-            content.append(f"{payload['url']}\n", style=color)
+            # Web operations
+            if payload.get("url"):
+                content.append("🌐 URL: ", style=f"bold {color}")
+                content.append(f"{payload['url']}\n", style=color)
 
-        if payload.get("query"):
-            content.append("🔍 Query: ", style=f"bold {color}")
-            content.append(f"{payload['query']}\n", style=color)
+            if payload.get("query"):
+                content.append("🔍 Query: ", style=f"bold {color}")
+                content.append(f"{payload['query']}\n", style=color)
 
-        # Shell operations
-        if payload.get("command"):
-            content.append("💻 Command: ", style=f"bold {color}")
-            content.append(f"{payload['command']}\n", style=color)
+            # Shell operations
+            if payload.get("command"):
+                content.append("💻 Command: ", style=f"bold {color}")
+                content.append(f"{payload['command']}\n", style=color)
 
-        if payload.get("id") and event_type.startswith("shell_"):
-            content.append("🆔 Session: ", style=f"bold {color}")
-            content.append(f"{payload['id']}\n", style=color)
+            if payload.get("id") and event_type.startswith("shell_"):
+                content.append("🆔 Session: ", style=f"bold {color}")
+                content.append(f"{payload['id']}\n", style=color)
 
-        # Image generation
-        if payload.get("prompt") and event_type == "generate_image":
-            content.append("🎨 Prompt: ", style=f"bold {color}")
-            content.append(
-                f"{self.truncate_text(str(payload['prompt']), 80)}\n", style=color
-            )
+            # Image generation
+            if payload.get("prompt") and event_type == "generate_image":
+                content.append("🎨 Prompt: ", style=f"bold {color}")
+                content.append(
+                    f"{self.truncate_text(str(payload['prompt']), 80)}\n", style=color
+                )
 
-        if payload.get("filename") and event_type == "generate_image":
-            content.append("📁 Filename: ", style=f"bold {color}")
-            content.append(f"{payload['filename']}\n", style=color)
+            if payload.get("filename") and event_type == "generate_image":
+                content.append("📁 Filename: ", style=f"bold {color}")
+                content.append(f"{payload['filename']}\n", style=color)
 
-        # Content operations
-        if payload.get("content") and event_type in ["file_write", "file_replace"]:
-            content.append("📝 Content Preview: ", style=f"bold {color}")
-            preview = self.truncate_text(str(payload["content"]), 60)
-            content.append(f"{preview}\n", style=f"dim {color}")
+            # Content operations
+            if payload.get("content") and event_type in ["file_write", "file_replace"]:
+                content.append("📝 Content Preview: ", style=f"bold {color}")
+                preview = self.truncate_text(str(payload["content"]), 60)
+                content.append(f"{preview}\n", style=f"dim {color}")
 
-        # Replace operations
-        if payload.get("old_str") and payload.get("new_str"):
-            content.append("🔄 Replace: ", style=f"bold {color}")
-            old_str = self.truncate_text(str(payload["old_str"]), 30)
-            new_str = self.truncate_text(str(payload["new_str"]), 30)
-            content.append(f'"{old_str}" → "{new_str}"\n', style=color)
+            # Replace operations
+            if payload.get("old_str") and payload.get("new_str"):
+                content.append("🔄 Replace: ", style=f"bold {color}")
+                old_str = self.truncate_text(str(payload["old_str"]), 30)
+                new_str = self.truncate_text(str(payload["new_str"]), 30)
+                content.append(f'"{old_str}" → "{new_str}"\n', style=color)
 
-        # Search patterns
-        if (
-            payload.get("regex")
-            or payload.get("pattern")
-            or payload.get("glob_pattern")
-        ):
-            pattern = (
+            # Search patterns
+            if (
                 payload.get("regex")
                 or payload.get("pattern")
                 or payload.get("glob_pattern")
-            )
-            content.append("🔎 Pattern: ", style=f"bold {color}")
-            content.append(f"{pattern}\n", style=color)
+            ):
+                pattern = (
+                    payload.get("regex")
+                    or payload.get("pattern")
+                    or payload.get("glob_pattern")
+                )
+                content.append("🔎 Pattern: ", style=f"bold {color}")
+                content.append(f"{pattern}\n", style=color)
 
-        # Planning operations
-        if event_type == "planning":
-            plan_content = payload.get(
-                "reasoning", payload.get("plan", "Planning in progress...")
-            )
-            content.append("🧠 Agent Planning:\n", style=f"bold {color}")
-            content.append(plan_content, style=color)
+            # Planning operations
+            if event_type == "planning":
+                plan_content = payload.get(
+                    "reasoning", payload.get("plan", "Planning in progress...")
+                )
+                content.append("🧠 Agent Planning:\n", style=f"bold {color}")
+                content.append(plan_content, style=color)
 
-        # Fallback for empty content
-        if not content.plain.strip():
-            if payload:
-                content.append("📋 Operation Details:\n", style=f"bold {color}")
-                content.append(json.dumps(payload, indent=2), style=f"dim {color}")
-            else:
-                content.append("Operation in progress...", style=f"dim {color}")
+            # Fallback for empty content
+            if not content.plain.strip():
+                if payload:
+                    content.append("📋 Operation Details:\n", style=f"bold {color}")
+                    content.append(json.dumps(payload, indent=2), style=f"dim {color}")
+                else:
+                    content.append("Operation in progress...", style=f"dim {color}")
+
+            # Add status information if present
+            if status:
+                status_style = self.get_status_style(status)
+                content.append(f"\n{status_style['icon']} Status: {status_style['label']}", 
+                              style=f"bold {status_style['color']}")
 
         header = self.create_event_header(style_info, self.event_counter)
+        
+        # Adjust border style based on status if present for dictionary payloads
+        border_style = style_info["color"]
+        if isinstance(payload, dict):
+            status = payload.get("status")
+            if status:
+                status_style = self.get_status_style(status)
+                # For error status, use the error color for border
+                if status == MessageStatus.ERROR.value:
+                    border_style = status_style["color"]
 
         return Panel(
             content,
             title=header,
-            border_style=style_info["color"],
+            border_style=border_style,
             box=style_info.get("box", ROUNDED),
             padding=(1, 2),
             title_align="left",
@@ -640,6 +717,9 @@ class EnhancedEventRenderer:
 
         data = event.get("data", {}) or {}
         event_type = data.get("type", "default")
+        
+        # Extract status if present
+        status = data.get("status")
 
         # Skip rendering default events
         if not self.should_render_event(data):
@@ -647,38 +727,44 @@ class EnhancedEventRenderer:
 
         style_info = self.get_event_style(data)
         payload = data.get("payload", {}) or {}
+        
+        # Add status to payload if present in the event data
+        if status:
+            payload["status"] = status
 
         try:
             # Route to specific renderers based on event type
-            if event_type == "connection_success":
+            if event_type == EventType.AGENT_CONNECTION_SUCCESS.value:
                 return self.render_connection_success(payload, style_info)
 
-            elif event_type in ["user_send_message", "user_ask_question"]:
+            elif event_type in [EventType.USER_NOTIFICATION.value, EventType.USER_QUESTION.value]:
                 return self.render_user_input_event(payload, style_info)
 
-            elif event_type == "completed_task":
+            elif event_type == EventType.COMPLETED_TASK.value:
                 return self.render_completed_task(payload, style_info)
-
-            elif event_type == "agent_request":
-                return self.render_agent_request(payload, style_info)
 
             elif event_type == "error":
                 return self.render_error_event(payload, style_info)
 
+            # Handle tool operations
             elif event_type in [
-                "web_search",
-                "web_visit_page",
-                "generate_image",
-                "file_read",
-                "file_write",
-                "file_replace",
-                "file_find_in_content",
-                "file_search_by_name",
-                "explore_directory",
-                "shell_exec_command",
-                "shell_view_output",
-                "shell_write_to_process",
-                "planning",
+                # Web operations
+                EventType.WEB_SEARCH.value,
+                EventType.WEB_SEARCH_RESULT.value,
+                EventType.WEB_NAVIGATION.value,
+                EventType.WEB_NAVIGATION_RESULT.value,
+                # File operations
+                EventType.FILE_READ.value,
+                EventType.FILE_WRITE.value,
+                EventType.FILE_REPLACE.value,
+                EventType.FILE_FIND.value,
+                EventType.FILE_EXPLORE.value,
+                # Shell operations
+                EventType.SHELL_EXEC.value,
+                EventType.SHELL_VIEW.value,
+                EventType.SHELL_WRITE.value,
+                # Image operations
+                EventType.IMAGE_GENERATION.value,
             ]:
                 return self.render_tool_operation(payload, style_info, event_type)
 
@@ -706,7 +792,16 @@ class EnhancedAgentCLI:
         panel_width: int = 120,
         show_timestamps: bool = True,
     ):
-        self.console = Console(width=panel_width)
+        # Use the smaller of the requested width or actual terminal width
+        import shutil
+        terminal_width = shutil.get_terminal_size().columns
+        actual_width = min(panel_width, terminal_width) if terminal_width > 0 else panel_width
+        
+        self.console = Console(
+            width=actual_width, 
+            legacy_windows=False,
+            force_terminal=True
+        )
         self.messaging = UserMessaging(self.console)
         self.workspace_path = os.path.abspath(workspace_path)
         self.verbose = verbose
@@ -771,38 +866,63 @@ class EnhancedAgentCLI:
             welcome_text,
             title="🚀 Welcome",
             border_style="bright_blue",
-            box=DOUBLE,
+            box=ROUNDED,
             padding=(1, 2),
         )
 
     def create_status_panel(self) -> Panel:
         """Create an enhanced status panel with comprehensive session information"""
-        table = Table.grid(padding=1)
-        table.add_column(style="cyan", no_wrap=True)
-        table.add_column()
+        now = datetime.now()
+        session_duration = now - self.session_stats["start_time"]
+        hours, remainder = divmod(session_duration.total_seconds(), 3600)
+        minutes, seconds = divmod(remainder, 60)
 
-        table.add_row("📁 Workspace:", self.workspace_path)
+        status_table = Table(show_header=False, box=None, padding=(0, 1))
+        status_table.add_column("Metric")
+        status_table.add_column("Value")
 
-        if self.agent:
-            connection_status = (
-                "🟢 Connected" if self.agent.is_connected else "🔴 Disconnected"
-            )
-            table.add_row("🔗 Status:", connection_status)
+        status_table.add_row(
+            Text("Session Duration", style="bright_blue"),
+            Text(f"{int(hours)}h {int(minutes)}m {int(seconds)}s", style="white"),
+        )
+        status_table.add_row(
+            Text("Events Processed", style="bright_blue"),
+            Text(f"{self.session_stats['events_processed']}", style="white"),
+        )
+        status_table.add_row(
+            Text("User Messages", style="bright_blue"),
+            Text(f"{self.session_stats['user_messages']}", style="cyan"),
+        )
+        status_table.add_row(
+            Text("Agent Operations", style="bright_blue"),
+            Text(f"{self.session_stats['agent_operations']}", style="yellow"),
+        )
+        
+        # Add status-specific counts if we start tracking them
+        pending_count = sum(1 for event in self.event_history if event.get("status") == MessageStatus.PENDING.value)
+        success_count = sum(1 for event in self.event_history if event.get("status") == MessageStatus.SUCCESS.value)
+        error_count = self.session_stats["errors"]
+        
+        status_table.add_row(
+            Text("Pending Operations", style="bright_blue"),
+            Text(f"{pending_count}", style="yellow"),
+        )
+        status_table.add_row(
+            Text("Successful Operations", style="bright_blue"),
+            Text(f"{success_count}", style="bright_green"),
+        )
+        status_table.add_row(
+            Text("Errors", style="bright_blue"),
+            Text(f"{error_count}", style="red"),
+        )
 
-            if hasattr(self.agent, "conversation_id") and self.agent.conversation_id:
-                table.add_row("💬 Conversation:", self.agent.conversation_id)
-
-        # Session statistics
-        runtime = datetime.now() - self.session_stats["start_time"]
-        table.add_row("⏱️ Runtime:", str(runtime).split(".")[0])
-        table.add_row("📊 Events:", str(self.session_stats["events_processed"]))
-        table.add_row("💬 User Messages:", str(self.session_stats["user_messages"]))
-        table.add_row("🤖 Agent Ops:", str(self.session_stats["agent_operations"]))
-
-        if self.session_stats["errors"] > 0:
-            table.add_row("❌ Errors:", str(self.session_stats["errors"]))
-
-        return Panel(table, title="📊 Session Status", border_style="blue", box=ROUNDED)
+        return Panel(
+            status_table,
+            title="📊 Session Statistics",
+            border_style="bright_blue",
+            box=ROUNDED,
+            padding=(1, 2),
+        )
 
     def create_help_panel(self) -> Panel:
         """Create a comprehensive help panel with all available commands"""
@@ -952,56 +1072,64 @@ class EnhancedAgentCLI:
 
         return False
 
-    def update_session_stats(self, event_type: str):
-        """Update session statistics based on event type"""
+    def update_session_stats(self, event_type: str, status: Optional[str] = None):
+        """Update session statistics based on event type and status"""
         self.session_stats["events_processed"] += 1
 
-        if event_type in ["user_send_message", "user_ask_question"]:
+        # User messages
+        if event_type in [EventType.USER_NOTIFICATION.value, EventType.USER_QUESTION.value]:
             self.session_stats["user_messages"] += 1
-        elif event_type == "error":
-            self.session_stats["errors"] += 1
-        elif event_type not in ["user_send_message", "user_ask_question"]:
+        
+        # Agent operations
+        elif event_type in [
+            # Web operations
+            EventType.WEB_SEARCH.value,
+            EventType.WEB_SEARCH_RESULT.value,
+            EventType.WEB_NAVIGATION.value,
+            EventType.WEB_NAVIGATION_RESULT.value,
+            # File operations
+            EventType.FILE_READ.value,
+            EventType.FILE_WRITE.value,
+            EventType.FILE_REPLACE.value,
+            EventType.FILE_FIND.value,
+            EventType.FILE_EXPLORE.value,
+            # Shell operations
+            EventType.SHELL_EXEC.value,
+            EventType.SHELL_VIEW.value,
+            EventType.SHELL_WRITE.value,
+            # Image operations
+            EventType.IMAGE_GENERATION.value,
+        ]:
             self.session_stats["agent_operations"] += 1
+        
+        # Count errors based on either event type or status
+        if event_type == "error" or status == MessageStatus.ERROR.value:
+            self.session_stats["errors"] += 1
 
     async def start_interactive_session(self, conversation_id: Optional[str] = None):
         """Start an enhanced interactive session with comprehensive error handling"""
-        self.console.clear()
-        self.console.print(
-            Rule("[bold blue]🤖 Enhanced Agent CLI - Best Version[/bold blue]")
-        )
         self.console.print(self.create_welcome_screen())
-        self.console.print(self.create_status_panel())
 
-        if not self.compact:
-            self.console.print(self.create_help_panel())
+        # Initialize the agent with the workspace path
+        env = LocalEnv(base_path=self.workspace_path)
+        self.agent = Agent(environment=env)
 
-        # Initialize environment and agent
-        env = LocalEnv(self.workspace_path)
-        agent = Agent(
-            environment=env,
-            conversation_id=conversation_id,
-        )
-        self.agent = agent
-
-        self.console.print(
-            Panel(
-                "💡 Agent will automatically connect when you send your first request",
-                border_style="yellow",
-                box=ROUNDED,
-            )
-        )
-
+        # Connect to the agent and start the session
         try:
             while True:
                 # Enhanced input prompt with better formatting
-                self.console.print(Rule("[bold blue]💭 Enter your request[/bold blue]"))
-                query = Prompt.ask("\n[bold yellow]User[/bold yellow]", default="")
-
-                if query.lower().strip() in ["exit", "quit", "q"]:
+                self.console.print(Rule("[bold blue]💬 Enter your request[/bold blue]"))
+                try:
+                    query = Prompt.ask("\n[bold yellow]User[/bold yellow]", default="")
+                    
+                    if query.lower().strip() in ["exit", "quit", "q"]:
+                        break
+                    
+                    if not query.strip():
+                        continue
+                except (EOFError, KeyboardInterrupt):
+                    self.console.print("\n[yellow]Exiting...[/yellow]")
                     break
-
-                if not query.strip():
-                    continue
 
                 # Handle special commands
                 if await self.handle_special_commands(query):
@@ -1017,74 +1145,88 @@ class EnhancedAgentCLI:
                             "🤖 Processing request...", total=None
                         )
 
-                        async for event in agent.run(query, timeout=None):
+                        # Connect to the agent if not already connected
+                        if not self.agent.is_connected:
+                            await self.agent.connect()
+
+                        # Process the query
+                        async for event in self.agent.run(query):
                             self.progress.update(
                                 task, description="🔄 Processing events..."
                             )
 
-                            # Store event in history
-                            self.event_history.append(event)
-
-                            # Update statistics
-                            event_data = event.get("data", {})
-                            event_type = event_data.get("type", "")
-                            self.update_session_stats(event_type)
-
-                            # Render and display event
-                            panel = self.event_renderer.render_event(event)
-                            if panel is not None:
-                                self.console.print(panel)
+                            event_type = event.type.value if hasattr(event.type, 'value') else str(event.type)
+                            event_data = {"type": event_type, "payload": event.data}
+                            status = getattr(event.data, 'status', None) if hasattr(event.data, 'status') else event.data.get('status') if isinstance(event.data, dict) else None
+                            event_id = getattr(event, 'id', None)
+                            
+                            # Convert StreamEvent to dictionary format for compatibility with existing code
+                            event_dict = {
+                                "id": event_id,
+                                "data": event_data,
+                                "timestamp": event.timestamp
+                            }
+                            
+                            # Store the event in history
+                            self.event_history.append(event_dict)
+                            self.update_session_stats(event_type, status)
+                            
+                            # Check if this is an update to an existing event (by ID)
+                            updated_existing = False
+                            if event_id:
+                                # Look for previous events with the same ID to update their status
+                                for i, prev_event in enumerate(self.event_history[:-1]):  # Skip the current event
+                                    prev_data = prev_event.get("data", {})
+                                    if prev_event.get("id") == event_id and prev_event != event_dict:
+                                        # Update the status in the previous event's data
+                                        if status and "data" in prev_event:
+                                            prev_event["data"]["status"] = status
+                                            # Re-render the updated event
+                                            updated_panel = self.event_renderer.render_event(prev_event)
+                                            if updated_panel:
+                                                self.console.print(updated_panel)
+                                            updated_existing = True
+                                            break
+                            
+                            # Only render the event if it's not just a status update for an existing event
+                            if not updated_existing:
+                                panel = self.event_renderer.render_event(event_dict)
+                                if panel:
+                                    self.console.print(panel)
 
                             # Check for completion
-                            if event_type == "completed_task":
+                            if event_type == EventType.COMPLETED_TASK.value:
                                 request_completed = True
                                 self.progress.update(task, total=1, completed=1)
                                 break
 
                         # Remove the task after completion
                         self.progress.remove_task(task)
-
-                    if request_completed:
-                        # Show completion summary with enhanced formatting
-                        completion_text = Text()
-                        completion_text.append(
-                            "✅ Request completed successfully\n", style="bold green"
-                        )
-                        completion_text.append(
-                            f"Events processed: {len([e for e in self.event_history if e.get('data', {}).get('type') != 'default'])}",
-                            style="dim green",
-                        )
-
-                        self.console.print(
-                            Panel(
-                                completion_text,
-                                title="🎯 Request Complete",
-                                border_style="green",
-                                box=HEAVY,
-                            )
-                        )
-
                 except Exception as e:
-                    self.session_stats["errors"] += 1
-                    error_text = Text()
-                    error_text.append("🚨 An error occurred:\n", style="bold red")
-                    error_text.append(str(e), style="red")
+                    self.console.print(f"[bold red]Error: {str(e)}[/bold red]")
+                    continue
 
-                    if self.verbose:
-                        import traceback
-
-                        error_text.append(
-                            f"\n\nTraceback:\n{traceback.format_exc()}", style="dim red"
-                        )
+                if request_completed:
+                    # Show completion summary with enhanced formatting
+                    completion_text = Text()
+                    completion_text.append(
+                        "✅ Request completed successfully\n", style="bold green"
+                    )
+                    completion_text.append(
+                        f"Events processed: {len([e for e in self.event_history if e.get('data', {}).get('type') != 'default'])}",
+                        style="dim green",
+                    )
 
                     self.console.print(
                         Panel(
-                            error_text,
-                            title="❌ Error",
-                            border_style="red",
+                            completion_text,
+                            title="🎯 Request Complete",
+                            border_style="green",
                             box=HEAVY,
                         )
                     )
+
+                    # Error handling is done in the except block above
 
         except KeyboardInterrupt:
             self.console.print(
@@ -1128,17 +1270,17 @@ class EnhancedAgentCLI:
                     summary_text,
                     title="📋 Session Complete",
                     border_style="blue",
-                    box=DOUBLE,
+                    box=ROUNDED,
                 )
             )
 
             # Graceful disconnection
-            if agent and agent.is_connected:
+            if self.agent and self.agent.is_connected:
                 self.console.print(
                     "[yellow]🔗 Disconnecting from agent server...[/yellow]"
                 )
                 try:
-                    await agent.disconnect()
+                    await self.agent.disconnect()
                     self.console.print(
                         Panel(
                             Text("✅ Disconnected successfully", style="bold green"),
