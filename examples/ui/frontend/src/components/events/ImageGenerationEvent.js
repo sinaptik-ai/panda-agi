@@ -2,7 +2,7 @@ import React from "react";
 import { Activity } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 
-const ImageGenerationEvent = ({ payload, eventType, onPreviewClick }) => {
+const ImageGenerationEvent = ({ payload, onPreviewClick }) => {
   if (!payload) return null;
 
   const content = (
@@ -40,7 +40,7 @@ const ImageGenerationEvent = ({ payload, eventType, onPreviewClick }) => {
             <div className="mt-1">
               <img
                 src={payload.url}
-                alt="Generated image"
+                alt={"Generated image: " + payload.filename}
                 className="max-w-xs rounded border"
                 loading="lazy"
               />

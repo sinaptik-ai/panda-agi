@@ -2,19 +2,27 @@ import json
 import os
 import uuid
 from typing import AsyncGenerator, Optional, Dict
+from pathlib import Path
 
 # Import the agent and environment from the parent directory
 import sys
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from panda_agi import Agent, EventType
 from panda_agi.envs import LocalEnv
+
+# Get workspace path from environment variable with fallback
+WORKSPACE_PATH = os.getenv("WORKSPACE_PATH", "./workspace")
 
 app = FastAPI(title="PandaAGI SDK API", version="1.0.0")
 
@@ -60,7 +68,7 @@ def get_or_create_agent(conversation_id: Optional[str] = None) -> tuple[Agent, s
         return active_conversations[conversation_id], conversation_id
     
     # Create new agent and conversation ID
-    agent_env = LocalEnv("./workspace")
+    agent_env = LocalEnv(WORKSPACE_PATH)
     agent = Agent(environment=agent_env)
     new_conversation_id = conversation_id or str(uuid.uuid4())
     active_conversations[new_conversation_id] = agent
@@ -166,6 +174,53 @@ async def end_conversation(conversation_id: str):
         raise HTTPException(status_code=404, detail="Conversation not found")
 
 
+@app.post("/files/upload")
+async def upload_files(
+    file: UploadFile = File(...),
+    conversation_id: Optional[str] = Form(None)
+):
+    """Upload a file to the workspace"""
+    try:
+        # Ensure workspace directory exists
+        workspace_path = Path(WORKSPACE_PATH)
+        workspace_path.mkdir(parents=True, exist_ok=True)
+        
+        # Sanitize filename to prevent directory traversal
+        safe_filename = file.filename.replace("..", "").replace("/", "_").replace("\\", "_")
+        if not safe_filename:
+            raise HTTPException(status_code=400, detail="Invalid filename")
+        
+        # Create the full file path
+        file_path = workspace_path / safe_filename
+        
+        # Handle file name conflicts by adding a counter
+        counter = 1
+        original_stem = file_path.stem
+        original_suffix = file_path.suffix
+        
+        while file_path.exists():
+            file_path = workspace_path / f"{original_stem}_{counter}{original_suffix}"
+            counter += 1
+        
+        # Write the file
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+        
+        return {
+            "status": "success",
+            "filename": file_path.name,
+            "original_filename": file.filename,
+            "size": len(content),
+            "path": str(file_path.relative_to(workspace_path)),
+            "conversation_id": conversation_id,
+            "event_type": "file_upload"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -181,6 +236,7 @@ async def root():
         "endpoints": {
             "POST /agent/run": "Run an agent with streaming events",
             "DELETE /conversation/{conversation_id}": "End a conversation",
+            "POST /files/upload": "Upload a file to the workspace",
             "GET /health": "Health check",
             "GET /": "This endpoint",
         },

@@ -1,5 +1,5 @@
 import React from "react";
-import { User, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 
 const MessageCard = ({ message }) => {
   const formatTimestamp = (timestamp) => {

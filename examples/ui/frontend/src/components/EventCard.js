@@ -6,6 +6,7 @@ import WebNavigationEvent from "./events/WebNavigationEvent";
 import FileReadEvent from "./events/FileReadEvent";
 import FileContentEvent from "./events/FileContentEvent";
 import FileDiscoveryEvent from "./events/FileDiscoveryEvent";
+import FileUploadEvent from "./events/FileUploadEvent";
 import ShellOperationEvent from "./events/ShellOperationEvent";
 import ImageGenerationEvent from "./events/ImageGenerationEvent";
 import LegacyEvent from "./events/LegacyEvent";
@@ -26,6 +27,11 @@ const EventCard = ({ message, onPreviewClick }) => {
   // Handle file discovery events specially - render them directly without card wrapper
   if (eventType === "file_find" || eventType === "file_explore") {
     return FileDiscoveryEvent({ payload, eventType, onPreviewClick });
+  }
+
+  // Handle file upload events specially - render them directly without card wrapper
+  if (eventType === "file_upload") {
+    return FileUploadEvent({ payload, eventType, onPreviewClick });
   }
 
   const formatTimestamp = (timestamp) => {
