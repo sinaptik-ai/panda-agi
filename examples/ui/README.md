@@ -308,7 +308,7 @@ API information and available endpoints.
 Events are streamed in Server-Sent Events format:
 
 ```
-data: {"event_source": "output", "data": {"type": "tool_result", "id": "...", "payload": {...}, "timestamp": "...", "status": null}}
+data: {"data": {"type": "tool_result", "id": "...", "payload": {...}, "timestamp": "...", "status": null}}
 ```
 
 ## Customization

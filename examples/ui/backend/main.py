@@ -30,7 +30,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 class AgentQuery(BaseModel):
     query: str
     timeout: Optional[int] = None
@@ -47,6 +46,10 @@ def should_render_event(event_type: str) -> bool:
     if event_type == EventType.COMPLETED_TASK.value:
         return False
 
+    # Skip agent connection success - not needed in UI
+    if event_type == EventType.AGENT_CONNECTION_SUCCESS.value:
+        return False
+        
     return True
 
 
@@ -66,7 +69,6 @@ async def event_stream(query: str) -> AsyncGenerator[str, None]:
 
             # Convert to expected format
             event_dict = {
-                "event_source": "output",  # Default source
                 "data": {
                     "type": event_type,
                     "payload": event.data,
@@ -75,13 +77,14 @@ async def event_stream(query: str) -> AsyncGenerator[str, None]:
                 },
             }
 
+            print(event_dict)
+            
             # Format as SSE
             yield f"data: {json.dumps(event_dict)}\n\n"
 
     except Exception as e:
         # Send error event
         error_data = {
-            "event_source": "error",
             "data": {
                 "type": "error",
                 "payload": {"error": str(e)},
