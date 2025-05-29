@@ -1,9 +1,10 @@
 import json
 import os
+import uuid
+from typing import AsyncGenerator, Optional, Dict
 
 # Import the agent and environment from the parent directory
 import sys
-from typing import AsyncGenerator, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,9 +18,8 @@ from panda_agi.envs import LocalEnv
 
 app = FastAPI(title="PandaAGI SDK API", version="1.0.0")
 
-# Create environment and agent
-agent_env = LocalEnv("./workspace")
-agent = Agent(environment=agent_env)
+# Store active conversations - in production, this would be in a database
+active_conversations: Dict[str, Agent] = {}
 
 # Add CORS middleware
 app.add_middleware(
@@ -32,6 +32,7 @@ app.add_middleware(
 
 class AgentQuery(BaseModel):
     query: str
+    conversation_id: Optional[str] = None
     timeout: Optional[int] = None
 
 
@@ -53,9 +54,40 @@ def should_render_event(event_type: str) -> bool:
     return True
 
 
-async def event_stream(query: str) -> AsyncGenerator[str, None]:
+def get_or_create_agent(conversation_id: Optional[str] = None) -> tuple[Agent, str]:
+    """Get existing agent or create new one for conversation"""
+    if conversation_id and conversation_id in active_conversations:
+        return active_conversations[conversation_id], conversation_id
+    
+    # Create new agent and conversation ID
+    agent_env = LocalEnv("./workspace")
+    agent = Agent(environment=agent_env)
+    new_conversation_id = conversation_id or str(uuid.uuid4())
+    active_conversations[new_conversation_id] = agent
+    
+    return agent, new_conversation_id
+
+
+async def event_stream(query: str, conversation_id: Optional[str] = None) -> AsyncGenerator[str, None]:
     """Stream agent events as Server-Sent Events"""
+    agent = None
+    actual_conversation_id = None
+    
     try:
+        # Get or create agent for this conversation
+        agent, actual_conversation_id = get_or_create_agent(conversation_id)
+        
+        # Send conversation ID as first event
+        conversation_event = {
+            "data": {
+                "type": "conversation_started",
+                "payload": {"conversation_id": actual_conversation_id},
+                "timestamp": "",
+                "id": None
+            }
+        }
+        yield f"data: {json.dumps(conversation_event)}\n\n"
+        
         # Stream events
         async for event in agent.run(query):
             # Convert StreamEvent to dictionary format for frontend compatibility
@@ -93,14 +125,14 @@ async def event_stream(query: str) -> AsyncGenerator[str, None]:
             },
         }
         yield f"data: {json.dumps(error_data)}\n\n"
-
-    finally:
-        # Clean up
-        if agent:
+        
+        # Clean up failed conversation
+        if actual_conversation_id and actual_conversation_id in active_conversations:
             try:
-                await agent.disconnect()
-            except Exception as e:
-                print(f"Error disconnecting agent: {e}")
+                await active_conversations[actual_conversation_id].disconnect()
+                del active_conversations[actual_conversation_id]
+            except Exception as cleanup_error:
+                print(f"Error cleaning up failed conversation: {cleanup_error}")
 
 
 @app.post("/agent/run")
@@ -108,7 +140,7 @@ async def run_agent(query_data: AgentQuery):
     """Run an agent with the given query and stream events"""
     try:
         return StreamingResponse(
-            event_stream(query_data.query),
+            event_stream(query_data.query, query_data.conversation_id),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -118,6 +150,20 @@ async def run_agent(query_data: AgentQuery):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/conversation/{conversation_id}")
+async def end_conversation(conversation_id: str):
+    """End a conversation and clean up resources"""
+    if conversation_id in active_conversations:
+        try:
+            await active_conversations[conversation_id].disconnect()
+            del active_conversations[conversation_id]
+            return {"status": "conversation ended"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error ending conversation: {str(e)}")
+    else:
+        raise HTTPException(status_code=404, detail="Conversation not found")
 
 
 @app.get("/health")
@@ -134,6 +180,7 @@ async def root():
         "version": "1.0.0",
         "endpoints": {
             "POST /agent/run": "Run an agent with streaming events",
+            "DELETE /conversation/{conversation_id}": "End a conversation",
             "GET /health": "Health check",
             "GET /": "This endpoint",
         },

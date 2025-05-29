@@ -1,8 +1,8 @@
 import React from "react";
-import { Globe } from "lucide-react";
+import { Globe, Search } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 
-const WebSearchEvent = ({ payload, eventType }) => {
+const WebSearchEvent = ({ payload, eventType, onPreviewClick }) => {
   if (!payload || eventType !== "web_search") return null;
 
   const content = (
@@ -13,8 +13,15 @@ const WebSearchEvent = ({ payload, eventType }) => {
           Searching on the web...
         </span>
       </div>
-      <div className="mt-2">
-        <MarkdownRenderer>{payload.query}</MarkdownRenderer>
+      <div className="mt-3">
+        <div className="flex items-center p-2 bg-white border border-gray-300 rounded-lg shadow-sm">
+          <Search className="w-4 h-4 text-gray-500 mr-2" />
+          <div className="flex-grow">
+            <MarkdownRenderer onPreviewClick={onPreviewClick}>
+              {payload.query}
+            </MarkdownRenderer>
+          </div>
+        </div>
       </div>
     </div>
   );

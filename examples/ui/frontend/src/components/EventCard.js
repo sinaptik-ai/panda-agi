@@ -3,48 +3,86 @@ import UserNotificationEvent from "./events/UserNotificationEvent";
 import WebSearchEvent from "./events/WebSearchEvent";
 import WebSearchResultEvent from "./events/WebSearchResultEvent";
 import WebNavigationEvent from "./events/WebNavigationEvent";
-import FileOperationEvent from "./events/FileOperationEvent";
+import FileReadEvent from "./events/FileReadEvent";
+import FileContentEvent from "./events/FileContentEvent";
+import FileDiscoveryEvent from "./events/FileDiscoveryEvent";
 import ShellOperationEvent from "./events/ShellOperationEvent";
 import ImageGenerationEvent from "./events/ImageGenerationEvent";
 import LegacyEvent from "./events/LegacyEvent";
 import UnknownEvent from "./events/UnknownEvent";
 
-const EventCard = ({ message }) => {
+const EventCard = ({ message, onPreviewClick }) => {
   if (!message.event || !message.event.data) return null;
 
   const eventData = message.event.data;
   const eventType = eventData.type || "unknown";
   const payload = eventData.payload;
 
+  // Handle file_read events specially - render them directly without card wrapper
+  if (eventType === "file_read") {
+    return FileReadEvent({ payload, eventType, onPreviewClick });
+  }
+
+  // Handle file discovery events specially - render them directly without card wrapper
+  if (eventType === "file_find" || eventType === "file_explore") {
+    return FileDiscoveryEvent({ payload, eventType, onPreviewClick });
+  }
+
   const formatTimestamp = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString();
+    const now = new Date();
+    const eventTime = new Date(timestamp);
+    const diffInSeconds = Math.floor((now - eventTime) / 1000);
+
+    if (diffInSeconds < 60) {
+      return diffInSeconds <= 1 ? "just now" : `${diffInSeconds}s ago`;
+    }
+
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) {
+      return diffInMinutes === 1 ? "1 min ago" : `${diffInMinutes} mins ago`;
+    }
+
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) {
+      return diffInHours === 1 ? "1 hour ago" : `${diffInHours} hours ago`;
+    }
+
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) {
+      return diffInDays === 1 ? "1 day ago" : `${diffInDays} days ago`;
+    }
+
+    // For older events, fall back to date format
+    return eventTime.toLocaleDateString();
   };
 
-  const getEventDetails = (payload, eventType) => {
+  const getEventDetails = (payload, eventType, timestamp) => {
     switch (eventType) {
       // User events
       case "user_notification":
       case "user_question":
-        return UserNotificationEvent({ payload, eventType });
+        return UserNotificationEvent({
+          payload,
+          eventType,
+          onPreviewClick,
+          timestamp,
+        });
 
       // Web operations
       case "web_search":
-        return WebSearchEvent({ payload, eventType });
+        return WebSearchEvent({ payload, eventType, onPreviewClick });
 
       case "web_search_result":
         return WebSearchResultEvent({ payload, eventType });
 
       case "web_navigation":
       case "web_navigation_result":
-        return WebNavigationEvent({ payload, eventType });
+        return WebNavigationEvent({ payload, eventType, onPreviewClick });
 
       // File operations
-      case "file_read":
       case "file_write":
       case "file_replace":
-      case "file_find":
-      case "file_explore":
-        return FileOperationEvent({ payload, eventType });
+        return FileContentEvent({ payload, eventType, onPreviewClick });
 
       // Shell operations
       case "shell_exec":
@@ -54,7 +92,7 @@ const EventCard = ({ message }) => {
 
       // Image operations
       case "image_generation":
-        return ImageGenerationEvent({ payload, eventType });
+        return ImageGenerationEvent({ payload, eventType, onPreviewClick });
 
       // Legacy event types
       case "agent_request":
@@ -65,7 +103,7 @@ const EventCard = ({ message }) => {
       case "user_send_message":
       case "shell_exec_command":
       case "error":
-        return LegacyEvent({ payload, eventType });
+        return LegacyEvent({ payload, eventType, onPreviewClick });
 
       // Unknown/fallback
       default:
@@ -73,16 +111,28 @@ const EventCard = ({ message }) => {
     }
   };
 
-  const eventDetails = getEventDetails(payload, eventType);
+  const eventDetails = getEventDetails(
+    payload,
+    eventType,
+    eventData.timestamp || message.timestamp
+  );
 
   if (!eventDetails) return null;
 
+  // Check if this is a user notification event to hide the absolute timestamp
+  const isUserNotification =
+    eventType === "user_notification" || eventType === "user_question";
+
   return (
     <div className="flex justify-start">
-      <div className={`event-card max-w-2xl ${eventDetails.color} relative`}>
-        <span className="absolute top-3 right-3 text-xs text-gray-500">
-          {formatTimestamp(eventData.timestamp || message.timestamp)}
-        </span>
+      <div
+        className={`event-card min-w-80 max-w-2xl ${eventDetails.color} relative`}
+      >
+        {!isUserNotification && (
+          <span className="absolute top-3 right-3 text-xs text-gray-500">
+            {formatTimestamp(eventData.timestamp || message.timestamp)}
+          </span>
+        )}
 
         {eventDetails.content}
 

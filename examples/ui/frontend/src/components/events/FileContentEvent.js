@@ -1,7 +1,7 @@
 import React from "react";
-import { FileText, Eye, Folder } from "lucide-react";
+import { FileText, Eye } from "lucide-react";
 
-const FileOperationEvent = ({ payload, eventType, onPreviewClick }) => {
+const FileContentEvent = ({ payload, eventType, onPreviewClick }) => {
   if (!payload) return null;
 
   // Helper function to determine file type based on extension
@@ -41,13 +41,6 @@ const FileOperationEvent = ({ payload, eventType, onPreviewClick }) => {
 
   const getEventInfo = (eventType) => {
     switch (eventType) {
-      case "file_read":
-        return {
-          icon: <FileText className="w-4 h-4 text-cyan-500" />,
-          color: "bg-cyan-50 border-cyan-200",
-          title: "Read file",
-          verb: "read",
-        };
       case "file_write":
         return {
           icon: <FileText className="w-4 h-4 text-green-600" />,
@@ -61,20 +54,6 @@ const FileOperationEvent = ({ payload, eventType, onPreviewClick }) => {
           color: "bg-yellow-50 border-yellow-300",
           title: "Replaced file",
           verb: "replaced",
-        };
-      case "file_find":
-        return {
-          icon: <FileText className="w-4 h-4 text-blue-500" />,
-          color: "bg-blue-50 border-blue-200",
-          title: "Found files",
-          verb: "found",
-        };
-      case "file_explore":
-        return {
-          icon: <Folder className="w-4 h-4 text-blue-600" />,
-          color: "bg-blue-50 border-blue-300",
-          title: "Explored directory",
-          verb: "explored",
         };
       default:
         return {
@@ -90,20 +69,8 @@ const FileOperationEvent = ({ payload, eventType, onPreviewClick }) => {
   const filename = payload.file || payload.path;
   const fileType = getFileType(filename);
 
-  // Format filename with line range for file_read operations
+  // Format filename display
   const getDisplayFilename = () => {
-    if (eventType === "file_read" && payload.start_line && payload.end_line) {
-      return `${filename} (lines ${payload.start_line}-${payload.end_line})`;
-    }
-    if (eventType === "file_explore") {
-      // For directory exploration, show just the directory name or "." for current directory
-      if (!filename || filename === ".") {
-        return "current directory";
-      }
-      // Show just the directory name, not the full path
-      const dirName = filename.split("/").pop() || filename;
-      return dirName;
-    }
     return filename;
   };
 
@@ -152,4 +119,4 @@ const FileOperationEvent = ({ payload, eventType, onPreviewClick }) => {
   };
 };
 
-export default FileOperationEvent;
+export default FileContentEvent;

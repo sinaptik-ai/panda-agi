@@ -10,25 +10,25 @@ const ShellOperationEvent = ({ payload, eventType }) => {
         return {
           icon: <Activity className="w-4 h-4 text-purple-600" />,
           color: "bg-purple-50 border-purple-300",
-          title: "Shell Execute",
+          title: "Executing a shell command",
         };
       case "shell_view":
         return {
           icon: <Activity className="w-4 h-4 text-gray-600" />,
           color: "bg-gray-50 border-gray-300",
-          title: "Shell View",
+          title: "Checking the output of a shell command",
         };
       case "shell_write":
         return {
           icon: <Activity className="w-4 h-4 text-yellow-600" />,
           color: "bg-yellow-50 border-yellow-300",
-          title: "Shell Write",
+          title: "Writing to a shell command",
         };
       default:
         return {
           icon: <Activity className="w-4 h-4 text-purple-600" />,
           color: "bg-purple-50 border-purple-300",
-          title: "Shell Operation",
+          title: "Shell operation",
         };
     }
   };
@@ -44,17 +44,11 @@ const ShellOperationEvent = ({ payload, eventType }) => {
         </span>
       </div>
       <div className="mt-2">
-        <p className="text-sm text-gray-700 font-medium">Command:</p>
         <div className="mt-1">
-          <code className="text-sm bg-gray-100 px-2 py-1 rounded">
+          <code className="text-sm bg-gray-900 text-white px-2 py-1 rounded">
             {payload.command}
           </code>
         </div>
-        {payload.id && (
-          <div className="mt-1">
-            <p className="text-xs text-gray-500">Session: {payload.id}</p>
-          </div>
-        )}
         {payload.output && (
           <div className="mt-2">
             <p className="text-sm text-gray-700 font-medium">Output:</p>

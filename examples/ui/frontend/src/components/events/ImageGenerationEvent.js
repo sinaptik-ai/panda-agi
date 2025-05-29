@@ -2,7 +2,7 @@ import React from "react";
 import { Activity } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 
-const ImageGenerationEvent = ({ payload, eventType }) => {
+const ImageGenerationEvent = ({ payload, eventType, onPreviewClick }) => {
   if (!payload) return null;
 
   const content = (
@@ -18,7 +18,9 @@ const ImageGenerationEvent = ({ payload, eventType }) => {
           <div>
             <p className="text-sm text-gray-700 font-medium">Prompt:</p>
             <div className="mt-1">
-              <MarkdownRenderer>{payload.prompt}</MarkdownRenderer>
+              <MarkdownRenderer onPreviewClick={onPreviewClick}>
+                {payload.prompt}
+              </MarkdownRenderer>
             </div>
           </div>
         )}

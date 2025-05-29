@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 
-const LegacyEvent = ({ payload, eventType }) => {
+const LegacyEvent = ({ payload, eventType, onPreviewClick }) => {
   if (!payload) return null;
 
   const getEventInfo = (eventType) => {
@@ -80,7 +80,9 @@ const LegacyEvent = ({ payload, eventType }) => {
         <div className="mt-2">
           <p className="text-sm text-gray-700 font-medium">Query:</p>
           <div className="mt-1">
-            <MarkdownRenderer>{payload.query}</MarkdownRenderer>
+            <MarkdownRenderer onPreviewClick={onPreviewClick}>
+              {payload.query}
+            </MarkdownRenderer>
           </div>
         </div>
       );
@@ -129,7 +131,9 @@ const LegacyEvent = ({ payload, eventType }) => {
           </div>
           {payload.message && (
             <div className="mt-2">
-              <MarkdownRenderer>{payload.message}</MarkdownRenderer>
+              <MarkdownRenderer onPreviewClick={onPreviewClick}>
+                {payload.message}
+              </MarkdownRenderer>
             </div>
           )}
         </div>

@@ -16,6 +16,8 @@
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
     "react-scripts": "5.0.1",
+    "react-syntax-highlighter": "^15.6.1",
+    "remark-gfm": "^4.0.1",
     "tailwindcss": "^3.4.17",
     "web-vitals": "^2.1.4"
   },
