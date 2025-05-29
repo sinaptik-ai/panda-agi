@@ -1,0 +1,150 @@
+# Enhanced Agent CLI Interface
+
+The Enhanced Agent CLI Interface provides a powerful command-line interface for interacting with Panda AGI agents. It features real-time event streaming, comprehensive error handling, session statistics, and a rich interactive experience.
+
+<img
+  className="block dark:hidden"
+  src="/images/cli.png"
+  alt="CLI"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/cli.png"
+  alt="CLI"
+/>
+
+## Quick Start
+
+To start using the Enhanced Agent CLI, run:
+
+```bash
+python examples/cli.py
+```
+
+This will start the CLI with default settings, creating a workspace in `./my_agent_workspace`.
+
+## Features
+
+- **Real-time event streaming** with timestamps and categorization
+- **Categorized operation display** with icons and color coding
+- **Enhanced visual feedback** and progress tracking
+- **Session statistics** and history tracking
+- **Comprehensive error handling** and debugging information
+- **User messaging** with attachment support
+- **Interactive commands** for session management
+- **Customizable display options** (compact mode, width adjustment, etc.)
+
+## Installation Requirements
+
+Before using the CLI, ensure you have:
+
+1. Python 3.9+ installed
+2. The Panda AGI SDK installed and configured
+3. Required dependencies (automatically installed with the SDK):
+   - `rich` for enhanced terminal output
+   - `asyncio` for asynchronous operations
+
+## Command Line Options
+
+### Basic Usage
+
+```bash
+python examples/cli.py [OPTIONS]
+```
+
+### Available Options
+
+| Option | Short | Description | Default |
+|--------|-------|-------------|---------|
+| `--workspace` | `-w` | Path to agent workspace directory | `./my_agent_workspace` |
+| `--conversation-id` | | Resume an existing conversation by ID | `None` |
+| `--no-timestamps` | | Disable timestamp display in events | `False` |
+
+### Examples
+
+```bash
+# Start with default settings
+python examples/cli.py
+
+# Use a custom workspace directory
+python examples/cli.py -w ./my_project_workspace
+
+# Resume an existing conversation
+python examples/cli.py --conversation-id "123e4567-e89b-12d3-a456-426614174000"
+```
+
+## Event Categories and Visual Indicators
+
+The CLI categorizes events with color-coded icons for easy identification:
+
+### System Events
+- 🔗 **Connection Established** - Agent server connection
+- 🎯 **Task Completed** - Successful task completion
+
+### User Interaction
+- 💬 **User Notification** - Messages from users
+- ❓ **User Question** - User queries and questions
+
+### Web Operations
+- 🔍 **Web Search** - Search operations
+- 📊 **Web Search Results** - Search results display
+- 🌐 **Web Navigation** - Page navigation
+- 📄 **Web Page Content** - Retrieved page content
+
+### File Operations
+- 📖 **File Read** - Reading files
+- ✏️ **File Write** - Writing to files
+- 🔄 **File Replace** - Replacing file content
+- 🔎 **Find in Files** - Searching within files
+- 📂 **Explore Directory** - Directory exploration
+
+### Shell Operations
+- 💻 **Shell Execute** - Command execution
+- 👁️ **View Output** - Output viewing
+- ⌨️ **Write to Process** - Process input
+
+### Image Operations
+- 🎨 **Image Generation** - AI image creation
+
+## Session Statistics
+
+The CLI tracks comprehensive session statistics:
+
+- **Session Duration** - Total runtime
+- **Events Processed** - Total number of events
+- **User Messages** - Messages sent by users
+- **Agent Operations** - Operations performed by the agent
+- **Pending Operations** - Currently running operations
+- **Successful Operations** - Completed successfully
+- **Errors** - Error count and details
+
+## Error Handling
+
+The CLI provides comprehensive error handling:
+
+- **Visual Error Indicators** - Red borders and error icons
+- **Detailed Error Messages** - Full error descriptions
+- **Graceful Recovery** - Continues operation after errors
+- **Debug Information** - Verbose mode shows stack traces
+
+## Workspace Management
+
+The CLI automatically creates and manages a workspace directory:
+
+- **Default Location**: `./my_agent_workspace`
+- **Automatic Creation**: Creates directory if it doesn't exist
+- **File Operations**: All agent file operations occur within this workspace
+- **Persistence**: Files and changes persist between sessions
+
+
+
+## Contributing
+
+The CLI is designed to be extensible. Key areas for enhancement:
+
+- **Event Renderers** - Add new event type visualizations
+- **Interactive Commands** - Implement additional session commands
+- **Export Features** - Add session export capabilities
+- **Theming** - Customize visual appearance
+
+For more information about the Panda AGI SDK and agent development, refer to the main documentation.

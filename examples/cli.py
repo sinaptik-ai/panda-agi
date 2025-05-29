@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from rich.box import DOUBLE, HEAVY, ROUNDED
+from rich.box import HEAVY, ROUNDED
 from rich.console import Console, Group
 from rich.panel import Panel
 from rich.progress import (
@@ -27,27 +27,15 @@ from panda_agi.envs import LocalEnv
 
 # Status-specific styling for events
 STATUS_STYLES = {
-    MessageStatus.PENDING.value: {
-        "color": "yellow",
-        "icon": "⏳",
-        "label": "PENDING"
-    },
+    MessageStatus.PENDING.value: {"color": "yellow", "icon": "⏳", "label": "PENDING"},
     MessageStatus.SUCCESS.value: {
         "color": "bright_green",
         "icon": "✅",
-        "label": "SUCCESS"
+        "label": "SUCCESS",
     },
-    MessageStatus.ERROR.value: {
-        "color": "red",
-        "icon": "❌",
-        "label": "ERROR"
-    },
+    MessageStatus.ERROR.value: {"color": "red", "icon": "❌", "label": "ERROR"},
     # Default status style for unknown statuses
-    "default": {
-        "color": "white",
-        "icon": "🔄",
-        "label": "UNKNOWN"
-    }
+    "default": {"color": "white", "icon": "🔄", "label": "UNKNOWN"},
 }
 
 # Enhanced event type styles with comprehensive visual configuration
@@ -333,7 +321,7 @@ class EnhancedEventRenderer:
                 "box": ROUNDED,
             },
         )
-        
+
     def get_status_style(self, status: str) -> Dict[str, str]:
         """Get styling information for a status"""
         return STATUS_STYLES.get(status, STATUS_STYLES["default"])
@@ -341,20 +329,23 @@ class EnhancedEventRenderer:
     def should_render_event(self, event_data: Dict[str, Any]) -> bool:
         """Check if event should be rendered"""
         event_type = event_data.get("type", "default")
-        
+
         # Skip redundant events
         if event_type == EventType.WEB_NAVIGATION.value:
             # Skip WEB_NAVIGATION since WEB_NAVIGATION_RESULT provides the same info + content
             return False
-            
+
         # Skip task completion events - user doesn't want to see them
         if event_type == EventType.COMPLETED_TASK.value:
             return False
-            
+
         return event_type != "default" and event_type in EVENT_STYLES
 
     def create_event_header(
-        self, style_info: Dict[str, str], event_number: int, status: Optional[str] = None
+        self,
+        style_info: Dict[str, str],
+        event_number: int,
+        status: Optional[str] = None,
     ) -> Text:
         """Create a rich header for events with numbering, categorization, and status"""
         header = Text()
@@ -374,7 +365,7 @@ class EnhancedEventRenderer:
                 f" [{category.upper()}]",
                 style=f"dim {CATEGORY_COLORS.get(category, 'white')}",
             )
-            
+
         # Add status badge if provided
         if status:
             status_style = self.get_status_style(status)
@@ -513,7 +504,7 @@ class EnhancedEventRenderer:
 
         content = Text()
         color = style_info["color"]
-        
+
         # Handle list payloads (like web search results)
         if isinstance(payload, list):
             if event_type == EventType.WEB_SEARCH_RESULT.value:
@@ -522,16 +513,26 @@ class EnhancedEventRenderer:
                     if isinstance(result, dict):
                         title = result.get("title", "No title")
                         url = result.get("url", "No URL")
-                        content.append(f"  {i+1}. {title}\n", style=color)
+                        content.append(f"  {i + 1}. {title}\n", style=color)
                         content.append(f"     {url}\n", style=f"dim {color}")
                 if len(payload) > 5:
-                    content.append(f"  ... and {len(payload) - 5} more results\n", style=f"dim {color}")
+                    content.append(
+                        f"  ... and {len(payload) - 5} more results\n",
+                        style=f"dim {color}",
+                    )
             else:
-                content.append(f"📋 Results ({len(payload)} items):\n", style=f"bold {color}")
+                content.append(
+                    f"📋 Results ({len(payload)} items):\n", style=f"bold {color}"
+                )
                 for i, item in enumerate(payload[:3]):  # Show first 3 items
-                    content.append(f"  {i+1}. {str(item)[:50]}...\n", style=f"dim {color}")
+                    content.append(
+                        f"  {i + 1}. {str(item)[:50]}...\n", style=f"dim {color}"
+                    )
                 if len(payload) > 3:
-                    content.append(f"  ... and {len(payload) - 3} more items\n", style=f"dim {color}")
+                    content.append(
+                        f"  ... and {len(payload) - 3} more items\n",
+                        style=f"dim {color}",
+                    )
         else:
             # Handle dictionary payloads (existing logic)
             status = payload.get("status") if isinstance(payload, dict) else None
@@ -620,11 +621,13 @@ class EnhancedEventRenderer:
             # Add status information if present
             if status:
                 status_style = self.get_status_style(status)
-                content.append(f"\n{status_style['icon']} Status: {status_style['label']}", 
-                              style=f"bold {status_style['color']}")
+                content.append(
+                    f"\n{status_style['icon']} Status: {status_style['label']}",
+                    style=f"bold {status_style['color']}",
+                )
 
         header = self.create_event_header(style_info, self.event_counter)
-        
+
         # Adjust border style based on status if present for dictionary payloads
         border_style = style_info["color"]
         if isinstance(payload, dict):
@@ -717,7 +720,7 @@ class EnhancedEventRenderer:
 
         data = event.get("data", {}) or {}
         event_type = data.get("type", "default")
-        
+
         # Extract status if present
         status = data.get("status")
 
@@ -727,7 +730,7 @@ class EnhancedEventRenderer:
 
         style_info = self.get_event_style(data)
         payload = data.get("payload", {}) or {}
-        
+
         # Add status to payload if present in the event data
         if status:
             payload["status"] = status
@@ -737,7 +740,10 @@ class EnhancedEventRenderer:
             if event_type == EventType.AGENT_CONNECTION_SUCCESS.value:
                 return self.render_connection_success(payload, style_info)
 
-            elif event_type in [EventType.USER_NOTIFICATION.value, EventType.USER_QUESTION.value]:
+            elif event_type in [
+                EventType.USER_NOTIFICATION.value,
+                EventType.USER_QUESTION.value,
+            ]:
                 return self.render_user_input_event(payload, style_info)
 
             elif event_type == EventType.COMPLETED_TASK.value:
@@ -794,13 +800,14 @@ class EnhancedAgentCLI:
     ):
         # Use the smaller of the requested width or actual terminal width
         import shutil
+
         terminal_width = shutil.get_terminal_size().columns
-        actual_width = min(panel_width, terminal_width) if terminal_width > 0 else panel_width
-        
+        actual_width = (
+            min(panel_width, terminal_width) if terminal_width > 0 else panel_width
+        )
+
         self.console = Console(
-            width=actual_width, 
-            legacy_windows=False,
-            force_terminal=True
+            width=actual_width, legacy_windows=False, force_terminal=True
         )
         self.messaging = UserMessaging(self.console)
         self.workspace_path = os.path.abspath(workspace_path)
@@ -897,12 +904,20 @@ class EnhancedAgentCLI:
             Text("Agent Operations", style="bright_blue"),
             Text(f"{self.session_stats['agent_operations']}", style="yellow"),
         )
-        
+
         # Add status-specific counts if we start tracking them
-        pending_count = sum(1 for event in self.event_history if event.get("status") == MessageStatus.PENDING.value)
-        success_count = sum(1 for event in self.event_history if event.get("status") == MessageStatus.SUCCESS.value)
+        pending_count = sum(
+            1
+            for event in self.event_history
+            if event.get("status") == MessageStatus.PENDING.value
+        )
+        success_count = sum(
+            1
+            for event in self.event_history
+            if event.get("status") == MessageStatus.SUCCESS.value
+        )
         error_count = self.session_stats["errors"]
-        
+
         status_table.add_row(
             Text("Pending Operations", style="bright_blue"),
             Text(f"{pending_count}", style="yellow"),
@@ -1077,9 +1092,12 @@ class EnhancedAgentCLI:
         self.session_stats["events_processed"] += 1
 
         # User messages
-        if event_type in [EventType.USER_NOTIFICATION.value, EventType.USER_QUESTION.value]:
+        if event_type in [
+            EventType.USER_NOTIFICATION.value,
+            EventType.USER_QUESTION.value,
+        ]:
             self.session_stats["user_messages"] += 1
-        
+
         # Agent operations
         elif event_type in [
             # Web operations
@@ -1101,7 +1119,7 @@ class EnhancedAgentCLI:
             EventType.IMAGE_GENERATION.value,
         ]:
             self.session_stats["agent_operations"] += 1
-        
+
         # Count errors based on either event type or status
         if event_type == "error" or status == MessageStatus.ERROR.value:
             self.session_stats["errors"] += 1
@@ -1121,10 +1139,10 @@ class EnhancedAgentCLI:
                 self.console.print(Rule("[bold blue]💬 Enter your request[/bold blue]"))
                 try:
                     query = Prompt.ask("\n[bold yellow]User[/bold yellow]", default="")
-                    
+
                     if query.lower().strip() in ["exit", "quit", "q"]:
                         break
-                    
+
                     if not query.strip():
                         continue
                 except (EOFError, KeyboardInterrupt):
@@ -1155,39 +1173,58 @@ class EnhancedAgentCLI:
                                 task, description="🔄 Processing events..."
                             )
 
-                            event_type = event.type.value if hasattr(event.type, 'value') else str(event.type)
+                            event_type = (
+                                event.type.value
+                                if hasattr(event.type, "value")
+                                else str(event.type)
+                            )
                             event_data = {"type": event_type, "payload": event.data}
-                            status = getattr(event.data, 'status', None) if hasattr(event.data, 'status') else event.data.get('status') if isinstance(event.data, dict) else None
-                            event_id = getattr(event, 'id', None)
-                            
+                            status = (
+                                getattr(event.data, "status", None)
+                                if hasattr(event.data, "status")
+                                else event.data.get("status")
+                                if isinstance(event.data, dict)
+                                else None
+                            )
+                            event_id = getattr(event, "id", None)
+
                             # Convert StreamEvent to dictionary format for compatibility with existing code
                             event_dict = {
                                 "id": event_id,
                                 "data": event_data,
-                                "timestamp": event.timestamp
+                                "timestamp": event.timestamp,
                             }
-                            
+
                             # Store the event in history
                             self.event_history.append(event_dict)
                             self.update_session_stats(event_type, status)
-                            
+
                             # Check if this is an update to an existing event (by ID)
                             updated_existing = False
                             if event_id:
                                 # Look for previous events with the same ID to update their status
-                                for i, prev_event in enumerate(self.event_history[:-1]):  # Skip the current event
+                                for i, prev_event in enumerate(
+                                    self.event_history[:-1]
+                                ):  # Skip the current event
                                     prev_data = prev_event.get("data", {})
-                                    if prev_event.get("id") == event_id and prev_event != event_dict:
+                                    if (
+                                        prev_event.get("id") == event_id
+                                        and prev_event != event_dict
+                                    ):
                                         # Update the status in the previous event's data
                                         if status and "data" in prev_event:
                                             prev_event["data"]["status"] = status
                                             # Re-render the updated event
-                                            updated_panel = self.event_renderer.render_event(prev_event)
+                                            updated_panel = (
+                                                self.event_renderer.render_event(
+                                                    prev_event
+                                                )
+                                            )
                                             if updated_panel:
                                                 self.console.print(updated_panel)
                                             updated_existing = True
                                             break
-                            
+
                             # Only render the event if it's not just a status update for an existing event
                             if not updated_existing:
                                 panel = self.event_renderer.render_event(event_dict)

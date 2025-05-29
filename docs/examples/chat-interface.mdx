@@ -9,14 +9,78 @@ This example demonstrates how to build a modern chat interface that streams AI a
 
 <img
   className="block dark:hidden"
-  src="/images/chat-interface-light.png"
+  src="/images/chat_interface.png"
   alt="Chat Interface"
 />
 <img
   className="hidden dark:block"
-  src="/images/chat-interface-dark.png"
+  src="/images/chat_interface.png"
   alt="Chat Interface"
 />
+
+## 🚀 Ready-to-Use Implementation
+
+A complete, enhanced chat interface implementation is already available in the examples folder! You can get started immediately with our Docker-based setup.
+
+### Quick Start
+
+```bash
+cd examples/ui && ./start.sh
+```
+
+This one command will:
+- ✅ Check Docker requirements  
+- 🛑 Stop any existing containers
+- 🔨 Build and start both services
+- 🔍 Perform health checks
+- 📊 Display service status and URLs
+
+Once running, access:
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8001
+
+### Enhanced Features
+
+The implemented solution includes:
+
+<CardGroup cols={2}>
+  <Card
+    title="Docker Integration"
+    icon="docker"
+  >
+    One-command deployment with Docker Compose
+  </Card>
+  <Card
+    title="Enhanced Event Handling"
+    icon="gears"
+  >
+    Improved event filtering and error handling
+  </Card>
+  <Card
+    title="Production Ready"
+    icon="shield-check"
+  >
+    Nginx serving, proper CORS, health checks
+  </Card>
+  <Card
+    title="Mobile Responsive"
+    icon="mobile"
+  >
+    Optimized for both desktop and mobile devices
+  </Card>
+</CardGroup>
+
+### Alternative Setup
+
+If you prefer manual setup or local development:
+
+```bash
+# Backend
+cd examples/ui/backend && python main.py
+
+# Frontend (in new terminal)
+cd examples/ui/frontend && npm start
+```
 
 ## Features
 
@@ -51,7 +115,7 @@ This example demonstrates how to build a modern chat interface that streams AI a
 
 ### FastAPI Server
 
-First, let's create the backend server with streaming support:
+You can wrap the Agent in a simple backend server with streaming support:
 
 ```python
 # backend/main.py
@@ -161,385 +225,6 @@ panda-agi>=0.1.0
 pydantic==2.5.0
 ```
 
-## Frontend Implementation
-
-### React Chat Component
-
-Now let's create the React frontend:
-
-```jsx
-// src/components/ChatInterface.jsx
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Globe, FileText, Terminal, CheckCircle, AlertCircle } from 'lucide-react';
-
-const ChatInterface = () => {
-  const [messages, setMessages] = useState([]);
-  const [inputMessage, setInputMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [conversationId] = useState(() => 
-    crypto.randomUUID ? crypto.randomUUID() : 'session-' + Date.now()
-  );
-  const messagesEndRef = useRef(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(scrollToBottom, [messages]);
-
-  const getEventIcon = (eventType) => {
-    switch (eventType) {
-      case 'web_search':
-      case 'web_navigation':
-        return <Globe className="w-4 h-4 text-blue-500" />;
-      case 'file_write':
-      case 'file_read':
-        return <FileText className="w-4 h-4 text-green-500" />;
-      case 'shell_exec':
-        return <Terminal className="w-4 h-4 text-purple-500" />;
-      case 'completed_task':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'error':
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />;
-    }
-  };
-
-  const formatEventData = (eventType, data) => {
-    switch (eventType) {
-      case 'web_search':
-        return `Searching: ${data.query}`;
-      case 'web_navigation':
-        return `Reading: ${data.url}`;
-      case 'file_write':
-        return `Created file: ${data.file}`;
-      case 'file_read':
-        return `Reading file: ${data.file}`;
-      case 'shell_exec':
-        return `Executing: ${data.command}`;
-      case 'user_notification':
-        return data.text || 'Agent update';
-      case 'completed_task':
-        return 'Task completed successfully!';
-      case 'error':
-        return `Error: ${data.error}`;
-      default:
-        return JSON.stringify(data).substring(0, 100) + '...';
-    }
-  };
-
-  const sendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
-
-    const userMessage = {
-      id: Date.now(),
-      type: 'user',
-      content: inputMessage,
-      timestamp: new Date().toISOString()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
-    setIsLoading(true);
-
-    const agentMessage = {
-      id: Date.now() + 1,
-      type: 'agent',
-      content: '',
-      events: [],
-      timestamp: new Date().toISOString(),
-      isStreaming: true
-    };
-
-    setMessages(prev => [...prev, agentMessage]);
-
-    try {
-      const response = await fetch('http://localhost:8000/api/chat/stream', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: inputMessage,
-          conversation_id: conversationId
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const eventData = JSON.parse(line.slice(6));
-              
-              setMessages(prev => prev.map(msg => {
-                if (msg.id === agentMessage.id) {
-                  const newEvents = [...msg.events, eventData];
-                  let content = msg.content;
-                  
-                  // Update content based on event type
-                  if (eventData.type === 'user_notification') {
-                    content = eventData.data.text || content;
-                  } else if (eventData.type === 'completed_task') {
-                    return {
-                      ...msg,
-                      events: newEvents,
-                      content: content || 'Task completed successfully!',
-                      isStreaming: false
-                    };
-                  }
-                  
-                  return {
-                    ...msg,
-                    events: newEvents,
-                    content: content
-                  };
-                }
-                return msg;
-              }));
-              
-            } catch (e) {
-              console.error('Error parsing event:', e);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      setMessages(prev => prev.map(msg => {
-        if (msg.id === agentMessage.id) {
-          return {
-            ...msg,
-            content: 'Sorry, there was an error processing your request.',
-            isStreaming: false,
-            error: true
-          };
-        }
-        return msg;
-      }));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-screen max-w-4xl mx-auto bg-white">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 shadow-lg">
-        <h1 className="text-2xl font-bold">Panda AGI Chat Interface</h1>
-        <p className="text-blue-100">Real-time AI agent interactions</p>
-      </div>
-
-      {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && (
-          <div className="text-center text-gray-500 mt-20">
-            <div className="text-6xl mb-4">🐼</div>
-            <h2 className="text-xl font-semibold mb-2">Welcome to Panda AGI</h2>
-            <p>Ask me anything and I'll help you with research, analysis, coding, and more!</p>
-          </div>
-        )}
-
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              className={`max-w-3xl rounded-lg p-4 ${
-                message.type === 'user'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-800'
-              }`}
-            >
-              {message.type === 'user' ? (
-                <p>{message.content}</p>
-              ) : (
-                <div className="space-y-3">
-                  {/* Agent Response Content */}
-                  {message.content && (
-                    <div className="bg-white rounded p-3 border">
-                      <p className="text-gray-800">{message.content}</p>
-                    </div>
-                  )}
-
-                  {/* Event Stream */}
-                  {message.events && message.events.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
-                        <Terminal className="w-4 h-4" />
-                        Agent Activity:
-                      </h4>
-                      <div className="bg-gray-50 rounded p-3 space-y-2 max-h-40 overflow-y-auto">
-                        {message.events.map((event, index) => (
-                          <div key={index} className="flex items-start gap-2 text-sm">
-                            {getEventIcon(event.type)}
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium text-gray-700">
-                                  {event.type.replace('_', ' ')}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {new Date(event.timestamp).toLocaleTimeString()}
-                                </span>
-                              </div>
-                              <p className="text-gray-600 mt-1">
-                                {formatEventData(event.type, event.data)}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Loading indicator */}
-                  {message.isStreaming && (
-                    <div className="flex items-center gap-2 text-blue-600">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-sm">Agent is thinking...</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input Area */}
-      <div className="border-t bg-gray-50 p-4">
-        <div className="flex gap-2">
-          <textarea
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Ask me anything..."
-            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            rows="1"
-            disabled={isLoading}
-          />
-          <button
-            onClick={sendMessage}
-            disabled={!inputMessage.trim() || isLoading}
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-            Send
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default ChatInterface;
-```
-
-### App Component
-
-```jsx
-// src/App.jsx
-import React from 'react';
-import ChatInterface from './components/ChatInterface';
-import './App.css';
-
-function App() {
-  return (
-    <div className="App">
-      <ChatInterface />
-    </div>
-  );
-}
-
-export default App;
-```
-
-### Package Configuration
-
-```json
-// package.json
-{
-  "name": "panda-agi-chat-interface",
-  "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "lucide-react": "^0.263.1"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.0.3",
-    "autoprefixer": "^10.4.14",
-    "postcss": "^8.4.24",
-    "tailwindcss": "^3.3.0",
-    "vite": "^4.4.5"
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  }
-}
-```
-
-### Tailwind Configuration
-
-```js
-// tailwind.config.js
-module.exports = {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-}
-```
-
-## Usage
-
-1. **Start the backend:**
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   python main.py
-   ```
-
-2. **Start the frontend:**
-   ```bash
-   npm install
-   npm run dev
-   ```
-
-3. **Open your browser** to `http://localhost:3000` and start chatting!
 
 ## Key Features Demonstrated
 

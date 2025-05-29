@@ -44,10 +44,7 @@ npm run build
 - `quickstart.mdx` - Quick start guide
 - `installation.mdx` - Installation instructions
 - `concepts/` - Core concept documentation
-- `client/` - Client SDK documentation
-- `tools/` - Tools documentation
 - `examples/` - Example implementations
-- `api-reference/` - API reference documentation
 
 ## Contributing
 
