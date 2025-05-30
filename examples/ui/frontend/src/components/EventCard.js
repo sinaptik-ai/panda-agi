@@ -17,6 +17,14 @@ const EventCard = ({ message, onPreviewClick }) => {
   const eventType = eventData.type || "unknown";
   const payload = eventData.payload;
 
+  if (eventType === "web_navigation" || eventType === "web_navigation_result") {
+    return WebNavigationEvent({ payload, eventType, onPreviewClick });
+  }
+
+  if (eventType === "file_write" || eventType === "file_replace") {
+    return FileContentEvent({ payload, eventType, onPreviewClick });
+  }
+
   if (
     eventType === "shell_exec" ||
     eventType === "shell_view" ||
@@ -91,15 +99,6 @@ const EventCard = ({ message, onPreviewClick }) => {
 
       case "web_search_result":
         return WebSearchResultEvent({ payload, eventType });
-
-      case "web_navigation":
-      case "web_navigation_result":
-        return WebNavigationEvent({ payload, eventType, onPreviewClick });
-
-      // File operations
-      case "file_write":
-      case "file_replace":
-        return FileContentEvent({ payload, eventType, onPreviewClick });
 
       // Image operations
       case "image_generation":

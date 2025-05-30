@@ -15,8 +15,6 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./MarkdownRenderer";
 
 const ContentSidebar = ({ isOpen, onClose, previewData }) => {
-  const [htmlViewMode, setHtmlViewMode] = useState("preview"); // "code" or "preview"
-
   if (!isOpen || !previewData) return null;
 
   // Get language for syntax highlighting
@@ -123,83 +121,42 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
       case "html":
         const htmlFilename = previewData.url || "";
         return (
-          <div className="flex flex-col h-full">
-            {/* Toggle buttons */}
-            <div className="flex space-x-2 mb-4 border-b pb-2 flex-shrink-0">
-              <button
-                onClick={() => setHtmlViewMode("preview")}
-                className={`flex items-center space-x-1 px-3 py-1 rounded text-sm transition-colors ${
-                  htmlViewMode === "preview"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                <Eye className="w-3 h-3" />
-                <span>Preview</span>
-              </button>
-              <button
-                onClick={() => setHtmlViewMode("code")}
-                className={`flex items-center space-x-1 px-3 py-1 rounded text-sm transition-colors ${
-                  htmlViewMode === "code"
-                    ? "bg-blue-100 text-blue-700"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                <Code className="w-3 h-3" />
-                <span>Code</span>
-              </button>
+          <div className="editor-container bg-gray-900 text-gray-100 rounded overflow-hidden h-full flex flex-col">
+            {/* Editor Header - same style as other code files */}
+            <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700 flex-shrink-0">
+              <div className="flex items-center space-x-2">
+                <div className="flex space-x-1">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                </div>
+                <span className="text-xs text-gray-300 ml-2">
+                  {htmlFilename.split("/").pop()}
+                </span>
+              </div>
+              <div className="flex items-center space-x-3 text-xs text-gray-400">
+                <span>HTML</span>
+                <span>{content.split("\n").length} lines</span>
+              </div>
             </div>
 
-            <div className="flex-1 min-h-0">
-              {htmlViewMode === "preview" ? (
-                <div className="border rounded bg-white h-full">
-                  <iframe
-                    srcDoc={content}
-                    className="w-full h-full border-0 rounded"
-                    title="HTML Preview"
-                    sandbox="allow-scripts allow-same-origin"
-                  />
-                </div>
-              ) : (
-                <div className="editor-container bg-gray-900 text-gray-100 rounded overflow-hidden h-full flex flex-col">
-                  {/* Editor Header - same style as other code files */}
-                  <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700 flex-shrink-0">
-                    <div className="flex items-center space-x-2">
-                      <div className="flex space-x-1">
-                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                      </div>
-                      <span className="text-xs text-gray-300 ml-2">
-                        {htmlFilename.split("/").pop()}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-3 text-xs text-gray-400">
-                      <span>HTML</span>
-                      <span>{content.split("\n").length} lines</span>
-                    </div>
-                  </div>
-
-                  <div className="flex-1 overflow-auto">
-                    <SyntaxHighlighter
-                      language="html"
-                      style={vscDarkPlus}
-                      showLineNumbers={true}
-                      lineNumberStyle={getLineNumberStyle()}
-                      customStyle={getCommonStyle()}
-                      className="syntax-highlighter"
-                      codeTagProps={{
-                        style: {
-                          fontFamily:
-                            'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-                        },
-                      }}
-                    >
-                      {content}
-                    </SyntaxHighlighter>
-                  </div>
-                </div>
-              )}
+            <div className="flex-1 overflow-auto">
+              <SyntaxHighlighter
+                language="html"
+                style={vscDarkPlus}
+                showLineNumbers={true}
+                lineNumberStyle={getLineNumberStyle()}
+                customStyle={getCommonStyle()}
+                className="syntax-highlighter"
+                codeTagProps={{
+                  style: {
+                    fontFamily:
+                      'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+                  },
+                }}
+              >
+                {content}
+              </SyntaxHighlighter>
             </div>
           </div>
         );

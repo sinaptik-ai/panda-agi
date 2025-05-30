@@ -1,81 +1,133 @@
-import React from "react";
-import { Globe, Eye } from "lucide-react";
+import React, { useState } from "react";
+import { Globe, ChevronRight, Eye, ExternalLink } from "lucide-react";
 
 const WebNavigationEvent = ({ payload, eventType, onPreviewClick }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   if (!payload) return null;
 
-  const getEventInfo = (eventType) => {
+  const url = payload.url || "Unknown URL";
+
+  const getEventDetails = (eventType) => {
     switch (eventType) {
       case "web_navigation":
         return {
-          icon: <Globe className="w-4 h-4 text-orange-600" />,
-          color: "bg-orange-50 border-orange-300",
-          title: "Navigating to page...",
+          icon: <Globe className="w-3 h-3 text-orange-600" />,
+          action: "Navigating to",
         };
       case "web_navigation_result":
         return {
-          icon: <Globe className="w-4 h-4 text-orange-600" />,
-          color: "bg-orange-50 border-orange-400",
-          title: "Page visited",
+          icon: <Globe className="w-3 h-3 text-orange-600" />,
+          action: "Visited",
         };
       default:
         return {
-          icon: <Globe className="w-4 h-4 text-orange-600" />,
-          color: "bg-orange-50 border-orange-300",
-          title: "Web Navigation",
+          icon: <Globe className="w-3 h-3 text-orange-600" />,
+          action: "Web navigation",
         };
     }
   };
 
-  const eventInfo = getEventInfo(eventType);
+  const eventDetails = getEventDetails(eventType);
+
+  const toggleExpanded = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  const truncateUrl = (url, maxLength = 50) => {
+    if (!url) return "Unknown URL";
+    return url.length > maxLength ? `${url.substring(0, maxLength)}...` : url;
+  };
+
+  const getDomain = (url) => {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return url;
+    }
+  };
 
   const handlePreviewClick = () => {
     if (payload.content && onPreviewClick) {
       onPreviewClick({
         url: payload.url,
         content: payload.content,
-        title: `Preview: ${new URL(payload.url).hostname}`,
+        title: `Preview: ${getDomain(payload.url)}`,
       });
     }
   };
 
-  const content = (
-    <div>
-      <div className="flex items-center space-x-2 mb-2">
-        {eventInfo.icon}
-        <span className="font-medium text-sm text-gray-900">
-          {eventInfo.title}
-        </span>
-      </div>
-      <div className="mt-2">
-        <div className="flex flex-col">
-          <a
-            href={payload.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:underline text-sm mb-2"
+  return (
+    <>
+      <div className="flex justify-start">
+        <div className="flex items-center space-x-2 px-3 py-2">
+          {eventDetails.icon}
+          <span className="text-xs text-gray-500 truncate max-w-md">
+            {eventDetails.action} <strong>{getDomain(url)}</strong>
+          </span>
+          <button
+            onClick={toggleExpanded}
+            className="flex items-center py-0.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            title={isExpanded ? "Hide details" : "Show details"}
           >
-            {payload.url}
-          </a>
+            <div
+              className={`transition-transform duration-200 ${
+                isExpanded ? "rotate-90" : "rotate-0"
+              }`}
+            >
+              <ChevronRight className="w-3 h-3" />
+            </div>
+          </button>
           {payload.content && (
             <button
               onClick={handlePreviewClick}
-              className="flex items-center space-x-1 px-2 py-1 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors self-start"
-              title="Preview content"
+              className="flex items-center px-1 py-0.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              title="View content"
             >
               <Eye className="w-3 h-3" />
-              <span>Show raw content</span>
             </button>
           )}
         </div>
       </div>
-    </div>
-  );
 
-  return {
-    color: eventInfo.color,
-    content,
-  };
+      <div
+        className={`grid transition-all duration-300 ease-in-out ${
+          isExpanded
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="overflow-hidden">
+          <div className="mx-3 mb-4 bg-orange-50 border border-orange-200 rounded-md overflow-hidden">
+            <div className="flex items-center px-3 py-2 bg-orange-100 border-b border-orange-200">
+              <Globe className="w-4 h-4 mr-2 text-orange-600" />
+              <span className="text-sm font-mono text-orange-700">
+                {getDomain(url)}
+              </span>
+            </div>
+            <div className="p-3 text-sm">
+              <div className="mb-3">
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center text-blue-600 hover:text-blue-800 transition-colors font-mono text-xs break-all"
+                >
+                  <ExternalLink className="w-3 h-3 mr-1 flex-shrink-0" />
+                  {url}
+                </a>
+              </div>
+              {payload.content && (
+                <div className="text-gray-700 whitespace-pre-wrap break-words font-mono text-xs bg-white p-2 rounded border max-h-48 overflow-y-auto">
+                  {payload.content}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 };
 
 export default WebNavigationEvent;

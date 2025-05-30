@@ -25,6 +25,7 @@ from panda_agi.envs import LocalEnv
 WORKSPACE_PATH = os.getenv("WORKSPACE_PATH", "./workspace")
 
 app = FastAPI(title="PandaAGI SDK API", version="1.0.0")
+local_env = LocalEnv(WORKSPACE_PATH)
 
 # Store active conversations - in production, this would be in a database
 active_conversations: Dict[str, Agent] = {}
@@ -67,9 +68,7 @@ def get_or_create_agent(conversation_id: Optional[str] = None) -> tuple[Agent, s
     if conversation_id and conversation_id in active_conversations:
         return active_conversations[conversation_id], conversation_id
     
-    # Create new agent and conversation ID
-    agent_env = LocalEnv(WORKSPACE_PATH)
-    agent = Agent(environment=agent_env)
+    agent = Agent(environment=local_env)
     new_conversation_id = conversation_id or str(uuid.uuid4())
     active_conversations[new_conversation_id] = agent
     
