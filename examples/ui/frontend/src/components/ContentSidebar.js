@@ -53,7 +53,11 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
   const isFullHeightContent = () => {
     const type = previewData.type || "text";
     return (
-      type === "code" || type === "html" || type === "text" || type === "iframe"
+      type === "code" ||
+      type === "html" ||
+      type === "text" ||
+      type === "iframe" ||
+      type === "table"
     );
   };
 
@@ -95,6 +99,39 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
     }
   `;
 
+  // CSV Parser function
+  const parseCSV = (csvText) => {
+    if (!csvText) return [];
+
+    const lines = csvText.trim().split("\n");
+    const result = [];
+
+    for (let line of lines) {
+      const row = [];
+      let current = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ";" && !inQuotes) {
+          row.push(current.trim());
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+
+      // Add the last field
+      row.push(current.trim());
+      result.push(row);
+    }
+
+    return result;
+  };
+
   // Render content based on type
   const renderContent = () => {
     const type = previewData.type || "text";
@@ -116,6 +153,87 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
         return (
           <div className="prose prose-sm max-w-none">
             <MarkdownRenderer>{content}</MarkdownRenderer>
+          </div>
+        );
+      case "table":
+        const tableFilename = previewData.url || "";
+        const tableExtension = tableFilename.split(".").pop().toLowerCase();
+        const tableData = parseCSV(content);
+
+        return (
+          <div className="h-full flex flex-col">
+            {/* Table Header */}
+            <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-gray-700">
+                  {tableFilename.split("/").pop()}
+                </span>
+              </div>
+              <div className="flex items-center space-x-3 text-xs text-gray-500">
+                <span>{tableExtension.toUpperCase()}</span>
+                <span>{tableData.length} rows</span>
+                {tableData.length > 0 && (
+                  <span>{tableData[0].length} columns</span>
+                )}
+              </div>
+            </div>
+
+            {/* Table Content */}
+            <div className="flex-1 overflow-hidden">
+              {tableData.length > 0 ? (
+                <div className="w-full h-full overflow-auto">
+                  <table
+                    className="w-full divide-y divide-gray-200"
+                    style={{ minWidth: "max-content" }}
+                  >
+                    <thead className="bg-gray-50 sticky top-0 z-10">
+                      <tr>
+                        {tableData[0].map((header, index) => (
+                          <th
+                            key={index}
+                            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 last:border-r-0 whitespace-nowrap"
+                            style={{ minWidth: "150px" }}
+                          >
+                            <div
+                              className="truncate"
+                              title={header || `Column ${index + 1}`}
+                            >
+                              {header || `Column ${index + 1}`}
+                            </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {tableData.slice(1).map((row, rowIndex) => (
+                        <tr
+                          key={rowIndex}
+                          className="hover:bg-gray-50 transition-colors"
+                        >
+                          {row.map((cell, cellIndex) => (
+                            <td
+                              key={cellIndex}
+                              className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200 last:border-r-0 whitespace-nowrap"
+                              style={{ minWidth: "150px", maxWidth: "400px" }}
+                              title={cell}
+                            >
+                              <div className="truncate">{cell}</div>
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 p-8">
+                  <div className="text-lg mb-2">No data available</div>
+                  <div className="text-sm">
+                    The file appears to be empty or could not be parsed.
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         );
       case "html":
@@ -330,25 +448,12 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
         );
       default:
         return (
-          <div className="editor-container bg-gray-900 text-gray-100 rounded overflow-hidden h-full flex flex-col">
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700 flex-shrink-0">
-              <span className="text-xs text-gray-300">Text File</span>
-              <span className="text-xs text-gray-400">
-                {content.split("\n").length} lines
-              </span>
-            </div>
-            <div className="flex-1 overflow-auto">
-              <SyntaxHighlighter
-                language="text"
-                style={vscDarkPlus}
-                showLineNumbers={true}
-                lineNumberStyle={getLineNumberStyle()}
-                customStyle={getCommonStyle()}
-                className="syntax-highlighter"
-              >
-                {content}
-              </SyntaxHighlighter>
-            </div>
+          <div className="text-center text-gray-500 p-4">
+            <File className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+            <p>Unsupported file format</p>
+            <p className="text-xs text-gray-400 mt-1">
+              This file type cannot be previewed at the moment
+            </p>
           </div>
         );
     }
@@ -361,6 +466,8 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
     switch (type) {
       case "code":
         return <FileCode className="w-4 h-4 text-blue-500 mr-1" />;
+      case "table":
+        return <FileText className="w-4 h-4 text-green-600 mr-1" />;
       case "image":
         return <FileImage className="w-4 h-4 text-green-500 mr-1" />;
       case "pdf":

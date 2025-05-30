@@ -46,7 +46,8 @@ const FileContentEvent = ({ payload, eventType, onPreviewClick }) => {
       const getFileType = (filePath) => {
         if (!filePath) return "text";
         const extension = filePath.split(".").pop().toLowerCase();
-        if (["md", "markdown"].includes(extension)) return "markdown";
+        if (["csv"].includes(extension)) return "table";
+        if (["md", "markdown", "txt"].includes(extension)) return "markdown";
         if (["html", "htm"].includes(extension)) return "html";
         if (
           [
@@ -77,7 +78,7 @@ const FileContentEvent = ({ payload, eventType, onPreviewClick }) => {
         )
           return "image";
         if (extension === "pdf") return "pdf";
-        return "text";
+        return "not-supported";
       };
 
       onPreviewClick({

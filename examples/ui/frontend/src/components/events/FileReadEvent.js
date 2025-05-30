@@ -9,7 +9,8 @@ const FileReadEvent = ({ payload, eventType, onPreviewClick }) => {
     if (!filePath) return "text";
     const extension = filePath.split(".").pop().toLowerCase();
 
-    if (["md", "markdown"].includes(extension)) return "markdown";
+    if (["csv"].includes(extension)) return "table";
+    if (["md", "markdown", "txt"].includes(extension)) return "markdown";
     if (["html", "htm"].includes(extension)) return "html";
     if (
       [
@@ -36,7 +37,7 @@ const FileReadEvent = ({ payload, eventType, onPreviewClick }) => {
     if (["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(extension))
       return "image";
     if (extension === "pdf") return "pdf";
-    return "text";
+    return "not-supported";
   };
 
   const filename = payload.file || payload.path;
