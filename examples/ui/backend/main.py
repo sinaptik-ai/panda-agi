@@ -220,6 +220,68 @@ async def upload_files(
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
+@app.get("/files/read")
+async def read_file(file_path: str):
+    """Read a file from the workspace"""
+    try:
+        # Resolve the file path relative to workspace
+        workspace_path = Path(WORKSPACE_PATH)
+        resolved_path = workspace_path / file_path
+        
+        # Security check: ensure the resolved path is within workspace
+        try:
+            resolved_path.resolve().relative_to(workspace_path.resolve())
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Access denied: path outside workspace")
+        
+        # Check if file exists
+        if not resolved_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        if not resolved_path.is_file():
+            raise HTTPException(status_code=400, detail="Path is not a file")
+        
+        # Try to read as text first
+        try:
+            with open(resolved_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                
+            return {
+                "status": "success",
+                "content": content,
+                "filename": resolved_path.name,
+                "path": file_path,
+                "size": resolved_path.stat().st_size,
+                "encoding": "utf-8"
+            }
+        except UnicodeDecodeError:
+            # If text reading fails, try binary mode and return base64 for binary files
+            with open(resolved_path, 'rb') as f:
+                content = f.read()
+                
+            # For common binary files, we might want to handle them differently
+            extension = resolved_path.suffix.lower()
+            if extension in ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.bmp']:
+                import base64
+                content_b64 = base64.b64encode(content).decode('utf-8')
+                return {
+                    "status": "success",
+                    "content": f"data:image/{extension[1:]};base64,{content_b64}",
+                    "filename": resolved_path.name,
+                    "path": file_path,
+                    "size": len(content),
+                    "encoding": "base64",
+                    "type": "image"
+                }
+            else:
+                raise HTTPException(status_code=415, detail="Binary file type not supported for preview")
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -236,6 +298,7 @@ async def root():
             "POST /agent/run": "Run an agent with streaming events",
             "DELETE /conversation/{conversation_id}": "End a conversation",
             "POST /files/upload": "Upload a file to the workspace",
+            "GET /files/read": "Read a file from the workspace",
             "GET /health": "Health check",
             "GET /": "This endpoint",
         },

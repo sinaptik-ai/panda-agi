@@ -10,7 +10,7 @@ import FileUploadEvent from "./events/FileUploadEvent";
 import ShellOperationEvent from "./events/ShellOperationEvent";
 import ImageGenerationEvent from "./events/ImageGenerationEvent";
 
-const EventCard = ({ message, onPreviewClick }) => {
+const EventCard = ({ message, onPreviewClick, onFileClick }) => {
   if (!message.event || !message.event.data) return null;
 
   const eventData = message.event.data;
@@ -18,11 +18,16 @@ const EventCard = ({ message, onPreviewClick }) => {
   const payload = eventData.payload;
 
   if (eventType === "web_navigation" || eventType === "web_navigation_result") {
-    return WebNavigationEvent({ payload, eventType, onPreviewClick });
+    return WebNavigationEvent({ payload, eventType });
   }
 
   if (eventType === "file_write" || eventType === "file_replace") {
-    return FileContentEvent({ payload, eventType, onPreviewClick });
+    return FileContentEvent({
+      payload,
+      eventType,
+      onPreviewClick,
+      onFileClick,
+    });
   }
 
   if (
@@ -35,17 +40,22 @@ const EventCard = ({ message, onPreviewClick }) => {
 
   // Handle file_read events specially - render them directly without card wrapper
   if (eventType === "file_read") {
-    return FileReadEvent({ payload, eventType, onPreviewClick });
+    return FileReadEvent({ payload, eventType, onPreviewClick, onFileClick });
   }
 
   // Handle file discovery events specially - render them directly without card wrapper
   if (eventType === "file_find" || eventType === "file_explore") {
-    return FileDiscoveryEvent({ payload, eventType, onPreviewClick });
+    return FileDiscoveryEvent({
+      payload,
+      eventType,
+      onPreviewClick,
+      onFileClick,
+    });
   }
 
   // Handle file upload events specially - render them directly without card wrapper
   if (eventType === "file_upload") {
-    return FileUploadEvent({ payload, eventType, onPreviewClick });
+    return FileUploadEvent({ payload, eventType, onPreviewClick, onFileClick });
   }
 
   const formatTimestamp = (timestamp) => {

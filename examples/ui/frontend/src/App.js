@@ -169,6 +169,77 @@ function App() {
     setPreviewData(null);
   };
 
+  // Helper function to determine file type based on extension
+  const getFileType = (filename) => {
+    if (!filename) return "text";
+    const extension = filename.split(".").pop().toLowerCase();
+
+    if (["csv", "xls", "xlsx"].includes(extension)) return "table";
+    if (["md", "markdown"].includes(extension)) return "markdown";
+    if (["html", "htm"].includes(extension)) return "html";
+    if (["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(extension))
+      return "image";
+    if (extension === "pdf") return "pdf";
+    if (
+      [
+        "js",
+        "jsx",
+        "ts",
+        "tsx",
+        "py",
+        "java",
+        "c",
+        "cpp",
+        "go",
+        "rb",
+        "php",
+        "css",
+        "scss",
+        "json",
+        "xml",
+        "yaml",
+        "yml",
+      ].includes(extension)
+    )
+      return "code";
+    return "text";
+  };
+
+  // Function to fetch and open file in sidebar
+  const handleFileClick = async (filename) => {
+    try {
+      const response = await fetch(
+        `${
+          process.env.REACT_APP_API_URL || "http://localhost:8001"
+        }/files/read?file_path=${encodeURIComponent(filename)}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to read file: ${response.statusText}`);
+      }
+
+      const fileData = await response.json();
+
+      if (fileData.status === "success") {
+        const fileType = fileData.type || getFileType(filename);
+
+        setPreviewData({
+          url: filename,
+          content: fileData.content,
+          title: `File: ${fileData.filename}`,
+          type: fileType,
+        });
+        setSidebarOpen(true);
+      } else {
+        console.error("Failed to read file:", fileData.message);
+        // Could show a toast notification here
+      }
+    } catch (error) {
+      console.error("Error reading file:", error);
+      // Could show a toast notification here
+    }
+  };
+
   const sendMessage = async () => {
     if (!inputValue.trim()) return;
 
@@ -492,6 +563,7 @@ function App() {
                   <EventCard
                     message={message}
                     onPreviewClick={handlePreviewClick}
+                    onFileClick={handleFileClick}
                   />
                 )}
               </div>

@@ -1,7 +1,12 @@
 import React from "react";
 import { Search, Folder, Eye } from "lucide-react";
 
-const FileDiscoveryEvent = ({ payload, eventType, onPreviewClick }) => {
+const FileDiscoveryEvent = ({
+  payload,
+  eventType,
+  onPreviewClick,
+  onFileClick,
+}) => {
   if (!payload) return null;
 
   const filename = payload.file || payload.path;
@@ -58,6 +63,12 @@ const FileDiscoveryEvent = ({ payload, eventType, onPreviewClick }) => {
     }
   };
 
+  const handleFileNameClick = () => {
+    if (onFileClick && filename) {
+      onFileClick(filename);
+    }
+  };
+
   const eventDetails = getEventDetails(eventType);
 
   return (
@@ -65,7 +76,18 @@ const FileDiscoveryEvent = ({ payload, eventType, onPreviewClick }) => {
       <div className="flex items-center space-x-2 px-3 py-2">
         {eventDetails.icon}
         <span className="text-xs text-gray-500 truncate max-w-md">
-          {eventDetails.action} <strong>{getDisplayContent()}</strong>
+          {eventDetails.action}{" "}
+          {filename ? (
+            <button
+              onClick={handleFileNameClick}
+              className="font-bold text-gray-700 hover:text-gray-900 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit"
+              title="Click to open file"
+            >
+              {getDisplayContent()}
+            </button>
+          ) : (
+            <strong>{getDisplayContent()}</strong>
+          )}
         </span>
         {payload.content && (
           <button

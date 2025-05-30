@@ -1,7 +1,12 @@
 import React, { useState } from "react";
 import { FileText, ChevronRight, Eye } from "lucide-react";
 
-const FileContentEvent = ({ payload, eventType, onPreviewClick }) => {
+const FileContentEvent = ({
+  payload,
+  eventType,
+  onPreviewClick,
+  onFileClick,
+}) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!payload) return null;
@@ -46,8 +51,8 @@ const FileContentEvent = ({ payload, eventType, onPreviewClick }) => {
       const getFileType = (filePath) => {
         if (!filePath) return "text";
         const extension = filePath.split(".").pop().toLowerCase();
-        if (["csv"].includes(extension)) return "table";
-        if (["md", "markdown", "txt"].includes(extension)) return "markdown";
+        if (["csv", "xls", "xlsx"].includes(extension)) return "table";
+        if (["md", "markdown"].includes(extension)) return "markdown";
         if (["html", "htm"].includes(extension)) return "html";
         if (
           [
@@ -78,7 +83,7 @@ const FileContentEvent = ({ payload, eventType, onPreviewClick }) => {
         )
           return "image";
         if (extension === "pdf") return "pdf";
-        return "not-supported";
+        return "text";
       };
 
       onPreviewClick({
@@ -90,13 +95,26 @@ const FileContentEvent = ({ payload, eventType, onPreviewClick }) => {
     }
   };
 
+  const handleFileNameClick = () => {
+    if (onFileClick) {
+      onFileClick(filename);
+    }
+  };
+
   return (
     <>
       <div className="flex justify-start">
         <div className="flex items-center space-x-2 px-3 py-2">
           {eventDetails.icon}
           <span className="text-xs text-gray-500 truncate max-w-md">
-            {eventDetails.action} <strong>{truncateFilename(filename)}</strong>
+            {eventDetails.action}{" "}
+            <button
+              onClick={handleFileNameClick}
+              className="font-bold text-gray-700 hover:text-gray-900 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit"
+              title="Click to open file"
+            >
+              {truncateFilename(filename)}
+            </button>
           </span>
           {payload.content && (
             <>
