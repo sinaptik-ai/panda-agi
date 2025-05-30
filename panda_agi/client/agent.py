@@ -36,7 +36,8 @@ class Agent:
 
     def __init__(
         self,
-        host: str = "wss://agi-api.pandas-ai.com",
+        # host: str = "wss://agi-api.pandas-ai.com",
+        host: str = "ws://localhost:8000",
         api_key: str = None,
         conversation_id: Optional[str] = None,
         auto_reconnect: bool = False,
