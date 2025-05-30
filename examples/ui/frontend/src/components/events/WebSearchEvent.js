@@ -2,7 +2,12 @@ import React from "react";
 import { Globe, Search } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 
-const WebSearchEvent = ({ payload, eventType, onPreviewClick }) => {
+const WebSearchEvent = ({
+  payload,
+  eventType,
+  onPreviewClick,
+  onFileClick,
+}) => {
   if (!payload || eventType !== "web_search") return null;
 
   const content = (

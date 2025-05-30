@@ -2,7 +2,12 @@ import React from "react";
 import { Activity } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 
-const ImageGenerationEvent = ({ payload, onPreviewClick }) => {
+const ImageGenerationEvent = ({
+  payload,
+  eventType,
+  onPreviewClick,
+  onFileClick,
+}) => {
   if (!payload) return null;
 
   const content = (
