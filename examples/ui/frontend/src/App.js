@@ -498,7 +498,7 @@ function App() {
             ))}
 
             {(isLoading || uploadingFiles) && (
-              <div className="flex justify-start mb-4">
+              <div className="flex justify-start">
                 <div className="flex items-center space-x-2 px-3 py-2">
                   <div className="flex items-center space-x-1">
                     <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse"></div>

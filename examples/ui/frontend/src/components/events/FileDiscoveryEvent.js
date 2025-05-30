@@ -61,7 +61,7 @@ const FileDiscoveryEvent = ({ payload, eventType, onPreviewClick }) => {
   const eventDetails = getEventDetails(eventType);
 
   return (
-    <div className="flex justify-start mb-4">
+    <div className="flex justify-start">
       <div className="flex items-center space-x-2 px-3 py-2">
         {eventDetails.icon}
         <span className="text-xs text-gray-500 truncate max-w-md">

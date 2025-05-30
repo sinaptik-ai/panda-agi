@@ -9,8 +9,6 @@ import FileDiscoveryEvent from "./events/FileDiscoveryEvent";
 import FileUploadEvent from "./events/FileUploadEvent";
 import ShellOperationEvent from "./events/ShellOperationEvent";
 import ImageGenerationEvent from "./events/ImageGenerationEvent";
-import LegacyEvent from "./events/LegacyEvent";
-import UnknownEvent from "./events/UnknownEvent";
 
 const EventCard = ({ message, onPreviewClick }) => {
   if (!message.event || !message.event.data) return null;
@@ -18,6 +16,14 @@ const EventCard = ({ message, onPreviewClick }) => {
   const eventData = message.event.data;
   const eventType = eventData.type || "unknown";
   const payload = eventData.payload;
+
+  if (
+    eventType === "shell_exec" ||
+    eventType === "shell_view" ||
+    eventType === "shell_write"
+  ) {
+    return ShellOperationEvent({ payload, eventType });
+  }
 
   // Handle file_read events specially - render them directly without card wrapper
   if (eventType === "file_read") {
@@ -64,6 +70,11 @@ const EventCard = ({ message, onPreviewClick }) => {
 
   const getEventDetails = (payload, eventType, timestamp) => {
     switch (eventType) {
+      case "agent_connection_success":
+      case "completed_task":
+        // DO NOTHING
+        return null;
+
       // User events
       case "user_notification":
       case "user_question":
@@ -90,30 +101,12 @@ const EventCard = ({ message, onPreviewClick }) => {
       case "file_replace":
         return FileContentEvent({ payload, eventType, onPreviewClick });
 
-      // Shell operations
-      case "shell_exec":
-      case "shell_view":
-      case "shell_write":
-        return ShellOperationEvent({ payload, eventType });
-
       // Image operations
       case "image_generation":
         return ImageGenerationEvent({ payload, eventType, onPreviewClick });
 
-      // Legacy event types
-      case "agent_request":
-      case "tool_result":
-      case "completion":
-      case "connection_success":
-      case "web_visit_page":
-      case "user_send_message":
-      case "shell_exec_command":
-      case "error":
-        return LegacyEvent({ payload, eventType, onPreviewClick });
-
-      // Unknown/fallback
       default:
-        return UnknownEvent({ payload, eventType });
+        return null;
     }
   };
 
@@ -157,7 +150,7 @@ const EventCard = ({ message, onPreviewClick }) => {
                   : "bg-red-100 text-red-800"
               }`}
             >
-              {eventData.status}
+              {eventData.status} -
             </span>
           </div>
         )}
