@@ -2,6 +2,21 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+// Helper function to check if URL is localhost or 127.0.0.1
+const isLocalhost = (url) => {
+  try {
+    const urlObj = new URL(url);
+    return (
+      urlObj.hostname === "localhost" ||
+      urlObj.hostname === "127.0.0.1" ||
+      urlObj.hostname.startsWith("127.") ||
+      urlObj.hostname.endsWith(".localhost")
+    );
+  } catch {
+    return false;
+  }
+};
+
 // Function to manually detect and convert plain URLs to links as a fallback
 const linkifyText = (text, onPreviewClick) => {
   if (typeof text !== "string") return text;
@@ -22,8 +37,8 @@ const linkifyText = (text, onPreviewClick) => {
     // Add the URL as a clickable link
     const url = match[0];
 
-    // Check if URL ends with :2664 for special handling
-    if (url.endsWith(":2664") && onPreviewClick) {
+    // Check if URL is localhost/127.0.0.1 for special handling
+    if (isLocalhost(url) && onPreviewClick) {
       parts.push(
         <button
           key={match.index}
@@ -31,7 +46,9 @@ const linkifyText = (text, onPreviewClick) => {
             onPreviewClick({
               url: url,
               content: "", // Will be loaded via iframe
-              title: `Preview: ${new URL(url).hostname}:2664`,
+              title: `Preview: ${new URL(url).hostname}${
+                new URL(url).port ? ":" + new URL(url).port : ""
+              }`,
               type: "iframe",
             })
           }
@@ -144,16 +161,18 @@ const MarkdownRenderer = ({ children, className = "", onPreviewClick }) => {
               {processChildren(children, onPreviewClick)}
             </blockquote>
           ),
-          // Style all links consistently, with special handling for :2664 URLs
+          // Style all links consistently, with special handling for localhost URLs
           a: ({ href, children }) => {
-            if (href && href.endsWith(":2664") && onPreviewClick) {
+            if (href && isLocalhost(href) && onPreviewClick) {
               return (
                 <button
                   onClick={() =>
                     onPreviewClick({
                       url: href,
                       content: "", // Will be loaded via iframe
-                      title: `Preview: ${new URL(href).hostname}:2664`,
+                      title: `Preview: ${new URL(href).hostname}${
+                        new URL(href).port ? ":" + new URL(href).port : ""
+                      }`,
                       type: "iframe",
                     })
                   }
