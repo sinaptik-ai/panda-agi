@@ -1,9 +1,8 @@
 import asyncio
 import logging
-from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, Optional
 
-from .models import EventType, StreamEvent
+from .models import BaseStreamEvent, EventFactory, EventType
 
 logger = logging.getLogger("AgentClient")
 
@@ -28,13 +27,11 @@ class EventManager:
 
     def __init__(self, event_queue: Optional[EventQueue] = None):
         self._event_queue = event_queue or EventQueue()
-        self._current_request_future = None
+        self._request_complete_event = None
 
     async def add_event(self, event_type: EventType, data: Dict[str, Any]):
         """Add an event to the queue"""
-        event = StreamEvent(
-            type=event_type, data=data, timestamp=datetime.now().isoformat()
-        )
+        event = EventFactory.create(event_type, data)
         await self._event_queue.put(event)
 
     async def get_event(self):
@@ -45,13 +42,13 @@ class EventManager:
         """Set the event queue instance"""
         self._event_queue = event_queue
 
-    def set_request_future(self, future: asyncio.Future):
+    def set_request_complete_event(self, event: asyncio.Event):
         """Set the current request future for completion tracking"""
-        self._current_request_future = future
+        self._request_complete_event = event
 
     async def stream_events(
         self, timeout: Optional[float] = None
-    ) -> AsyncGenerator[StreamEvent, None]:
+    ) -> AsyncGenerator[BaseStreamEvent, None]:
         """
         Stream events from the queue with timeout and completion handling
 
@@ -59,7 +56,7 @@ class EventManager:
             timeout: Maximum time to wait for events in seconds
 
         Yields:
-            StreamEvent: Events from the queue
+            BaseStreamEvent: Events from the queue
         """
         queue_task = None
         seen_events = False
@@ -79,14 +76,7 @@ class EventManager:
                 if queue_task is None or queue_task.done():
                     queue_task = asyncio.create_task(self.get_event())
 
-                # Add the current request future to our wait set
                 wait_tasks = [queue_task]
-                if (
-                    self._current_request_future
-                    and not self._current_request_future.done()
-                ):
-                    wait_tasks.append(self._current_request_future)
-
                 # Wait for either queue to have an event or the request to complete
                 done, pending = await asyncio.wait(
                     wait_tasks,
@@ -104,11 +94,10 @@ class EventManager:
                         event = task.result()
                         seen_events = True
                         yield event
-                        logger.info(f"DEBUG: Task: {task}")
-                        logger.info(
-                            f"DEBUG: Current request future: {self._current_request_future}"
-                        )
-                        if task == self._current_request_future:
+                        if (
+                            self._request_complete_event
+                            and self._request_complete_event.is_set()
+                        ):
                             logger.info("Request completed due to stop event")
                             return
 

@@ -1,13 +1,12 @@
 import logging
 from typing import Dict, Optional, Type
 
-from ..envs import BaseEnv
 from .base import ToolHandler
 
 logger = logging.getLogger("AgentClient")
 
 
-class HandlerRegistry:
+class ToolRegistry:
     """Registry for managing tool handlers"""
 
     _handlers: Dict[str, Type[ToolHandler]] = {}
@@ -40,9 +39,7 @@ class HandlerRegistry:
         return cls._handlers.get(actual_type)
 
     @classmethod
-    def create_handler(
-        cls, message_type: str, environment: BaseEnv, **kwargs
-    ) -> Optional[ToolHandler]:
+    def create_handler(cls, message_type: str, **kwargs) -> Optional[ToolHandler]:
         """Create a handler instance for a message type"""
         handler_class = cls.get_handler_class(message_type)
         if not handler_class:
@@ -50,19 +47,19 @@ class HandlerRegistry:
             return None
 
         try:
-            return handler_class(environment=environment, **kwargs)
+            return handler_class(**kwargs)
         except Exception as e:
             logger.error(f"Failed to create handler for {message_type}: {e}")
             return None
 
     @classmethod
-    def create_all_handlers(cls, environment: BaseEnv) -> Dict[str, ToolHandler]:
+    def create_all_handlers(cls) -> Dict[str, ToolHandler]:
         """Create all registered handlers"""
         handlers = {}
 
         # Create handlers for all registered types
         for message_type in cls._handlers:
-            handler = cls.create_handler(message_type, environment)
+            handler = cls.create_handler(message_type)
             if handler:
                 handlers[message_type] = handler
 

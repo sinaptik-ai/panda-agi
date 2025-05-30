@@ -404,13 +404,23 @@ EventType.SHELL_WRITE              # Writing shell scripts
 
 ## Event Streaming
 
-### Basic Streaming
+### Basic Streaming with Type Safety
 
-Stream events in real-time as your remote agent works through complex tasks:
+Stream events in real-time with complete type safety using the new Pydantic event models:
 
 ```python
-from panda_agi import Agent, EventType
+from panda_agi import Agent
 from panda_agi.envs import DockerEnv
+from panda_agi.client.models import (
+    # Type guard functions for type safety
+    is_agent_connection_success_event,
+    is_web_search_event,
+    is_web_navigation_event,
+    is_file_write_event,
+    is_shell_exec_event,
+    is_user_notification_event,
+    is_completed_task_event,
+)
 import asyncio
 
 async def main():
@@ -420,71 +430,158 @@ async def main():
 
     # Stream events as the agent works autonomously
     async for event in agent.run("Research machine learning trends and create a comprehensive report"):
-        # Events stream live from the remote agent
-        if event.type == EventType.AGENT_CONNECTION_SUCCESS:
-            print(f"🔗 Agent connected: {event.data['file_system']['directory']}")
+        # Type checker knows exactly what type each event is!
         
-        elif event.type == EventType.WEB_SEARCH:
-            print(f"🔍 Searching: {event.data['query']}")
+        if is_agent_connection_success_event(event):
+            # Type checker knows event is AgentConnectionSuccessEvent here
+            file_system = event.data.get("file_system", {})
+            directory = file_system.get("directory", "unknown")
+            print(f"🔗 Agent connected: {directory}")
         
-        elif event.type == EventType.WEB_NAVIGATION:
-            print(f"🌐 Reading: {event.data['url']}")
+        elif is_web_search_event(event):
+            # Type checker knows event is WebSearchEvent here
+            query = event.data.get("query", "")
+            print(f"🔍 Searching: {query}")
         
-        elif event.type == EventType.FILE_WRITE:
-            print(f"📝 Created: {event.data['file']}")
+        elif is_web_navigation_event(event):
+            # Type checker knows event is WebNavigationEvent here
+            url = event.data.get("url", "")
+            print(f"🌐 Reading: {url}")
         
-        elif event.type == EventType.SHELL_EXEC:
-            print(f"⚙️ Executing: {event.data['command']}")
+        elif is_file_write_event(event):
+            # Type checker knows event is FileWriteEvent here
+            filename = event.data.get("file", "")
+            print(f"📝 Created: {filename}")
         
-        elif event.type == EventType.USER_NOTIFICATION:
-            print(f"📢 Update: {event.data['text']}")
-            if event.data.get('attachments'):
-                print(f"📎 Files: {', '.join(event.data['attachments'])}")
+        elif is_shell_exec_event(event):
+            # Type checker knows event is ShellExecEvent here
+            command = event.data.get("command", "")
+            print(f"⚙️ Executing: {command}")
         
-        elif event.type == EventType.COMPLETED_TASK:
+        elif is_user_notification_event(event):
+            # Type checker knows event is UserNotificationEvent here
+            text = event.data.get("text", "")
+            attachments = event.data.get("attachments", [])
+            print(f"📢 Update: {text}")
+            if attachments:
+                print(f"📎 Files: {', '.join(attachments)}")
+        
+        elif is_completed_task_event(event):
+            # Type checker knows event is CompletedTaskEvent here
             print("🎉 Task completed!")
+            break
     
     await agent.disconnect()
 
 asyncio.run(main())
 ```
 
-
-### Advanced Event Handling with Enums
+### Advanced Event Handling with Typed Models
 
 ```python
-from panda_agi import Agent, EventType
+from panda_agi import Agent
 from panda_agi.envs import DockerEnv
+from panda_agi.client.models import (
+    StreamEvent,
+    # Import specific event types
+    WebSearchEvent,
+    FileWriteEvent,
+    UserNotificationEvent,
+    # Type guards
+    is_web_search_event,
+    is_file_write_event,
+    is_user_notification_event,
+    is_shell_exec_event,
+    is_image_generation_event,
+    is_completed_task_event,
+)
 import asyncio
 
 async def advanced_event_monitoring():
     agent_env = DockerEnv("./workspace")
     agent = Agent(environment=agent_env)
     
-    # Track different types of activities
-    web_activities = [EventType.WEB_SEARCH, EventType.WEB_NAVIGATION]
-    file_activities = [EventType.FILE_READ, EventType.FILE_WRITE, EventType.FILE_REPLACE, EventType.FILE_EXPLORE]
-    shell_activities = [EventType.SHELL_EXEC, EventType.SHELL_VIEW, EventType.SHELL_WRITE]
-    
+    # Track different categories of activities with type safety
     async for event in agent.run("Analyze codebase and generate documentation"):
-        if event.type in web_activities:
-            print(f"🌐 Web activity: {event.type.value}")
-        elif event.type in file_activities:
-            print(f"📁 File activity: {event.type.value}")
-        elif event.type in shell_activities:
-            print(f"💻 Shell activity: {event.type.value}")
-        elif event.type == EventType.IMAGE_GENERATION:
-            print(f"🎨 Generated image: {event.data.get('image_path', 'unknown')}")
-        elif event.type == EventType.USER_QUESTION:
-            print(f"❓ Agent question: {event.data['question']}")
-        elif event.type == EventType.USER_NOTIFICATION:
-            print(f"📢 Progress update: {event.data['text']}")
-        elif event.type == EventType.COMPLETED_TASK:
-            print("✅ Task completed successfully!")
+        
+        # Web activities
+        if is_web_search_event(event):
+            query = event.data.get("query", "")
+            max_results = event.data.get("max_results", 0)
+            print(f"🌐 Web search: '{query}' (max {max_results} results)")
+            
+        # File activities  
+        elif is_file_write_event(event):
+            filename = event.data.get("file", "")
+            content_length = len(event.data.get("content", ""))
+            append_mode = event.data.get("append", False)
+            mode = "appended to" if append_mode else "created"
+            print(f"📁 File {mode}: {filename} ({content_length} chars)")
+            
+        # Shell activities
+        elif is_shell_exec_event(event):
+            command = event.data.get("command", "")
+            exec_dir = event.data.get("exec_dir", "")
+            print(f"💻 Shell: {command} (in {exec_dir})")
+            
+        # Creative activities
+        elif is_image_generation_event(event):
+            prompt = event.data.get("prompt", "")
+            image_path = event.data.get("image_path", "")
+            print(f"🎨 Generated: {image_path} from '{prompt}'")
+            
+        # Communication
+        elif is_user_notification_event(event):
+            text = event.data.get("text", "")
+            print(f"📢 Progress: {text}")
+            
+        elif is_completed_task_event(event):
+            print("✅ Task completed!")
+            break
     
     await agent.disconnect()
 
 asyncio.run(advanced_event_monitoring())
+```
+
+### Creating Events Programmatically
+
+You can also create typed events programmatically for testing or custom workflows:
+
+```python
+from panda_agi.client.models import (
+    UserNotificationEvent,
+    FileWriteEvent,
+    WebSearchEvent,
+    StreamEvent,
+)
+
+# Create a typed notification event
+notification = UserNotificationEvent(
+    data={
+        "text": "Analysis complete!",
+        "attachments": ["report.md", "charts.png"]
+    }
+)
+
+# Create a typed file event
+file_event = FileWriteEvent(
+    data={
+        "file": "analysis.md",
+        "content": "# Analysis Results\n\nFindings...",
+        "append": False
+    }
+)
+
+# Events are fully typed and can be used in unions
+events: list[StreamEvent] = [notification, file_event]
+
+# Type-safe event processing
+for event in events:
+    if is_user_notification_event(event):
+        print(f"Notification: {event.data['text']}")
+    elif is_file_write_event(event):
+        print(f"File written: {event.data['file']}")
 ```
 
 ## Next Steps

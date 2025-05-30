@@ -38,14 +38,14 @@ async def main():
     # agent_env = DockerEnv("./my_agent_workspace")
 
     # Create the agent
-    agent = Agent(environment=agent_env, conversation_id="research-session")
+    agent = Agent(environment=agent_env)
 
     # First request - will automatically connect
     # The run method now returns a generator of AgentEvent
     async for event in agent.run(
-        "Make a report about the AI market trend",
+        "genera un'immagine di un gatto",
     ):
-        print(f"[{event.timestamp}] {event.type}: {truncate(event.data)}")
+        print(f"[RECEIVED] {event.type}")
 
     # Manually disconnect when completely done
     await agent.disconnect()

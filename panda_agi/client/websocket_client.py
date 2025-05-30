@@ -7,9 +7,10 @@ from typing import Dict, Optional, Union
 import websockets
 
 from .models import WebSocketMessage
+from .state import AgentState
 
 logger = logging.getLogger("AgentClient")
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 
 
 class WebSocketClient:
@@ -22,20 +23,49 @@ class WebSocketClient:
         conversation_id: Optional[str] = None,
         auto_reconnect: bool = True,
         reconnect_interval: float = 5.0,
+        state: AgentState = None,
     ):
         self.host = host
         self.api_key = api_key
+        self.websocket = None
         self.conversation_id = conversation_id or str(uuid.uuid4())
         self.auto_reconnect = auto_reconnect
         self.reconnect_interval = reconnect_interval
 
-        self.websocket = None
-        self.running = False
-        self.is_connected = False
+        # Use AgentState for connection state management
+        self.state = state or AgentState()
+        self.state.connection_id = self.conversation_id
+
         self._message_loop_task = None
 
         # Message handler callback
         self._message_handler = None
+
+    @property
+    def is_connected(self) -> bool:
+        """Get connection status from agent state"""
+        return self.state.is_connected
+
+    @is_connected.setter
+    def is_connected(self, value: bool):
+        """Set connection status in agent state"""
+        self.state.is_connected = value
+
+    @property
+    def running(self) -> bool:
+        """Get running status from agent state"""
+        return self.state.is_running
+
+    @running.setter
+    def running(self, value: bool):
+        """Set running status in agent state"""
+        self.state.is_running = value
+
+    def reset_connection_state(self):
+        """Reset connection state in AgentState"""
+        self.state.is_connected = False
+        self.state.is_running = False
+        self.websocket = None
 
     @property
     def url(self) -> str:
@@ -97,6 +127,10 @@ class WebSocketClient:
             await self.websocket.close()
             logger.info("🔌 Disconnected from server")
 
+        # Reset connection state and clear initialization
+        self.reset_connection_state()
+        self.state.initialization_complete.clear()
+
     async def _message_loop(self):
         """Internal message handling loop"""
         self.running = True
@@ -135,6 +169,7 @@ class WebSocketClient:
 
     async def _reconnect(self):
         """Attempt to reconnect to the server"""
+        logger.info("🔌 Reconnecting...")
         logger.info(f"Running: {self.running}")
         logger.info(f"Is connected: {self.is_connected}")
 
@@ -164,6 +199,7 @@ class WebSocketClient:
 
     async def send_message(self, message: Union[WebSocketMessage, dict]) -> str:
         """Send a message to the server"""
+        logger.info(f"[WEBSOCKET] Sending message: {message}")
         if not self.is_connected:
             raise ConnectionError("Not connected to server")
 
@@ -171,5 +207,5 @@ class WebSocketClient:
             message = WebSocketMessage(**message)
 
         await self.websocket.send(message.to_json())
-        logger.info(f"📤 Sent message: {message.type}")
+        logger.info(f"[WEBSOCKET] Sent message: {message.type}")
         return message.id

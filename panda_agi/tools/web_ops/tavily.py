@@ -52,6 +52,6 @@ def tavily_search_web(query: str, max_results: int = 5) -> Dict[str, Any]:
                 }
             )
 
-        return formatted_results
+        return {"results": formatted_results}
     except Exception as e:
-        raise Exception(f"Error searching with Tavily: {str(e)}")
+        return {"error": str(e)}
