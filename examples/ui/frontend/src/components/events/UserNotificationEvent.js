@@ -4,11 +4,12 @@ import {
   CreditCard,
   Paperclip,
   Eye,
-  Download,
   FileText,
   Image,
   File,
   Code,
+  Globe,
+  ExternalLink,
 } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 
@@ -65,6 +66,46 @@ const UserNotificationEvent = ({
     if (onFileClick) {
       onFileClick(filename);
     }
+  };
+
+  const handleLocalhostPreview = (url) => {
+    if (onPreviewClick) {
+      onPreviewClick({
+        url: url,
+        title: `Localhost Server: ${url}`,
+        type: "iframe",
+      });
+    }
+  };
+
+  // Detect localhost URLs in the notification text
+  const detectLocalhostUrls = (text) => {
+    if (!text) return [];
+
+    const localhostPatterns = [
+      // Full URLs
+      /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?(?:\/[^\s]*)?/gi,
+      // Just localhost:port or 127.0.0.1:port
+      /(?:^|\s)((?:localhost|127\.0\.0\.1|0\.0\.0\.0):\d+)(?:\s|$)/gi,
+    ];
+
+    const urls = new Set();
+
+    localhostPatterns.forEach((pattern) => {
+      const matches = text.match(pattern);
+      if (matches) {
+        matches.forEach((match) => {
+          let url = match.trim();
+          // If it's just host:port, add http://
+          if (!url.startsWith("http")) {
+            url = `http://${url}`;
+          }
+          urls.add(url);
+        });
+      }
+    });
+
+    return Array.from(urls);
   };
 
   // Get file icon based on extension
@@ -186,6 +227,10 @@ const UserNotificationEvent = ({
     : "bg-white border-gray-200";
   const content = isError ? renderErrorContent() : renderStandardContent();
 
+  // Detect localhost URLs in the notification text
+  const notificationText = payload.text || payload.message || "";
+  const localhostUrls = detectLocalhostUrls(notificationText);
+
   return (
     <>
       {/* Main Card */}
@@ -195,19 +240,55 @@ const UserNotificationEvent = ({
         </div>
       </div>
 
+      {/* Localhost Servers Preview */}
+      {localhostUrls.length > 0 && (
+        <div className="mt-3 space-y-3">
+          <div className="flex justify-start">
+            <div className="group flex items-center justify-between p-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg hover:from-orange-100 hover:to-amber-100 transition-all duration-200 hover:shadow-md min-w-80 max-w-2xl">
+              <div className="flex items-center space-x-3 flex-1 min-w-0">
+                <div className="flex-shrink-0">
+                  <Globe className="w-4 h-4 text-orange-500" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <button
+                    onClick={() => handleLocalhostPreview(localhostUrls[0])}
+                    className="text-left w-full group-hover:text-orange-800 transition-colors"
+                  >
+                    <p className="text-sm font-medium text-gray-900 truncate group-hover:text-orange-900">
+                      Preview website
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                <button
+                  onClick={() => handleLocalhostPreview(localhostUrls[0])}
+                  className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-orange-200 hover:border-orange-300 text-orange-600 hover:text-orange-700 transition-all duration-200 hover:shadow-sm"
+                  title="Preview in sidebar"
+                >
+                  <Eye className="w-4 h-4" />
+                </button>
+
+                <a
+                  href={localhostUrls[0]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-orange-200 hover:border-orange-300 text-orange-600 hover:text-orange-700 transition-all duration-200 hover:shadow-sm"
+                  title="Open in new tab"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Attachments outside the card */}
       {payload.attachments && payload.attachments.length > 0 && (
         <div className="mt-3 space-y-3">
-          <div className="flex justify-start">
-            <div className="flex items-center space-x-2 px-3 py-1">
-              <Paperclip className="w-4 h-4 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700">
-                {payload.attachments.length} Attachment
-                {payload.attachments.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-          </div>
-
           <div className="space-y-2">
             {payload.attachments.map((attachment, index) => {
               const filename = attachment.split("/").pop();

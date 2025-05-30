@@ -29,10 +29,27 @@ function App() {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  // Auto-resize textarea based on content
+  const resizeTextarea = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "24px"; // Reset to minimum height
+      const scrollHeight = textarea.scrollHeight;
+      const maxHeight = 120; // Maximum height in pixels
+      textarea.style.height = `${Math.min(scrollHeight, maxHeight)}px`;
+    }
+  };
+
+  // Resize textarea when input value changes
+  useEffect(() => {
+    resizeTextarea();
+  }, [inputValue]);
 
   // Handle multiple file uploads
   const handleFilesUpload = useCallback(
@@ -666,8 +683,13 @@ function App() {
                 {/* Text input */}
                 <div className="flex-1 relative">
                   <textarea
+                    ref={textareaRef}
                     value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
+                    onChange={(e) => {
+                      setInputValue(e.target.value);
+                      // Trigger resize on next frame to ensure content is updated
+                      setTimeout(resizeTextarea, 0);
+                    }}
                     onKeyPress={handleKeyPress}
                     placeholder="Ask the panda anything..."
                     className="w-full bg-transparent text-gray-900 placeholder-gray-500 resize-none border-none outline-none text-md leading-relaxed"
