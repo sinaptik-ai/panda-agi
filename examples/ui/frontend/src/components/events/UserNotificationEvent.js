@@ -1,11 +1,22 @@
 import React from "react";
-import { AlertCircle, CreditCard } from "lucide-react";
+import {
+  AlertCircle,
+  CreditCard,
+  Paperclip,
+  Eye,
+  Download,
+  FileText,
+  Image,
+  File,
+  Code,
+} from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 
 const UserNotificationEvent = ({
   payload,
   eventType,
   onPreviewClick,
+  onFileClick,
   timestamp,
 }) => {
   if (!payload) return null;
@@ -49,6 +60,72 @@ const UserNotificationEvent = ({
     ((payload.error && payload.error.toLowerCase().includes("token")) ||
       (payload.error && payload.error.toLowerCase().includes("credit")) ||
       typeof payload.credits_left !== "undefined");
+
+  const handleFileClick = (filename) => {
+    if (onFileClick) {
+      onFileClick(filename);
+    }
+  };
+
+  // Get file icon based on extension
+  const getFileIcon = (filename) => {
+    if (!filename) return <File className="w-4 h-4 text-gray-500" />;
+
+    const extension = filename.split(".").pop()?.toLowerCase();
+
+    if (
+      ["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(extension)
+    ) {
+      return <Image className="w-4 h-4 text-green-500" />;
+    }
+    if (
+      [
+        "js",
+        "jsx",
+        "ts",
+        "tsx",
+        "py",
+        "java",
+        "c",
+        "cpp",
+        "go",
+        "rb",
+        "php",
+        "css",
+        "scss",
+        "json",
+        "xml",
+        "html",
+        "htm",
+      ].includes(extension)
+    ) {
+      return <Code className="w-4 h-4 text-blue-500" />;
+    }
+    if (["md", "markdown"].includes(extension)) {
+      return <FileText className="w-4 h-4 text-purple-500" />;
+    }
+    if (["csv", "xlsx", "xls"].includes(extension)) {
+      return <FileText className="w-4 h-4 text-green-600" />;
+    }
+    if (extension === "pdf") {
+      return <File className="w-4 h-4 text-red-500" />;
+    }
+    if (["txt", "doc", "docx"].includes(extension)) {
+      return <FileText className="w-4 h-4 text-gray-500" />;
+    }
+
+    return <File className="w-4 h-4 text-gray-500" />;
+  };
+
+  // Format file size (if available in the future)
+  const formatFileSize = (bytes) => {
+    if (!bytes) return "";
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
 
   const renderErrorContent = () => {
     return (
@@ -95,24 +172,7 @@ const UserNotificationEvent = ({
       <MarkdownRenderer onPreviewClick={onPreviewClick}>
         {payload.text || payload.message}
       </MarkdownRenderer>
-      {payload.attachments && payload.attachments.length > 0 && (
-        <div className="mt-4">
-          <p className="text-sm text-gray-700 font-semibold mb-2">
-            Attachments
-          </p>
-          <div className="space-y-2">
-            {payload.attachments.map((attachment, index) => (
-              <div
-                key={index}
-                className="text-sm p-2 bg-gray-50 rounded-md border border-gray-200 flex items-center"
-              >
-                <span className="text-gray-500 mr-2">📎</span>
-                <span className="text-gray-700">{attachment}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
       {timestamp && (
         <p className="text-xs text-gray-400 mt-3 text-right font-medium">
           {formatTimestamp(timestamp)}
@@ -121,12 +181,92 @@ const UserNotificationEvent = ({
     </div>
   );
 
+  const cardColor = isError
+    ? "bg-red-50 border-red-200/60"
+    : "bg-white border-gray-200";
   const content = isError ? renderErrorContent() : renderStandardContent();
 
-  return {
-    color: isError ? "bg-red-50 border-red-200/60" : "bg-white border-gray-200",
-    content,
-  };
+  return (
+    <>
+      {/* Main Card */}
+      <div className="flex justify-start">
+        <div className={`event-card min-w-80 max-w-2xl ${cardColor} relative`}>
+          {content}
+        </div>
+      </div>
+
+      {/* Attachments outside the card */}
+      {payload.attachments && payload.attachments.length > 0 && (
+        <div className="mt-3 space-y-3">
+          <div className="flex justify-start">
+            <div className="flex items-center space-x-2 px-3 py-1">
+              <Paperclip className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">
+                {payload.attachments.length} Attachment
+                {payload.attachments.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {payload.attachments.map((attachment, index) => {
+              const filename = attachment.split("/").pop();
+              const extension = filename.split(".").pop()?.toLowerCase();
+
+              return (
+                <div key={index} className="flex justify-start">
+                  <div className="group flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 hover:shadow-md min-w-80 max-w-2xl">
+                    <div className="flex items-center space-x-3 flex-1 min-w-0">
+                      <div className="flex-shrink-0">
+                        {getFileIcon(attachment)}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <button
+                          onClick={() => handleFileClick(attachment)}
+                          className="text-left w-full group-hover:text-blue-800 transition-colors"
+                        >
+                          <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-900">
+                            {filename}
+                          </p>
+                          {extension && (
+                            <p className="text-xs text-gray-500 uppercase font-mono">
+                              {extension} file
+                            </p>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                      <button
+                        onClick={() => handleFileClick(attachment)}
+                        className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-blue-200 hover:border-blue-300 text-blue-600 hover:text-blue-700 transition-all duration-200 hover:shadow-sm"
+                        title="Preview file"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+
+                      {/* <button
+                        onClick={() => {
+                          // For now, we'll use the same handler. In the future, this could be a separate download handler
+                          handleFileClick(attachment);
+                        }}
+                        className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-blue-200 hover:border-blue-300 text-blue-600 hover:text-blue-700 transition-all duration-200 hover:shadow-sm"
+                        title="Open file"
+                      >
+                        <Download className="w-4 h-4" />
+                      </button> */}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </>
+  );
 };
 
 export default UserNotificationEvent;

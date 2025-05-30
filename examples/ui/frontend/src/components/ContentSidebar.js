@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   X,
   ExternalLink,
@@ -6,8 +6,6 @@ import {
   FileText,
   FileImage,
   File,
-  Code,
-  Eye,
   Globe,
 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";

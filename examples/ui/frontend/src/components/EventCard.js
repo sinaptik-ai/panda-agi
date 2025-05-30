@@ -18,7 +18,12 @@ const EventCard = ({ message, onPreviewClick, onFileClick }) => {
   const payload = eventData.payload;
 
   if (eventType === "web_navigation" || eventType === "web_navigation_result") {
-    return WebNavigationEvent({ payload, eventType });
+    return WebNavigationEvent({
+      payload,
+      eventType,
+      onPreviewClick,
+      onFileClick,
+    });
   }
 
   if (eventType === "file_write" || eventType === "file_replace") {
@@ -58,6 +63,17 @@ const EventCard = ({ message, onPreviewClick, onFileClick }) => {
     return FileUploadEvent({ payload, eventType, onPreviewClick, onFileClick });
   }
 
+  // Handle user notification events specially - render them directly without card wrapper
+  if (eventType === "user_notification" || eventType === "user_question") {
+    return UserNotificationEvent({
+      payload,
+      eventType,
+      onPreviewClick,
+      onFileClick,
+      timestamp: eventData.timestamp || message.timestamp,
+    });
+  }
+
   const formatTimestamp = (timestamp) => {
     const now = new Date();
     const eventTime = new Date(timestamp);
@@ -93,26 +109,26 @@ const EventCard = ({ message, onPreviewClick, onFileClick }) => {
         // DO NOTHING
         return null;
 
-      // User events
-      case "user_notification":
-      case "user_question":
-        return UserNotificationEvent({
+      // Web operations
+      case "web_search":
+        return WebSearchEvent({
           payload,
           eventType,
           onPreviewClick,
-          timestamp,
+          onFileClick,
         });
 
-      // Web operations
-      case "web_search":
-        return WebSearchEvent({ payload, eventType, onPreviewClick });
-
       case "web_search_result":
-        return WebSearchResultEvent({ payload, eventType });
+        return WebSearchResultEvent({ payload, eventType, onFileClick });
 
       // Image operations
       case "image_generation":
-        return ImageGenerationEvent({ payload, eventType, onPreviewClick });
+        return ImageGenerationEvent({
+          payload,
+          eventType,
+          onPreviewClick,
+          onFileClick,
+        });
 
       default:
         return null;
@@ -159,7 +175,7 @@ const EventCard = ({ message, onPreviewClick, onFileClick }) => {
                   : "bg-red-100 text-red-800"
               }`}
             >
-              {eventData.status} -
+              {eventData.status}
             </span>
           </div>
         )}

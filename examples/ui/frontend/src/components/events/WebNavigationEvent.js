@@ -1,7 +1,12 @@
 import React from "react";
 import { Globe } from "lucide-react";
 
-const WebNavigationEvent = ({ payload, eventType }) => {
+const WebNavigationEvent = ({
+  payload,
+  eventType,
+  onPreviewClick,
+  onFileClick,
+}) => {
   if (!payload) return null;
 
   const url = payload.url || "Unknown URL";
