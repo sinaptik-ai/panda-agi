@@ -5,38 +5,40 @@ description: 'Understanding execution environments in PandaAGI SDK'
 
 ## What are Environments?
 
-Environments provide isolated execution contexts for AI agents, allowing them to safely run code, access files, and execute shell commands. The Panda AGI SDK offers two main environment types that balance security, performance, and ease of use.
+Environments provide isolated execution contexts for general AI agents, allowing them to safely run code, access files, and execute shell commands. The Panda AGI SDK offers two main environment types that balance security, performance, and ease of use.
 
 <CardGroup cols={2}>
   <Card
     title="Local Environment"
     icon="computer"
+    href="#local-environment"
   >
     Direct execution on the host system with working directory isolation
   </Card>
   <Card
     title="Docker Environment"
     icon="docker"
+    href="#docker-environment"
   >
     Containerized execution with strong isolation and port management
   </Card>
   <Card
     title="File Operations"
     icon="file"
+    href="#file-operations"
   >
     Read, write, delete files with support for various formats including PDFs
   </Card>
   <Card
     title="Shell Execution"
     icon="terminal"
+    href="#shell-command-execution"
   >
     Execute shell commands with both blocking and non-blocking modes
   </Card>
 </CardGroup>
 
-## Environment Types
-
-### Local Environment
+## Local Environment
 
 The `LocalEnv` executes operations directly on the host filesystem within a specified base directory:
 
@@ -58,7 +60,8 @@ content = await local_env.read_file("hello.txt")
 print(content["content"])
 ```
 
-### Docker Environment
+## Docker Environment
+
 
 The `DockerEnv` runs operations inside a Docker container for better isolation:
 
@@ -77,8 +80,6 @@ async with docker_env as env:
     result = await env.exec_shell("python --version")
     print(result["stdout"])
 ```
-
-## Docker Environment Configuration
 
 ### Basic Setup
 
@@ -420,17 +421,17 @@ await env.stop_container(remove=True)
 
 <CardGroup cols={2}>
   <Card
-    title="Client SDK"
-    icon="code"
-    href="/client/overview"
+    title="Quickstart"
+    icon="bolt"
+    href="/quickstart"
   >
-    Learn about the client SDK components
+    Get started quickly with PandaAGI
   </Card>
   <Card
-    title="Examples"
-    icon="play"
-    href="/examples/chat-interface"
+    title="API Key"
+    icon="key"
+    href="https://agi.pandas-ai.com"
   >
-    See environments in action with examples
+    Learn how to obtain and use your API key
   </Card>
 </CardGroup> 
