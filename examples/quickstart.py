@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 
 from panda_agi import Agent
@@ -33,6 +34,13 @@ def truncate(d, max_length=100):
 async def main():
     """Example usage of the Agent with BaseEnv and Pydantic events"""
 
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="Run the Panda AGI agent with a custom query"
+    )
+    parser.add_argument("query", help="The query to send to the agent")
+    args = parser.parse_args()
+
     # Create a custom environment for the agent
     agent_env = LocalEnv("./my_agent_workspace")
     # agent_env = DockerEnv("./my_agent_workspace")
@@ -43,7 +51,7 @@ async def main():
     # First request - will automatically connect
     # The run method now returns a generator of AgentEvent
     async for event in agent.run(
-        "genera un'immagine di un gatto",
+        args.query,
     ):
         print(f"[RECEIVED] {event.type}")
 

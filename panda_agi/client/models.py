@@ -163,8 +163,6 @@ class FileReadEvent(BaseStreamEvent):
 
     type: str = "file_read"
     file: str = Field(description="File path")
-    size_bytes: int = Field(description="File size in bytes")
-    content_preview: str = Field(description="Preview of file content")
 
 
 class FileWriteEvent(BaseStreamEvent):
@@ -190,8 +188,8 @@ class FileFindEvent(BaseStreamEvent):
     """Event when agent searches for files or content within files"""
 
     type: str = "file_find"
-    pattern: str = Field(description="Search pattern")
-    directory: str = Field(description="Directory searched")
+    path: str = Field(description="Directory searched")
+    glob_pattern: str = Field(description="Search pattern")
     matches: List[str] = Field(description="Found matches")
 
 
@@ -199,8 +197,8 @@ class FileExploreEvent(BaseStreamEvent):
     """Event when agent explores directory structure"""
 
     type: str = "file_explore"
-    directory: str = Field(description="Directory explored")
-    structure: Dict[str, List[str]] = Field(description="Directory structure")
+    path: str = Field(description="Directory explored")
+    structure: Dict[str, Any] = Field(description="Directory structure")
 
 
 # Command Execution Events
@@ -211,7 +209,7 @@ class ShellExecEvent(BaseStreamEvent):
     id: str = Field(description="Execution ID")
     exec_dir: str = Field(description="Execution directory")
     command: str = Field(description="Shell command")
-    blocking: str = Field(description="Whether execution is blocking")
+    blocking: bool = Field(description="Whether execution is blocking")
 
 
 class ShellViewEvent(BaseStreamEvent):
