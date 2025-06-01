@@ -5,7 +5,9 @@ This module provides environment classes that define where file operations
 and shell commands are executed.
 """
 
+import fcntl
 import logging
+import os
 import shutil
 import subprocess
 import uuid
@@ -33,6 +35,27 @@ logger.setLevel(logging.WARNING)
 
 # Store active non-blocking processes
 _active_processes: Dict[str, subprocess.Popen] = {}
+
+
+def _read_non_blocking(pipe) -> str:
+    """Read from a pipe without blocking."""
+    if not pipe:
+        return ""
+    
+    try:
+        # Make pipe non-blocking
+        fd = pipe.fileno()
+        fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+        
+        # Try to read available data
+        return pipe.read() or ""
+    except BlockingIOError:
+        # No data available to read right now
+        return ""
+    except Exception:
+        # Handle any other errors (like closed pipe)
+        return ""
 
 
 class LocalEnv(BaseEnv):
@@ -180,7 +203,7 @@ class LocalEnv(BaseEnv):
 
         return result
 
-    def get_process_output(self, session_id: str) -> Dict[str, Any]:
+    async def get_process_output(self, session_id: str) -> Dict[str, Any]:
         """Get the output of a non-blocking process."""
         if session_id not in _active_processes:
             return {"status": "error", "message": f"Session {session_id} not found"}
@@ -189,13 +212,8 @@ class LocalEnv(BaseEnv):
 
         try:
             # Get output without blocking
-            stdout = ""
-            stderr = ""
-
-            if process.stdout:
-                stdout = process.stdout.read() or ""
-            if process.stderr:
-                stderr = process.stderr.read() or ""
+            stdout = _read_non_blocking(process.stdout)
+            stderr = _read_non_blocking(process.stderr)
 
             return {
                 "status": "success",
