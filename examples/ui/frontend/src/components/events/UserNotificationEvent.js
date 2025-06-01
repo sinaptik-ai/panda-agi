@@ -4,6 +4,7 @@ import {
   CreditCard,
   Paperclip,
   Eye,
+  Download,
   FileText,
   Image,
   File,
@@ -66,6 +67,28 @@ const UserNotificationEvent = ({
     if (onFileClick) {
       onFileClick(filename);
     }
+  };
+
+  const handleFileDownload = (filename) => {
+    console.log("DEBUG: handleFileDownload called with filename:", filename);
+
+    const downloadUrl = `${
+      process.env.REACT_APP_API_URL || "http://localhost:8001"
+    }/files/download?file_path=${encodeURIComponent(filename)}`;
+
+    console.log("DEBUG: Download URL:", downloadUrl);
+
+    // Create a temporary link and trigger download
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = filename.split("/").pop(); // Get just the filename
+    document.body.appendChild(link);
+
+    console.log("DEBUG: About to click download link");
+    link.click();
+
+    document.body.removeChild(link);
+    console.log("DEBUG: Download link clicked and removed");
   };
 
   const handleLocalhostPreview = (url) => {
@@ -328,16 +351,15 @@ const UserNotificationEvent = ({
                         <Eye className="w-4 h-4" />
                       </button>
 
-                      {/* <button
+                      <button
                         onClick={() => {
-                          // For now, we'll use the same handler. In the future, this could be a separate download handler
-                          handleFileClick(attachment);
+                          handleFileDownload(attachment);
                         }}
                         className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-blue-200 hover:border-blue-300 text-blue-600 hover:text-blue-700 transition-all duration-200 hover:shadow-sm"
-                        title="Open file"
+                        title="Download file"
                       >
                         <Download className="w-4 h-4" />
-                      </button> */}
+                      </button>
                     </div>
                   </div>
                 </div>

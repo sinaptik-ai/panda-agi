@@ -503,7 +503,7 @@ function App() {
                 <p className="text-sm text-gray-500">
                   {isConnected ? (
                     <span className="flex items-center">
-                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                      <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
                       Connected
                     </span>
                   ) : (

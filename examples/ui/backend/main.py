@@ -9,7 +9,7 @@ import sys
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
@@ -282,6 +282,127 @@ async def read_file(file_path: str):
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
 
 
+@app.get("/files/download")
+async def download_file(file_path: str):
+    """Download a file from the workspace"""
+    try:
+        # Resolve the file path relative to workspace
+        workspace_path = Path(WORKSPACE_PATH)
+        resolved_path = workspace_path / file_path
+        
+        # Security check: ensure the resolved path is within workspace
+        try:
+            resolved_path.resolve().relative_to(workspace_path.resolve())
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Access denied: path outside workspace")
+        
+        # Check if file exists
+        if not resolved_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        if not resolved_path.is_file():
+            raise HTTPException(status_code=400, detail="Path is not a file")
+        
+        # Check if it's a markdown file
+        if resolved_path.suffix.lower() in ['.md', '.markdown']:
+            print(f"DEBUG: Attempting to convert markdown file: {resolved_path}")
+            try:
+                import markdown
+                import weasyprint
+                from io import BytesIO
+                
+                print("DEBUG: Successfully imported markdown and weasyprint")
+                
+                # Read markdown content
+                with open(resolved_path, 'r', encoding='utf-8') as f:
+                    md_content = f.read()
+                
+                print(f"DEBUG: Read markdown content, length: {len(md_content)}")
+                
+                # Convert markdown to HTML
+                html = markdown.markdown(md_content, extensions=['tables', 'fenced_code', 'toc'])
+                
+                print("DEBUG: Successfully converted markdown to HTML")
+                
+                # Add basic CSS styling for better PDF appearance
+                html_with_style = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>{resolved_path.stem}</title>
+                    <style>
+                        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; margin: 40px; color: #333; }}
+                        h1, h2, h3, h4, h5, h6 {{ color: #2c3e50; margin-top: 24px; margin-bottom: 16px; }}
+                        h1 {{ border-bottom: 2px solid #eaecef; padding-bottom: 8px; }}
+                        h2 {{ border-bottom: 1px solid #eaecef; padding-bottom: 4px; }}
+                        code {{ background-color: #f6f8fa; padding: 2px 4px; border-radius: 3px; font-family: 'SFMono-Regular', Consolas, monospace; }}
+                        pre {{ background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; }}
+                        blockquote {{ border-left: 4px solid #dfe2e5; padding-left: 16px; margin-left: 0; color: #6a737d; }}
+                        table {{ border-collapse: collapse; width: 100%; margin: 16px 0; }}
+                        th, td {{ border: 1px solid #dfe2e5; padding: 8px 12px; text-align: left; }}
+                        th {{ background-color: #f6f8fa; font-weight: 600; }}
+                        a {{ color: #0366d6; text-decoration: none; }}
+                        a:hover {{ text-decoration: underline; }}
+                    </style>
+                </head>
+                <body>
+                    {html}
+                </body>
+                </html>
+                """
+                
+                print("DEBUG: Created HTML with styling")
+                
+                # Convert HTML to PDF
+                pdf_buffer = BytesIO()
+                weasyprint.HTML(string=html_with_style).write_pdf(pdf_buffer)
+                pdf_buffer.seek(0)
+                
+                print("DEBUG: Successfully converted HTML to PDF")
+                
+                # Create a temporary PDF file
+                import tempfile
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_pdf:
+                    temp_pdf.write(pdf_buffer.getvalue())
+                    temp_pdf_path = temp_pdf.name
+                
+                print(f"DEBUG: Created temporary PDF file: {temp_pdf_path}")
+                
+                # Return PDF file for download
+                pdf_filename = f"{resolved_path.stem}.pdf"
+                print(f"DEBUG: Returning PDF download: {pdf_filename}")
+                return FileResponse(
+                    path=temp_pdf_path,
+                    filename=pdf_filename,
+                    media_type='application/pdf',
+                    headers={"Content-Disposition": f"attachment; filename={pdf_filename}"}
+                )
+                
+            except ImportError as ie:
+                # If markdown/weasyprint not available, fall back to regular download
+                print(f"DEBUG: Import error during PDF conversion: {ie}")
+                pass
+            except Exception as e:
+                # If conversion fails, fall back to regular download
+                print(f"DEBUG: PDF conversion failed with error: {e}")
+                pass
+        
+        print(f"DEBUG: Serving regular file download: {resolved_path.name}")
+        # Return file for regular download with proper headers
+        return FileResponse(
+            path=resolved_path,
+            filename=resolved_path.name,
+            media_type='application/octet-stream',
+            headers={"Content-Disposition": f"attachment; filename={resolved_path.name}"}
+        )
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error downloading file: {str(e)}")
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -299,6 +420,7 @@ async def root():
             "DELETE /conversation/{conversation_id}": "End a conversation",
             "POST /files/upload": "Upload a file to the workspace",
             "GET /files/read": "Read a file from the workspace",
+            "GET /files/download": "Download a file from the workspace",
             "GET /health": "Health check",
             "GET /": "This endpoint",
         },

@@ -175,7 +175,7 @@ const EventCard = ({ message, onPreviewClick, onFileClick }) => {
                   : "bg-red-100 text-red-800"
               }`}
             >
-              {eventData.status} -
+              {eventData.status}
             </span>
           </div>
         )}
