@@ -106,8 +106,8 @@ const UserNotificationEvent = ({
     if (!text) return [];
 
     const localhostPatterns = [
-      // Full URLs
-      /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?(?:\/[^\s]*)?/gi,
+      // Full URLs - use negative lookahead to exclude trailing markdown syntax
+      /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?(?:\/[^\s]*?)?(?=\*{2,}|\s|$)/gi,
       // Just localhost:port or 127.0.0.1:port
       /(?:^|\s)((?:localhost|127\.0\.0\.1|0\.0\.0\.0):\d+)(?:\s|$)/gi,
     ];

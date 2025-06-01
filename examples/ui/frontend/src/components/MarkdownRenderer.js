@@ -22,7 +22,8 @@ const linkifyText = (text, onPreviewClick) => {
   if (typeof text !== "string") return text;
 
   // Comprehensive URL regex that properly captures full URLs
-  const urlRegex = /(https?:\/\/[^\s<>"'\]]+)/gi;
+  // Allow normal URL characters but use negative lookahead to exclude trailing markdown syntax
+  const urlRegex = /(https?:\/\/[^\s<>"'\\]+?)(?=\*{2,}|\s|$|[<>"'\\])/gi;
 
   const parts = [];
   let lastIndex = 0;
