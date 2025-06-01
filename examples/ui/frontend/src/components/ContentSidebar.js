@@ -7,6 +7,7 @@ import {
   FileImage,
   File,
   Globe,
+  Download,
 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -481,6 +482,21 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
     }
   };
 
+  // Handle file download
+  const handleFileDownload = (filename) => {
+    const downloadUrl = `${
+      process.env.REACT_APP_API_URL || "http://localhost:8001"
+    }/files/download?file_path=${encodeURIComponent(filename)}`;
+
+    // Create a temporary link and trigger download
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = filename.split("/").pop(); // Get just the filename
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="fixed right-0 top-0 h-full max-w-[800px] w-[100vw] bg-white border-l border-gray-200 shadow-lg z-50 flex flex-col">
       {/* Inject custom styles */}
@@ -505,13 +521,29 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
             </a>
           )}
         </div>
-        <button
-          onClick={onClose}
-          className="ml-2 p-1 hover:bg-gray-200 rounded transition-colors"
-          title="Close preview"
-        >
-          <X className="w-4 h-4 text-gray-500" />
-        </button>
+        <div className="flex items-center space-x-2">
+          {/* Download button - only show for actual files, not iframes */}
+          {previewData.url && previewData.type !== "iframe" && (
+            <button
+              onClick={() => handleFileDownload(previewData.url)}
+              className="p-1 hover:bg-gray-200 rounded transition-colors"
+              title={`Download as ${previewData.url
+                .split(".")
+                .pop()
+                .replace("md", "pdf")
+                .toUpperCase()}`}
+            >
+              <Download className="w-4 h-4 text-gray-500" />
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-200 rounded transition-colors"
+            title="Close preview"
+          >
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
       </div>
 
       {/* Content */}
