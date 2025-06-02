@@ -425,6 +425,7 @@ async def download_file(
 @app.get("/files/{file_path:path}")
 async def read_file(file_path: str):
     """Read a file from the workspace and serve it directly"""
+    """Read a file from the workspace and serve it directly"""
     try:
         # Resolve the file path relative to workspace
         workspace_path = Path(WORKSPACE_PATH)
@@ -513,6 +514,9 @@ async def root():
             "POST /agent/run": "Run an agent with streaming events",
             "DELETE /conversation/{conversation_id}": "End a conversation",
             "POST /files/upload": "Upload a file to the workspace",
+            "GET /files/{file_path:path}": "Read a file from the workspace",
+            "GET /files/download": "Download a file from the workspace",
+            "GET /files/test-download": "Test download endpoint",
             "GET /files/{file_path:path}": "Read a file from the workspace",
             "GET /files/download": "Download a file from the workspace",
             "GET /files/test-download": "Test download endpoint",

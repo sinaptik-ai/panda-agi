@@ -63,6 +63,7 @@ class ImageGenerationHandler(ToolHandler):
 
             saved_files = []
             images = []
+            images = []
             for image_data in tool_call.get("images", []):
                 # Extract data
                 image_url = image_data.get("url")
@@ -89,6 +90,7 @@ class ImageGenerationHandler(ToolHandler):
                             self.logger.info(f"Saved image to {result.get('path')}")
                             saved_files.append(result.get("path"))
                             images.append(filepath)
+                            images.append(filepath)
                         else:
                             self.logger.error(
                                 f"Failed to save image: {result.get('message')}"
@@ -102,6 +104,7 @@ class ImageGenerationHandler(ToolHandler):
 
             result = {
                 "saved_files": saved_files,
+                "images": images,
                 "images": images,
             }
 

@@ -59,7 +59,7 @@ const UserMessageEvent = ({
   const handleLocalhostPreview = (url) => {
     if (onPreviewClick) {
       onPreviewClick({
-        filename: url,
+        url: url,
         title: `Localhost Server: ${url}`,
         type: "iframe",
       });
