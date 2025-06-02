@@ -539,4 +539,8 @@ async def debug_workspace():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+    # Allow reload to be controlled by environment variable
+    # Defaults to True for development, can be set to False in production
+    reload_enabled = os.getenv("FASTAPI_RELOAD", "true").lower() in ("true", "1", "yes")
+    
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=reload_enabled)
