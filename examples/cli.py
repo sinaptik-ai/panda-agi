@@ -1009,16 +1009,14 @@ class EventRenderer:
         elif is_file_replace_event(event):
             content.append("🔄 File Replace:\n", style=f"bold {color}")
             content.append(f"File: {event.file}\n", style=color)
-            content.append(f"Line: {event.line_number}\n", style=color)
-            old_preview = self.truncate_text(event.old_content, 30)
-            new_preview = self.truncate_text(event.new_content, 30)
+            old_preview = self.truncate_text(event.old_str, 30)
+            new_preview = self.truncate_text(event.new_str, 30)
             content.append(f'Replace: "{old_preview}" → "{new_preview}"', style=color)
 
         elif is_file_find_event(event):
             content.append("🔎 Find in Files:\n", style=f"bold {color}")
             content.append(f"Path: {event.path}\n", style=color)
             content.append(f"Pattern: {event.glob_pattern}\n", style=color)
-            content.append(f"Matches: {len(event.matches)}", style=color)
 
         elif is_file_explore_event(event):
             content.append("📂 Directory Explore:\n", style=f"bold {color}")
@@ -1026,29 +1024,25 @@ class EventRenderer:
 
         elif is_shell_exec_event(event):
             content.append("💻 Shell Execute:\n", style=f"bold {color}")
+            content.append(f"Shell ID: {event.id}\n", style=color)
             content.append(f"Command: {event.command}\n", style=color)
             content.append(f"Directory: {event.exec_dir}\n", style=color)
-            content.append(f"Blocking: {event.blocking}", style=color)
+            content.append(f"Blocking: {event.blocking}\n", style=color)
 
         elif is_shell_view_event(event):
             content.append("👁️ Shell View:\n", style=f"bold {color}")
-            content.append(f"Command: {event.command}\n", style=color)
-            preview = self.truncate_text(event.output, 100)
-            content.append(f"Output: {preview}", style=f"dim {color}")
+            content.append(f"Shell ID: {event.id}\n", style=color)
 
         elif is_shell_write_event(event):
             content.append("⌨️ Shell Write:\n", style=f"bold {color}")
-            content.append(f"Script: {event.script}\n", style=color)
-            content.append(f"Executable: {event.executable}\n", style=color)
-            preview = self.truncate_text(event.content, 60)
-            content.append(f"Content Preview: {preview}", style=f"dim {color}")
+            content.append(f"Shell ID: {event.id}\n", style=color)
+            content.append(f"Content: {event.input}", style=f"dim {color}")
+            content.append(f"Press Enter: {event.press_enter}", style=f"dim {color}")
 
         elif is_image_generation_event(event):
             content.append("🎨 Image Generation:\n", style=f"bold {color}")
-            content.append(
-                f"Generated Images: {len(event.saved_images)}\n", style=color
-            )
-            for image in event.saved_images:
+            content.append(f"Generated Images: {len(event.saved_files)}\n", style=color)
+            for image in event.images:
                 content.append(f"  • {image}\n", style=f"dim {color}")
 
         # Fallback for other events
