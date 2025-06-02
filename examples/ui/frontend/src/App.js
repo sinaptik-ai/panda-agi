@@ -269,10 +269,20 @@ function App() {
   const sendMessage = async () => {
     if (!inputValue.trim()) return;
 
+    // Create file references for pending files
+    const fileReferences = pendingFiles
+      .map((file) => `[./${file.original_filename || file.filename}]`)
+      .join(" ");
+
+    // Combine input value with file references
+    const messageContent = fileReferences
+      ? `${inputValue.trim()} ${fileReferences}`
+      : inputValue;
+
     const userMessage = {
       id: Date.now(),
       type: "user",
-      content: inputValue,
+      content: messageContent,
       timestamp: new Date().toISOString(),
     };
 
@@ -313,7 +323,7 @@ function App() {
           : "http://localhost:8001/agent/run";
 
       const requestBody = {
-        query: inputValue,
+        query: messageContent,
       };
 
       // Include conversation_id if we have one (for follow-up messages)
