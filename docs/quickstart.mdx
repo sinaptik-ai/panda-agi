@@ -37,28 +37,29 @@ Before you can start using the SDK, you'll need to configure your API key:
 
 1. Visit [https://agi.pandas-ai.com/](https://agi.pandas-ai.com/) and sign in with GitHub
 2. Access your dashboard to get your API key
-3. Set the `PANDA_AGI_KEY` environment variable:
+3. Set the `PANDA_AGI_KEY` environment variable in your .env file or directly in your code
 
-```bash
-export PANDA_AGI_KEY="your-api-key-here"
+```python
+    os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
 ```
 
-<Info>
-  For detailed setup instructions including platform-specific configuration, see the [Installation Guide](/installation#api-key-configuration).
-</Info>
+You can now use [directly the SDK in your Python scripts](#your-first-interactions), or the pre-built [Chat UI](#pre-built-chat-ui).
 
-## Your First Interaction
+## Your First Interactions
 
 The PandaAGI SDK connects you to a pre-configured autonomous general AI agent that already has access to web browsing and file system tools. You simply submit tasks and receive results:
 
 <CodeGroup>
 
 ```python Deep Research
-import asyncio
+import os, asyncio
 from panda_agi import Agent
 from panda_agi.envs import DockerEnv
 
 async def main():
+
+    os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
+
     # Create environment for the general AI agent to work in
     agent_env = DockerEnv("./workspace")
     agent = Agent(environment=agent_env)
@@ -84,11 +85,14 @@ if __name__ == "__main__":
 ```
 
 ```python Data Analysis
-import asyncio
+import os, asyncio
 from panda_agi import Agent
 from panda_agi.envs import LocalEnv
 
 async def main():
+
+    os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
+
     # Use local environment for file operations
     agent_env = LocalEnv("./my_workspace")
     agent = Agent(environment=agent_env)
@@ -112,264 +116,135 @@ async def main():
 asyncio.run(main())
 ```
 
-</CodeGroup>
-
-## Example Tasks
-
-Here are some tasks you can submit to the general AI agent:
-
-### Research & Analysis
-```python
-# Market research
-"Research the electric vehicle market and create a comprehensive report"
-# → 50-page report with market size, key players, trends, forecasts, and investment opportunities
-
-# Competitive analysis  
-"Analyze the top 3 project management tools and compare their features"
-# → Feature comparison matrix, pricing analysis, user reviews summary, and recommendations
-
-# Technical research
-"Research best practices for API security and create implementation guidelines"
-# → Technical documentation with code examples, security checklist, and implementation roadmap
-```
-
-### Content & Documentation
-```python
-# Documentation
-"Create user documentation for our REST API with examples"
-# → Complete API docs with endpoint descriptions, request/response examples, and SDKs
-
-# Business content
-"Draft a business proposal for implementing AI in customer service"
-# → Professional proposal with ROI analysis, implementation timeline, and budget breakdown
-
-# Technical content
-"Write a technical blog post about microservices architecture"
-# → 3000-word article with diagrams, code examples, and best practices
-```
-
-### Data & Development
-```python
-# Data analysis
-"Analyze our sales data and identify trends and opportunities"
-# → Interactive dashboard, trend analysis, forecasting models, and actionable insights
-
-# Code generation
-"Create a Python script to automate our daily reporting process"
-# → Complete Python application with error handling, logging, and documentation
-
-# System design
-"Design a database schema for an e-commerce platform"
-# → ER diagrams, SQL scripts, data flow documentation, and scalability considerations
-```
-
-## Real-time Event Streaming
-
-Monitor your general AI agent's progress in real-time as it works through complex tasks. Events are streamed asynchronously from the remote general AI agent as they occur, providing detailed insight into the general AI agent's workflow:
-
-```python
-import asyncio
-from panda_agi import Agent, EventType
+```python Market Research
+import os, asyncio
+from panda_agi import Agent
 from panda_agi.envs import DockerEnv
 
 async def main():
+    os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
+    
     agent_env = DockerEnv("./workspace")
     agent = Agent(environment=agent_env)
     
-    # Stream events to see what the general AI agent is doing in real-time
     async for event in agent.run(
-        "Research the latest AI developments and create a summary report"
+        "Research the electric vehicle market and create a comprehensive report"
     ):
-        # Events are generated asynchronously by the remote agent
-        # You'll see the actual workflow unfold step by step:
-        print(f"[{event.timestamp}] {event.type.value}: {event.data}")
-    
+        # The general AI agent will:
+        # 1. Gather data from industry reports, news sources, and market analyses
+        # 2. Compile information on market size, key players, and growth trends
+        # 3. Create forecasts and investment opportunity analysis
+        # 4. Generate a complete 50-page professional report with visualizations
+        # 5. Include executive summary and strategic recommendations
+        
+        print(f"[{event.timestamp}] {event.type}: {event.data}")
+        
     await agent.disconnect()
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-### Real Event Stream Example
+```python System Design
+import os, asyncio
+from panda_agi import Agent
+from panda_agi.envs import LocalEnv
 
-Here's what you'll actually see when running the above code - events stream live as the agent works:
+async def main():
+    os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
+    
+    agent_env = LocalEnv("./my_workspace")
+    agent = Agent(environment=agent_env)
+    
+    async for event in agent.run(
+        "Design a database schema for an e-commerce platform"
+    ):
+        # The general AI agent will:
+        # 1. Create entity-relationship diagrams for the entire platform
+        # 2. Generate SQL scripts for database creation and sample data
+        # 3. Document data flows and relationships between entities
+        # 4. Provide scalability considerations and optimization strategies
+        # 5. Include implementation guidelines and best practices
+        
+        print(f"[{event.timestamp}] {event.type}: {event.data}")
+        
+    await agent.disconnect()
 
-```bash
-# Agent connects and initializes workspace
-[2025-05-29T00:20:46.066499] agent_connection_success: {
-    'file_system': {
-        'directory': '/workspace/my_agent_workspace', 
-        'structure': {'my_agent_workspace/': {}}
-    }
-}
-
-# General AI agent begins web research
-[2025-05-29T00:20:55.196858] web_search: {
-    'query': 'latest developments in artificial intelligence 2024', 
-    'max_results': 8
-}
-
-# Search results come back
-[2025-05-29T00:20:58.018191] web_search_result: [
-    {
-        'url': 'https://www.analyticsinsight.net/artificial-intelligence/top-ai-developments-we-saw-in-2024', 
-        'title': 'Top AI developments We Saw in 2024 - Analytics Insight'
-    },
-    {'url': 'https://blog.google/technology/ai/2024-ai-extraordinary-progress-advancement/', 
-     'title': "Year in review: Google's biggest AI advancements of 2024"
-    }
-    # ... more results
-]
-
-# Agent navigates to specific pages
-[2025-05-29T00:21:06.297879] web_navigation: {
-    'url': 'https://www.analyticsinsight.net/artificial-intelligence/top-ai-developments-we-saw-in-2024'
-}
-
-[2025-05-29T00:21:06.874471] web_navigation_result: {
-    'url': 'https://www.analyticsinsight.net/artificial-intelligence/top-ai-developments-we-saw-in-2024', 
-    'content': 'Top AI developments We Saw in 2024...', 
-    'status_code': 200
-}
-
-# Agent creates files with research findings
-[2025-05-29T00:21:46.050300] file_write: {
-    'file': 'ai_developments_2024_report_todo.md', 
-    'content': '# AI Developments 2024 Report: To-Do List\n\n## 1. Introduction...',
-    'append': False
-}
-
-# General AI agent generates data and visualizations
-[2025-05-29T00:24:12.290811] shell_exec: {
-    'id': 'ai_chart', 
-    'exec_dir': './', 
-    'command': 'python3 generate_ai_adoption_chart.py', 
-    'blocking': 'true'
-}
-
-# General AI agent provides updates to user
-[2025-05-29T00:25:09.611663] user_notification: {
-    'text': 'The AI Developments 2024 summary report is complete...',
-    'attachments': [
-        'ai_developments_2024_report.md', 
-        'ai_adoption_by_industry_2024.png',
-        'ai_investment_by_sector_2024.png'
-    ]
-}
-
-# Task completion
-[2025-05-29T00:27:10.305395] completed_task: {}
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-### Event-Driven UI Updates
-
-Build responsive interfaces that update as the general AI agent works:
-
-```python
-import asyncio
-from panda_agi import Agent, EventType
+```python Technical Documentation
+import os, asyncio
+from panda_agi import Agent
 from panda_agi.envs import DockerEnv
 
-class AgentMonitor:
-    def __init__(self):
-        self.status = "Idle"
-        self.current_task = None
-        self.files_created = []
-        self.search_queries = []
-    
-    async def run_with_monitoring(self, query):
-        agent_env = DockerEnv("./workspace")
-        agent = Agent(environment=agent_env)
-        
-        try:
-            async for event in agent.run(query):
-                await self.handle_event(event)
-        finally:
-            await agent.disconnect()
-    
-    async def handle_event(self, event):
-        """Process events as they stream from the remote general AI agent"""
-        
-        if event.type == EventType.AGENT_CONNECTION_SUCCESS:
-            self.status = "Connected - Workspace initialized"
-            print(f"🔗 {self.status}")
-        
-        elif event.type == EventType.WEB_SEARCH:
-            query = event.data.get('query', '')
-            self.search_queries.append(query)
-            self.status = f"🔍 Searching: {query}"
-            print(f"🔍 Web search: {query}")
-        
-        elif event.type == EventType.WEB_NAVIGATION:
-            url = event.data.get('url', '')
-            self.status = f"🌐 Reading: {url}"
-            print(f"🌐 Navigating to: {url}")
-        
-        elif event.type == EventType.FILE_WRITE:
-            filename = event.data.get('file', '')
-            self.files_created.append(filename)
-            self.status = f"📝 Created: {filename}"
-            print(f"📝 File created: {filename}")
-        
-        elif event.type == EventType.SHELL_EXEC:
-            command = event.data.get('command', '')
-            self.status = f"⚙️ Running: {command}"
-            print(f"⚙️ Executing: {command}")
-        
-        elif event.type == EventType.USER_NOTIFICATION:
-            message = event.data.get('text', '')
-            attachments = event.data.get('attachments', [])
-            self.status = "✅ Task update available"
-            print(f"📢 Update: {message}")
-            if attachments:
-                print(f"📎 Files: {', '.join(attachments)}")
-        
-        elif event.type == EventType.COMPLETED_TASK:
-            self.status = "✅ Task completed"
-            print(f"🎉 Task completed!")
-            print(f"📊 Summary:")
-            print(f"  - Files created: {len(self.files_created)}")
-            print(f"  - Web searches: {len(self.search_queries)}")
-
-# Usage
 async def main():
-    monitor = AgentMonitor()
-    await monitor.run_with_monitoring(
-        "Research quantum computing trends and create a technical report"
-    )
-
-asyncio.run(main())
-```
-
-The event streaming system provides complete transparency into the general AI agent's autonomous workflow, allowing you to build sophisticated monitoring, progress tracking, and user interface systems around the general AI agent's real-time activity.
-
-## Environment Options
-
-Choose where the general AI agent operates based on your security and isolation needs:
-
-```python
-import asyncio
-from panda_agi import Agent
-from panda_agi.envs import DockerEnv, LocalEnv
-
-async def main():
-    # Option 1: Isolated Docker environment (recommended)
-    docker_env = DockerEnv("./secure_workspace")
+    os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
     
-    # Option 2: Local environment (direct file system access)
-    local_env = LocalEnv("./local_workspace")
-    
-    # Choose your environment
-    agent = Agent(environment=docker_env)
+    agent_env = DockerEnv("./workspace")
+    agent = Agent(environment=agent_env)
     
     async for event in agent.run(
-        "Build a website prototype with HTML, CSS, and JavaScript"
+        "Create user documentation for our REST API with examples"
     ):
-        print(f"[EVENT]: {event}")
-    
+        # The general AI agent will:
+        # 1. Analyze your API structure and endpoints
+        # 2. Create comprehensive documentation with clear descriptions
+        # 3. Generate request/response examples for each endpoint
+        # 4. Include authentication guides and error handling
+        # 5. Provide SDK examples in multiple programming languages
+        # 6. Structure everything in a developer-friendly format
+        
+        print(f"[{event.timestamp}] {event.type}: {event.data}")
+        
     await agent.disconnect()
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
+
+</CodeGroup>
+
+## Pre-built Chat UI
+
+You can also use the pre-built chat UI to interact with the general AI agent.
+
+What do you need?
+- Docker up and running (either install [Docker desktop](https://www.docker.com/products/docker-desktop/)) or [set it up via code](installation#docker-setup))
+- [docker-compose](https://docs.docker.com/compose/install/) installed
+- [PANDA_AGI_KEY](https://agi.pandas-ai.com/) environment variable set in the .env file
+- [TAVILY_API_KEY](https://tavily.ai/) environment variable set in the .env file
+
+Clone the panda-agi repo, move to the ui folder and simply execute the start.sh script:
+
+```bash
+cd examples/ui && ./start.sh
+```
+
+This one command will:
+- ✅ Check Docker requirements  
+- 🛑 Stop any existing containers
+- 🔨 Build and start both services
+- 🔍 Perform health checks
+- 📊 Display service status and URLs
+
+Once running, access:
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8001
+
+This is the fastest way to get started with a production-ready agentic chat interface using the PandaAGI SDK.
+
+  <img
+    className="block dark:hidden"
+    src="/images/chat_interface.png"
+    alt="Chat Interface"
+  />
+  <img
+    className="hidden dark:block"
+    src="/images/chat_interface.png"
+    alt="Chat Interface"
+  />
 
 ## Next Steps
 

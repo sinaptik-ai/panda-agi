@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Complete directory of WMF 2025 speakers - over 400 experts from AI, digital technology, innovation and more">
+    <meta name="keywords" content="WMF 2025, speakers, conference, artificial intelligence, digital technology, innovation">
+    <title>WMF 2025 Speakers Directory | We Make Future Conference</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1 class="logo">WMF 2025</h1>
+                <div class="event-info">
+                    <p class="event-date">June 4-6, 2025</p>
+                    <p class="event-location">BolognaFiere, Italy</p>
+                </div>
+            </div>
+            <h2 class="page-title">Speakers Directory</h2>
+            <p class="speakers-count">Over 400 speakers from around the world</p>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <section class="filters-section">
+                <div class="search-container">
+                    <input type="text" id="searchInput" placeholder="Search speakers by name, company, or expertise..." class="search-input">
+                </div>
+                <div class="filters-container">
+                    <select id="countryFilter" class="filter-select">
+                        <option value="">All Countries</option>
+                    </select>
+                    <select id="expertiseFilter" class="filter-select">
+                        <option value="">All Expertise Areas</option>
+                    </select>
+                    <select id="roleFilter" class="filter-select">
+                        <option value="">All Roles</option>
+                    </select>
+                </div>
+            </section>
+
+            <section class="speakers-section">
+                <div class="speakers-grid" id="speakersGrid">
+                    <!-- Speaker cards will be dynamically generated here -->
+                </div>
+                <div class="no-results" id="noResults" style="display: none;">
+                    <h3>No speakers found</h3>
+                    <p>Try adjusting your search criteria or filters.</p>
+                </div>
+            </section>
+
+            <section class="stats-section">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3 class="stat-number" id="totalSpeakers">400+</h3>
+                        <p class="stat-label">Total Speakers</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 class="stat-number" id="totalCountries">20+</h3>
+                        <p class="stat-label">Countries</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 class="stat-number" id="totalCompanies">300+</h3>
+                        <p class="stat-label">Companies</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 class="stat-number">3</h3>
+                        <p class="stat-label">Days</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 We Make Future. All rights reserved.</p>
+            <p>Official speakers directory for WMF 2025 conference</p>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

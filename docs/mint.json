@@ -22,16 +22,6 @@
     "name": "Manage API Key",
     "url": "https://agi.pandas-ai.com/dashboard"
   },
-  "tabs": [
-    {
-      "name": "Documentation",
-      "url": "/"
-    },
-    {
-      "name": "Apps",
-      "url": "apps"
-    }
-  ],
   "anchors": [
     {
       "name": "Get API Key",
@@ -51,25 +41,22 @@
   ],
   "navigation": [
     {
-      "group": "Overview",
-      "pages": ["introduction"]
+      "group": "Getting Started",
+      "pages": ["introduction", "quickstart"]
     },
     {
-      "group": "Using PandaAGI",
-      "pages": ["quickstart", "installation", "cli"]
+      "group": "Examples",
+      "pages": ["apps/chat-interface", "cli"]
     },
     {
-      "group": "Building with PandaAGI",
+      "group": "Advanced Usage",
       "pages": [
         "concepts/architecture",
         "concepts/agents",
         "concepts/events",
-        "concepts/environments"
+        "concepts/environments",
+        "installation"
       ]
-    },
-    {
-      "group": "Apps",
-      "pages": ["apps/chat-interface"]
     }
   ],
   "footerSocials": {

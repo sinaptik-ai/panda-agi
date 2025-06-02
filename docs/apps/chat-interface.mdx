@@ -1,6 +1,6 @@
 ---
-title: 'Agentic Chat Assistant'
-description: 'Build a real-time agentic chat with interface streaming agent responses'
+title: 'AI Chat UI'
+description: 'Build a real-time agentic chat UI streaming agent responses'
 ---
 
 ## How to build your own Agentic AI Assistant?
@@ -34,6 +34,14 @@ The implemented solution includes:
 
 ### Quick Setup
 
+What do you need?
+- Docker up and running (either install [Docker desktop](https://www.docker.com/products/docker-desktop/)) or [set it up via code](installation#docker-setup))
+- [docker-compose](https://docs.docker.com/compose/install/) installed
+- [PANDA_AGI_KEY](https://agi.pandas-ai.com/) environment variable set in the .env file
+- [TAVILY_API_KEY](https://tavily.ai/) environment variable set in the .env file
+
+Clone the panda-agi repo, move to the ui folder and simply execute the start.sh script:
+
 ```bash
 cd examples/ui && ./start.sh
 ```
@@ -64,119 +72,7 @@ cd examples/ui/backend && python main.py
 cd examples/ui/frontend && npm start
 ```
 
-Congrats. Now you have your own production-ready agentic chat interface! Let's build the backend.
-
-
-## FastAPI Server for Agentic Chat
-
-You can wrap your own PandaAGI Agent in a simple backend server with streaming support:
-
-```python
-# backend/main.py
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import json
-import asyncio
-from typing import AsyncGenerator
-import uuid
-
-from panda_agi import Agent, EventType
-from panda_agi.envs import DockerEnv
-
-app = FastAPI(title="PandaAGI Chat API")
-
-# Enable CORS for frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-class ChatRequest(BaseModel):
-    message: str
-    conversation_id: str = None
-
-async def event_stream(query: str, conversation_id: str = None) -> AsyncGenerator[str, None]:
-    """Stream agent events as Server-Sent Events"""
-    agent = None
-    try:
-        # Create environment for the agent
-        agent_env = DockerEnv("./workspace")
-        
-        # Create agent with conversation ID for session persistence
-        agent = Agent(
-            environment=agent_env,
-            conversation_id=conversation_id or str(uuid.uuid4())
-        )
-        
-        # Stream events from the agent
-        async for event in agent.run(query):
-            # Convert event to dictionary for JSON serialization
-            event_data = {
-                "type": event.type.value,
-                "timestamp": event.timestamp,
-                "data": event.data
-            }
-            
-            # Format as Server-Sent Event
-            yield f"data: {json.dumps(event_data)}\n\n"
-            
-            # Add small delay to prevent overwhelming the client
-            await asyncio.sleep(0.05)
-            
-    except Exception as e:
-        # Send error event
-        error_event = {
-            "type": "error",
-            "timestamp": "",
-            "data": {"error": str(e)}
-        }
-        yield f"data: {json.dumps(error_event)}\n\n"
-        
-    finally:
-        # Clean up agent connection
-        if agent:
-            try:
-                await agent.disconnect()
-            except Exception as e:
-                print(f"Error disconnecting agent: {e}")
-
-@app.post("/api/chat/stream")
-async def stream_chat(request: ChatRequest):
-    """Stream chat responses using Server-Sent Events"""
-    
-    return StreamingResponse(
-        event_stream(request.message, request.conversation_id),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*",
-        }
-    )
-
-@app.get("/api/health")
-async def health_check():
-    return {"status": "healthy"}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-```
-
-### Requirements
-
-```txt
-# backend/requirements.txt
-fastapi==0.104.1
-uvicorn==0.24.0
-panda-agi>=0.1.0
-pydantic==2.5.0
-```
+Congrats. Now you have your own production-ready agentic chat interface!
 
 ## Start Building with PandaAGI
 
@@ -184,14 +80,14 @@ Ready to build your first AI-powered application? Check out our [quickstart guid
 
 <CardGroup cols={2}>
   <Card
-    title="Quickstart Guide"
+    title="Quickstart"
     icon="play"
     href="/quickstart"
   >
     Learn how to install the SDK and build your first AI application
   </Card>
   <Card
-    title="Architecture & Philosophy"
+    title="Architecture"
     icon="diagram-project"
     href="/concepts/architecture"
   >
