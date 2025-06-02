@@ -1,4 +1,4 @@
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import requests
 
@@ -38,6 +38,10 @@ async def download_file(url: str, timeout: int = 30) -> Tuple[bool, bytes, str]:
 @ToolRegistry.register("generate_image")
 class ImageGenerationHandler(ToolHandler):
     """Handler for image generation results"""
+
+    def __init__(self, environment: Optional[BaseEnv] = None):
+        super().__init__(environment)
+        self.output_dir = "images"
 
     OUTPUT_DIR = "generated_images"
 
@@ -87,6 +91,7 @@ class ImageGenerationHandler(ToolHandler):
                         if result.get("status") == "success":
                             self.logger.info(f"Saved image to {result.get('path')}")
                             saved_files.append(result.get("path"))
+                            images.append(filepath)
                         else:
                             self.logger.error(
                                 f"Failed to save image: {result.get('message')}"

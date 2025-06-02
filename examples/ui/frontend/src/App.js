@@ -10,7 +10,7 @@ import {
   Code,
   Archive,
 } from "lucide-react";
-import EventCard from "./components/EventCard";
+import EventList from "./components/EventList";
 import MessageCard from "./components/MessageCard";
 import ContentSidebar from "./components/ContentSidebar";
 import "./App.css";
@@ -192,7 +192,7 @@ function App() {
     const extension = filename.split(".").pop().toLowerCase();
 
     if (["csv", "xls", "xlsx"].includes(extension)) return "table";
-    if (["md", "markdown"].includes(extension)) return "markdown";
+    if (["md", "markdown", "txt"].includes(extension)) return "markdown";
     if (["html", "htm"].includes(extension)) return "html";
     if (["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(extension))
       return "image";
@@ -224,36 +224,45 @@ function App() {
 
   // Function to fetch and open file in sidebar
   const handleFileClick = async (filename) => {
+    const fileType = getFileType(filename);
+
     try {
-      const response = await fetch(
-        `${
-          process.env.REACT_APP_API_URL || "http://localhost:8001"
-        }/files/read?file_path=${encodeURIComponent(filename)}`
-      );
+      let content = null;
 
-      if (!response.ok) {
-        throw new Error(`Failed to read file: ${response.statusText}`);
-      }
-
-      const fileData = await response.json();
-
-      if (fileData.status === "success") {
-        const fileType = fileData.type || getFileType(filename);
-
-        setPreviewData({
-          url: filename,
-          content: fileData.content,
-          title: `File: ${fileData.filename}`,
-          type: fileType,
-        });
-        setSidebarOpen(true);
+      // Handle different file types appropriately
+      if (fileType === "image") {
+        // For images, we don't fetch content - ContentSidebar will construct the URL from filename
+        content = null;
       } else {
-        console.error("Failed to read file:", fileData.message);
-        // Could show a toast notification here
+        // For text-based files, get the actual content
+        const fileUrl = `${
+          process.env.REACT_APP_API_URL || "http://localhost:8001"
+        }/files/${encodeURIComponent(filename)}`;
+
+        const response = await fetch(fileUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch file: ${response.status}`);
+        }
+        content = await response.text();
       }
+
+      setPreviewData({
+        filename: filename,
+        content: content,
+        title: `File: ${filename.split("/").pop()}`,
+        type: fileType,
+      });
+      setSidebarOpen(true);
     } catch (error) {
       console.error("Error reading file:", error);
-      // Could show a toast notification here
+      // Show error in preview
+      setPreviewData({
+        filename: filename,
+        content: `Error loading file: ${error.message}`,
+        title: `File: ${filename.split("/").pop()}`,
+        type: "text",
+      });
+      setSidebarOpen(true);
     }
   };
 
@@ -577,7 +586,7 @@ function App() {
                 )}
 
                 {message.type === "event" && (
-                  <EventCard
+                  <EventList
                     message={message}
                     onPreviewClick={handlePreviewClick}
                     onFileClick={handleFileClick}

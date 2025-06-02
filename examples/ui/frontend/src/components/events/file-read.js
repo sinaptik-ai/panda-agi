@@ -1,7 +1,7 @@
 import React from "react";
 import { Eye } from "lucide-react";
 
-const FileReadEvent = ({ payload, eventType, onPreviewClick, onFileClick }) => {
+const FileReadEvent = ({ payload, onPreviewClick }) => {
   if (!payload) return null;
 
   // Helper function to determine file type based on extension
@@ -55,17 +55,11 @@ const FileReadEvent = ({ payload, eventType, onPreviewClick, onFileClick }) => {
   const handlePreviewClick = () => {
     if (payload.content && onPreviewClick) {
       onPreviewClick({
-        url: filename,
+        filename: filename,
         content: payload.content,
         title: `read: ${filename.split("/").pop()}`,
         type: fileType,
       });
-    }
-  };
-
-  const handleFileNameClick = () => {
-    if (onFileClick) {
-      onFileClick(filename);
     }
   };
 
@@ -76,7 +70,7 @@ const FileReadEvent = ({ payload, eventType, onPreviewClick, onFileClick }) => {
         <span className="text-xs text-gray-500 truncate max-w-md">
           Reading{" "}
           <button
-            onClick={handleFileNameClick}
+            onClick={handlePreviewClick}
             className="font-bold text-gray-700 hover:text-gray-900 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit"
             title="Click to open file"
           >

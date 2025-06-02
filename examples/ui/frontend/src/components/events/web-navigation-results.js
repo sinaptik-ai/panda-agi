@@ -1,37 +1,10 @@
 import React from "react";
 import { Globe } from "lucide-react";
 
-const WebNavigationEvent = ({
-  payload,
-  eventType,
-  onPreviewClick,
-  onFileClick,
-}) => {
+const WebNavigationResultEvent = ({ payload }) => {
   if (!payload) return null;
 
   const url = payload.url || "Unknown URL";
-
-  const getEventDetails = (eventType) => {
-    switch (eventType) {
-      case "web_navigation":
-        return {
-          icon: <Globe className="w-3 h-3 text-orange-600" />,
-          action: "Navigating to",
-        };
-      case "web_navigation_result":
-        return {
-          icon: <Globe className="w-3 h-3 text-orange-600" />,
-          action: "Visited",
-        };
-      default:
-        return {
-          icon: <Globe className="w-3 h-3 text-orange-600" />,
-          action: "Web navigation",
-        };
-    }
-  };
-
-  const eventDetails = getEventDetails(eventType);
 
   const getDomain = (url) => {
     try {
@@ -44,9 +17,9 @@ const WebNavigationEvent = ({
   return (
     <div className="flex justify-start">
       <div className="flex items-center space-x-2 px-3 py-2">
-        {eventDetails.icon}
+        <Globe className="w-3 h-3 text-orange-600" />
         <span className="text-xs text-gray-500 truncate max-w-md">
-          {eventDetails.action}{" "}
+          Visited{" "}
           <a
             href={url}
             target="_blank"
@@ -61,4 +34,4 @@ const WebNavigationEvent = ({
   );
 };
 
-export default WebNavigationEvent;
+export default WebNavigationResultEvent;
