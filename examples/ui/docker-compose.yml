@@ -5,7 +5,10 @@ services:
       dockerfile: Dockerfile
     container_name: panda-agi-backend
     ports:
+      - "8000:8000"
       - "8001:8001"
+      - "8080:8080"
+      - "2664:2664"
     environment:
       - PYTHONPATH=/app
       - WORKSPACE_PATH=./workspace
