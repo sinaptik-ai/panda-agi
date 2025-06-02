@@ -95,7 +95,7 @@ class BaseStreamEvent(BaseModel):
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
-        return self.model_dump()
+        return self.model_dump(mode="json")
 
     def to_json(self) -> str:
         return self.model_dump_json()

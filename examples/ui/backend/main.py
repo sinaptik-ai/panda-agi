@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 # Import the agent and environment from the parent directory
@@ -24,6 +25,19 @@ from panda_agi.client.models import (
     EventType,
 )
 from panda_agi.envs import LocalEnv
+
+# Configure logging with more explicit settings
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),  # Ensure output goes to stdout
+        logging.FileHandler("api.log"),  # Also log to file
+    ],
+)
+
+logger = logging.getLogger("panda_agi_api")
+logger.setLevel(logging.DEBUG)
 
 # Get workspace path from environment variable with fallback
 WORKSPACE_PATH = os.getenv(
@@ -82,30 +96,49 @@ def process_event_for_frontend(event) -> Optional[Dict]:
     """Process an event for frontend consumption with type safety"""
     try:
         if isinstance(event, BaseStreamEvent):
-            # Handle typed BaseStreamEvent objects
             event_type = (
                 event.type.value if hasattr(event.type, "value") else str(event.type)
             )
 
-            # Convert to frontend format using typed event's to_dict() method
+            # Get the event data
+            event_data = event.to_dict()
+
+            # Truncate long content fields
+            if event_type == "web_navigation_result" and "content" in event_data:
+                max_content_length = 5000  # Adjust as needed
+                if len(event_data["content"]) > max_content_length:
+                    event_data["content"] = (
+                        event_data["content"][:max_content_length]
+                        + "\n\n... [Content truncated]"
+                    )
+
             return {
                 "data": {
                     "type": event_type,
-                    "payload": event.to_dict(),
+                    "payload": event_data,
                     "timestamp": event.timestamp,
                     "id": getattr(event, "id", None),
                 },
             }
         else:
-            # Handle legacy non-BaseStreamEvent objects
+            # Handle legacy events with truncation
             event_type = (
                 event.type.value if hasattr(event.type, "value") else str(event.type)
             )
 
+            event_data = event.data
+            if event_type == "web_navigation_result" and "content" in event_data:
+                max_content_length = 5000
+                if len(event_data["content"]) > max_content_length:
+                    event_data["content"] = (
+                        event_data["content"][:max_content_length]
+                        + "\n\n... [Content truncated]"
+                    )
+
             return {
                 "data": {
                     "type": event_type,
-                    "payload": event.data,
+                    "payload": event_data,
                     "timestamp": getattr(event, "timestamp", ""),
                     "id": getattr(event, "id", None),
                 },
@@ -192,6 +225,8 @@ async def event_stream(
 async def run_agent(query_data: AgentQuery):
     """Run an agent with the given query and stream events"""
     try:
+        logger.debug(f"Running agent with query: {query_data.query}")
+        logger.debug(f"Conversation ID: {query_data.conversation_id}")
         return StreamingResponse(
             event_stream(query_data.query, query_data.conversation_id),
             media_type="text/event-stream",
@@ -275,65 +310,65 @@ async def download_file(
 ):
     """Download a file from the workspace"""
     try:
-        print(f"DEBUG: Download request for file_path: '{file_path}'")
-        print(f"DEBUG: Current working directory: {os.getcwd()}")
-        print(f"DEBUG: WORKSPACE_PATH: {WORKSPACE_PATH}")
+        logger.debug(f"Download request for file_path: '{file_path}'")
+        logger.debug(f"Current working directory: {os.getcwd()}")
+        logger.debug(f"WORKSPACE_PATH: {WORKSPACE_PATH}")
 
         # Resolve the file path relative to workspace
         workspace_path = Path(WORKSPACE_PATH)
-        print(f"DEBUG: Resolved workspace_path: {workspace_path.resolve()}")
+        logger.debug(f"Resolved workspace_path: {workspace_path.resolve()}")
 
         resolved_path = workspace_path / file_path
-        print(f"DEBUG: Resolved file path: {resolved_path.resolve()}")
-        print(f"DEBUG: File exists: {resolved_path.exists()}")
-        print(
-            f"DEBUG: Is file: {resolved_path.is_file() if resolved_path.exists() else 'N/A'}"
+        logger.debug(f"Resolved file path: {resolved_path.resolve()}")
+        logger.debug(f"File exists: {resolved_path.exists()}")
+        logger.debug(
+            f"Is file: {resolved_path.is_file() if resolved_path.exists() else 'N/A'}"
         )
 
         # Security check: ensure the resolved path is within workspace
         try:
             resolved_path.resolve().relative_to(workspace_path.resolve())
-            print("DEBUG: Security check passed")
+            logger.debug("Security check passed")
         except ValueError:
-            print("DEBUG: Security check failed")
+            logger.debug("Security check failed")
             raise HTTPException(
                 status_code=403, detail="Access denied: path outside workspace"
             )
 
         # Check if file exists
         if not resolved_path.exists():
-            print("DEBUG: File not found, raising 404")
+            logger.debug("File not found, raising 404")
             raise HTTPException(status_code=404, detail="File not found")
 
         if not resolved_path.is_file():
-            print("DEBUG: Path is not a file, raising 400")
+            logger.debug("Path is not a file, raising 400")
             raise HTTPException(status_code=400, detail="Path is not a file")
 
-        print("DEBUG: File found, proceeding with download logic")
+        logger.debug("File found, proceeding with download logic")
 
         # Check if it's a markdown file
         if resolved_path.suffix.lower() in [".md", ".markdown"]:
-            print(f"DEBUG: Attempting to convert markdown file: {resolved_path}")
+            logger.debug(f"Attempting to convert markdown file: {resolved_path}")
             try:
                 from io import BytesIO
 
                 import markdown
                 import weasyprint
 
-                print("DEBUG: Successfully imported markdown and weasyprint")
+                logger.debug("Successfully imported markdown and weasyprint")
 
                 # Read markdown content
                 with open(resolved_path, "r", encoding="utf-8") as f:
                     md_content = f.read()
 
-                print(f"DEBUG: Read markdown content, length: {len(md_content)}")
+                logger.debug(f"Read markdown content, length: {len(md_content)}")
 
                 # Convert markdown to HTML
                 html = markdown.markdown(
                     md_content, extensions=["tables", "fenced_code", "toc"]
                 )
 
-                print("DEBUG: Successfully converted markdown to HTML")
+                logger.debug("Successfully converted markdown to HTML")
 
                 # Add basic CSS styling for better PDF appearance
                 html_with_style = f"""
@@ -363,14 +398,14 @@ async def download_file(
                 </html>
                 """
 
-                print("DEBUG: Created HTML with styling")
+                logger.debug("Created HTML with styling")
 
                 # Convert HTML to PDF
                 pdf_buffer = BytesIO()
                 weasyprint.HTML(string=html_with_style).write_pdf(pdf_buffer)
                 pdf_buffer.seek(0)
 
-                print("DEBUG: Successfully converted HTML to PDF")
+                logger.debug("Successfully converted HTML to PDF")
 
                 # Create a temporary PDF file
                 import tempfile
@@ -381,11 +416,11 @@ async def download_file(
                     temp_pdf.write(pdf_buffer.getvalue())
                     temp_pdf_path = temp_pdf.name
 
-                print(f"DEBUG: Created temporary PDF file: {temp_pdf_path}")
+                logger.debug(f"Created temporary PDF file: {temp_pdf_path}")
 
                 # Return PDF file for download
                 pdf_filename = f"{resolved_path.stem}.pdf"
-                print(f"DEBUG: Returning PDF download: {pdf_filename}")
+                logger.debug(f"Returning PDF download: {pdf_filename}")
                 return FileResponse(
                     path=temp_pdf_path,
                     filename=pdf_filename,
@@ -397,14 +432,14 @@ async def download_file(
 
             except ImportError as ie:
                 # If markdown/weasyprint not available, fall back to regular download
-                print(f"DEBUG: Import error during PDF conversion: {ie}")
+                logger.debug(f"Import error during PDF conversion: {ie}")
                 pass
             except Exception as e:
                 # If conversion fails, fall back to regular download
-                print(f"DEBUG: PDF conversion failed with error: {e}")
+                logger.debug(f"PDF conversion failed with error: {e}")
                 pass
 
-        print(f"DEBUG: Serving regular file download: {resolved_path.name}")
+        logger.debug(f"Serving regular file download: {resolved_path.name}")
         # Return file for regular download with proper headers
         return FileResponse(
             path=resolved_path,
@@ -418,7 +453,7 @@ async def download_file(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"DEBUG: Unexpected error: {e}")
+        logger.debug(f"Unexpected error: {e}")
         raise HTTPException(status_code=500, detail=f"Error downloading file: {str(e)}")
 
 
@@ -542,5 +577,5 @@ if __name__ == "__main__":
     # Allow reload to be controlled by environment variable
     # Defaults to True for development, can be set to False in production
     reload_enabled = os.getenv("FASTAPI_RELOAD", "true").lower() in ("true", "1", "yes")
-    
+
     uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=reload_enabled)
