@@ -35,6 +35,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
       yaml: "yaml",
       yml: "yaml",
       md: "markdown",
+      txt: "markdown",
       php: "php",
       rb: "ruby",
       go: "go",
@@ -155,7 +156,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
           </div>
         );
       case "table":
-        const tableFilename = previewData.url || "";
+        const tableFilename = previewData.filename || previewData.url || "";
         const tableExtension = tableFilename.split(".").pop().toLowerCase();
         const tableData = parseCSV(content);
 
@@ -236,7 +237,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
           </div>
         );
       case "html":
-        const htmlFilename = previewData.url || "";
+        const htmlFilename = previewData.filename || previewData.url || "";
         return (
           <div className="editor-container bg-gray-900 text-gray-100 rounded overflow-hidden h-full flex flex-col">
             {/* Editor Header - same style as other code files */}
@@ -278,66 +279,31 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
           </div>
         );
       case "image":
-        // For images, the content could be a data URL, file path, or base64
-        if (
-          content.startsWith("data:image") ||
-          content.startsWith("http") ||
-          content.includes("base64")
-        ) {
-          return (
-            <div className="flex justify-center">
-              <img
-                src={content}
-                alt="Preview"
-                className="max-w-full max-h-[80vh] object-contain rounded border"
-                onError={(e) => {
-                  e.target.style.display = "none";
-                  e.target.nextSibling.style.display = "block";
-                }}
-              />
-              <div className="hidden text-center text-gray-500 p-4">
-                <FileImage className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                <p>Image preview not available</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  File: {previewData.url}
-                </p>
-              </div>
-            </div>
-          );
-        } else {
-          return (
-            <div className="text-center text-gray-500 p-4">
+        // For images, construct the URL from the filename
+        const imageUrl = `${
+          process.env.REACT_APP_API_URL || "http://localhost:8001"
+        }/files/${encodeURIComponent(previewData.filename)}`;
+
+        return (
+          <div className="flex justify-center">
+            <img
+              src={imageUrl}
+              alt="Preview"
+              className="max-w-full max-h-[80vh] object-contain rounded border"
+              onError={(e) => {
+                e.target.style.display = "none";
+                e.target.nextSibling.style.display = "block";
+              }}
+            />
+            <div className="hidden text-center text-gray-500 p-4">
               <FileImage className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-              <p>Image file detected</p>
+              <p>Image preview not available</p>
               <p className="text-xs text-gray-400 mt-1">
-                Content preview not available
+                File: {previewData.filename}
               </p>
-              <div
-                className="mt-4 editor-container bg-gray-900 text-gray-100 rounded overflow-hidden flex flex-col"
-                style={{ height: "60vh" }}
-              >
-                <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700 flex-shrink-0">
-                  <span className="text-xs text-gray-300">Image Data</span>
-                  <span className="text-xs text-gray-400">
-                    {content.split("\n").length} lines
-                  </span>
-                </div>
-                <div className="flex-1 overflow-auto">
-                  <SyntaxHighlighter
-                    language="text"
-                    style={vscDarkPlus}
-                    showLineNumbers={true}
-                    lineNumberStyle={getLineNumberStyle()}
-                    customStyle={getCommonStyle()}
-                    className="syntax-highlighter"
-                  >
-                    {content}
-                  </SyntaxHighlighter>
-                </div>
-              </div>
             </div>
-          );
-        }
+          </div>
+        );
       case "pdf":
         return (
           <div className="text-center text-gray-500 p-4">
@@ -386,7 +352,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
           </div>
         );
       case "code":
-        const filename = previewData.url || "";
+        const filename = previewData.filename || previewData.url || "";
         const extension = filename.split(".").pop().toLowerCase();
         const languageMap = {
           js: "JavaScript",
@@ -509,33 +475,43 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
             {getFileIcon()}
             {previewData.title}
           </h3>
-          {previewData.url && (
+          {(previewData.filename || previewData.url) && (
             <a
-              href={previewData.url}
+              href={
+                previewData.url ||
+                `${
+                  process.env.REACT_APP_API_URL || "http://localhost:8001"
+                }/files/${encodeURIComponent(previewData.filename)}`
+              }
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-blue-600 hover:underline flex items-center space-x-1 mt-1"
             >
-              <span className="truncate">{previewData.url}</span>
+              <span className="truncate">
+                {previewData.filename || previewData.url}
+              </span>
               <ExternalLink className="w-3 h-3 flex-shrink-0" />
             </a>
           )}
         </div>
         <div className="flex items-center space-x-2">
           {/* Download button - only show for actual files, not iframes */}
-          {previewData.url && previewData.type !== "iframe" && (
-            <button
-              onClick={() => handleFileDownload(previewData.url)}
-              className="p-1 hover:bg-gray-200 rounded transition-colors"
-              title={`Download as ${previewData.url
-                .split(".")
-                .pop()
-                .replace("md", "pdf")
-                .toUpperCase()}`}
-            >
-              <Download className="w-4 h-4 text-gray-500" />
-            </button>
-          )}
+          {(previewData.filename || previewData.url) &&
+            previewData.type !== "iframe" && (
+              <button
+                onClick={() =>
+                  handleFileDownload(previewData.filename || previewData.url)
+                }
+                className="p-1 hover:bg-gray-200 rounded transition-colors"
+                title={`Download as ${(previewData.filename || previewData.url)
+                  .split(".")
+                  .pop()
+                  .replace("md", "pdf")
+                  .toUpperCase()}`}
+              >
+                <Download className="w-4 h-4 text-gray-500" />
+              </button>
+            )}
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-200 rounded transition-colors"

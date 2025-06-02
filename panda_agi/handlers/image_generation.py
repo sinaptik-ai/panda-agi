@@ -14,7 +14,7 @@ class ImageGenerationHandler(ToolHandler):
 
     def __init__(self, environment: Optional[BaseEnv] = None):
         super().__init__(environment)
-        self.output_dir = "generated_images"
+        self.output_dir = "images"
 
     async def execute(self, tool_call: Dict[str, Any]) -> HandlerResult:
         if not tool_call.get("success", False):
@@ -37,6 +37,7 @@ class ImageGenerationHandler(ToolHandler):
                 output_path.mkdir(parents=True, exist_ok=True)
 
             saved_files = []
+            images = []
             for image_data in tool_call.get("images", []):
                 # Extract data
                 image_url = image_data.get("url")
@@ -62,6 +63,7 @@ class ImageGenerationHandler(ToolHandler):
                         if result.get("status") == "success":
                             self.logger.info(f"Saved image to {result.get('path')}")
                             saved_files.append(result.get("path"))
+                            images.append(filepath)
                         else:
                             self.logger.error(
                                 f"Failed to save image: {result.get('message')}"
@@ -76,6 +78,7 @@ class ImageGenerationHandler(ToolHandler):
             result = {
                 "message": f"Saved {len(saved_files)} image(s)",
                 "saved_files": saved_files,
+                "images": images,
             }
 
             await self.add_event(EventType.IMAGE_GENERATION, result)

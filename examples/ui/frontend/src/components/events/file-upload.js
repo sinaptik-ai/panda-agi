@@ -1,12 +1,7 @@
 import React from "react";
 import { Upload, Eye } from "lucide-react";
 
-const FileUploadEvent = ({
-  payload,
-  eventType,
-  onPreviewClick,
-  onFileClick,
-}) => {
+const FileUploadEvent = ({ payload, onPreviewClick }) => {
   if (!payload) return null;
 
   const filename = payload.filename || payload.original_filename;
@@ -21,16 +16,10 @@ const FileUploadEvent = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const handleFileNameClick = () => {
-    if (onFileClick && filename) {
-      onFileClick(filename);
-    }
-  };
-
   const handlePreviewClick = () => {
     if (payload.content && onPreviewClick) {
       onPreviewClick({
-        url: filename,
+        filename: filename,
         content: payload.content,
         title: `uploaded: ${filename}`,
         type: "text",
@@ -45,7 +34,7 @@ const FileUploadEvent = ({
         <span className="text-xs text-gray-500 truncate max-w-md">
           Uploaded{" "}
           <button
-            onClick={handleFileNameClick}
+            onClick={handlePreviewClick}
             className="font-bold text-gray-700 hover:text-gray-900 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit"
             title="Click to open file"
           >

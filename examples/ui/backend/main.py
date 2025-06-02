@@ -7,7 +7,7 @@ from pathlib import Path
 # Import the agent and environment from the parent directory
 import sys
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
@@ -22,7 +22,7 @@ from panda_agi import Agent, EventType
 from panda_agi.envs import LocalEnv
 
 # Get workspace path from environment variable with fallback
-WORKSPACE_PATH = os.getenv("WORKSPACE_PATH", "./workspace")
+WORKSPACE_PATH = os.getenv("WORKSPACE_PATH", os.path.join(os.path.dirname(__file__), "workspace"))
 
 app = FastAPI(title="PandaAGI SDK API", version="1.0.0")
 local_env = LocalEnv(WORKSPACE_PATH)
@@ -220,88 +220,41 @@ async def upload_files(
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
-@app.get("/files/read")
-async def read_file(file_path: str):
-    """Read a file from the workspace"""
-    try:
-        # Resolve the file path relative to workspace
-        workspace_path = Path(WORKSPACE_PATH)
-        resolved_path = workspace_path / file_path
-        
-        # Security check: ensure the resolved path is within workspace
-        try:
-            resolved_path.resolve().relative_to(workspace_path.resolve())
-        except ValueError:
-            raise HTTPException(status_code=403, detail="Access denied: path outside workspace")
-        
-        # Check if file exists
-        if not resolved_path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
-        
-        if not resolved_path.is_file():
-            raise HTTPException(status_code=400, detail="Path is not a file")
-        
-        # Try to read as text first
-        try:
-            with open(resolved_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                
-            return {
-                "status": "success",
-                "content": content,
-                "filename": resolved_path.name,
-                "path": file_path,
-                "size": resolved_path.stat().st_size,
-                "encoding": "utf-8"
-            }
-        except UnicodeDecodeError:
-            # If text reading fails, try binary mode and return base64 for binary files
-            with open(resolved_path, 'rb') as f:
-                content = f.read()
-                
-            # For common binary files, we might want to handle them differently
-            extension = resolved_path.suffix.lower()
-            if extension in ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.bmp']:
-                import base64
-                content_b64 = base64.b64encode(content).decode('utf-8')
-                return {
-                    "status": "success",
-                    "content": f"data:image/{extension[1:]};base64,{content_b64}",
-                    "filename": resolved_path.name,
-                    "path": file_path,
-                    "size": len(content),
-                    "encoding": "base64",
-                    "type": "image"
-                }
-            else:
-                raise HTTPException(status_code=415, detail="Binary file type not supported for preview")
-                
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
-
-
 @app.get("/files/download")
-async def download_file(file_path: str):
+async def download_file(file_path: str = Query(..., description="Path to the file to download")):
     """Download a file from the workspace"""
     try:
+        print(f"DEBUG: Download request for file_path: '{file_path}'")
+        print(f"DEBUG: Current working directory: {os.getcwd()}")
+        print(f"DEBUG: WORKSPACE_PATH: {WORKSPACE_PATH}")
+        
         # Resolve the file path relative to workspace
         workspace_path = Path(WORKSPACE_PATH)
+        print(f"DEBUG: Resolved workspace_path: {workspace_path.resolve()}")
+        
         resolved_path = workspace_path / file_path
+        print(f"DEBUG: Resolved file path: {resolved_path.resolve()}")
+        print(f"DEBUG: File exists: {resolved_path.exists()}")
+        print(f"DEBUG: Is file: {resolved_path.is_file() if resolved_path.exists() else 'N/A'}")
         
         # Security check: ensure the resolved path is within workspace
         try:
             resolved_path.resolve().relative_to(workspace_path.resolve())
+            print("DEBUG: Security check passed")
         except ValueError:
+            print("DEBUG: Security check failed")
             raise HTTPException(status_code=403, detail="Access denied: path outside workspace")
         
         # Check if file exists
         if not resolved_path.exists():
+            print("DEBUG: File not found, raising 404")
             raise HTTPException(status_code=404, detail="File not found")
         
         if not resolved_path.is_file():
+            print("DEBUG: Path is not a file, raising 400")
             raise HTTPException(status_code=400, detail="Path is not a file")
+        
+        print("DEBUG: File found, proceeding with download logic")
         
         # Check if it's a markdown file
         if resolved_path.suffix.lower() in ['.md', '.markdown']:
@@ -400,7 +353,78 @@ async def download_file(file_path: str):
     except HTTPException:
         raise
     except Exception as e:
+        print(f"DEBUG: Unexpected error: {e}")
         raise HTTPException(status_code=500, detail=f"Error downloading file: {str(e)}")
+
+
+@app.get("/files/{file_path:path}")
+async def read_file(file_path: str):
+    """Read a file from the workspace and serve it directly"""
+    try:
+        # Resolve the file path relative to workspace
+        workspace_path = Path(WORKSPACE_PATH)
+        resolved_path = workspace_path / file_path
+        
+        # Security check: ensure the resolved path is within workspace
+        try:
+            resolved_path.resolve().relative_to(workspace_path.resolve())
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Access denied: path outside workspace")
+        
+        # Check if file exists
+        if not resolved_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        if not resolved_path.is_file():
+            raise HTTPException(status_code=400, detail="Path is not a file")
+        
+        # Determine MIME type based on file extension
+        import mimetypes
+        mime_type, _ = mimetypes.guess_type(str(resolved_path))
+        if mime_type is None:
+            mime_type = 'application/octet-stream'
+        
+        # Return file directly with proper content-type
+        return FileResponse(
+            path=resolved_path,
+            media_type=mime_type,
+            filename=resolved_path.name
+        )
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+
+
+@app.get("/files/test-download")
+async def test_download_file(file_path: str = Query(..., description="Path to the file to download")):
+    """Test download endpoint"""
+    try:
+        print(f"TEST DEBUG: Download request for file_path: '{file_path}'")
+        print(f"TEST DEBUG: WORKSPACE_PATH: {WORKSPACE_PATH}")
+        
+        # Resolve the file path relative to workspace
+        workspace_path = Path(WORKSPACE_PATH)
+        print(f"TEST DEBUG: Resolved workspace_path: {workspace_path.resolve()}")
+        
+        resolved_path = workspace_path / file_path
+        print(f"TEST DEBUG: Resolved file path: {resolved_path.resolve()}")
+        print(f"TEST DEBUG: File exists: {resolved_path.exists()}")
+        
+        if not resolved_path.exists():
+            return {"error": "File not found", "path": str(resolved_path.resolve())}
+        
+        return FileResponse(
+            path=resolved_path,
+            filename=resolved_path.name,
+            media_type='application/octet-stream',
+            headers={"Content-Disposition": f"attachment; filename={resolved_path.name}"}
+        )
+                
+    except Exception as e:
+        print(f"TEST DEBUG: Error: {e}")
+        return {"error": str(e)}
 
 
 @app.get("/health")
@@ -419,11 +443,25 @@ async def root():
             "POST /agent/run": "Run an agent with streaming events",
             "DELETE /conversation/{conversation_id}": "End a conversation",
             "POST /files/upload": "Upload a file to the workspace",
-            "GET /files/read": "Read a file from the workspace",
+            "GET /files/{file_path:path}": "Read a file from the workspace",
             "GET /files/download": "Download a file from the workspace",
+            "GET /files/test-download": "Test download endpoint",
             "GET /health": "Health check",
             "GET /": "This endpoint",
         },
+    }
+
+
+@app.get("/debug-workspace")
+async def debug_workspace():
+    """Debug workspace path"""
+    import os
+    return {
+        "workspace_path": WORKSPACE_PATH,
+        "workspace_resolved": str(Path(WORKSPACE_PATH).resolve()),
+        "current_working_directory": os.getcwd(),
+        "file_exists": Path(WORKSPACE_PATH).exists(),
+        "csv_file_exists": (Path(WORKSPACE_PATH) / "py4ai_2025_speakers.csv").exists()
     }
 
 

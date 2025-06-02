@@ -2,7 +2,6 @@ import React from "react";
 import {
   AlertCircle,
   CreditCard,
-  Paperclip,
   Eye,
   Download,
   FileText,
@@ -13,55 +12,21 @@ import {
   ExternalLink,
 } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
+import { formatTimestamp } from "../../helpers/date";
 
-const UserNotificationEvent = ({
+const UserMessageEvent = ({
   payload,
-  eventType,
   onPreviewClick,
   onFileClick,
   timestamp,
 }) => {
   if (!payload) return null;
 
-  const formatTimestamp = (timestamp) => {
-    const now = new Date();
-    const eventTime = new Date(timestamp);
-    const diffInSeconds = Math.floor((now - eventTime) / 1000);
-
-    if (diffInSeconds < 60) {
-      return diffInSeconds <= 1 ? "just now" : `${diffInSeconds}s ago`;
-    }
-
-    const diffInMinutes = Math.floor(diffInSeconds / 60);
-    if (diffInMinutes < 60) {
-      return diffInMinutes === 1 ? "1 min ago" : `${diffInMinutes} mins ago`;
-    }
-
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) {
-      return diffInHours === 1 ? "1 hour ago" : `${diffInHours} hours ago`;
-    }
-
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) {
-      return diffInDays === 1 ? "1 day ago" : `${diffInDays} days ago`;
-    }
-
-    // For older events, fall back to date format
-    return eventTime.toLocaleDateString();
-  };
-
   // Check if this is an error notification
-  const isError =
-    payload.error ||
-    (payload.text && payload.text.toLowerCase().includes("error"));
+  const isError = payload.error;
 
   // Check specifically for token/credit related errors
-  const isTokenError =
-    isError &&
-    ((payload.error && payload.error.toLowerCase().includes("token")) ||
-      (payload.error && payload.error.toLowerCase().includes("credit")) ||
-      typeof payload.credits_left !== "undefined");
+  const isTokenError = isError && typeof payload.credits_left !== "undefined";
 
   const handleFileClick = (filename) => {
     if (onFileClick) {
@@ -94,7 +59,7 @@ const UserNotificationEvent = ({
   const handleLocalhostPreview = (url) => {
     if (onPreviewClick) {
       onPreviewClick({
-        url: url,
+        filename: url,
         title: `Localhost Server: ${url}`,
         type: "iframe",
       });
@@ -165,7 +130,7 @@ const UserNotificationEvent = ({
     ) {
       return <Code className="w-4 h-4 text-blue-500" />;
     }
-    if (["md", "markdown"].includes(extension)) {
+    if (["md", "markdown", "txt"].includes(extension)) {
       return <FileText className="w-4 h-4 text-purple-500" />;
     }
     if (["csv", "xlsx", "xls"].includes(extension)) {
@@ -179,16 +144,6 @@ const UserNotificationEvent = ({
     }
 
     return <File className="w-4 h-4 text-gray-500" />;
-  };
-
-  // Format file size (if available in the future)
-  const formatFileSize = (bytes) => {
-    if (!bytes) return "";
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const renderErrorContent = () => {
@@ -207,7 +162,7 @@ const UserNotificationEvent = ({
                 "An error occurred"}
             </p>
 
-            {isTokenError && typeof payload.credits_left !== "undefined" && (
+            {isTokenError && (
               <div className="mt-3 bg-gray-50 border border-gray-200 p-3 rounded-lg">
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center text-gray-600 font-medium">
@@ -372,4 +327,4 @@ const UserNotificationEvent = ({
   );
 };
 
-export default UserNotificationEvent;
+export default UserMessageEvent;
