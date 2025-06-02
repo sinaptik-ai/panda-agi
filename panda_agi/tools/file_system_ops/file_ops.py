@@ -298,10 +298,6 @@ async def file_explore_directory(
         "Thumbs.db",
         ".sass-cache",
         ".cache",
-        "tmp",
-        "temp",
-        "logs",
-        "log",
     }
 
     try:

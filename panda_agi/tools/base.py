@@ -2,17 +2,17 @@ import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
+if TYPE_CHECKING:
+    from ..client.agent import Agent
+
 from ..client.event_manager import EventManager
 from ..client.models import EventType, MessageType, WebSocketMessage
 from ..envs import BaseEnv
 
-if TYPE_CHECKING:
-    from ..client.agent import Agent
-
 logger = logging.getLogger("AgentClient")
 
 
-class HandlerResult:
+class ToolResult:
     """Standardized result type for handler operations"""
 
     def __init__(
@@ -40,15 +40,15 @@ class ToolHandler(ABC):
 
     def __init__(
         self,
-        environment: Optional[BaseEnv] = None,
-        event_manager: Optional[EventManager] = None,
     ):
-        self.agent: "Agent" = None  # Will be set by the Agent class
-        self.environment = environment
-        self.event_manager = event_manager or EventManager()
+        self.agent: Optional["Agent"] = None
+        self.environment: Optional[BaseEnv] = None
+        self.event_manager: Optional[EventManager] = None
+
         self.logger = logging.getLogger(
             f"{self.__class__.__module__}.{self.__class__.__name__}"
         )
+        self.logger.setLevel(logging.WARNING)
 
     def set_agent(self, agent: "Agent"):
         """Set reference to the agent instance for sending messages"""
@@ -58,15 +58,23 @@ class ToolHandler(ABC):
         """Set the event manager instance"""
         self.event_manager = event_manager
 
+    def set_environment(self, environment: BaseEnv):
+        """Set the environment instance"""
+        self.environment = environment
+
     async def add_event(self, event_type: EventType, data: Dict[str, Any]):
         """Convenience method to add events to the queue"""
+        if not self.event_manager:
+            self.logger.warning("No event manager set")
+            return
+
         await self.event_manager.add_event(event_type, data)
 
-    def validate_input(self, tool_call: Dict[str, Any]) -> Optional[str]:
+    def validate_input(self, params: Dict[str, Any]) -> Optional[str]:
         """Validate input parameters. Return error message if invalid, None if valid"""
         return None
 
-    async def send_response(self, msg_id: str, result: HandlerResult) -> None:
+    async def send_response(self, msg_id: str, result: ToolResult) -> None:
         """Send standardized response message"""
         if not self.agent or not self.agent.is_connected:
             self.logger.warning("Cannot send response: agent not connected")
@@ -84,28 +92,28 @@ class ToolHandler(ABC):
         except Exception as e:
             self.logger.error(f"Failed to send response: {e}")
 
-    async def handle(self, msg_id: str, tool_call: Dict[str, Any]) -> None:
+    async def handle(self, msg_id: str, params: Dict[str, Any]) -> None:
         """Main handle method with standardized error handling and response"""
-        self.logger.info(f"Handling message: {tool_call}")
+        self.logger.info(f"Handling message: {params}")
 
         try:
             # Validate input
-            validation_error = self.validate_input(tool_call)
+            validation_error = self.validate_input(params)
             if validation_error:
-                result = HandlerResult(success=False, error=validation_error)
+                result = ToolResult(success=False, error=validation_error)
                 await self.send_response(msg_id, result)
                 return
 
             # Execute the actual handler logic
-            result = await self.execute(tool_call)
+            result = await self.execute(params)
             await self.send_response(msg_id, result)
 
         except Exception as e:
             self.logger.error(f"Error in {self.__class__.__name__}: {e}", exc_info=True)
-            error_result = HandlerResult(success=False, error=str(e))
+            error_result = ToolResult(success=False, error=str(e))
             await self.send_response(msg_id, error_result)
 
     @abstractmethod
-    async def execute(self, tool_call: Dict[str, Any]) -> HandlerResult:
-        """Execute the handler-specific logic. Must return HandlerResult"""
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        """Execute the handler-specific logic. Must return ToolResult"""
         pass

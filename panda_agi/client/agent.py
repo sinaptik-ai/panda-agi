@@ -3,29 +3,27 @@ import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, Optional, Union
 
 from dotenv import load_dotenv
 
 from ..envs import BaseEnv, LocalEnv
-from ..handlers import ConnectionSuccessHandler
-from ..handlers.base import ToolHandler
-from ..handlers.registry import HandlerRegistry
-from ..tools.file_system.file_ops import file_explore_directory
+from ..tools import ToolRegistry
+from ..tools.base import ToolHandler
+from ..tools.file_system_ops.file_ops import file_explore_directory
 from .event_manager import EventManager
 from .models import (
     COMPLETION_MESSAGE_TYPES,
-    EventType,
+    BaseStreamEvent,
     MessageType,
-    StreamEvent,
     WebSocketMessage,
 )
+from .state import AgentState
 from .websocket_client import WebSocketClient
 
 # Configure logging
 logging.basicConfig(
-    level=logging.WARNING,
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
@@ -34,11 +32,12 @@ logger.setLevel(logging.WARNING)
 
 
 class Agent:
-    """Agent class for managing WebSocket connections and tool handlers"""
+    """Agent class for managing WebSocket connections and tool"""
 
     def __init__(
         self,
         host: str = "wss://agi-api.pandas-ai.com",
+        # host: str = "ws://localhost:8000",
         api_key: str = None,
         conversation_id: Optional[str] = None,
         auto_reconnect: bool = False,
@@ -56,6 +55,8 @@ class Agent:
         self.conversation_id = conversation_id or str(uuid.uuid4())
         self.environment = environment or LocalEnv("./tmp/agent_workspace")
 
+        self.state = AgentState()
+
         # Initialize event manager
         self.event_manager = EventManager()
 
@@ -66,13 +67,13 @@ class Agent:
             conversation_id=self.conversation_id,
             auto_reconnect=auto_reconnect,
             reconnect_interval=reconnect_interval,
+            state=self.state,
         )
 
         # Set up message handler
         self.ws_client.set_message_handler(self._handle_message)
 
-        self._current_request_future = None
-        self._connection_initialized = False
+        self._request_complete = None
 
         logger.info(
             f"Agent initialized with environment at: {self.environment.base_path}"
@@ -81,16 +82,16 @@ class Agent:
         # Set up message handlers with environment support
         self.tool_handlers = tools_handlers or self._create_handlers()
 
-        # Set agent and event manager references for all handlers
+        # Set agent and event manager and environment references for all handlers
         for handler in self.tool_handlers.values():
             handler.set_agent(self)
             handler.set_event_manager(self.event_manager)
+            handler.set_environment(self.environment)
 
     def _create_handlers(self) -> Dict[str, ToolHandler]:
-        """Create handlers using the registry system"""
-        # Use registry to create all registered handlers
-        handlers = HandlerRegistry.create_all_handlers(self.environment)
-
+        """Create handlers using the new unified tool system"""
+        # Use new tool registry to create all tools
+        handlers = ToolRegistry.create_all_handlers()
         return handlers
 
     @property
@@ -104,12 +105,7 @@ class Agent:
 
     async def disconnect(self) -> None:
         """Disconnect from the WebSocket server"""
-        connection_handler: ConnectionSuccessHandler = self.tool_handlers.get(
-            "connection_success"
-        )
-        if connection_handler:
-            connection_handler.initialization_complete.clear()
-        self._connection_initialized = False
+        self.state.initialization_complete.clear()
         await self.ws_client.disconnect()
 
     async def _handle_message(self, data: Dict[str, Any]):
@@ -119,24 +115,19 @@ class Agent:
         msg_type = data.get("type", "default")
         msg_id = data.get("id")
 
-        # Use message handlers
+        # Use message handlers with new tool system
         handler = self.tool_handlers.get(msg_type)
         if handler:
             logger.info(f"Handling message with handler: {handler}")
-            msg_id = data.get("id")
             payload = data.get("payload")
             await handler.handle(msg_id, payload)
+        else:
+            logger.warning(f"No handler found for message type: {msg_type}")
 
         if msg_type in COMPLETION_MESSAGE_TYPES:
             logger.info(f"Received stop event: {msg_type}")
-            if self._current_request_future and not self._current_request_future.done():
-                self._current_request_future.set_result(
-                    StreamEvent(
-                        type=EventType.COMPLETED_TASK,
-                        data={},
-                        timestamp=datetime.now().isoformat(),
-                    )
-                )
+            if self._request_complete and not self._request_complete.is_set():
+                self._request_complete.set()
                 return
 
     async def send_message(self, message: Union[WebSocketMessage, dict]) -> str:
@@ -145,7 +136,7 @@ class Agent:
 
     async def wait_for_initialization(self, timeout=30.0):
         """
-        Wait for the connection handler to complete initialization.
+        Wait for connection initialization (simplified).
 
         Args:
             timeout: Maximum time to wait in seconds
@@ -153,20 +144,8 @@ class Agent:
         Returns:
             True if initialization completed, False if timed out
         """
-        connection_handler: ConnectionSuccessHandler = self.tool_handlers.get(
-            "connection_success"
-        )
-        if not connection_handler or not hasattr(
-            connection_handler, "initialization_complete"
-        ):
-            logger.warning("No connection handler with initialization tracking found")
-            return False
-
         try:
-            await asyncio.wait_for(
-                connection_handler.initialization_complete.wait(), timeout
-            )
-            self._connection_initialized = True
+            await asyncio.wait_for(self.state.initialization_complete.wait(), timeout)
             return True
         except asyncio.TimeoutError:
             logger.warning(
@@ -177,20 +156,20 @@ class Agent:
     async def run(
         self,
         query: str,
-    ) -> AsyncGenerator[StreamEvent, None]:
+    ) -> AsyncGenerator[BaseStreamEvent, None]:
         """Send a request and stream events from both in and out queues as they occur"""
 
         # Restart the connection for each run
         if self.is_connected:
             logger.info("Restarting connection for new request...")
             await self.disconnect()
-            self._connection_initialized = False
+            self.state.initialization_complete.clear()
 
         logger.info("Connecting before sending request...")
         await self.connect()
 
         # Wait for connection initialization if needed
-        if not self._connection_initialized:
+        if not self.state.initialization_complete.is_set():
             logger.info("Waiting for connection initialization before sending request")
             await self.wait_for_initialization()
 
@@ -201,14 +180,14 @@ class Agent:
             },
         )
         # Create a new future for this request
-        self._current_request_future = asyncio.get_event_loop().create_future()
+        self._request_complete = asyncio.Event()
 
         try:
             # Send the message
             await self.send_message(message)
 
             # Set the request future in the event manager
-            self.event_manager.set_request_future(self._current_request_future)
+            self.event_manager.set_request_complete_event(self._request_complete)
 
             # Stream events using the event manager
             async for event in self.event_manager.stream_events():
@@ -216,11 +195,11 @@ class Agent:
 
         except asyncio.CancelledError:
             # Clean up the current request future
-            self._current_request_future = None
+            self._request_complete = None
             raise
         except Exception as e:
             # Clean up
-            self._current_request_future = None
+            self._request_complete = None
             logger.error(f"Error in run: {e}")
             raise
 

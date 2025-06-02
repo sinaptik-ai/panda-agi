@@ -3,7 +3,7 @@ import asyncio
 import json
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from rich.box import HEAVY, ROUNDED
 from rich.console import Console, Group
@@ -21,8 +21,37 @@ from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
 
-from panda_agi import Agent, EventType
-from panda_agi.client.models import MessageStatus
+from panda_agi import Agent
+from panda_agi.client.models import (
+    # Import specific event classes for type safety
+    AgentConnectionSuccessEvent,
+    BaseStreamEvent,
+    CompletedTaskEvent,
+    ErrorEvent,
+    EventFactory,
+    EventType,
+    MessageStatus,
+    UserNotificationEvent,
+    UserQuestionEvent,
+    is_agent_connection_error_event,
+    is_agent_connection_success_event,
+    is_completed_task_event,
+    is_file_explore_event,
+    is_file_find_event,
+    is_file_read_event,
+    is_file_replace_event,
+    is_file_write_event,
+    is_image_generation_event,
+    is_shell_exec_event,
+    is_shell_view_event,
+    is_shell_write_event,
+    is_user_notification_event,
+    is_user_question_event,
+    is_web_navigation_event,
+    is_web_navigation_result_event,
+    is_web_search_event,
+    is_web_search_result_event,
+)
 from panda_agi.envs import LocalEnv
 
 # Status-specific styling for events
@@ -38,7 +67,7 @@ STATUS_STYLES = {
     "default": {"color": "white", "icon": "🔄", "label": "UNKNOWN"},
 }
 
-# Enhanced event type styles with comprehensive visual configuration
+# event type styles with comprehensive visual configuration
 EVENT_STYLES = {
     # System events
     EventType.AGENT_CONNECTION_SUCCESS.value: {
@@ -207,7 +236,7 @@ CATEGORY_COLORS = {
 
 
 class UserMessaging:
-    """Enhanced user messaging system with attachment support"""
+    """user messaging system with attachment support"""
 
     def __init__(self, console: Console):
         self.console = console
@@ -292,7 +321,7 @@ class UserMessaging:
         )
 
 
-class EnhancedEventRenderer:
+class EventRenderer:
     """Advanced event renderer with comprehensive categorization and styling"""
 
     def __init__(
@@ -302,14 +331,23 @@ class EnhancedEventRenderer:
         self.compact = compact
         self.show_timestamps = show_timestamps
         self.event_counter = 0
+        self.event_factory = EventFactory()
 
     def get_timestamp(self) -> str:
         """Get formatted timestamp"""
         return datetime.now().strftime("%H:%M:%S")
 
-    def get_event_style(self, event_data: Dict[str, Any]) -> Dict[str, str]:
+    def get_event_style(
+        self, event: Union[BaseStreamEvent, Dict[str, Any]]
+    ) -> Dict[str, str]:
         """Get styling information for an event"""
-        event_type = event_data.get("type", "default")
+        if isinstance(event, BaseStreamEvent):
+            event_type = (
+                event.type.value if hasattr(event.type, "value") else str(event.type)
+            )
+        else:
+            event_type = event.get("type", "default")
+
         return EVENT_STYLES.get(
             event_type,
             {
@@ -326,9 +364,16 @@ class EnhancedEventRenderer:
         """Get styling information for a status"""
         return STATUS_STYLES.get(status, STATUS_STYLES["default"])
 
-    def should_render_event(self, event_data: Dict[str, Any]) -> bool:
+    def should_render_event(
+        self, event: Union[BaseStreamEvent, Dict[str, Any]]
+    ) -> bool:
         """Check if event should be rendered"""
-        event_type = event_data.get("type", "default")
+        if isinstance(event, BaseStreamEvent):
+            event_type = (
+                event.type.value if hasattr(event.type, "value") else str(event.type)
+            )
+        else:
+            event_type = event.get("type", "default")
 
         # Skip redundant events
         if event_type == EventType.WEB_NAVIGATION.value:
@@ -708,9 +753,11 @@ class EnhancedEventRenderer:
             title_align="left",
         )
 
-    def render_event(self, event: Dict[str, Any]) -> Optional[Panel]:
-        """Main event rendering method with comprehensive error handling"""
-        if not event or not isinstance(event, dict):
+    def render_event(
+        self, event: Union[BaseStreamEvent, Dict[str, Any]]
+    ) -> Optional[Panel]:
+        """Main event rendering method with comprehensive error handling and type safety"""
+        if not event:
             return Panel(
                 Text("Invalid event data", style="red"),
                 title="⚠️ Error",
@@ -718,77 +765,342 @@ class EnhancedEventRenderer:
                 box=ROUNDED,
             )
 
-        data = event.get("data", {}) or {}
-        event_type = data.get("type", "default")
-
-        # Extract status if present
-        status = data.get("status")
-
-        # Skip rendering default events
-        if not self.should_render_event(data):
-            return None
-
-        style_info = self.get_event_style(data)
-        payload = data.get("payload", {}) or {}
-
-        # Add status to payload if present in the event data
-        if status:
-            payload["status"] = status
-
-        try:
-            # Route to specific renderers based on event type
-            if event_type == EventType.AGENT_CONNECTION_SUCCESS.value:
-                return self.render_connection_success(payload, style_info)
-
-            elif event_type in [
-                EventType.USER_NOTIFICATION.value,
-                EventType.USER_QUESTION.value,
-            ]:
-                return self.render_user_input_event(payload, style_info)
-
-            elif event_type == EventType.COMPLETED_TASK.value:
-                return self.render_completed_task(payload, style_info)
-
-            elif event_type == "error":
-                return self.render_error_event(payload, style_info)
-
-            # Handle tool operations
-            elif event_type in [
-                # Web operations
-                EventType.WEB_SEARCH.value,
-                EventType.WEB_SEARCH_RESULT.value,
-                EventType.WEB_NAVIGATION.value,
-                EventType.WEB_NAVIGATION_RESULT.value,
-                # File operations
-                EventType.FILE_READ.value,
-                EventType.FILE_WRITE.value,
-                EventType.FILE_REPLACE.value,
-                EventType.FILE_FIND.value,
-                EventType.FILE_EXPLORE.value,
-                # Shell operations
-                EventType.SHELL_EXEC.value,
-                EventType.SHELL_VIEW.value,
-                EventType.SHELL_WRITE.value,
-                # Image operations
-                EventType.IMAGE_GENERATION.value,
-            ]:
-                return self.render_tool_operation(payload, style_info, event_type)
-
+        # Handle both BaseStreamEvent objects and legacy dict format
+        if isinstance(event, BaseStreamEvent):
+            # Use type guards for type-safe event handling
+            if is_agent_connection_success_event(event):
+                return self.render_connection_success_typed(event)
+            elif is_agent_connection_error_event(event):
+                return self.render_error_event_typed(event)
+            elif is_user_notification_event(event) or is_user_question_event(event):
+                return self.render_user_input_event_typed(event)
+            elif is_completed_task_event(event):
+                return self.render_completed_task_typed(event)
+            elif (
+                is_web_search_event(event)
+                or is_web_search_result_event(event)
+                or is_web_navigation_event(event)
+                or is_web_navigation_result_event(event)
+                or is_file_read_event(event)
+                or is_file_write_event(event)
+                or is_file_replace_event(event)
+                or is_file_find_event(event)
+                or is_file_explore_event(event)
+                or is_shell_exec_event(event)
+                or is_shell_view_event(event)
+                or is_shell_write_event(event)
+                or is_image_generation_event(event)
+            ):
+                return self.render_tool_operation_typed(event)
             else:
-                return self.render_generic_event(payload, style_info)
+                return self.render_generic_event_typed(event)
+        else:
+            # Legacy dict-based handling for backward compatibility
+            data = event.get("data", {}) or {}
+            event_type = data.get("type", "default")
 
-        except Exception as e:
-            # Fallback for any rendering errors
-            return Panel(
-                Text(f"Error rendering event: {str(e)}", style="red"),
-                title="⚠️ Render Error",
-                border_style="red",
-                box=ROUNDED,
+            # Extract status if present
+            status = data.get("status")
+
+            # Skip rendering default events
+            if not self.should_render_event(data):
+                return None
+
+            style_info = self.get_event_style(data)
+            payload = data.get("payload", {}) or {}
+
+            # Add status to payload if present in the event data
+            if status:
+                payload["status"] = status
+
+            try:
+                # Route to specific renderers based on event type
+                if event_type == EventType.AGENT_CONNECTION_SUCCESS.value:
+                    return self.render_connection_success(payload, style_info)
+                elif event_type in [
+                    EventType.USER_NOTIFICATION.value,
+                    EventType.USER_QUESTION.value,
+                ]:
+                    return self.render_user_input_event(payload, style_info)
+                elif event_type == EventType.COMPLETED_TASK.value:
+                    return self.render_completed_task(payload, style_info)
+                elif event_type == "error":
+                    return self.render_error_event(payload, style_info)
+                # Handle tool operations
+                elif event_type in [
+                    # Web operations
+                    EventType.WEB_SEARCH.value,
+                    EventType.WEB_SEARCH_RESULT.value,
+                    EventType.WEB_NAVIGATION.value,
+                    EventType.WEB_NAVIGATION_RESULT.value,
+                    # File operations
+                    EventType.FILE_READ.value,
+                    EventType.FILE_WRITE.value,
+                    EventType.FILE_REPLACE.value,
+                    EventType.FILE_FIND.value,
+                    EventType.FILE_EXPLORE.value,
+                    # Shell operations
+                    EventType.SHELL_EXEC.value,
+                    EventType.SHELL_VIEW.value,
+                    EventType.SHELL_WRITE.value,
+                    # Image operations
+                    EventType.IMAGE_GENERATION.value,
+                ]:
+                    return self.render_tool_operation(payload, style_info, event_type)
+                else:
+                    return self.render_generic_event(payload, style_info)
+
+            except Exception as e:
+                # Fallback for any rendering errors
+                return Panel(
+                    Text(f"Error rendering event: {str(e)}", style="red"),
+                    title="⚠️ Render Error",
+                    border_style="red",
+                    box=ROUNDED,
+                )
+
+    def render_connection_success_typed(
+        self, event: AgentConnectionSuccessEvent
+    ) -> Panel:
+        """Render connection success event using typed event object"""
+        self.event_counter += 1
+        style_info = self.get_event_style(event)
+
+        content = Text()
+        content.append(
+            "✅ Successfully connected to agent server\n", style="bold bright_green"
+        )
+        content.append(f"📁 Directory: {event.directory}\n", style="bright_green")
+
+        if event.system_info:
+            content.append("🖥️ System Info:\n", style="bold bright_green")
+            for key, value in event.system_info.items():
+                content.append(f"  • {key}: {value}\n", style="dim bright_green")
+
+        header = self.create_event_header(style_info, self.event_counter)
+
+        return Panel(
+            content,
+            title=header,
+            border_style=style_info["color"],
+            box=style_info.get("box", ROUNDED),
+            padding=(1, 2),
+            title_align="left",
+        )
+
+    def render_error_event_typed(self, event: ErrorEvent) -> Panel:
+        """Render error event using typed event object"""
+        self.event_counter += 1
+        style_info = self.get_event_style(event)
+
+        content = Text()
+        content.append("🚨 ERROR OCCURRED\n\n", style="bold red")
+        content.append(f"Error: {event.error}\n", style="red")
+
+        header = self.create_event_header(style_info, self.event_counter)
+
+        return Panel(
+            content,
+            title=header,
+            border_style="red",
+            box=HEAVY,
+            padding=(1, 2),
+            title_align="left",
+        )
+
+    def render_user_input_event_typed(
+        self, event: Union[UserNotificationEvent, UserQuestionEvent]
+    ) -> Panel:
+        """Render user input event using typed event object"""
+        self.event_counter += 1
+        style_info = self.get_event_style(event)
+
+        content = Text()
+        if isinstance(event, UserQuestionEvent):
+            content.append("❓ User Question:\n", style="bold yellow")
+        else:
+            content.append("💬 User Notification:\n", style="bold cyan")
+
+        content.append(event.text, style="white")
+
+        # Add attachments if present
+        if event.attachments:
+            content.append("\n\n📎 Attachments:\n", style="bold cyan")
+            for attachment in event.attachments:
+                content.append(f"  • {attachment}\n", style="dim cyan")
+
+        header = self.create_event_header(style_info, self.event_counter)
+
+        return Panel(
+            content,
+            title=header,
+            border_style=style_info["color"],
+            box=style_info.get("box", ROUNDED),
+            padding=(1, 2),
+            title_align="left",
+        )
+
+    def render_completed_task_typed(self, event: CompletedTaskEvent) -> Panel:
+        """Render task completion using typed event object"""
+        self.event_counter += 1
+        style_info = self.get_event_style(event)
+
+        content = Text()
+        if event.success:
+            content.append("🎉 Task completed successfully!", style="bold bright_green")
+        else:
+            content.append("❌ Task failed!", style="bold red")
+
+        header = self.create_event_header(style_info, self.event_counter)
+
+        return Panel(
+            content,
+            title=header,
+            border_style=style_info["color"],
+            box=style_info.get("box", HEAVY),
+            padding=(0, 1),
+            title_align="left",
+        )
+
+    def render_tool_operation_typed(self, event: BaseStreamEvent) -> Panel:
+        """Render tool operations using typed event objects"""
+        self.event_counter += 1
+        style_info = self.get_event_style(event)
+
+        content = Text()
+        color = style_info["color"]
+
+        # Handle different event types with proper typing
+        if is_web_search_event(event):
+            content.append("🔍 Web Search:\n", style=f"bold {color}")
+            content.append(f"Query: {event.query}\n", style=color)
+            content.append(f"Max Results: {event.max_results}", style=f"dim {color}")
+
+        elif is_web_search_result_event(event):
+            content.append("📊 Search Results:\n", style=f"bold {color}")
+            for i, result in enumerate(event.results[:5]):  # Show first 5 results
+                content.append(f"  {i + 1}. {result.title}\n", style=color)
+                content.append(f"     {result.url}\n", style=f"dim {color}")
+            if len(event.results) > 5:
+                content.append(
+                    f"  ... and {len(event.results) - 5} more results\n",
+                    style=f"dim {color}",
+                )
+
+        elif is_web_navigation_result_event(event):
+            content.append("📄 Web Page Content:\n", style=f"bold {color}")
+            content.append(f"URL: {event.url}\n", style=color)
+            content.append(f"Status: {event.status_code}\n", style=color)
+            preview = self.truncate_text(event.content, 100)
+            content.append(f"Content Preview: {preview}", style=f"dim {color}")
+
+        elif is_file_read_event(event):
+            content.append("📖 File Read:\n", style=f"bold {color}")
+            content.append(f"File: {event.file}", style=color)
+
+        elif is_file_write_event(event):
+            content.append("✏️ File Write:\n", style=f"bold {color}")
+            content.append(f"File: {event.file}\n", style=color)
+            if event.append:
+                content.append("Mode: Append\n", style=color)
+            preview = self.truncate_text(event.content, 60)
+            content.append(f"Content Preview: {preview}", style=f"dim {color}")
+
+        elif is_file_replace_event(event):
+            content.append("🔄 File Replace:\n", style=f"bold {color}")
+            content.append(f"File: {event.file}\n", style=color)
+            content.append(f"Line: {event.line_number}\n", style=color)
+            old_preview = self.truncate_text(event.old_content, 30)
+            new_preview = self.truncate_text(event.new_content, 30)
+            content.append(f'Replace: "{old_preview}" → "{new_preview}"', style=color)
+
+        elif is_file_find_event(event):
+            content.append("🔎 Find in Files:\n", style=f"bold {color}")
+            content.append(f"Path: {event.path}\n", style=color)
+            content.append(f"Pattern: {event.glob_pattern}\n", style=color)
+            content.append(f"Matches: {len(event.matches)}", style=color)
+
+        elif is_file_explore_event(event):
+            content.append("📂 Directory Explore:\n", style=f"bold {color}")
+            content.append(f"Path: {event.path}", style=color)
+
+        elif is_shell_exec_event(event):
+            content.append("💻 Shell Execute:\n", style=f"bold {color}")
+            content.append(f"Command: {event.command}\n", style=color)
+            content.append(f"Directory: {event.exec_dir}\n", style=color)
+            content.append(f"Blocking: {event.blocking}", style=color)
+
+        elif is_shell_view_event(event):
+            content.append("👁️ Shell View:\n", style=f"bold {color}")
+            content.append(f"Command: {event.command}\n", style=color)
+            preview = self.truncate_text(event.output, 100)
+            content.append(f"Output: {preview}", style=f"dim {color}")
+
+        elif is_shell_write_event(event):
+            content.append("⌨️ Shell Write:\n", style=f"bold {color}")
+            content.append(f"Script: {event.script}\n", style=color)
+            content.append(f"Executable: {event.executable}\n", style=color)
+            preview = self.truncate_text(event.content, 60)
+            content.append(f"Content Preview: {preview}", style=f"dim {color}")
+
+        elif is_image_generation_event(event):
+            content.append("🎨 Image Generation:\n", style=f"bold {color}")
+            content.append(
+                f"Generated Images: {len(event.saved_images)}\n", style=color
+            )
+            for image in event.saved_images:
+                content.append(f"  • {image}\n", style=f"dim {color}")
+
+        # Fallback for other events
+        if not content.plain.strip():
+            content.append("Operation in progress...", style=f"dim {color}")
+
+        header = self.create_event_header(style_info, self.event_counter)
+
+        return Panel(
+            content,
+            title=header,
+            border_style=style_info["color"],
+            box=style_info.get("box", ROUNDED),
+            padding=(1, 2),
+            title_align="left",
+        )
+
+    def render_generic_event_typed(self, event: BaseStreamEvent) -> Panel:
+        """Render generic events using typed event objects"""
+        self.event_counter += 1
+        style_info = self.get_event_style(event)
+
+        # Convert event to dict for JSON display
+        event_dict = event.to_dict()
+
+        if self.compact and len(str(event_dict)) > 200:
+            content = Text(f"<{len(str(event_dict))} characters of data>", style="dim")
+        else:
+            params_str = json.dumps(event_dict, indent=2, ensure_ascii=False)
+            content = Syntax(
+                params_str,
+                "json",
+                theme="monokai",
+                line_numbers=False,
+                word_wrap=True,
+                background_color="default",
             )
 
+        header = self.create_event_header(style_info, self.event_counter)
 
-class EnhancedAgentCLI:
-    """Enhanced Agent CLI with comprehensive features and improved user experience"""
+        return Panel(
+            content,
+            title=header,
+            border_style=style_info["color"],
+            box=style_info.get("box", ROUNDED),
+            padding=(1, 2),
+            title_align="left",
+        )
+
+
+class AgentCLI:
+    """Agent CLI with comprehensive features and improved user experience"""
 
     def __init__(
         self,
@@ -825,7 +1137,6 @@ class EnhancedAgentCLI:
             "start_time": datetime.now(),
         }
 
-        # Enhanced progress display
         self.progress = Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -836,7 +1147,7 @@ class EnhancedAgentCLI:
         )
 
         # Event renderer
-        self.event_renderer = EnhancedEventRenderer(
+        self.event_renderer = EventRenderer(
             self.console, compact=compact, show_timestamps=show_timestamps
         )
 
@@ -846,9 +1157,7 @@ class EnhancedAgentCLI:
     def create_welcome_screen(self) -> Panel:
         """Create an enhanced welcome screen with feature overview"""
         welcome_text = Text()
-        welcome_text.append(
-            "🤖 Enhanced Agent CLI Interface\n\n", style="bold bright_blue"
-        )
+        welcome_text.append("🤖 Agent CLI Interface\n\n", style="bold bright_blue")
         welcome_text.append("Features:\n", style="bold yellow")
         welcome_text.append(
             "  • Real-time event streaming with timestamps\n", style="white"
@@ -857,7 +1166,7 @@ class EnhancedAgentCLI:
             "  • Categorized operation display with icons\n", style="white"
         )
         welcome_text.append(
-            "  • Enhanced visual feedback and progress tracking\n", style="white"
+            "  • Visual feedback and progress tracking\n", style="white"
         )
         welcome_text.append(
             "  • Session statistics and history tracking\n", style="white"
@@ -1020,7 +1329,7 @@ class EnhancedAgentCLI:
             return True
         elif query_lower == "clear":
             self.console.clear()
-            self.console.print(Rule("[bold blue]🤖 Enhanced Agent CLI[/bold blue]"))
+            self.console.print(Rule("[bold blue]🤖 Agent CLI[/bold blue]"))
             self.console.print(self.create_welcome_screen())
             self.console.print(self.create_status_panel())
             return True
@@ -1087,19 +1396,27 @@ class EnhancedAgentCLI:
 
         return False
 
-    def update_session_stats(self, event_type: str, status: Optional[str] = None):
+    def update_session_stats(
+        self, event_type: Union[str, EventType], status: Optional[str] = None
+    ):
         """Update session statistics based on event type and status"""
         self.session_stats["events_processed"] += 1
 
+        # Convert EventType enum to string value if needed
+        if isinstance(event_type, EventType):
+            event_type_str = event_type.value
+        else:
+            event_type_str = event_type
+
         # User messages
-        if event_type in [
+        if event_type_str in [
             EventType.USER_NOTIFICATION.value,
             EventType.USER_QUESTION.value,
         ]:
             self.session_stats["user_messages"] += 1
 
         # Agent operations
-        elif event_type in [
+        elif event_type_str in [
             # Web operations
             EventType.WEB_SEARCH.value,
             EventType.WEB_SEARCH_RESULT.value,
@@ -1121,7 +1438,7 @@ class EnhancedAgentCLI:
             self.session_stats["agent_operations"] += 1
 
         # Count errors based on either event type or status
-        if event_type == "error" or status == MessageStatus.ERROR.value:
+        if event_type_str == "error" or status == MessageStatus.ERROR.value:
             self.session_stats["errors"] += 1
 
     async def start_interactive_session(self, conversation_id: Optional[str] = None):
@@ -1135,7 +1452,7 @@ class EnhancedAgentCLI:
         # Connect to the agent and start the session
         try:
             while True:
-                # Enhanced input prompt with better formatting
+                # input prompt with better formatting
                 self.console.print(Rule("[bold blue]💬 Enter your request[/bold blue]"))
                 try:
                     query = Prompt.ask("\n[bold yellow]User[/bold yellow]", default="")
@@ -1173,69 +1490,105 @@ class EnhancedAgentCLI:
                                 task, description="🔄 Processing events..."
                             )
 
-                            event_type = (
-                                event.type.value
-                                if hasattr(event.type, "value")
-                                else str(event.type)
-                            )
-                            event_data = {"type": event_type, "payload": event.data}
-                            status = (
-                                getattr(event.data, "status", None)
-                                if hasattr(event.data, "status")
-                                else event.data.get("status")
-                                if isinstance(event.data, dict)
-                                else None
-                            )
-                            event_id = getattr(event, "id", None)
+                            # Handle BaseStreamEvent objects directly
+                            if isinstance(event, BaseStreamEvent):
+                                event_type = (
+                                    event.type.value
+                                    if hasattr(event.type, "value")
+                                    else str(event.type)
+                                )
 
-                            # Convert StreamEvent to dictionary format for compatibility with existing code
-                            event_dict = {
-                                "id": event_id,
-                                "data": event_data,
-                                "timestamp": event.timestamp,
-                            }
+                                # Store the event in history (convert to dict for storage)
+                                event_dict = {
+                                    "id": getattr(event, "id", None),
+                                    "data": {
+                                        "type": event_type,
+                                        "payload": event.to_dict(),
+                                    },
+                                    "timestamp": event.timestamp,
+                                }
+                                self.event_history.append(event_dict)
 
-                            # Store the event in history
-                            self.event_history.append(event_dict)
-                            self.update_session_stats(event_type, status)
+                                # Update session stats
+                                self.update_session_stats(event_type, None)
 
-                            # Check if this is an update to an existing event (by ID)
-                            updated_existing = False
-                            if event_id:
-                                # Look for previous events with the same ID to update their status
-                                for i, prev_event in enumerate(
-                                    self.event_history[:-1]
-                                ):  # Skip the current event
-                                    prev_data = prev_event.get("data", {})
-                                    if (
-                                        prev_event.get("id") == event_id
-                                        and prev_event != event_dict
-                                    ):
-                                        # Update the status in the previous event's data
-                                        if status and "data" in prev_event:
-                                            prev_event["data"]["status"] = status
-                                            # Re-render the updated event
-                                            updated_panel = (
-                                                self.event_renderer.render_event(
-                                                    prev_event
-                                                )
-                                            )
-                                            if updated_panel:
-                                                self.console.print(updated_panel)
-                                            updated_existing = True
-                                            break
-
-                            # Only render the event if it's not just a status update for an existing event
-                            if not updated_existing:
-                                panel = self.event_renderer.render_event(event_dict)
+                                # Render the event using typed rendering
+                                panel = self.event_renderer.render_event(event)
                                 if panel:
                                     self.console.print(panel)
 
-                            # Check for completion
-                            if event_type == EventType.COMPLETED_TASK.value:
-                                request_completed = True
-                                self.progress.update(task, total=1, completed=1)
-                                break
+                                # Check for completion
+                                if event_type == EventType.COMPLETED_TASK.value:
+                                    request_completed = True
+                                    self.progress.update(task, total=1, completed=1)
+                                    break
+                            else:
+                                # Fallback for non-BaseStreamEvent objects (legacy compatibility)
+                                event_type = (
+                                    event.type.value
+                                    if hasattr(event.type, "value")
+                                    else str(event.type)
+                                )
+                                event_data = {"type": event_type, "payload": event.data}
+                                status = (
+                                    getattr(event.data, "status", None)
+                                    if hasattr(event.data, "status")
+                                    else event.data.get("status")
+                                    if isinstance(event.data, dict)
+                                    else None
+                                )
+                                event_id = getattr(event, "id", None)
+
+                                # Convert to dictionary format for compatibility with existing code
+                                event_dict = {
+                                    "id": event_id,
+                                    "data": event_data,
+                                    "timestamp": getattr(
+                                        event, "timestamp", datetime.now().isoformat()
+                                    ),
+                                }
+
+                                # Store the event in history
+                                self.event_history.append(event_dict)
+                                self.update_session_stats(event_type, status)
+
+                                # Check if this is an update to an existing event (by ID)
+                                updated_existing = False
+                                if event_id:
+                                    # Look for previous events with the same ID to update their status
+                                    for i, prev_event in enumerate(
+                                        self.event_history[:-1]
+                                    ):  # Skip the current event
+                                        prev_data = prev_event.get("data", {})
+                                        if (
+                                            prev_event.get("id") == event_id
+                                            and prev_event != event_dict
+                                        ):
+                                            # Update the status in the previous event's data
+                                            if status and "data" in prev_event:
+                                                prev_event["data"]["status"] = status
+                                                # Re-render the updated event
+                                                updated_panel = (
+                                                    self.event_renderer.render_event(
+                                                        prev_event
+                                                    )
+                                                )
+                                                if updated_panel:
+                                                    self.console.print(updated_panel)
+                                                updated_existing = True
+                                                break
+
+                                # Only render the event if it's not just a status update for an existing event
+                                if not updated_existing:
+                                    panel = self.event_renderer.render_event(event_dict)
+                                    if panel:
+                                        self.console.print(panel)
+
+                                # Check for completion
+                                if event_type == EventType.COMPLETED_TASK.value:
+                                    request_completed = True
+                                    self.progress.update(task, total=1, completed=1)
+                                    break
 
                         # Remove the task after completion
                         self.progress.remove_task(task)
@@ -1342,7 +1695,7 @@ class EnhancedAgentCLI:
     async def from_args(cls):
         """Create CLI instance from command line arguments with comprehensive options"""
         parser = argparse.ArgumentParser(
-            description="Enhanced Agent CLI Interface - Best Version with comprehensive features",
+            description="Agent CLI Interface - Best Version with comprehensive features",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog="""
 Examples:
@@ -1400,8 +1753,8 @@ Examples:
 
 
 async def main():
-    """Main entry point for the Enhanced Agent CLI"""
-    await EnhancedAgentCLI.from_args()
+    """Main entry point for the Agent CLI"""
+    await AgentCLI.from_args()
 
 
 if __name__ == "__main__":

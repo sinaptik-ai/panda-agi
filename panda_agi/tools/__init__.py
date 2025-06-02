@@ -1,4 +1,4 @@
-from .base import HandlerResult, ToolHandler
+from .base import ToolHandler, ToolResult
 from .connection import ConnectionSuccessHandler
 from .file_system import (
     ExploreDirectoryHandler,
@@ -8,22 +8,21 @@ from .file_system import (
     FileSearchByNameHandler,
     FileWriteHandler,
 )
-from .image_generation import ImageGenerationHandler
-from .registry import HandlerRegistry
-from .shell_ops import (
+from .image import ImageGenerationHandler
+from .notification import UserNotificationHandler
+from .registry import ToolRegistry
+from .shell import (
     ShellExecCommandHandler,
     ShellViewOutputHandler,
     ShellWriteToProcessHandler,
 )
-from .user_notification import UserNotificationHandler
-from .web_ops import WebNavigation, WebSearchHandler
+from .web import WebNavigationHandler, WebSearchHandler
 
 __all__ = [
     "ToolHandler",
-    "HandlerResult",
-    "HandlerRegistry",
+    "ToolResult",
+    "ToolRegistry",
     "ConnectionSuccessHandler",
-    "DefaultMessageHandler",
     "FileReadHandler",
     "FileWriteHandler",
     "FileReplaceHandler",
@@ -31,11 +30,10 @@ __all__ = [
     "FileSearchByNameHandler",
     "ExploreDirectoryHandler",
     "ImageGenerationHandler",
-    "ShellOpsHandler",
     "ShellExecCommandHandler",
     "ShellViewOutputHandler",
     "ShellWriteToProcessHandler",
     "UserNotificationHandler",
-    "WebNavigation",
+    "WebNavigationHandler",
     "WebSearchHandler",
 ]

@@ -1,28 +1,34 @@
 import json
 import os
-import uuid
-from typing import AsyncGenerator, Optional, Dict
-from pathlib import Path
 
 # Import the agent and environment from the parent directory
 import sys
+import uuid
+from pathlib import Path
+from typing import AsyncGenerator, Dict, Optional, Union
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Query
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, FileResponse
-from pydantic import BaseModel
 from dotenv import load_dotenv
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel
 
 # Load environment variables from .env file
 load_dotenv()
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from panda_agi import Agent, EventType
+from panda_agi import Agent
+from panda_agi.client.models import (
+    BaseStreamEvent,
+    EventType,
+)
 from panda_agi.envs import LocalEnv
 
 # Get workspace path from environment variable with fallback
-WORKSPACE_PATH = os.getenv("WORKSPACE_PATH", os.path.join(os.path.dirname(__file__), "workspace"))
+WORKSPACE_PATH = os.getenv(
+    "WORKSPACE_PATH", os.path.join(os.path.dirname(__file__), "workspace")
+)
 
 app = FastAPI(title="PandaAGI SDK API", version="1.0.0")
 local_env = LocalEnv(WORKSPACE_PATH)
@@ -39,14 +45,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 class AgentQuery(BaseModel):
     query: str
     conversation_id: Optional[str] = None
     timeout: Optional[int] = None
 
 
-def should_render_event(event_type: str) -> bool:
+def should_render_event(event: Union[BaseStreamEvent, str]) -> bool:
     """Check if event should be rendered - same logic as CLI"""
+    # Handle both BaseStreamEvent objects and string event types
+    if isinstance(event, BaseStreamEvent):
+        event_type = (
+            event.type.value if hasattr(event.type, "value") else str(event.type)
+        )
+    else:
+        event_type = event
+
     # Skip redundant events
     if event_type == EventType.WEB_NAVIGATION.value:
         # Skip WEB_NAVIGATION since WEB_NAVIGATION_RESULT provides the same info + content
@@ -59,65 +74,96 @@ def should_render_event(event_type: str) -> bool:
     # Skip agent connection success - not needed in UI
     if event_type == EventType.AGENT_CONNECTION_SUCCESS.value:
         return False
-        
+
     return True
+
+
+def process_event_for_frontend(event) -> Optional[Dict]:
+    """Process an event for frontend consumption with type safety"""
+    try:
+        if isinstance(event, BaseStreamEvent):
+            # Handle typed BaseStreamEvent objects
+            event_type = (
+                event.type.value if hasattr(event.type, "value") else str(event.type)
+            )
+
+            # Convert to frontend format using typed event's to_dict() method
+            return {
+                "data": {
+                    "type": event_type,
+                    "payload": event.to_dict(),
+                    "timestamp": event.timestamp,
+                    "id": getattr(event, "id", None),
+                },
+            }
+        else:
+            # Handle legacy non-BaseStreamEvent objects
+            event_type = (
+                event.type.value if hasattr(event.type, "value") else str(event.type)
+            )
+
+            return {
+                "data": {
+                    "type": event_type,
+                    "payload": event.data,
+                    "timestamp": getattr(event, "timestamp", ""),
+                    "id": getattr(event, "id", None),
+                },
+            }
+    except Exception as e:
+        print(f"Error processing event: {e}")
+        return None
 
 
 def get_or_create_agent(conversation_id: Optional[str] = None) -> tuple[Agent, str]:
     """Get existing agent or create new one for conversation"""
     if conversation_id and conversation_id in active_conversations:
         return active_conversations[conversation_id], conversation_id
-    
+
     agent = Agent(environment=local_env)
     new_conversation_id = conversation_id or str(uuid.uuid4())
     active_conversations[new_conversation_id] = agent
-    
+
     return agent, new_conversation_id
 
 
-async def event_stream(query: str, conversation_id: Optional[str] = None) -> AsyncGenerator[str, None]:
+async def event_stream(
+    query: str, conversation_id: Optional[str] = None
+) -> AsyncGenerator[str, None]:
     """Stream agent events as Server-Sent Events"""
     agent = None
     actual_conversation_id = None
-    
+
     try:
         # Get or create agent for this conversation
         agent, actual_conversation_id = get_or_create_agent(conversation_id)
-        
+
         # Send conversation ID as first event
         conversation_event = {
             "data": {
                 "type": "conversation_started",
                 "payload": {"conversation_id": actual_conversation_id},
                 "timestamp": "",
-                "id": None
+                "id": None,
             }
         }
         yield f"data: {json.dumps(conversation_event)}\n\n"
-        
+
         # Stream events
         async for event in agent.run(query):
-            # Convert StreamEvent to dictionary format for frontend compatibility
-            event_type = (
-                event.type.value if hasattr(event.type, "value") else str(event.type)
-            )
-
-            # Apply same filtering as CLI
-            if not should_render_event(event_type):
+            # Apply filtering first
+            if not should_render_event(event):
                 continue
 
-            # Convert to expected format
-            event_dict = {
-                "data": {
-                    "type": event_type,
-                    "payload": event.data,
-                    "timestamp": event.timestamp,
-                    "id": getattr(event, "id", None),
-                },
-            }
+            # Process event with type safety while maintaining frontend structure
+            event_dict = process_event_for_frontend(event)
+
+            if event_dict is None:
+                # Skip events that couldn't be processed
+                continue
 
             print(event_dict)
-            
+
             # Format as SSE
             yield f"data: {json.dumps(event_dict)}\n\n"
 
@@ -132,7 +178,7 @@ async def event_stream(query: str, conversation_id: Optional[str] = None) -> Asy
             },
         }
         yield f"data: {json.dumps(error_data)}\n\n"
-        
+
         # Clean up failed conversation
         if actual_conversation_id and actual_conversation_id in active_conversations:
             try:
@@ -168,44 +214,47 @@ async def end_conversation(conversation_id: str):
             del active_conversations[conversation_id]
             return {"status": "conversation ended"}
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error ending conversation: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Error ending conversation: {str(e)}"
+            )
     else:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
 
 @app.post("/files/upload")
 async def upload_files(
-    file: UploadFile = File(...),
-    conversation_id: Optional[str] = Form(None)
+    file: UploadFile = File(...), conversation_id: Optional[str] = Form(None)
 ):
     """Upload a file to the workspace"""
     try:
         # Ensure workspace directory exists
         workspace_path = Path(WORKSPACE_PATH)
         workspace_path.mkdir(parents=True, exist_ok=True)
-        
+
         # Sanitize filename to prevent directory traversal
-        safe_filename = file.filename.replace("..", "").replace("/", "_").replace("\\", "_")
+        safe_filename = (
+            file.filename.replace("..", "").replace("/", "_").replace("\\", "_")
+        )
         if not safe_filename:
             raise HTTPException(status_code=400, detail="Invalid filename")
-        
+
         # Create the full file path
         file_path = workspace_path / safe_filename
-        
+
         # Handle file name conflicts by adding a counter
         counter = 1
         original_stem = file_path.stem
         original_suffix = file_path.suffix
-        
+
         while file_path.exists():
             file_path = workspace_path / f"{original_stem}_{counter}{original_suffix}"
             counter += 1
-        
+
         # Write the file
         content = await file.read()
         with open(file_path, "wb") as f:
             f.write(content)
-        
+
         return {
             "status": "success",
             "filename": file_path.name,
@@ -213,70 +262,79 @@ async def upload_files(
             "size": len(content),
             "path": str(file_path.relative_to(workspace_path)),
             "conversation_id": conversation_id,
-            "event_type": "file_upload"
+            "event_type": "file_upload",
         }
-        
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 @app.get("/files/download")
-async def download_file(file_path: str = Query(..., description="Path to the file to download")):
+async def download_file(
+    file_path: str = Query(..., description="Path to the file to download"),
+):
     """Download a file from the workspace"""
     try:
         print(f"DEBUG: Download request for file_path: '{file_path}'")
         print(f"DEBUG: Current working directory: {os.getcwd()}")
         print(f"DEBUG: WORKSPACE_PATH: {WORKSPACE_PATH}")
-        
+
         # Resolve the file path relative to workspace
         workspace_path = Path(WORKSPACE_PATH)
         print(f"DEBUG: Resolved workspace_path: {workspace_path.resolve()}")
-        
+
         resolved_path = workspace_path / file_path
         print(f"DEBUG: Resolved file path: {resolved_path.resolve()}")
         print(f"DEBUG: File exists: {resolved_path.exists()}")
-        print(f"DEBUG: Is file: {resolved_path.is_file() if resolved_path.exists() else 'N/A'}")
-        
+        print(
+            f"DEBUG: Is file: {resolved_path.is_file() if resolved_path.exists() else 'N/A'}"
+        )
+
         # Security check: ensure the resolved path is within workspace
         try:
             resolved_path.resolve().relative_to(workspace_path.resolve())
             print("DEBUG: Security check passed")
         except ValueError:
             print("DEBUG: Security check failed")
-            raise HTTPException(status_code=403, detail="Access denied: path outside workspace")
-        
+            raise HTTPException(
+                status_code=403, detail="Access denied: path outside workspace"
+            )
+
         # Check if file exists
         if not resolved_path.exists():
             print("DEBUG: File not found, raising 404")
             raise HTTPException(status_code=404, detail="File not found")
-        
+
         if not resolved_path.is_file():
             print("DEBUG: Path is not a file, raising 400")
             raise HTTPException(status_code=400, detail="Path is not a file")
-        
+
         print("DEBUG: File found, proceeding with download logic")
-        
+
         # Check if it's a markdown file
-        if resolved_path.suffix.lower() in ['.md', '.markdown']:
+        if resolved_path.suffix.lower() in [".md", ".markdown"]:
             print(f"DEBUG: Attempting to convert markdown file: {resolved_path}")
             try:
+                from io import BytesIO
+
                 import markdown
                 import weasyprint
-                from io import BytesIO
-                
+
                 print("DEBUG: Successfully imported markdown and weasyprint")
-                
+
                 # Read markdown content
-                with open(resolved_path, 'r', encoding='utf-8') as f:
+                with open(resolved_path, "r", encoding="utf-8") as f:
                     md_content = f.read()
-                
+
                 print(f"DEBUG: Read markdown content, length: {len(md_content)}")
-                
+
                 # Convert markdown to HTML
-                html = markdown.markdown(md_content, extensions=['tables', 'fenced_code', 'toc'])
-                
+                html = markdown.markdown(
+                    md_content, extensions=["tables", "fenced_code", "toc"]
+                )
+
                 print("DEBUG: Successfully converted markdown to HTML")
-                
+
                 # Add basic CSS styling for better PDF appearance
                 html_with_style = f"""
                 <!DOCTYPE html>
@@ -304,34 +362,39 @@ async def download_file(file_path: str = Query(..., description="Path to the fil
                 </body>
                 </html>
                 """
-                
+
                 print("DEBUG: Created HTML with styling")
-                
+
                 # Convert HTML to PDF
                 pdf_buffer = BytesIO()
                 weasyprint.HTML(string=html_with_style).write_pdf(pdf_buffer)
                 pdf_buffer.seek(0)
-                
+
                 print("DEBUG: Successfully converted HTML to PDF")
-                
+
                 # Create a temporary PDF file
                 import tempfile
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_pdf:
+
+                with tempfile.NamedTemporaryFile(
+                    delete=False, suffix=".pdf"
+                ) as temp_pdf:
                     temp_pdf.write(pdf_buffer.getvalue())
                     temp_pdf_path = temp_pdf.name
-                
+
                 print(f"DEBUG: Created temporary PDF file: {temp_pdf_path}")
-                
+
                 # Return PDF file for download
                 pdf_filename = f"{resolved_path.stem}.pdf"
                 print(f"DEBUG: Returning PDF download: {pdf_filename}")
                 return FileResponse(
                     path=temp_pdf_path,
                     filename=pdf_filename,
-                    media_type='application/pdf',
-                    headers={"Content-Disposition": f"attachment; filename={pdf_filename}"}
+                    media_type="application/pdf",
+                    headers={
+                        "Content-Disposition": f"attachment; filename={pdf_filename}"
+                    },
                 )
-                
+
             except ImportError as ie:
                 # If markdown/weasyprint not available, fall back to regular download
                 print(f"DEBUG: Import error during PDF conversion: {ie}")
@@ -340,16 +403,18 @@ async def download_file(file_path: str = Query(..., description="Path to the fil
                 # If conversion fails, fall back to regular download
                 print(f"DEBUG: PDF conversion failed with error: {e}")
                 pass
-        
+
         print(f"DEBUG: Serving regular file download: {resolved_path.name}")
         # Return file for regular download with proper headers
         return FileResponse(
             path=resolved_path,
             filename=resolved_path.name,
-            media_type='application/octet-stream',
-            headers={"Content-Disposition": f"attachment; filename={resolved_path.name}"}
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f"attachment; filename={resolved_path.name}"
+            },
         )
-                
+
     except HTTPException:
         raise
     except Exception as e:
@@ -364,33 +429,34 @@ async def read_file(file_path: str):
         # Resolve the file path relative to workspace
         workspace_path = Path(WORKSPACE_PATH)
         resolved_path = workspace_path / file_path
-        
+
         # Security check: ensure the resolved path is within workspace
         try:
             resolved_path.resolve().relative_to(workspace_path.resolve())
         except ValueError:
-            raise HTTPException(status_code=403, detail="Access denied: path outside workspace")
-        
+            raise HTTPException(
+                status_code=403, detail="Access denied: path outside workspace"
+            )
+
         # Check if file exists
         if not resolved_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
-        
+
         if not resolved_path.is_file():
             raise HTTPException(status_code=400, detail="Path is not a file")
-        
+
         # Determine MIME type based on file extension
         import mimetypes
+
         mime_type, _ = mimetypes.guess_type(str(resolved_path))
         if mime_type is None:
-            mime_type = 'application/octet-stream'
-        
+            mime_type = "application/octet-stream"
+
         # Return file directly with proper content-type
         return FileResponse(
-            path=resolved_path,
-            media_type=mime_type,
-            filename=resolved_path.name
+            path=resolved_path, media_type=mime_type, filename=resolved_path.name
         )
-                
+
     except HTTPException:
         raise
     except Exception as e:
@@ -398,30 +464,34 @@ async def read_file(file_path: str):
 
 
 @app.get("/files/test-download")
-async def test_download_file(file_path: str = Query(..., description="Path to the file to download")):
+async def test_download_file(
+    file_path: str = Query(..., description="Path to the file to download"),
+):
     """Test download endpoint"""
     try:
         print(f"TEST DEBUG: Download request for file_path: '{file_path}'")
         print(f"TEST DEBUG: WORKSPACE_PATH: {WORKSPACE_PATH}")
-        
+
         # Resolve the file path relative to workspace
         workspace_path = Path(WORKSPACE_PATH)
         print(f"TEST DEBUG: Resolved workspace_path: {workspace_path.resolve()}")
-        
+
         resolved_path = workspace_path / file_path
         print(f"TEST DEBUG: Resolved file path: {resolved_path.resolve()}")
         print(f"TEST DEBUG: File exists: {resolved_path.exists()}")
-        
+
         if not resolved_path.exists():
             return {"error": "File not found", "path": str(resolved_path.resolve())}
-        
+
         return FileResponse(
             path=resolved_path,
             filename=resolved_path.name,
-            media_type='application/octet-stream',
-            headers={"Content-Disposition": f"attachment; filename={resolved_path.name}"}
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f"attachment; filename={resolved_path.name}"
+            },
         )
-                
+
     except Exception as e:
         print(f"TEST DEBUG: Error: {e}")
         return {"error": str(e)}
@@ -456,12 +526,13 @@ async def root():
 async def debug_workspace():
     """Debug workspace path"""
     import os
+
     return {
         "workspace_path": WORKSPACE_PATH,
         "workspace_resolved": str(Path(WORKSPACE_PATH).resolve()),
         "current_working_directory": os.getcwd(),
         "file_exists": Path(WORKSPACE_PATH).exists(),
-        "csv_file_exists": (Path(WORKSPACE_PATH) / "py4ai_2025_speakers.csv").exists()
+        "csv_file_exists": (Path(WORKSPACE_PATH) / "py4ai_2025_speakers.csv").exists(),
     }
 
 
