@@ -5,7 +5,7 @@ import MessageCard from "../ui/message-card";
 const WebSearchResultEvent = ({ payload }) => {
   if (!payload) return null;
 
-  const resultCount = payload.length;
+  const resultCount = payload.results.length;
   const title = `Found ${resultCount} result${resultCount !== 1 ? "s" : ""}`;
 
   return (
@@ -31,9 +31,9 @@ const WebSearchResultEvent = ({ payload }) => {
                   <p className="text-xs text-green-700">{result.url}</p>
                 </div>
               ))}
-              {payload.length > 5 && (
+              {payload.results.length > 5 && (
                 <p className="text-xs text-gray-500 mt-1">
-                  ... and {payload.length - 5} more results
+                  ... and {payload.results.length - 5} more results
                 </p>
               )}
             </div>
