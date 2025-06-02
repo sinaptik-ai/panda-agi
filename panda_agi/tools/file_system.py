@@ -59,7 +59,7 @@ class FileReplaceHandler(ToolHandler):
     """Handler for file string replacement operations"""
 
     def validate_input(self, params: Dict[str, Any]) -> Optional[str]:
-        required_params = ["path", "old_str", "new_str"]
+        required_params = ["file", "old_str", "new_str"]
         missing = [param for param in required_params if param not in params]
         if missing:
             return f"Missing required parameters: {', '.join(missing)}"
