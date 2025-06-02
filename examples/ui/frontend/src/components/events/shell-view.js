@@ -12,7 +12,7 @@ const ShellViewEvent = ({ payload }) => {
 
   const getDisplayContent = () => {
     const processId = payload.id || "Unknown process";
-    const action = payload.kill_process ? "Terminating" : "Viewing";
+    const action = payload.kill_process ? "terminate" : "check";
     return `${action} ${processId}`;
   };
 
