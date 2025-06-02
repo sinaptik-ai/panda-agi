@@ -4,3 +4,8 @@ python-multipart==0.0.6
 python-dotenv==1.0.0
 markdown==3.5.1
 weasyprint==60.2
+pandas>=2.0.0
+matplotlib>=3.7.0
+numpy>=1.24.0
+plotly>=5.15.0
+kaleido>=0.2.1
