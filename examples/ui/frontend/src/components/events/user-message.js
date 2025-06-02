@@ -264,65 +264,67 @@ const UserMessageEvent = ({
         </div>
       )}
 
-      {/* Attachments outside the card */}
-      {payload.attachments && payload.attachments.length > 0 && (
-        <div className="mt-3 space-y-3">
-          <div className="space-y-2">
-            {payload.attachments.map((attachment, index) => {
-              const filename = attachment.split("/").pop();
-              const extension = filename.split(".").pop()?.toLowerCase();
+      {/* Attachments outside the card - only show if no localhost URLs to preview */}
+      {payload.attachments &&
+        payload.attachments.length > 0 &&
+        localhostUrls.length === 0 && (
+          <div className="mt-3 space-y-3">
+            <div className="space-y-2">
+              {payload.attachments.map((attachment, index) => {
+                const filename = attachment.split("/").pop();
+                const extension = filename.split(".").pop()?.toLowerCase();
 
-              return (
-                <div key={index} className="flex justify-start">
-                  <div className="group flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 hover:shadow-md min-w-80 max-w-2xl">
-                    <div className="flex items-center space-x-3 flex-1 min-w-0">
-                      <div className="flex-shrink-0">
-                        {getFileIcon(attachment)}
+                return (
+                  <div key={index} className="flex justify-start">
+                    <div className="group flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 hover:shadow-md min-w-80 max-w-2xl">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
+                        <div className="flex-shrink-0">
+                          {getFileIcon(attachment)}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <button
+                            onClick={() => handleFileClick(attachment)}
+                            className="text-left w-full group-hover:text-blue-800 transition-colors"
+                          >
+                            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-900">
+                              {filename}
+                            </p>
+                            {extension && (
+                              <p className="text-xs text-gray-500 uppercase font-mono">
+                                {extension} file
+                              </p>
+                            )}
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 flex-shrink-0">
                         <button
                           onClick={() => handleFileClick(attachment)}
-                          className="text-left w-full group-hover:text-blue-800 transition-colors"
+                          className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-blue-200 hover:border-blue-300 text-blue-600 hover:text-blue-700 transition-all duration-200 hover:shadow-sm"
+                          title="Preview file"
                         >
-                          <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-900">
-                            {filename}
-                          </p>
-                          {extension && (
-                            <p className="text-xs text-gray-500 uppercase font-mono">
-                              {extension} file
-                            </p>
-                          )}
+                          <Eye className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            handleFileDownload(attachment);
+                          }}
+                          className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-blue-200 hover:border-blue-300 text-blue-600 hover:text-blue-700 transition-all duration-200 hover:shadow-sm"
+                          title="Download file"
+                        >
+                          <Download className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
-
-                    <div className="flex items-center space-x-2 flex-shrink-0">
-                      <button
-                        onClick={() => handleFileClick(attachment)}
-                        className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-blue-200 hover:border-blue-300 text-blue-600 hover:text-blue-700 transition-all duration-200 hover:shadow-sm"
-                        title="Preview file"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          handleFileDownload(attachment);
-                        }}
-                        className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-blue-200 hover:border-blue-300 text-blue-600 hover:text-blue-700 transition-all duration-200 hover:shadow-sm"
-                        title="Download file"
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
-                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </>
   );
 };
