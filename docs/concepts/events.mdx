@@ -5,40 +5,13 @@ description: 'Understanding real-time event streaming in PandaAGI SDK'
 
 ## What are Events?
 
-Events are real-time notifications streamed asynchronously from the remote autonomous agent as it executes tasks. They provide complete transparency into the agent's workflow, allowing you to monitor progress, debug issues, and build interactive applications that respond to the agent's activities in real-time.
+Events are real-time notifications streamed asynchronously from the remote autonomous general AI agent as it executes tasks. They provide complete transparency into the general AI agent's workflow, allowing you to monitor progress, debug issues, and build interactive applications that respond to the general AI agent's activities in real-time.
 
 Unlike traditional polling-based systems, PandaAGI events are pushed from the remote agent immediately as they occur, ensuring minimal latency and maximum responsiveness.
 
-<CardGroup cols={2}>
-  <Card
-    title="Real-time Streaming"
-    icon="radio"
-  >
-    Events stream live from the remote agent with zero polling delay
-  </Card>
-  <Card
-    title="Complete Workflow Visibility"
-    icon="eye"
-  >
-    See every action: web searches, file operations, shell commands, and more
-  </Card>
-  <Card
-    title="Interactive UIs"
-    icon="desktop"
-  >
-    Build responsive interfaces that update as agents work autonomously
-  </Card>
-  <Card
-    title="Debugging & Analytics"
-    icon="bug"
-  >
-    Track performance, analyze agent behavior, and debug complex workflows
-  </Card>
-</CardGroup>
-
 ## Event Architecture
 
-The PandaAGI SDK streams events from a remote autonomous agent that operates independently. Events are generated as the agent:
+The PandaAGI SDK streams events from a remote autonomous general AI agent that operates independently. Events are generated as the general AI agent:
 
 - Connects to its execution environment
 - Performs web searches and navigation
@@ -48,9 +21,9 @@ The PandaAGI SDK streams events from a remote autonomous agent that operates ind
 - Completes tasks and reports results
 
 ```python
-# Events stream asynchronously from the remote agent
+# Events stream asynchronously from the remote general AI agent
 async for event in agent.run("Research AI trends and create a report"):
-    # Each event represents a real action the agent is taking
+    # Each event represents a real action the general AI agent is taking
     print(f"[{event.timestamp}] {event.type}: {event.data}")
 ```
 
@@ -62,7 +35,7 @@ The Panda AGI SDK uses a comprehensive set of event types defined in the `EventT
 
 <AccordionGroup>
   <Accordion title="AGENT_CONNECTION_SUCCESS">
-    Fired when the agent successfully connects and initializes its workspace:
+    Fired when the general AI agent successfully connects and initializes its workspace:
     
     ```json
     {
@@ -79,7 +52,7 @@ The Panda AGI SDK uses a comprehensive set of event types defined in the `EventT
   </Accordion>
 
   <Accordion title="AGENT_CONNECTION_ERROR">
-    When the agent fails to connect or initialize:
+    When the general AI agent fails to connect or initialize:
     
     ```json
     {
@@ -99,7 +72,7 @@ The Panda AGI SDK uses a comprehensive set of event types defined in the `EventT
 
 <AccordionGroup>
   <Accordion title="WEB_SEARCH">
-    Indicates the agent is performing a web search:
+    Indicates the general AI agent is performing a web search:
     
     ```json
     {
@@ -135,7 +108,7 @@ The Panda AGI SDK uses a comprehensive set of event types defined in the `EventT
   </Accordion>
 
   <Accordion title="WEB_NAVIGATION">
-    When the agent navigates to a specific webpage:
+    When the general AI agent navigates to a specific webpage:
     
     ```json
     {
@@ -169,7 +142,7 @@ The Panda AGI SDK uses a comprehensive set of event types defined in the `EventT
 
 <AccordionGroup>
   <Accordion title="FILE_READ">
-    When the agent reads file contents:
+    When the general AI agent reads file contents:
     
     ```json
     {
@@ -234,7 +207,7 @@ The Panda AGI SDK uses a comprehensive set of event types defined in the `EventT
   </Accordion>
 
   <Accordion title="FILE_EXPLORE">
-    When the agent explores directory structure:
+    When the general AI agent explores directory structure:
     
     ```json
     {
@@ -257,7 +230,7 @@ The Panda AGI SDK uses a comprehensive set of event types defined in the `EventT
 
 <AccordionGroup>
   <Accordion title="SHELL_EXEC">
-    When the agent executes shell commands:
+    When the general AI agent executes shell commands:
     
     ```json
     {
@@ -309,7 +282,7 @@ The Panda AGI SDK uses a comprehensive set of event types defined in the `EventT
 
 <AccordionGroup>
   <Accordion title="USER_NOTIFICATION">
-    Progress updates and notifications from the agent:
+    Progress updates and notifications from the general AI agent:
     
     ```json
     {
@@ -360,7 +333,7 @@ The Panda AGI SDK uses a comprehensive set of event types defined in the `EventT
 
 <AccordionGroup>
   <Accordion title="IMAGE_GENERATION">
-    When the agent generates images or visual content:
+    When the general AI agent generates images or visual content:
     
     ```json
     {
@@ -406,7 +379,7 @@ EventType.SHELL_WRITE              # Writing shell scripts
 
 ### Basic Streaming
 
-Stream events in real-time as your remote agent works through complex tasks:
+Stream events in real-time as your remote general AI agent works through complex tasks:
 
 ```python
 from panda_agi import Agent, EventType
@@ -414,11 +387,11 @@ from panda_agi.envs import DockerEnv
 import asyncio
 
 async def main():
-    # Initialize the remote agent environment
+    # Initialize the remote general AI agent environment
     agent_env = DockerEnv("./workspace")
     agent = Agent(environment=agent_env)
 
-    # Stream events as the agent works autonomously
+    # Stream events as the general AI agent works autonomously
     async for event in agent.run("Research machine learning trends and create a comprehensive report"):
         # Events stream live from the remote agent
         if event.type == EventType.AGENT_CONNECTION_SUCCESS:
@@ -495,13 +468,13 @@ asyncio.run(advanced_event_monitoring())
     icon="globe"
     href="/concepts/environments"
   >
-    Learn about agent execution environments
+    Learn about general AI agent execution environments
   </Card>
   <Card
     title="Examples"
     icon="play"
-    href="/examples/chat-interface"
+    href="/apps/chat-interface"
   >
-    See event streaming in action
+    See event streaming in action in the PandaAGI Assistant pre-built app
   </Card>
 </CardGroup> 

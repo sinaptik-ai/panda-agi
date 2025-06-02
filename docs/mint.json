@@ -2,54 +2,64 @@
   "$schema": "https://mintlify.com/schema.json",
   "name": "PandaAGI SDK",
   "logo": {
-    "dark": "/logo/dark.svg",
-    "light": "/logo/light.svg"
+    "dark": "/favicon.svg",
+    "light": "/favicon.svg",
+    "href": "https://pandas-ai.com"
   },
   "favicon": "/favicon.svg",
   "colors": {
-    "primary": "#0D9373",
-    "light": "#07C983",
-    "dark": "#0D9373",
+    "primary": "#1976D2",
+    "light": "#2196F3",
+    "dark": "#0D47A1",
     "anchors": {
-      "from": "#0D9373",
-      "to": "#07C983"
+      "from": "#0D47A1",
+      "to": "#1565C0"
     }
   },
-  "topbarLinks": [
-    {
-      "name": "Support",
-      "url": "mailto:support@panda-agi.com"
-    }
-  ],
+  "topbarLinks": [],
+
   "topbarCtaButton": {
-    "name": "Dashboard",
+    "name": "Manage API Key",
     "url": "https://agi.pandas-ai.com/dashboard"
   },
   "tabs": [
     {
-      "name": "Examples",
-      "url": "examples"
+      "name": "Documentation",
+      "url": "/"
+    },
+    {
+      "name": "Apps",
+      "url": "apps"
     }
   ],
   "anchors": [
     {
+      "name": "Get API Key",
+      "icon": "key",
+      "url": "https://agi.pandas-ai.com"
+    },
+    {
       "name": "Community",
-      "icon": "slack",
-      "url": "https://community.panda-agi.com"
+      "icon": "discord",
+      "url": "https://discord.gg/KYKj9F2FRH"
     },
     {
       "name": "Blog",
       "icon": "newspaper",
-      "url": "https://blog.panda-agi.com"
+      "url": "https://blog.pandas-ai.com"
     }
   ],
   "navigation": [
     {
-      "group": "Get Started",
-      "pages": ["introduction", "quickstart", "installation"]
+      "group": "Overview",
+      "pages": ["introduction"]
     },
     {
-      "group": "Core Concepts",
+      "group": "Using PandaAGI",
+      "pages": ["quickstart", "installation", "cli"]
+    },
+    {
+      "group": "Building with PandaAGI",
       "pages": [
         "concepts/architecture",
         "concepts/agents",
@@ -58,13 +68,14 @@
       ]
     },
     {
-      "group": "Examples",
-      "pages": ["examples/chat-interface", "examples/cli"]
+      "group": "Apps",
+      "pages": ["apps/chat-interface"]
     }
   ],
   "footerSocials": {
-    "x": "https://x.com/panda-agi",
-    "github": "https://github.com/panda-agi/sdk",
-    "linkedin": "https://www.linkedin.com/company/panda-agi"
+    "x": "https://x.com/ai_pandas",
+    "github": "https://github.com/sinaptik-ai/panda-agi",
+    "linkedin": "https://www.linkedin.com/company/pandasai",
+    "reddit": "https://www.reddit.com/r/PandasAI/"
   }
 }

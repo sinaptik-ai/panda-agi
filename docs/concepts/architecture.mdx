@@ -1,97 +1,134 @@
 ---
-title: Architecture & Philosophy
-description: 'Understanding PandaAGI as a development framework for AI-powered applications'
+title: Architecture
+description: 'Understanding PandaAGI as a development framework for building and deploying agentic AI applications'
 ---
 
-## Development Framework Philosophy
+## PandaAGI Architecture Diagram
 
-PandaAGI represents a paradigm shift in how developers approach AI integration. Rather than being an end-user application, **PandaAGI is a development tool** that empowers developers to build their own AI-powered experiences without needing deep expertise in artificial intelligence.
+**PandaAGI** is a fully agentic execution ecosystem built for developers who want AI that **does** things, not just generates content. The system consists of **three core components**: the [API](#the-pandaagi-api), the [SDK](#the-pandaagi-sdk), and the [execution environments](#the-execution-environments).
 
-### The Developer-First Approach
+The architecture features:
+- **Specialized general AI agent orchestration**: Tasks routed to dedicated [general AI agents](/concepts/agents) optimized for specific roles
+- **Structured parallelism**: Tasks broken into subtasks that execute independently then merge
+- **Resilience and recovery**: Automatic retries and reassignment for robust execution
+- **Event-driven communication**: Real-time [events](/concepts/events) for monitoring and response
 
-At its core, PandaAGI solves a fundamental challenge: how can developers who understand user experience and application development leverage the power of autonomous AI agents without becoming AI specialists? The framework handles all the complexity of AI orchestration behind the scenes, allowing developers to focus on what they do best - crafting exceptional user experiences.
 
-<Card
-  title="Focus on UX, Not AI"
-  icon="paintbrush"
->
-  Developers can concentrate on building great user interfaces and experiences while PandaAGI handles the AI complexity
-</Card>
+<img
+  className="block dark:hidden my-8 rounded-lg shadow-md mx-auto"
+  src="/images/image.png"
+  alt="PandaAGI Architecture Diagram - Light Mode"
+  width="800"
+/>
+<img
+  className="hidden dark:block my-8 rounded-lg shadow-md mx-auto"
+  src="/images/image.png"
+  alt="PandaAGI Architecture Diagram - Dark Mode"
+  width="800"
+/>
 
-## Architectural Principles
+The framework implements **separation of concerns** with three distinct layers:
+- **AI Layer**: Task understanding, planning, and orchestration of tool execution
+- **Tool Layer**: Specific operations in the local environment (file operations, API calls)
+- **Application Layer**: User experience and business logic development
 
-### Local Orchestration
+## The PandaAGI API
 
-PandaAGI operates on a **local orchestration model** where the AI agent coordinates operations, but all tools and executions happen within the developer's local environment. This approach provides several key advantages:
+A **bidirectional WebSocket API** built for real-time, stateful interaction. Unlike traditional REST APIs, the PandaAGI API keeps a live connection between your application and your agent—enabling streaming execution, dynamic state management, and continuous interaction. Use it to send tasks, receive results, and monitor execution in-flight. 
 
-- **Full Control**: Developers maintain complete control over their data and execution environment
-- **Security**: Sensitive data never leaves the local environment
-- **Customization**: Tools and capabilities can be tailored to specific use cases
-- **Integration**: Seamless integration with existing development workflows
+<Note>
+  Get your API key at [agi.pandas-ai.com](https://agi.pandas-ai.com)
+</Note>
 
-### Separation of Concerns
+## The PandaAGI SDK
 
-The framework is designed with clear separation between AI capabilities and application logic:
+We don't believe developers should spend their time wiring sockets, managing general AI agent state, or reinventing orchestration logic. The PandaAGI SDK exists to shift that burden away from you. It sets up secure, persistent socket connections so [general AI agents](/concepts/agents) can remain stateful across tasks. It keeps track of tools, and context—so general AI agents can reason, act, and adapt without manual glue code, so you can focus on logic, outcomes, and systems that learn and improve.
 
-<AccordionGroup>
-  <Accordion title="AI Layer">
-    Handles task understanding, planning, and orchestration of tool execution
-  </Accordion>
-  
-  <Accordion title="Tool Layer">
-    Executes specific operations in the local environment (file operations, API calls, etc.)
-  </Accordion>
-  
-  <Accordion title="Application Layer">
-    Where developers build their specific user experience and business logic
-  </Accordion>
-</AccordionGroup>
+The PandaAGI SDK allows you to build and deploy extremely powerful general AI agents virtually capable of doing anything thanks to the in-built execution capabilities that comes with every PandaAGI general AI agent:
 
-## Democratizing AI Development
+| Capability | Purpose |
+|:--- |:--- |
+| 🌐 Internet access | Information gathering |
+| 🗂️ File system | Asset management |
+| 💻 Code execution | Dynamic programming |
+| 🚀 Deployment | Web servers & APIs |
 
-### Making AI Accessible
+All general AI agent activities generate real-time [events](/concepts/events) that you can subscribe to for monitoring progress, collecting results, and responding to state changes.
 
-PandaAGI **democratizes the creation of AI-powered development tools** by removing the barrier to entry that has traditionally required specialized AI knowledge. This enables a much broader range of developers to build sophisticated AI-integrated applications.
+<CardGroup cols={2}>
+  <Card
+    title="Learn more about Agents"
+    icon="robot"
+    href="/concepts/agents"
+  >
+    Learn how agents work, their capabilities, and how to configure them for your needs
+  </Card>
+  <Card
+    title="Explore Events"
+    icon="bell"
+    href="/concepts/events"
+  >
+    Discover how to use events for real-time monitoring and response in your applications
+  </Card>
+</CardGroup>
 
-### Universal Capability
+The general AI agents generate real-time events in their own execution environment. 
 
-Unlike domain-specific AI tools that are limited to particular use cases, PandaAGI provides a **general-purpose agent framework** that can potentially handle any task. This universality means developers can build applications for:
+## The Execution Environments
 
-- Web development automation
-- Data analysis and reporting
-- Content generation workflows
-- Business process automation
-- Research and analysis tools
-- Custom domain-specific applications
+[General AI agents](/concepts/agents) that reason need a place to act. 
+The [execution environment](/concepts/environments) is that space: a clean, isolated context where general AI agents can safely write and run code, store state, interact with external systems, and build a mental model of their task. 
+Each environment is ephemeral, containerized, and independent—created for a single user or session. 
 
-## Target Developers
+It's not just a sandbox; it's an operating layer for autonomous behavior. 
+It can run on the cloud, on your own hardware, or across both. 
 
-### Primary Audience
+What matters is that execution is local to the general AI agent—self-contained, inspectable, and secure.
 
-PandaAGI is designed for **developers who recognize the value of AI integration** but lack the specialized knowledge to implement it from scratch. This includes:
+## General AI Agents, Events, Envs, and Apps 
 
-- **Full-stack developers** looking to add AI capabilities to their applications
-- **Enterprise developers** building internal tools and automations
-- **Consultants and agencies** creating AI-powered solutions for clients
-- **Product teams** exploring AI integration without dedicated AI expertise
+<CardGroup cols={2}>
+  <Card
+    title="Start Building"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get up and running with PandaAGI in minutes
+  </Card>
+  <Card
+    title="General AI Agents"
+    icon="robot"
+    href="/concepts/agents"
+  >
+    Learn about general AI agent capabilities, configuration, and best practices
+  </Card>
+  <Card
+    title="Events"
+    icon="bell"
+    href="/concepts/events"
+  >
+    Understand the event-driven communication system
+  </Card>
+  <Card
+    title="Environments"
+    icon="server"
+    href="/concepts/environments"
+  >
+    Explore execution environments and their capabilities
+  </Card>
+  <Card
+    title="Sample Applications"
+    icon="code"
+    href="/apps"
+  >
+    Browse example applications built with PandaAGI
+  </Card>
+  <Card
+    title="API Keys"
+    icon="key"
+    href="https://agi.pandas-ai.com"
+  >
+    Learn how to obtain and manage your PandaAGI API keys
+  </Card>
+</CardGroup>
 
-### Value Proposition
-
-The framework transforms what was once a complex, specialist endeavor into a straightforward development task. Instead of spending months learning AI frameworks and techniques, developers can focus on their core competencies while leveraging world-class AI capabilities.
-
-## Competitive Positioning
-
-### Ground-Breaking Approach
-
-PandaAGI represents a **fundamental innovation** in the AI development landscape. Rather than providing yet another specialized tool, it offers a platform that enables developers to create their own specialized tools with minimal AI expertise required.
-
-### Flexibility vs. Specialization
-
-While many AI tools are built for specific use cases, PandaAGI provides the building blocks for creating any AI-powered application. This flexibility allows developers to:
-
-- Build exactly what their users need
-- Maintain full control over the user experience
-- Integrate seamlessly with existing systems
-- Scale and evolve their applications over time
-
-The result is not just another AI tool, but a new category of development framework that makes advanced AI capabilities accessible to the broader developer community. 

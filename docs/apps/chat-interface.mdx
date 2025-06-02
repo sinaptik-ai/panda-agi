@@ -1,11 +1,12 @@
 ---
-title: 'Chat Interface Example'
-description: 'Build a real-time chat interface with streaming agent responses'
+title: 'Agentic Chat Assistant'
+description: 'Build a real-time agentic chat with interface streaming agent responses'
 ---
 
-## Overview
+## How to build your own Agentic AI Assistant?
 
-This example demonstrates how to build a modern chat interface that streams AI agent responses in real-time. The interface shows agent thinking, tool usage, and provides a smooth user experience.
+Create your own version of powerful AI assistants (similar to Claude Opus, Manus AI, 
+Perplexity, Devin, or ChatGPT with plugins) - all using PandaAGI's SDK.
 
 <img
   className="block dark:hidden"
@@ -18,11 +19,20 @@ This example demonstrates how to build a modern chat interface that streams AI a
   alt="Chat Interface"
 />
 
-## 🚀 Ready-to-Use Implementation
+This example app demonstrates how to build a modern agentic chat with an interface that streams responses in real-time, showing agent thinking, tool usage, and providing a smooth user experience.
 
-A complete, enhanced chat interface implementation is already available in the examples folder! You can get started immediately with our Docker-based setup.
+## Ready-to-use Agentic AI Assistant
 
-### Quick Start
+A complete, enhanced agentic chat with an interface implementation is already available in the examples folder! You can get started immediately with our Docker-based setup.
+
+The implemented solution includes:
+
+- **Docker Integration**: One-command deployment with Docker Compose
+- **Enhanced Event Handling**: Improved event filtering and error handling
+- **Production Ready**: Nginx serving, proper CORS, health checks
+- **Mobile Responsive**: Optimized for both desktop and mobile devices
+
+### Quick Setup
 
 ```bash
 cd examples/ui && ./start.sh
@@ -39,36 +49,8 @@ Once running, access:
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8001
 
-### Enhanced Features
+This is the fastest way to get started with a production-ready agentic chat interface using the PandaAGI SDK.
 
-The implemented solution includes:
-
-<CardGroup cols={2}>
-  <Card
-    title="Docker Integration"
-    icon="docker"
-  >
-    One-command deployment with Docker Compose
-  </Card>
-  <Card
-    title="Enhanced Event Handling"
-    icon="gears"
-  >
-    Improved event filtering and error handling
-  </Card>
-  <Card
-    title="Production Ready"
-    icon="shield-check"
-  >
-    Nginx serving, proper CORS, health checks
-  </Card>
-  <Card
-    title="Mobile Responsive"
-    icon="mobile"
-  >
-    Optimized for both desktop and mobile devices
-  </Card>
-</CardGroup>
 
 ### Alternative Setup
 
@@ -82,40 +64,12 @@ cd examples/ui/backend && python main.py
 cd examples/ui/frontend && npm start
 ```
 
-## Features
+Congrats. Now you have your own production-ready agentic chat interface! Let's build the backend.
 
-<CardGroup cols={2}>
-  <Card
-    title="Real-time Streaming"
-    icon="bolt"
-  >
-    Live updates as the agent processes requests
-  </Card>
-  <Card
-    title="Event Visualization"
-    icon="eye"
-  >
-    Visual indicators for different event types
-  </Card>
-  <Card
-    title="Tool Tracking"
-    icon="wrench"
-  >
-    Show which tools the agent is using
-  </Card>
-  <Card
-    title="Modern UI"
-    icon="palette"
-  >
-    Beautiful, responsive design with Tailwind CSS
-  </Card>
-</CardGroup>
 
-## Backend Implementation
+## FastAPI Server for Agentic Chat
 
-### FastAPI Server
-
-You can wrap the Agent in a simple backend server with streaming support:
+You can wrap your own PandaAGI Agent in a simple backend server with streaming support:
 
 ```python
 # backend/main.py
@@ -224,30 +178,23 @@ panda-agi>=0.1.0
 pydantic==2.5.0
 ```
 
+## Start Building with PandaAGI
 
-## Key Features Demonstrated
-
-- **Real-time streaming**: See agent events as they happen
-- **Event visualization**: Different icons and formatting for each event type
-- **Session persistence**: Conversation ID maintains context across messages
-- **Modern UI**: Responsive design with smooth animations
-- **Error handling**: Graceful error display and recovery
-
-## Next Steps
+Ready to build your first AI-powered application? Check out our [quickstart guide](/quickstart) to learn how to integrate PandaAGI into your development workflow.
 
 <CardGroup cols={2}>
   <Card
-    title="Basic Usage Example"
+    title="Quickstart Guide"
     icon="play"
-    href="/examples/basic-usage"
+    href="/quickstart"
   >
-    Learn the fundamentals with a simple example
+    Learn how to install the SDK and build your first AI application
   </Card>
   <Card
-    title="Custom Tools Example"
-    icon="wrench"
-    href="/examples/custom-tools"
+    title="Architecture & Philosophy"
+    icon="diagram-project"
+    href="/concepts/architecture"
   >
-    Build custom tools for your agents
+    Understand PandaAGI's approach to AI development
   </Card>
 </CardGroup> 
