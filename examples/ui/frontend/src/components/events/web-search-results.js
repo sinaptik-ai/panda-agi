@@ -18,7 +18,7 @@ const WebSearchResultEvent = ({ payload }) => {
           </div>
           <div className="mt-2">
             <div className="space-y-3">
-              {payload.slice(0, 5).map((result, index) => (
+              {payload.results.slice(0, 5).map((result, index) => (
                 <div key={index} className="text-sm text-gray-600 pb-2">
                   <a
                     href={result.url}
