@@ -1,0 +1,94 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "PandaAGI SDK",
+  "colors": {
+    "primary": "#1976D2",
+    "light": "#2196F3",
+    "dark": "#0D47A1"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "introduction"
+            ]
+          },
+          {
+            "group": "Using PandaAGI",
+            "pages": [
+              "quickstart",
+              "installation",
+              "cli"
+            ]
+          },
+          {
+            "group": "Building with PandaAGI",
+            "pages": [
+              "concepts/architecture",
+              "concepts/agents",
+              "concepts/events",
+              "concepts/environments"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Apps",
+        "groups": [
+          {
+            "group": "Apps",
+            "pages": [
+              "apps/chat-interface"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Get API Key",
+          "href": "https://agi.pandas-ai.com",
+          "icon": "key"
+        },
+        {
+          "anchor": "Community",
+          "href": "https://discord.gg/KYKj9F2FRH",
+          "icon": "discord"
+        },
+        {
+          "anchor": "Blog",
+          "href": "https://blog.pandas-ai.com",
+          "icon": "newspaper"
+        }
+      ]
+    }
+  },
+  "logo": {
+    "light": "/favicon.svg",
+    "dark": "/favicon.svg",
+    "href": "https://pandas-ai.com"
+  },
+  "navbar": {
+    "links": [],
+    "primary": {
+      "type": "button",
+      "label": "Manage API Key",
+      "href": "https://agi.pandas-ai.com/dashboard"
+    }
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/ai_pandas",
+      "github": "https://github.com/sinaptik-ai/panda-agi",
+      "linkedin": "https://www.linkedin.com/company/pandasai",
+      "reddit": "https://www.reddit.com/r/PandasAI/"
+    }
+  }
+}
