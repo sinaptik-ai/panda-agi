@@ -39,13 +39,13 @@ async def download_file(url: str, timeout: int = 30) -> Tuple[bool, bytes, str]:
 class ImageGenerationHandler(ToolHandler):
     """Handler for image generation results"""
 
-    OUTPUT_DIR = "generated_images"
+    OUTPUT_DIR = "images"
 
-    async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        if not params.get("success", False):
-            error_msg = params.get("message", "Unknown error")
+    async def execute(self, tool_call: Dict[str, Any]) -> ToolResult:
+        if not tool_call.get("success", False):
+            error_msg = tool_call.get("message", "Unknown error")
             self.logger.error(f"Image generation failed: {error_msg}")
-            await self.add_event(EventType.ERROR, {"error": error_msg})
+            await self.add_event(EventType.IMAGE_GENERATION, tool_call)
             return ToolResult(
                 success=False, error=f"Image generation failed: {error_msg}"
             )
@@ -62,7 +62,8 @@ class ImageGenerationHandler(ToolHandler):
                 output_path.mkdir(parents=True, exist_ok=True)
 
             saved_files = []
-            for image_data in params.get("images", []):
+            images = []
+            for image_data in tool_call.get("images", []):
                 # Extract data
                 image_url = image_data.get("url")
                 filename = image_data.get("filename")
@@ -77,26 +78,32 @@ class ImageGenerationHandler(ToolHandler):
                 # Download and save the image
                 try:
                     self.logger.info(f"Downloading image from {image_url}")
-                    success, content, error_msg = await download_file(image_url)
-                    if success:
+                    image_response = requests.get(image_url)
+                    if image_response.status_code == 200:
                         # Use environment to write the binary file
                         result = await self.environment.write_file(
-                            filepath, content, mode="wb", encoding=None
+                            filepath, image_response.content, mode="wb", encoding=None
                         )
 
                         if result.get("status") == "success":
                             self.logger.info(f"Saved image to {result.get('path')}")
                             saved_files.append(result.get("path"))
+                            images.append(filepath)
                         else:
                             self.logger.error(
                                 f"Failed to save image: {result.get('message')}"
                             )
                     else:
-                        self.logger.error(f"Failed to download image: {error_msg}")
+                        self.logger.error(
+                            f"Failed to download image: HTTP {image_response.status_code}"
+                        )
                 except Exception as e:
                     self.logger.error(f"Failed to save image {filename}: {str(e)}")
 
-            result = {"saved_images": saved_files}
+            result = {
+                "saved_files": saved_files,
+                "images": images,
+            }
 
             await self.add_event(EventType.IMAGE_GENERATION, result)
             return ToolResult(

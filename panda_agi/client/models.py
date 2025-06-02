@@ -179,18 +179,18 @@ class FileReplaceEvent(BaseStreamEvent):
 
     type: str = "file_replace"
     file: str = Field(description="File path")
-    old_content: str = Field(description="Content being replaced")
-    new_content: str = Field(description="New content")
-    line_number: int = Field(description="Line number where replacement occurred")
+    old_str: str = Field(description="Content being replaced")
+    new_str: str = Field(description="New content")
 
 
 class FileFindEvent(BaseStreamEvent):
     """Event when agent searches for files or content within files"""
 
     type: str = "file_find"
-    path: str = Field(description="Directory searched")
-    glob_pattern: str = Field(description="Search pattern")
-    matches: List[str] = Field(description="Found matches")
+    file: Optional[str] = Field(description="Directory searched")
+    regex: Optional[str] = Field(description="Search pattern")
+    path: Optional[str] = Field(description="Path to the file")
+    glob_pattern: Optional[str] = Field(description="Search pattern")
 
 
 class FileExploreEvent(BaseStreamEvent):
@@ -198,7 +198,7 @@ class FileExploreEvent(BaseStreamEvent):
 
     type: str = "file_explore"
     path: str = Field(description="Directory explored")
-    structure: Dict[str, Any] = Field(description="Directory structure")
+    max_depth: int = Field(description="Maximum depth to explore")
 
 
 # Command Execution Events
@@ -216,17 +216,18 @@ class ShellViewEvent(BaseStreamEvent):
     """Event when agent views output from shell commands"""
 
     type: str = "shell_view"
-    command: str = Field(description="Shell command")
-    output: str = Field(description="Command output")
+    id: str = Field(description="Execution ID")
+    kill_process: bool = Field(description="Whether to kill the process")
+    wait_seconds: float = Field(description="Number of seconds to wait for output")
 
 
 class ShellWriteEvent(BaseStreamEvent):
     """Event when agent writes to shell or creates shell scripts"""
 
     type: str = "shell_write"
-    script: str = Field(description="Script file name")
-    content: str = Field(description="Script content")
-    executable: bool = Field(description="Whether script is executable")
+    id: str = Field(description="Execution ID")
+    input: str = Field(description="Input to write")
+    press_enter: bool = Field(description="Whether to press enter")
 
 
 # Communication Events
@@ -258,7 +259,8 @@ class ImageGenerationEvent(BaseStreamEvent):
     """Event when agent generates images or visual content"""
 
     type: str = "image_generation"
-    saved_images: List[str] = Field(description="List of saved images")
+    saved_files: List[str] = Field(description="List of saved images")
+    images: List[str] = Field(description="List of images")
 
 
 # TypeGuard functions for type safety
