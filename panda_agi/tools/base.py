@@ -48,6 +48,7 @@ class ToolHandler(ABC):
         self.logger = logging.getLogger(
             f"{self.__class__.__module__}.{self.__class__.__name__}"
         )
+        self.logger.setLevel(logging.WARNING)
 
     def set_agent(self, agent: "Agent"):
         """Set reference to the agent instance for sending messages"""

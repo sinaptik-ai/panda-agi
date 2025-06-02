@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, TypeGuard
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 # Message types that indicate completion/blocking operations
 COMPLETION_MESSAGE_TYPES = ["user_ask_question", "completed_task", "error"]
