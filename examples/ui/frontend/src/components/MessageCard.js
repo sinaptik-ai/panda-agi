@@ -6,7 +6,7 @@ const MessageCard = ({ message }) => {
   if (message.type === "user") {
     return (
       <div className="flex justify-end">
-        <div className="chat-message bg-blue-500 text-white max-w-xs lg:max-w-md">
+        <div className="chat-message bg-blue-500 text-white max-w-xs lg:max-w-md min-w-48">
           <p className="text-sm">{message.content}</p>
           <p className="text-xs text-blue-100 mt-1 text-right">
             {formatTimestamp(message.timestamp)}
