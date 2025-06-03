@@ -31,7 +31,7 @@ const ImageGenerationEvent = ({ payload, onPreviewClick }) => {
           Generated image:{" "}
           <span className="font-bold text-gray-700">
             {truncateFilename(filename)}
-          </span>
+          </span>{" "}
           {payload["images"] && payload["images"].length > 1 && (
             <span className="text-xs text-gray-500">
               and {payload["images"].length - 1} more
