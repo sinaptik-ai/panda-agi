@@ -251,7 +251,9 @@ class CompletedTaskEvent(BaseStreamEvent):
     """Event indicating agent has finished the requested task"""
 
     type: str = "completed_task"
-    success: bool = Field(description="Whether task was successful")
+    success: Optional[bool] = Field(
+        default=None, description="Whether task was successful"
+    )
 
 
 # Creative & Generation Events
