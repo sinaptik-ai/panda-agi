@@ -14,10 +14,16 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./MarkdownRenderer";
 
 const ContentSidebar = ({ isOpen, onClose, previewData }) => {
-  // Utility function to normalize filenames (remove leading './' if present)
+  // Utility function to normalize filenames (remove leading './' or '/' if present)
   const normalizeFilename = (filename) => {
     if (!filename) return "";
-    return filename.startsWith('./') ? filename.substring(2) : filename;
+    if (filename.startsWith('./')) {
+      return filename.substring(2);
+    }
+    if (filename.startsWith('/')) {
+      return filename.substring(1);
+    }
+    return filename;
   };
   
   // State for normalized filename and content
