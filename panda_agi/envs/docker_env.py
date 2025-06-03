@@ -532,7 +532,7 @@ class DockerEnv(BaseEnv):
     async def _exec_shell_blocking(
         self, command: str, timeout: Optional[float] = None, capture_output: bool = True
     ) -> Dict[str, Any]:
-        """Execute a shell command in blocking mode."""
+        """Execute a shell command in blocking mode with stuck detection."""
         try:
             start_time = time.time()
 
@@ -558,39 +558,196 @@ class DockerEnv(BaseEnv):
                 stderr=asyncio.subprocess.PIPE if capture_output else None,
             )
 
-            try:
-                stdout, stderr = await asyncio.wait_for(
-                    process.communicate(), timeout=timeout
-                )
-                end_time = time.time()
-                execution_time = end_time - start_time
-
-                stdout_str = stdout.decode() if capture_output and stdout else ""
-                stderr_str = stderr.decode() if capture_output and stderr else ""
-
-                return {
-                    "status": "success" if process.returncode == 0 else "error",
-                    "stdout": stdout_str,
-                    "stderr": stderr_str,
-                    "return_code": process.returncode,
-                    "execution_time": execution_time,
-                    "working_directory": str(self.working_directory),
-                    "command": command,
-                }
-            except asyncio.TimeoutError:
-                # Try to kill the process if it times out
+            if not capture_output:
+                # If not capturing output, just wait for completion
                 try:
-                    process.kill()
-                    await process.wait()
-                except:
-                    pass
+                    await asyncio.wait_for(process.wait(), timeout=timeout)
+                    end_time = time.time()
+                    execution_time = end_time - start_time
 
-                return {
-                    "status": "timeout",
-                    "message": f"Command timed out after {timeout} seconds",
-                    "command": command,
-                    "working_directory": str(self.working_directory),
-                }
+                    return {
+                        "status": "success" if process.returncode == 0 else "error",
+                        "stdout": "",
+                        "stderr": "",
+                        "return_code": process.returncode,
+                        "execution_time": execution_time,
+                        "working_directory": str(self.working_directory),
+                        "command": command,
+                    }
+                except asyncio.TimeoutError:
+                    try:
+                        process.kill()
+                        await process.wait()
+                    except:
+                        pass
+                    return {
+                        "status": "timeout",
+                        "message": f"Command timed out after {timeout} seconds",
+                        "command": command,
+                        "working_directory": str(self.working_directory),
+                    }
+
+            # For captured output, implement stuck detection
+            stdout_content = ""
+            stderr_content = ""
+            last_output = ""
+            first_check = True
+            stuck_checks = 0
+            max_stuck_checks = 3  # Allow 3 consecutive stuck checks before giving up
+
+            while process.returncode is None:
+                # Wait 5 seconds for first check, then 10 seconds for subsequent checks
+                wait_time = 5.0 if first_check else 10.0
+
+                try:
+                    # Try to read output with timeout
+                    stdout_task = (
+                        asyncio.create_task(process.stdout.read(8192))
+                        if process.stdout
+                        else None
+                    )
+                    stderr_task = (
+                        asyncio.create_task(process.stderr.read(8192))
+                        if process.stderr
+                        else None
+                    )
+
+                    # Wait for the specified time or until output is available
+                    done, pending = await asyncio.wait(
+                        [
+                            task
+                            for task in [stdout_task, stderr_task]
+                            if task is not None
+                        ],
+                        timeout=wait_time,
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+
+                    # Cancel pending tasks
+                    for task in pending:
+                        task.cancel()
+                        try:
+                            await task
+                        except asyncio.CancelledError:
+                            pass
+
+                    # Read any available output
+                    current_stdout = ""
+                    current_stderr = ""
+
+                    for task in done:
+                        try:
+                            data = await task
+                            if data:
+                                if task == stdout_task:
+                                    current_stdout = (
+                                        data.decode()
+                                        if isinstance(data, bytes)
+                                        else str(data)
+                                    )
+                                elif task == stderr_task:
+                                    current_stderr = (
+                                        data.decode()
+                                        if isinstance(data, bytes)
+                                        else str(data)
+                                    )
+                        except:
+                            pass
+
+                    if current_stdout:
+                        stdout_content += current_stdout
+                    if current_stderr:
+                        stderr_content += current_stderr
+
+                    current_output = stdout_content + stderr_content
+
+                    # Check if output has changed
+                    if current_output == last_output and not first_check:
+                        stuck_checks += 1
+                        if stuck_checks >= max_stuck_checks:
+                            # Command appears to be stuck
+                            end_time = time.time()
+                            execution_time = end_time - start_time
+
+                            return {
+                                "status": "warning",
+                                "stdout": stdout_content,
+                                "stderr": stderr_content,
+                                "return_code": None,
+                                "execution_time": execution_time,
+                                "working_directory": str(self.working_directory),
+                                "command": command,
+                                "warning": "Command appears to be stuck - no output change detected for 30 seconds",
+                                "stuck_detection": True,
+                                "process_running": True,
+                            }
+                    else:
+                        stuck_checks = 0  # Reset counter if output changed
+
+                    last_output = current_output
+                    first_check = False
+
+                    # Check timeout
+                    if timeout:
+                        elapsed = time.time() - start_time
+                        if elapsed >= timeout:
+                            try:
+                                process.kill()
+                                await process.wait()
+                            except:
+                                pass
+                            return {
+                                "status": "timeout",
+                                "message": f"Command timed out after {timeout} seconds",
+                                "command": command,
+                                "working_directory": str(self.working_directory),
+                                "stdout": stdout_content,
+                                "stderr": stderr_content,
+                            }
+
+                except Exception:
+                    # If we can't read output, just wait a bit and check process status
+                    await asyncio.sleep(wait_time)
+
+            # Process completed, read any remaining output
+            try:
+                if process.stdout:
+                    remaining_stdout = await asyncio.wait_for(
+                        process.stdout.read(), timeout=1.0
+                    )
+                    if remaining_stdout:
+                        stdout_content += (
+                            remaining_stdout.decode()
+                            if isinstance(remaining_stdout, bytes)
+                            else str(remaining_stdout)
+                        )
+                if process.stderr:
+                    remaining_stderr = await asyncio.wait_for(
+                        process.stderr.read(), timeout=1.0
+                    )
+                    if remaining_stderr:
+                        stderr_content += (
+                            remaining_stderr.decode()
+                            if isinstance(remaining_stderr, bytes)
+                            else str(remaining_stderr)
+                        )
+            except asyncio.TimeoutError:
+                pass
+            except Exception:
+                pass
+
+            end_time = time.time()
+            execution_time = end_time - start_time
+
+            return {
+                "status": "success" if process.returncode == 0 else "error",
+                "stdout": stdout_content,
+                "stderr": stderr_content,
+                "return_code": process.returncode,
+                "execution_time": execution_time,
+                "working_directory": str(self.working_directory),
+                "command": command,
+            }
         except Exception as e:
             return {
                 "status": "error",

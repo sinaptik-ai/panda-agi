@@ -5,6 +5,7 @@ This module provides environment classes that define where file operations
 and shell commands are executed.
 """
 
+import asyncio
 import fcntl
 import logging
 import os
@@ -41,13 +42,13 @@ def _read_non_blocking(pipe) -> str:
     """Read from a pipe without blocking."""
     if not pipe:
         return ""
-    
+
     try:
         # Make pipe non-blocking
         fd = pipe.fileno()
         fl = fcntl.fcntl(fd, fcntl.F_GETFL)
         fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-        
+
         # Try to read available data
         return pipe.read() or ""
     except BlockingIOError:
@@ -88,19 +89,116 @@ class LocalEnv(BaseEnv):
     async def _exec_shell_blocking(
         self, command: str, timeout: Optional[float] = None, capture_output: bool = True
     ) -> Dict[str, Any]:
-        """Execute a shell command in blocking mode."""
+        """Execute a shell command in blocking mode with stuck detection."""
         try:
             start_time = datetime.now()
 
             # Execute command in the current working directory
-            process = subprocess.run(
+            process = subprocess.Popen(
                 command,
                 shell=True,
                 cwd=str(self.working_directory),
-                capture_output=capture_output,
+                stdout=subprocess.PIPE if capture_output else None,
+                stderr=subprocess.PIPE if capture_output else None,
                 text=True,
-                timeout=timeout,
             )
+
+            if not capture_output:
+                # If not capturing output, just wait for completion
+                return_code = process.wait(timeout=timeout)
+                end_time = datetime.now()
+                execution_time = (end_time - start_time).total_seconds()
+
+                return {
+                    "status": "success" if return_code == 0 else "error",
+                    "stdout": "",
+                    "stderr": "",
+                    "return_code": return_code,
+                    "execution_time": execution_time,
+                    "working_directory": str(self.working_directory),
+                    "command": command,
+                }
+
+            # For captured output, implement stuck detection
+            stdout_content = ""
+            stderr_content = ""
+            last_output = ""
+            first_check = True
+            stuck_checks = 0
+            max_stuck_checks = 3  # Allow 3 consecutive stuck checks before giving up
+
+            while process.poll() is None:
+                # Wait 5 seconds for first check, then 10 seconds for subsequent checks
+                wait_time = 5.0 if first_check else 10.0
+
+                try:
+                    await asyncio.sleep(wait_time)
+                except:
+                    # Fallback to regular sleep if asyncio is not available
+                    import time
+
+                    time.sleep(wait_time)
+
+                # Read current output
+                current_stdout = _read_non_blocking(process.stdout)
+                current_stderr = _read_non_blocking(process.stderr)
+
+                if current_stdout:
+                    stdout_content += current_stdout
+                if current_stderr:
+                    stderr_content += current_stderr
+
+                current_output = stdout_content + stderr_content
+
+                # Check if output has changed
+                if current_output == last_output and not first_check:
+                    stuck_checks += 1
+                    if stuck_checks >= max_stuck_checks:
+                        # Command appears to be stuck
+                        end_time = datetime.now()
+                        execution_time = (end_time - start_time).total_seconds()
+
+                        return {
+                            "status": "warning",
+                            "stdout": stdout_content,
+                            "stderr": stderr_content,
+                            "return_code": None,
+                            "execution_time": execution_time,
+                            "working_directory": str(self.working_directory),
+                            "command": command,
+                            "warning": "Command appears to be stuck - no output change detected for 30 seconds",
+                            "stuck_detection": True,
+                            "process_running": True,
+                        }
+                else:
+                    stuck_checks = 0  # Reset counter if output changed
+
+                last_output = current_output
+                first_check = False
+
+                # Check timeout
+                if timeout:
+                    elapsed = (datetime.now() - start_time).total_seconds()
+                    if elapsed >= timeout:
+                        process.terminate()
+                        return {
+                            "status": "timeout",
+                            "message": f"Command timed out after {timeout} seconds",
+                            "command": command,
+                            "working_directory": str(self.working_directory),
+                            "stdout": stdout_content,
+                            "stderr": stderr_content,
+                        }
+
+            # Process completed, read any remaining output
+            try:
+                remaining_stdout, remaining_stderr = process.communicate(timeout=1)
+                if remaining_stdout:
+                    stdout_content += remaining_stdout
+                if remaining_stderr:
+                    stderr_content += remaining_stderr
+            except subprocess.TimeoutExpired:
+                pass
 
             end_time = datetime.now()
             execution_time = (end_time - start_time).total_seconds()
@@ -110,8 +208,8 @@ class LocalEnv(BaseEnv):
 
             return {
                 "status": status,
-                "stdout": process.stdout if capture_output else "",
-                "stderr": process.stderr if capture_output else "",
+                "stdout": stdout_content,
+                "stderr": stderr_content,
                 "return_code": process.returncode,
                 "execution_time": execution_time,
                 "working_directory": str(self.working_directory),
