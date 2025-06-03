@@ -73,6 +73,7 @@ const EVENT_COMPONENTS = {
 const SPECIAL_EVENT_HANDLERS = {
   user_notification: (props) => UserMessageEvent(props),
   user_question: (props) => UserMessageEvent(props),
+  error: (props) => UserMessageEvent(props),
 };
 
 const EventList = ({ message, onPreviewClick, onFileClick }) => {

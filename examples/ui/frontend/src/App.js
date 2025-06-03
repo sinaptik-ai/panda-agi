@@ -340,16 +340,16 @@ function App() {
                   continue; // Don't add this as a visible message
                 }
 
-                // Check for token/credit errors in user_notification events
+                // Check for any errors in user_notification or error events
                 if (
-                  eventData.data &&
-                  eventData.data.type === "user_notification" &&
-                  eventData.data.payload &&
-                  eventData.data.payload.error &&
-                  (eventData.data.payload.error.includes("token") ||
-                    eventData.data.payload.error.includes("credit"))
+                  (eventData.data && 
+                   eventData.data.type === "user_notification" && 
+                   eventData.data.payload && 
+                   eventData.data.payload.error) ||
+                  (eventData.data && 
+                   eventData.data.type === "error")
                 ) {
-                  // Add visual indicator to show this is an important error
+                  // Set loading to false for any error event
                   setIsLoading(false);
                 }
 
