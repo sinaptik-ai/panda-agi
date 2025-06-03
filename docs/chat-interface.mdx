@@ -1,0 +1,122 @@
+---
+title: 'Chat Interface'
+description: 'Build your own AI assistant with a real-time streaming interface'
+---
+
+<Note>
+Create your own version of powerful AI assistants like ManusAI, Lovable, Cursor, Windsurf, etc... with plugins - all using PandaAGI's ready-made chat interface.
+</Note>
+
+<Frame caption="PandaAGI Chat Interface">
+  <img
+    src="/images/chat_interface.png"
+    alt="PandaAGI Chat Interface"
+    className="rounded-lg shadow-md"
+  />
+</Frame>
+
+## Why Build a Chat Interface?
+
+A chat interface is the most intuitive way for users to interact with AI agents. The PandaAGI chat interface provides:
+
+<CardGroup cols={2}>
+  <Card title="Real-time Streaming" icon="bolt" color="#0285c7">
+    See agent responses, thinking, and actions as they happen
+  </Card>
+  <Card title="Tool Visibility" icon="wrench" color="#16a34a">
+    Watch as the agent uses tools to solve complex problems
+  </Card>
+  <Card title="Conversation History" icon="clock-rotate-left" color="#dc2626">
+    Maintain context across multiple interactions
+  </Card>
+  <Card title="Mobile Responsive" icon="mobile" color="#8b5cf6">
+    Works seamlessly on desktop and mobile devices
+  </Card>
+</CardGroup>
+
+## Ready-to-use Chat Interface
+
+PandaAGI includes a production-ready chat interface in the examples folder that you can deploy immediately.
+
+<Tabs>
+  <Tab title="Docker Setup (Recommended)">
+    <Steps>
+      <Step title="Clone Repository">
+        ```bash
+        git clone https://github.com/sinaptik-ai/panda-agi.git
+        cd panda-agi
+        ```
+      </Step>
+      <Step title="Configure API Key">
+        ```bash
+        cd examples/ui
+        echo "PANDA_AGI_KEY=your-api-key-here" > .env
+        ```
+      </Step>
+      <Step title="Launch Application">
+        ```bash
+        ./start.sh
+        ```
+        
+        This command will:
+        - ✅ Check Docker requirements  
+        - 🛑 Stop any existing containers
+        - 🔨 Build and start both services
+        - 🔍 Perform health checks
+        - 📊 Display service status and URLs
+      </Step>
+      <Step title="Access the Interface">
+        Once running, access:
+        - **Frontend**: http://localhost:3000
+        - **Backend API**: http://localhost:8001
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Manual Setup">
+    <Steps>
+      <Step title="Start Backend">
+        ```bash
+        cd examples/ui/backend
+        poetry install
+        python main.py
+        ```
+      </Step>
+      <Step title="Start Frontend">
+        ```bash
+        cd examples/ui/frontend
+        yarn install
+        yarn start
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card
+    title="Quickstart Guide"
+    icon="play"
+    href="/quickstart"
+    color="#0285c7"
+  >
+    Return to the quickstart guide to explore more capabilities
+  </Card>
+  <Card
+    title="CLI Interface"
+    icon="terminal"
+    href="/cli"
+    color="#16a34a"
+  >
+    Try the command-line interface for terminal-based interactions
+  </Card>
+  <Card
+    title="Event System"
+    icon="bolt"
+    href="/concepts/events"
+    color="#8b5cf6"
+  >
+    Learn more about PandaAGI's event system for real-time interactions
+  </Card>
+</CardGroup> 

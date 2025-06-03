@@ -1,140 +1,326 @@
 ---
-title: 'Agent CLI'
+title: 'CLI Interface'
 description: 'Interact with PandaAGI agents from your terminal'
 ---
 
-The Enhanced Agent CLI Interface provides a powerful command-line interface for interacting with Panda AGI agents. It features real-time event streaming, comprehensive error handling, session statistics, and a rich interactive experience.
+<Note>
+The PandaAGI CLI provides a powerful terminal-based interface for interacting with agents, perfect for developers who prefer command-line tools or need to integrate agents into scripts and automation workflows.
+</Note>
 
-<img
-  className="block dark:hidden"
-  src="/images/cli.png"
-  alt="CLI"
-/>
-<img
-  className="hidden dark:block"
-  src="/images/cli.png"
-  alt="CLI"
-/>
+<Frame caption="PandaAGI CLI Interface">
+  <img
+    src="/images/cli.png"
+    alt="PandaAGI CLI Interface showing real-time agent interactions in the terminal"
+  />
+</Frame>
+
+## Why Use the CLI?
+
+<CardGroup cols={2}>
+  <Card title="Developer-Friendly" icon="terminal" color="#0285c7">
+    Perfect for developers who prefer working in the terminal or need to integrate with scripts and automation workflows.
+  </Card>
+  <Card title="Lightweight" icon="feather" color="#16a34a">
+    Minimal resource usage with the same powerful agent capabilities as the web interface.
+  </Card>
+  <Card title="Real-Time Feedback" icon="bolt" color="#8b5cf6">
+    Watch the agent's thinking process, actions, and results in real-time with rich visual feedback.
+  </Card>
+  <Card title="Session Persistence" icon="database" color="#f59e0b">
+    Resume conversations and keep context across multiple sessions with conversation IDs.
+  </Card>
+</CardGroup>
 
 ## Quick Start
 
-To start using the Enhanced Agent CLI, run:
+<Steps>
+  <Step title="Install Dependencies">
+    Ensure you have Python 3.9+ and the PandaAGI SDK installed:
+    
+    ```bash
+    poetry add panda_agi rich
+    ```
+    
+    The CLI requires the `rich` library for enhanced terminal output.
+  </Step>
+  
+  <Step title="Set Your API Key">
+    Set your PandaAGI API key as an environment variable:
+    
+    ```bash
+    export PANDA_AGI_KEY="your-api-key"
+    ```
+    
+    You can add this to your shell profile for persistence.
+  </Step>
+  
+  <Step title="Run the CLI">
+    Start the CLI with default settings:
+    
+    ```bash
+    poetry run python examples/cli.py
+    ```
+    
+    This creates a workspace in `./my_agent_workspace` and starts an interactive session.
+  </Step>
+  
+  <Step title="Start Interacting">
+    Type your message and press Enter to send it to the agent. You'll see the agent's thinking process, actions, and responses in real-time.
+    
+    <Tip>Type `help` to see all available CLI commands.</Tip>
+  </Step>
+</Steps>
 
-```bash
-python examples/cli.py
-```
+## Key Features
 
-This will start the CLI with default settings, creating a workspace in `./my_agent_workspace`.
-
-## Features
-
-- **Real-time event streaming** with timestamps and categorization
-- **Categorized operation display** with icons and color coding
-- **Enhanced visual feedback** and progress tracking
-- **Session statistics** and history tracking
-- **Comprehensive error handling** and debugging information
-- **User messaging** with attachment support
-- **Interactive commands** for session management
-- **Customizable display options** (compact mode, width adjustment, etc.)
-
-## Installation Requirements
-
-Before using the CLI, ensure you have:
-
-1. Python 3.9+ installed
-2. The Panda AGI SDK installed and configured
-3. Required dependencies (automatically installed with the SDK):
-   - `rich` for enhanced terminal output
-   - `asyncio` for asynchronous operations
+<AccordionGroup>
+  <Accordion title="Real-Time Event Streaming" icon="bolt">
+    Watch the agent's thinking process, actions, and responses as they happen with color-coded event types and timestamps.
+    
+    ```python
+    # Event streaming is built into the CLI
+    async for event in agent.run(query):
+        # Process events in real-time
+        if isinstance(event, BaseStreamEvent):
+            event_type = event.type.value if hasattr(event.type, "value") else str(event.type)
+            
+            # Apply appropriate styling based on event type
+            style_info = get_event_style(event_type)
+            
+            # Render the event with appropriate colors and icons
+            render_event(event, style_info)
+            
+            # Update session statistics
+            update_session_stats(event_type)
+    ```
+  </Accordion>
+  
+  <Accordion title="Conversation History" icon="history">
+    The CLI maintains conversation history within a session and allows you to resume conversations using conversation IDs.
+    
+    ```bash
+    # Resume a previous conversation
+    poetry run python examples/cli.py --conversation-id "123e4567-e89b-12d3-a456-426614174000"
+    ```
+    
+    This is particularly useful for long-running tasks or when you need to continue work across different sessions.
+  </Accordion>
+  
+  <Accordion title="Interactive Commands" icon="terminal">
+    The CLI supports special commands to control the session:
+    
+    - `help` - Show available commands
+    - `clear` - Clear the screen
+    - `exit`, `quit`, or `q` - Exit the CLI
+    - `stats` - Show detailed session statistics
+    - `status` - Show current status and statistics
+    - `history` - Show event history summary
+    - `reset` - Reset session statistics
+  </Accordion>
+  
+  <Accordion title="Rich Visual Feedback" icon="eye">
+    The CLI uses the `rich` library to provide enhanced visual feedback:
+    
+    - Color-coded event categories (system, user, web, file, shell, image)
+    - Custom icons for different event types (🔗, 💬, 🔍, 📖, 💻, 🎨)
+    - Progress bars for long-running operations
+    - Syntax highlighting for code snippets
+    - Panels with rounded or heavy borders for visual organization
+    - Comprehensive session statistics and event history tracking
+  </Accordion>
+</AccordionGroup>
 
 ## Command Line Options
 
-### Basic Usage
+<CodeGroup>
+  ```bash Basic Usage
+  python examples/cli.py [OPTIONS]
+  ```
+  
+  ```bash Custom Workspace
+  python examples/cli.py -w ./my_project_workspace
+  ```
+  
+  ```bash Resume Conversation
+  python examples/cli.py --conversation-id "123e4567-e89b-12d3-a456-426614174000"
+  ```
+</CodeGroup>
 
-```bash
-python examples/cli.py [OPTIONS]
-```
+<br />
 
-### Available Options
+<Tabs>
+  <Tab title="Options Reference">
+    | Option | Short | Description | Default |
+    |--------|-------|-------------|----------|
+    | `--workspace` | `-w` | Path to agent workspace directory | `./my_agent_workspace` |
+    | `--conversation-id` | | Resume an existing conversation by ID | `None` |
+    | `--no-timestamps` | | Disable timestamp display in events | `False` |
+    | `--width` | | Panel width in characters | `120` |
+    | `--compact` | `-c` | Use compact display mode for better performance | `False` |
+    | `--verbose` | `-v` | Show additional debug information and full tracebacks | `False` |
+  </Tab>
+  
+  <Tab title="Environment Setup">
+    The CLI respects the same environment variables as the SDK:
+    
+    ```bash
+    # Set your API key
+    export PANDA_AGI_KEY="your-api-key"
+    
+    # Set custom API endpoint (optional)
+    export PANDA_AGI_API_URL="https://your-custom-endpoint.com"
+    ```
+    
+    These can be set in your shell profile or before running the CLI.
+  </Tab>
+</Tabs>
 
-| Option | Short | Description | Default |
-|--------|-------|-------------|---------|
-| `--workspace` | `-w` | Path to agent workspace directory | `./my_agent_workspace` |
-| `--conversation-id` | | Resume an existing conversation by ID | `None` |
-| `--no-timestamps` | | Disable timestamp display in events | `False` |
+## Visual Event Categories
 
-### Examples
+<CardGroup cols={3}>
+  <Card title="System Events" icon="server" color="#0285c7">
+    - 🔗 **Connection Established**
+    - 🎯 **Task Completed**
+    - ⚙️ **System Operations**
+  </Card>
+  
+  <Card title="User Interaction" icon="user" color="#16a34a">
+    - 💬 **User Notification**
+    - ❓ **User Question**
+    - 👤 **User Input**
+  </Card>
+  
+  <Card title="Web Operations" icon="globe" color="#8b5cf6">
+    - 🔍 **Web Search**
+    - 📊 **Web Search Results**
+    - 🌐 **Web Navigation**
+    - 📄 **Web Page Content**
+  </Card>
+  
+  <Card title="File Operations" icon="file" color="#f59e0b">
+    - 📖 **File Read**
+    - ✏️ **File Write**
+    - 🔄 **File Replace**
+    - 🔎 **File Find**
+    - 📁 **File Explore**
+  </Card>
+  
+  <Card title="Shell Operations" icon="terminal" color="#ef4444">
+    - 💻 **Shell Execute**
+    - 👁️ **Shell View**
+    - ⌨️ **Shell Write**
+  </Card>
+  
+  <Card title="AI Operations" icon="sparkles" color="#6366f1">
+    - 🤖 **Agent Actions**
+    - 🎨 **Image Generation**
+    - 🧠 **Thinking Process**
+  </Card>
+</CardGroup>
 
-```bash
-# Start with default settings
-python examples/cli.py
+## Advanced Usage
 
-# Use a custom workspace directory
-python examples/cli.py -w ./my_project_workspace
+### Session Statistics
 
-# Resume an existing conversation
-python examples/cli.py --conversation-id "123e4567-e89b-12d3-a456-426614174000"
-```
+The CLI automatically tracks and can display comprehensive session statistics using the `stats` command:
 
-## Event Categories and Visual Indicators
+<Frame caption="Example Session Statistics">
+  ```
+  ┌─────────────── Detailed Session Statistics ───────────────┐
+  │ Metric                 │ Value                            │
+  │ Session Runtime        │ 00:15:32                         │
+  │ Total Events           │ 127                              │
+  │ User Messages          │ 8                                │
+  │ Agent Operations       │ 119                              │
+  │ Errors Encountered     │ 2                                │
+  │ Events/Minute          │ 8.2                              │
+  └─────────────────────────────────────────────────────────┘
+  ```
+</Frame>
 
-The CLI categorizes events with color-coded icons for easy identification:
+You can also view a summary of events by category using the `history` command:
 
-### System Events
-- 🔗 **Connection Established** - Agent server connection
-- 🎯 **Task Completed** - Successful task completion
+<Frame caption="Event History Summary">
+  ```
+  ┌─────────────── Event History Summary ───────────────┐
+  │ Category    │ Count │ Icon                          │
+  │ System      │ 5     │ ⚙️                            │
+  │ User        │ 8     │ 👤                            │
+  │ Web         │ 42    │ 🌐                            │
+  │ File        │ 23    │ 📁                            │
+  │ Shell       │ 37    │ 💻                            │
+  │ Image       │ 12    │ 🎨                            │
+  └─────────────────────────────────────────────────────┘
+  ```
+</Frame>
 
-### User Interaction
-- 💬 **User Notification** - Messages from users
-- ❓ **User Question** - User queries and questions
+### Workspace Management
 
-### Web Operations
-- 🔍 **Web Search** - Search operations
-- 📊 **Web Search Results** - Search results display
-- 🌐 **Web Navigation** - Page navigation
-- 📄 **Web Page Content** - Retrieved page content
+<Steps>
+  <Step title="Default Workspace">
+    The CLI automatically creates and manages a workspace directory at `./my_agent_workspace` unless specified otherwise. This workspace is where the agent stores files and other artifacts it creates during operation.
+  </Step>
+  
+  <Step title="Custom Workspace">
+    You can specify a custom workspace directory:
+    
+    ```bash
+    poetry run python examples/cli.py -w ./my_custom_workspace
+    ```
+    
+    This is useful when working on different projects or when you want to isolate agent workspaces.
+  </Step>
+  
+  <Step title="Persistent Conversations">
+    The CLI supports resuming conversations across sessions using the conversation ID:
+    
+    ```bash
+    # First session - note the conversation ID in the output
+    poetry run python examples/cli.py
+    
+    # Later session - resume with the same conversation ID
+    poetry run python examples/cli.py --conversation-id "123e4567-e89b-12d3-a456-426614174000"
+    ```
+    
+    This allows for long-running tasks to be continued even after closing the terminal.
+  </Step>
+</Steps>
 
-### File Operations
-- 📖 **File Read** - Reading files
-- ✏️ **File Write** - Writing to files
-- 🔄 **File Replace** - Replacing file content
-- 🔎 **Find in Files** - Searching within files
-- 📂 **Explore Directory** - Directory exploration
+### Workspace Contents
 
-### Shell Operations
-- 💻 **Shell Execute** - Command execution
-- 👁️ **View Output** - Output viewing
-- ⌨️ **Write to Process** - Process input
+The workspace directory contains all artifacts created during agent operations:
 
-### Image Operations
-- 🎨 **Image Generation** - AI image creation
+- Files created or modified by the agent
+- Downloaded web content and search results
+- Generated images and other media
+- Temporary files and execution artifacts
+- Conversation history and context data
 
-## Session Statistics
+## Next Steps
 
-The CLI tracks comprehensive session statistics:
-
-- **Session Duration** - Total runtime
-- **Events Processed** - Total number of events
-- **User Messages** - Messages sent by users
-- **Agent Operations** - Operations performed by the agent
-- **Pending Operations** - Currently running operations
-- **Successful Operations** - Completed successfully
-- **Errors** - Error count and details
-
-## Error Handling
-
-The CLI provides comprehensive error handling:
-
-- **Visual Error Indicators** - Red borders and error icons
-- **Detailed Error Messages** - Full error descriptions
-- **Graceful Recovery** - Continues operation after errors
-- **Debug Information** - Verbose mode shows stack traces
-
-## Workspace Management
-
-The CLI automatically creates and manages a workspace directory:
-
-- **Default Location**: `./my_agent_workspace`
-- **Automatic Creation**: Creates directory if it doesn't exist
-- **File Operations**: All agent file operations occur within this workspace
-- **Persistence**: Files and changes persist between sessions
+<CardGroup cols={3}>
+  <Card
+    title="Quickstart Guide"
+    icon="rocket"
+    href="/quickstart"
+    color="#0285c7"
+  >
+    Return to the quickstart guide to explore more capabilities
+  </Card>
+  <Card
+    title="Chat Interface"
+    icon="comments"
+    href="/chat-interface"
+    color="#16a34a"
+  >
+    Try the web-based chat interface for a graphical experience
+  </Card>
+  <Card
+    title="Event System"
+    icon="bolt"
+    href="/concepts/events"
+    color="#8b5cf6"
+  >
+    Dive deeper into the event system that powers both the CLI and chat interfaces
+  </Card>
+</CardGroup>

@@ -36,7 +36,7 @@ async def main():
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(
-        description="Run the Panda AGI agent with a custom query"
+        description="Run the PandaAGI agent with a custom query"
     )
     parser.add_argument("query", help="The query to send to the agent")
     args = parser.parse_args()

@@ -46,7 +46,7 @@
     },
     {
       "group": "Examples",
-      "pages": ["apps/chat-interface", "cli"]
+      "pages": ["chat-interface", "cli"]
     },
     {
       "group": "Advanced Usage",

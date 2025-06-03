@@ -1,115 +1,159 @@
 ---
-title: 'Introduction'
-description: 'Welcome to the PandaAGI SDK docs - Build your own AI-powered applications with full control, letting the SDK handling complexity'
+title: 'Welcome to PandaAGI'
+description: 'Build powerful AI-powered applications with the PandaAGI SDK. Full control over your experience while we handle the complexity.'
 ---
 
-## What is AGI?
-
-AGI traditionally means **Artificial General Intelligence** — the theoretical ability of AI to match human intelligence across all tasks. At PandasAI, we redefine it as **Agentic General Intelligence**: AI that accomplishes tasks through tools rather than mimicking human thought.
+<Note>
+PandaAGI SDK is the easiest way to build and deploy agentic AI applications with complete control over your execution environment. Learn how to [get started](/quickstart) in minutes.
+</Note>
 
 <img
   className="block dark:hidden"
   src="/images/panda_agi_hero.png"
-  alt="Hero Light"
+  alt="PandaAGI SDK"
 />
 <img
   className="hidden dark:block"
   src="/images/panda_agi_hero.png"
-  alt="Hero Dark"
+  alt="PandaAGI SDK"
 />
 
-## What is PandaAGI SDK?
+## What is PandaAGI?
 
-We developed the PandaAGI SDK to enable **agentic AI** in your applications. The PandaAGI SDK is a powerful development framework that lets you:
-
-- **Build AI applications** using autonomous general AI agents
-- Create custom AI-integrated experiences tailored to your specific needs
-- Let the SDK handle complex AI orchestration behind the scenes
-
-Think of it as the foundation for building your own AI development platform — with the flexibility to create exactly what your users need, while maintaining **full control** over the experience and execution environment.
+PandaAGI is a powerful SDK that lets you build AI applications with **agentic capabilities**. We redefine AGI as **Agentic General Intelligence**: AI that accomplishes tasks through tools rather than mimicking human thought.
 
 <CardGroup cols={2}>
   <Card
     title="Development Framework"
     icon="hammer"
+    color="#0285c7"
   >
-    Build custom AI-powered applications without needing AI expertise
+    Build AI-powered applications without deep AI expertise
   </Card>
   <Card
     title="Local Orchestration"
     icon="server"
+    color="#16a34a"
   >
-    General AI agents coordinate operations while all execution happens in your environment
+    All execution happens in your environment with full control
   </Card>
   <Card
     title="Universal Capability"
     icon="infinity"
+    color="#dc2626"
   >
-    Create applications for any domain - not limited to specific use cases
+    Create solutions for any domain or use case
   </Card>
   <Card
     title="Developer-First"
     icon="code"
+    color="#8b5cf6"
   >
-    Focus on user experience while PandaAGI handles AI complexity
+    Focus on user experience while we handle AI complexity
   </Card>
 </CardGroup>
 
+## Why Choose PandaAGI?
+
+Building reliable agentic systems involves solving numerous complex challenges:
+
+<Steps>
+  <Step title="Context Management">
+    Efficiently handle large context windows without token waste
+  </Step>
+  <Step title="Error Resilience">
+    Gracefully manage execution failures and edge cases
+  </Step>
+  <Step title="Hallucination Prevention">
+    Stop AI agents from entering costly hallucination loops
+  </Step>
+  <Step title="Cost Optimization">
+    Minimize token usage to keep your applications affordable
+  </Step>
+  <Step title="State Persistence">
+    Maintain consistent state across multiple interactions
+  </Step>
+</Steps>
+
+PandaAGI handles all this complexity for you. Our infrastructure makes agentic AI accessible and cost-effective, with optimizations that would otherwise require months of engineering effort.
+
 ## Who is PandaAGI for?
 
-PandaAGI is purpose-built for software engineers, product engineers and exceptional developers who:
-- Want to build custom AI tools rather than use generic platforms
-- Need flexible solutions that integrate with existing systems
-- Prefer local control over their data and execution environment
+<Tabs>
+  <Tab title="Software Engineers">
+    Build custom AI tools that integrate seamlessly with your existing systems while maintaining complete control over implementation.
+  </Tab>
+  <Tab title="Product Engineers">
+    Create AI-powered features that enhance your product without sacrificing user experience or control.
+  </Tab>
+  <Tab title="Technical Founders">
+    Rapidly prototype and deploy AI capabilities that can become the foundation of your next billion-dollar product.
+  </Tab>
+</Tabs>
 
-If you write code and want to leverage AI's power while maintaining control over implementation, PandaAGI provides the framework you need.
+## What Can You Build?
 
-## What can you do with PandaAGI?
+PandaAGI empowers you to create the next generation of AI-powered applications with complete control over the user experience.
 
-PandaAGI empowers you to build the next billion-dollar AI product. Create the next Cursor, Lovable, or entirely new category of AI-powered application with complete control over the user experience.
+<AccordionGroup>
+  <Accordion title="Development Tools" icon="code">
+    Build AI coding assistants, workflow automation tools, and development environments that understand your codebase and help developers work more efficiently.
+  </Accordion>
+  <Accordion title="Business Intelligence" icon="chart-line">
+    Create research platforms and competitive analysis tools that can gather, analyze, and synthesize information from multiple sources.
+  </Accordion>
+  <Accordion title="Content Systems" icon="file-lines">
+    Develop automated documentation generators, content creation assistants, and publishing workflows that maintain your brand voice.
+  </Accordion>
+  <Accordion title="Enterprise Solutions" icon="building">
+    Build custom AI tools tailored to specific business processes, integrating with existing systems and workflows.
+  </Accordion>
+</AccordionGroup>
 
-Key use cases include:
-- **Development Tools**: AI coding assistants and workflow automation
-- **Business Intelligence**: Research platforms and competitive analysis
-- **Content Systems**: Automated documentation and content generation
-- **Enterprise Solutions**: Custom AI tools tailored to specific business needs
+## How PandaAGI Works
 
-## How does PandaAGI work?
+PandaAGI is built on three core components that work together to provide a seamless development experience:
 
-PandaAGI is built on three core components:
+<Frame caption="PandaAGI Architecture">
+  <img src="/images/architecture.png" alt="PandaAGI Architecture" />
+</Frame>
 
-1. **The API**: A bidirectional WebSocket connection for real-time, stateful interaction between your application and agents
+1. **The API**: A bidirectional WebSocket connection enabling real-time, stateful interaction between your application and AI agents
 
-2. **The SDK**: Handles socket connections, agent state, and orchestration so you can focus on building your application
+2. **The SDK**: Handles all the complex orchestration, agent state management, and communication so you can focus on building your application
 
 3. **The Execution Environment**: A secure, isolated context where agents can safely run code and interact with external systems
 
-The PandaAGI SDK allows you to build and deploy extremely powerful agents virtually capable of doing anything thanks to the in-built execution capabilities that comes with every PandaAGI agent:
+## Built-in Agent Capabilities
 
-| Capability | Purpose |
-|:----------|:--------|
-| 🌐 **Internet access** | Information gathering |
-| 🗂️ **File system** | Asset management |
-| 💻 **Code execution** | Dynamic programming |
-| 🚀 **Deployment** | Web servers & APIs |
+Every PandaAGI agent comes with powerful execution capabilities out of the box:
 
-## Start Building PandaAGI General AI Agents
+| Capability | Purpose | Benefits |
+|:----------|:--------|:---------|
+| 🌐 **Internet Access** | Information gathering | Always up-to-date data from any source |
+| 🗂️ **File System** | Asset management | Create, modify and organize files seamlessly |
+| 💻 **Code Execution** | Dynamic programming | Run code in multiple languages with full security |
+| 🚀 **Deployment** | Web servers & APIs | Deploy applications directly from your agent |
 
-Ready to build your first AI-powered application? Check out our [quickstart guide](/quickstart) to learn how to integrate PandaAGI into your development workflow.
+## Get Started in Minutes
+
+Ready to build your first AI-powered application? Our quickstart guide will help you integrate PandaAGI into your development workflow in minutes.
 
 <CardGroup cols={2}>
   <Card
     title="Quickstart Guide"
     icon="play"
     href="/quickstart"
+    color="#0285c7"
   >
-    Learn how to install the SDK and build your first AI application
+    Install the SDK and build your first AI application in under 10 minutes
   </Card>
   <Card
     title="Architecture & Philosophy"
-    icon="blueprint"
+    icon="diagram-project"
     href="/concepts/architecture"
+    color="#8b5cf6"
   >
-    Understand PandaAGI's approach to AI development
+    Understand the principles behind PandaAGI's approach to AI development
   </Card>
 </CardGroup> 

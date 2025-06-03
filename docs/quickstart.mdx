@@ -3,51 +3,99 @@ title: 'Quickstart'
 description: 'Get up and running with PandaAGI SDK in under 5 minutes'
 ---
 
-## Installation
+<Note>
+This guide will help you get started with PandaAGI in two ways: using the **ready-made chat interface** for immediate results or integrating the **SDK in your Python code** for custom applications.
+</Note>
 
-Get started by installing the PandaAGI SDK using pip:
+<Tabs>
+  <Tab title="Quick start (UI)">
+    <Steps>
+      <Step title="Get API Key">
+        <Card>1. Visit [https://agi.pandas-ai.com/](https://agi.pandas-ai.com/) and sign in with GitHub
+        2. Access your dashboard to get your API key
+        3. Copy your API key for the next step</Card>
+      </Step>
+      <Step title="Launch Chat Interface">
+        <Card>
+          The fastest way to experience PandaAGI is through our ready-made chat interface:
+          
+          ```bash
+          # Clone the repository
+          git clone https://github.com/sinaptik-ai/panda-agi.git
+          cd panda-agi/examples/ui
+          
+          # Set your API key
+          echo "PANDA_AGI_KEY=your-api-key-here" > .env
+          
+          # Start the application
+          ./start.sh
+          ```
+          
+          This launches a production-ready chat interface at http://localhost:3000
+        </Card>
+      </Step>
+      <Step title="Start Chatting">
+        <Card>
+          <img
+            src="/images/chat_interface.png"
+            alt="PandaAGI Chat Interface"
+            className="rounded-lg shadow-md"
+          />
+          
+          Try these powerful prompts:
+          - "Research the latest AI developments and create a summary report"
+          - "Analyze this CSV data and create visualizations" (after uploading a file)
+          - "Design a database schema for an e-commerce platform"
+        </Card>
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Developer Setup (SDK)">
+    <Steps>
+      <Step title="Installation">
+        <Card>
+          Install the PandaAGI using your preferred package manager:
+          
+          <CodeGroup>
+          ```bash pip
+          pip install panda-agi
+          ```
+          
+          ```bash poetry
+          poetry add panda-agi
+          ```
+          
+          ```bash uv
+          uv pip install panda-agi
+          ```
+          
+          ```bash conda
+          conda install -c conda-forge panda-agi
+          ```
+          </CodeGroup>
+        </Card>
+      </Step>
+      <Step title="API Key Setup">
+        <Card>
+          <Warning>
+            **Required**: You must obtain an API key from [https://agi.pandas-ai.com/](https://agi.pandas-ai.com/) to use the PandaAGI SDK.
+          </Warning>
+          
+          Set the `PANDA_AGI_KEY` environment variable in your .env file or directly in your code:
+          
+          ```python
+          import os
+          os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
+          ```
+        </Card>
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
 
-<CodeGroup>
+## Building with the SDK
 
-```bash pip
-pip install panda-agi
-```
-
-```bash uv
-uv pip install panda-agi
-```
-
-```bash poetry
-poetry add panda-agi
-```
-
-```bash conda
-conda install -c conda-forge panda-agi
-```
-
-</CodeGroup>
-
-## API Key Setup
-
-Before you can start using the SDK, you'll need to configure your API key:
-
-<Warning>
-  **Required**: You must obtain an API key from [https://agi.pandas-ai.com/](https://agi.pandas-ai.com/) to use the Panda AGI SDK.
-</Warning>
-
-1. Visit [https://agi.pandas-ai.com/](https://agi.pandas-ai.com/) and sign in with GitHub
-2. Access your dashboard to get your API key
-3. Set the `PANDA_AGI_KEY` environment variable in your .env file or directly in your code
-
-```python
-    os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
-```
-
-You can now use [directly the SDK in your Python scripts](#your-first-interactions), or the pre-built [Chat UI](#pre-built-chat-ui).
-
-## Your First Interactions
-
-The PandaAGI SDK connects you to a pre-configured autonomous general AI agent that already has access to web browsing and file system tools. You simply submit tasks and receive results:
+The PandaAGI SDK connects you to a pre-configured autonomous general AI agent with built-in capabilities for web browsing, file system access, and code execution. You simply submit tasks and receive results:
 
 <CodeGroup>
 
@@ -206,63 +254,159 @@ if __name__ == "__main__":
 
 </CodeGroup>
 
-## Pre-built Chat UI
+## Pre-built Chat Interface
 
-You can also use the pre-built chat UI to interact with the general AI agent.
+<Frame caption="PandaAGI Chat Interface">
+  <img 
+    src="/images/chat_interface.png" 
+    alt="PandaAGI Chat Interface" 
+    className="rounded-lg shadow-md"
+  />
+</Frame>
 
-What do you need?
-- Docker up and running (either install [Docker desktop](https://www.docker.com/products/docker-desktop/)) or [set it up via code](installation#docker-setup))
-- [docker-compose](https://docs.docker.com/compose/install/) installed
-- [PANDA_AGI_KEY](https://agi.pandas-ai.com/) environment variable set in the .env file
-- [TAVILY_API_KEY](https://tavily.ai/) environment variable set in the .env file
+PandaAGI includes a production-ready chat interface that lets you interact with your AI agent without writing any code. This is perfect for:
 
-Clone the panda-agi repo, move to the ui folder and simply execute the start.sh script:
+- Quickly demonstrating AI capabilities to stakeholders
+- Testing different prompts and use cases
+- Providing a polished UI for non-technical users
+- Learning how the agent thinks and uses tools
 
-```bash
-cd examples/ui && ./start.sh
+### Features of the Chat UI
+
+<CardGroup cols={2}>
+  <Card title="Real-time Streaming" icon="bolt" color="#0285c7">
+    See agent responses, thinking, and actions as they happen
+  </Card>
+  <Card title="File Upload" icon="file-arrow-up" color="#16a34a">
+    Upload files for the agent to analyze or process
+  </Card>
+  <Card title="Conversation History" icon="clock-rotate-left" color="#dc2626">
+    Maintain context across multiple interactions
+  </Card>
+  <Card title="Mobile Responsive" icon="mobile" color="#8b5cf6">
+    Works seamlessly on desktop and mobile devices
+  </Card>
+</CardGroup>
+
+### Running the Chat Interface
+
+<Tabs>
+  <Tab title="Docker Setup (Recommended)">
+    ```bash
+    # Navigate to the UI example directory
+    cd examples/ui
+    
+    # Set your API key in .env file
+    echo "PANDA_AGI_KEY=your-api-key-here" > .env
+    
+    # Start with Docker Compose
+    ./start.sh
+    ```
+    
+    This launches:
+    - Frontend: http://localhost:3000
+    - Backend API: http://localhost:8001
+  </Tab>
+  <Tab title="Manual Setup">
+    ```bash
+    # Backend
+    cd examples/ui/backend
+    pip install -r requirements.txt
+    python main.py
+    
+    # Frontend (in new terminal)
+    cd examples/ui/frontend
+    yarn install
+    yarn start
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+Want to customize the chat interface? Check out the [Chat Interface Guide](/chat-interface) for detailed documentation on how to extend and modify the UI.
+</Tip>
+
+## Advanced Configuration
+
+### Custom Environment
+
+You can configure your AI agent with different execution environments:
+
+```python
+from panda_agi.envs import LocalEnv, DockerEnv
+
+# Use local environment (limited capabilities but no Docker required)
+local_env = LocalEnv("./workspace")
+
+# Use Docker environment (full capabilities, requires Docker)
+docker_env = DockerEnv("./workspace")
+
+agent = Agent(environment=docker_env)
 ```
 
-This one command will:
-- ✅ Check Docker requirements  
-- 🛑 Stop any existing containers
-- 🔨 Build and start both services
-- 🔍 Perform health checks
-- 📊 Display service status and URLs
+### Conversation Management
 
-Once running, access:
-- **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8001
+Manage conversation state for multi-turn interactions:
 
-This is the fastest way to get started with a production-ready agentic chat interface using the PandaAGI SDK.
+```python
+# Create agent with conversation ID for persistence
+agent = Agent(
+    environment=DockerEnv("./workspace"),
+    conversation_id="unique-conversation-id"
+)
 
-  <img
-    className="block dark:hidden"
-    src="/images/chat_interface.png"
-    alt="Chat Interface"
-  />
-  <img
-    className="hidden dark:block"
-    src="/images/chat_interface.png"
-    alt="Chat Interface"
-  />
+# First interaction
+async for event in agent.run("Find information about electric vehicles"):
+    print(event)
+
+# Later interaction (continues the same conversation)
+async for event in agent.run("Now compare the top 3 models"):
+    print(event)
+```
+
+### Event Handling
+
+Filter and process specific event types for custom UIs:
+
+```python
+from panda_agi import EventType
+
+async for event in agent.run("Create a data visualization"):
+    if event.type == EventType.THINKING:
+        print(f"Agent is thinking: {event.data}")
+    elif event.type == EventType.ACTION:
+        print(f"Agent is taking action: {event.data}")
+    elif event.type == EventType.RESULT:
+        print(f"Agent produced result: {event.data}")
+```
 
 ## Next Steps
 
-That's it! You're now ready to submit tasks to the autonomous general AI agent and receive professional-grade results. The general AI agent handles all the complexity of web research, file operations, and task execution automatically. 
+Now that you're up and running with PandaAGI, explore these resources to learn more:
 
-<CardGroup cols={2}>
+<CardGroup cols={3}>
   <Card
     title="Architecture"
     icon="diagram-project"
     href="/concepts/architecture"
+    color="#0285c7"
   >
     Understand PandaAGI's approach to AI development
   </Card>
   <Card
-    title="Environment Setup"
-    icon="server"
-    href="/concepts/environments"
+    title="Chat Interface"
+    icon="comments"
+    href="/chat-interface"
+    color="#16a34a"
   >
-    Learn about Docker vs Local environments
+    Build your own agentic chat application
+  </Card>
+  <Card
+    title="CLI"
+    icon="code"
+    href="/cli"
+    color="#8b5cf6"
+  >
+    Learn about advanced configuration options
   </Card>
 </CardGroup>

@@ -3,57 +3,157 @@ title: Architecture
 description: 'Understanding PandaAGI as a development framework for building and deploying agentic AI applications'
 ---
 
-## PandaAGI Architecture Diagram
+## PandaAGI Architecture Overview
 
-**PandaAGI** is a fully agentic execution ecosystem built for developers who want AI that **does** things, not just generates content. The system consists of **three core components**: the [API](#the-pandaagi-api), the [SDK](#the-pandaagi-sdk), and the [execution environments](#the-execution-environments).
+<Note>
+**PandaAGI** is a fully agentic execution ecosystem built for developers who want AI that **does** things, not just generates content. The system consists of **three core components**: the API, the SDK, and the execution environments.
+</Note>
 
-The architecture features:
-- **Specialized general AI agent orchestration**: Tasks routed to dedicated [general AI agents](/concepts/agents) optimized for specific roles
-- **Structured parallelism**: Tasks broken into subtasks that execute independently then merge
-- **Resilience and recovery**: Automatic retries and reassignment for robust execution
-- **Event-driven communication**: Real-time [events](/concepts/events) for monitoring and response
+<CardGroup cols={2}>
+  <Card title="Specialized Agent Orchestration" icon="robot" color="#0285c7">
+    Tasks routed to dedicated [general AI agents](/concepts/agents) optimized for specific roles
+  </Card>
+  <Card title="Structured Parallelism" icon="diagram-project" color="#16a34a">
+    Tasks broken into subtasks that execute independently then merge
+  </Card>
+  <Card title="Resilience and Recovery" icon="shield" color="#8b5cf6">
+    Automatic retries and reassignment for robust execution
+  </Card>
+  <Card title="Event-Driven Communication" icon="bolt" color="#f59e0b">
+    Real-time [events](/concepts/events) for monitoring and response
+  </Card>
+</CardGroup>
 
 
-<img
-  className="block dark:hidden my-8 rounded-lg shadow-md mx-auto"
-  src="/images/image.png"
-  alt="PandaAGI Architecture Diagram - Light Mode"
-  width="800"
-/>
-<img
-  className="hidden dark:block my-8 rounded-lg shadow-md mx-auto"
-  src="/images/image.png"
-  alt="PandaAGI Architecture Diagram - Dark Mode"
-  width="800"
-/>
+<Frame caption="PandaAGI Architecture Diagram">
+  <img
+    className="block dark:hidden"
+    src="/images/architecture.png"
+    alt="PandaAGI Architecture Diagram - Light Mode"
+  />
+  <img
+    className="hidden dark:block"
+    src="/images/architecture.png"
+    alt="PandaAGI Architecture Diagram - Dark Mode"
+  />
+</Frame>
 
-The framework implements **separation of concerns** with three distinct layers:
-- **AI Layer**: Task understanding, planning, and orchestration of tool execution
-- **Tool Layer**: Specific operations in the local environment (file operations, API calls)
-- **Application Layer**: User experience and business logic development
+## Separation of Concerns
+
+<CardGroup cols={3}>
+  <Card title="AI Layer" icon="brain" color="#0285c7">
+    Task understanding, planning, and orchestration of tool execution
+  </Card>
+  <Card title="Tool Layer" icon="wrench" color="#16a34a">
+    Specific operations in the local environment (file operations, API calls)
+  </Card>
+  <Card title="Application Layer" icon="window" color="#8b5cf6">
+    User experience and business logic development
+  </Card>
+</CardGroup>
 
 ## The PandaAGI API
 
-A **bidirectional WebSocket API** built for real-time, stateful interaction. Unlike traditional REST APIs, the PandaAGI API keeps a live connection between your application and your agent—enabling streaming execution, dynamic state management, and continuous interaction. Use it to send tasks, receive results, and monitor execution in-flight. 
-
-<Note>
-  Get your API key at [agi.pandas-ai.com](https://agi.pandas-ai.com)
-</Note>
+<Tabs>
+  <Tab title="Overview">
+    <Note>
+      A **bidirectional WebSocket API** built for real-time, stateful interaction with your agents.
+    </Note>
+    
+    Unlike traditional REST APIs, the PandaAGI API keeps a live connection between your application and your agent—enabling:
+    
+    <CardGroup cols={2}>
+      <Card title="Streaming Execution" icon="bolt" color="#0285c7">
+        Real-time updates as your agent works through tasks
+      </Card>
+      <Card title="Dynamic State Management" icon="database" color="#16a34a">
+        Persistent context and memory across interactions
+      </Card>
+      <Card title="Continuous Interaction" icon="arrows-rotate" color="#8b5cf6">
+        Send tasks, receive results, and monitor execution in-flight
+      </Card>
+      <Card title="Secure Communication" icon="lock" color="#f59e0b">
+        Encrypted connections with API key authentication
+      </Card>
+    </CardGroup>
+  </Tab>
+  
+  <Tab title="Getting Started">
+    <Steps>
+      <Step title="Get Your API Key">
+        Sign up and obtain your API key at [agi.pandas-ai.com](https://agi.pandas-ai.com)
+      </Step>
+      
+      <Step title="Install the SDK">
+        ```bash
+        poetry add panda_agi
+        ```
+      </Step>
+      
+      <Step title="Configure Your Environment">
+        ```bash
+        export PANDA_AGI_KEY="your-api-key"
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
 
 ## The PandaAGI SDK
 
-We don't believe developers should spend their time wiring sockets, managing general AI agent state, or reinventing orchestration logic. The PandaAGI SDK exists to shift that burden away from you. It sets up secure, persistent socket connections so [general AI agents](/concepts/agents) can remain stateful across tasks. It keeps track of tools, and context—so general AI agents can reason, act, and adapt without manual glue code, so you can focus on logic, outcomes, and systems that learn and improve.
-
-The PandaAGI SDK allows you to build and deploy extremely powerful general AI agents virtually capable of doing anything thanks to the in-built execution capabilities that comes with every PandaAGI general AI agent:
-
-| Capability | Purpose |
-|:--- |:--- |
-| 🌐 Internet access | Information gathering |
-| 🗂️ File system | Asset management |
-| 💻 Code execution | Dynamic programming |
-| 🚀 Deployment | Web servers & APIs |
-
-All general AI agent activities generate real-time [events](/concepts/events) that you can subscribe to for monitoring progress, collecting results, and responding to state changes.
+<Tabs>
+  <Tab title="Overview">
+    <Note>
+      We don't believe developers should spend their time wiring sockets, managing agent state, or reinventing orchestration logic. The PandaAGI SDK exists to shift that burden away from you.
+    </Note>
+    
+    The SDK handles the complex infrastructure so you can focus on building powerful applications:
+    
+    - Sets up secure, persistent socket connections
+    - Manages agent state across tasks
+    - Tracks tools and context
+    - Enables agents to reason, act, and adapt without manual glue code
+  </Tab>
+  
+  <Tab title="Agent Capabilities">
+    <CardGroup cols={2}>
+      <Card title="Internet Access" icon="globe" color="#0285c7">
+        Agents can search the web, navigate websites, and gather information from online sources
+      </Card>
+      <Card title="File System" icon="folder" color="#16a34a">
+        Read, write, and manage files and directories for asset management
+      </Card>
+      <Card title="Code Execution" icon="code" color="#8b5cf6">
+        Write and execute code dynamically to solve problems programmatically
+      </Card>
+      <Card title="Deployment" icon="rocket" color="#f59e0b">
+        Deploy web servers, APIs, and other services directly from the agent
+      </Card>
+    </CardGroup>
+  </Tab>
+  
+  <Tab title="Event System">
+    <Frame caption="Real-time Event Streaming">
+      ```python
+      from panda_agi import Agent, EventType
+      
+      agent = Agent(environment=env)
+      
+      # Subscribe to real-time events
+      async for event in agent.run("Build me a simple web app"):
+          if event.type == EventType.THINKING:
+              print(f"Agent is thinking: {event.data}")
+          elif event.type == EventType.WEB_SEARCH:
+              print(f"Searching the web for: {event.data}")
+          # Handle other event types...
+      ```
+    </Frame>
+    
+    <Note>
+      All agent activities generate real-time [events](/concepts/events) that you can subscribe to for monitoring progress, collecting results, and responding to state changes.
+    </Note>
+  </Tab>
+</Tabs>
 
 <CardGroup cols={2}>
   <Card
@@ -76,36 +176,125 @@ The general AI agents generate real-time events in their own execution environme
 
 ## The Execution Environments
 
-[General AI agents](/concepts/agents) that reason need a place to act. 
-The [execution environment](/concepts/environments) is that space: a clean, isolated context where general AI agents can safely write and run code, store state, interact with external systems, and build a mental model of their task. 
-Each environment is ephemeral, containerized, and independent—created for a single user or session. 
+<Tabs>
+  <Tab title="Overview">
+    <Note>
+      [General AI agents](/concepts/agents) that reason need a place to act. The [execution environment](/concepts/environments) is that space: a clean, isolated context where agents can safely operate.
+    </Note>
+    
+    <CardGroup cols={2}>
+      <Card title="Isolated & Secure" icon="shield-halved" color="#0285c7">
+        Each environment is ephemeral, containerized, and independent—created for a single user or session
+      </Card>
+      <Card title="Flexible Deployment" icon="server" color="#16a34a">
+        Run on the cloud, on your own hardware, or across both
+      </Card>
+      <Card title="Self-Contained" icon="box" color="#8b5cf6">
+        Execution is local to the agent—self-contained, inspectable, and secure
+      </Card>
+      <Card title="Full-Featured" icon="toolbox" color="#f59e0b">
+        Write and run code, store state, interact with external systems, and build mental models
+      </Card>
+    </CardGroup>
+  </Tab>
+  
+  <Tab title="Environment Types">
+    <AccordionGroup>
+      <Accordion title="Local Environment" icon="laptop-code">
+        Run agents in your local filesystem with the `LocalEnv` class. Perfect for development and testing.
+        
+        ```python
+        from panda_agi import Agent
+        from panda_agi.envs import LocalEnv
+        
+        # Create a local environment
+        env = LocalEnv(base_path="./my_workspace")
+        
+        # Initialize agent with the environment
+        agent = Agent(environment=env)
+        ```
+      </Accordion>
+      
+      <Accordion title="Docker Environment" icon="docker">
+        Isolate agent execution in Docker containers with the `DockerEnv` class. Provides better security and reproducibility.
+        
+        ```python
+        from panda_agi import Agent
+        from panda_agi.envs import DockerEnv
+        
+        # Create a Docker environment
+        env = DockerEnv(workspace_path="./my_workspace")
+        
+        # Initialize agent with the environment
+        agent = Agent(environment=env)
+        ```
+      </Accordion>
+    </AccordionGroup>
+  </Tab>
+</Tabs>
 
-It's not just a sandbox; it's an operating layer for autonomous behavior. 
-It can run on the cloud, on your own hardware, or across both. 
+## Getting Started with PandaAGI
 
-What matters is that execution is local to the general AI agent—self-contained, inspectable, and secure.
+<Steps>
+  <Step title="Install the SDK">
+    ```bash
+    # Using Poetry (recommended)
+    poetry add panda_agi
+    
+    # Or with pip
+    pip install panda_agi
+    ```
+  </Step>
+  
+  <Step title="Set up your environment">
+    ```bash
+    # Set your API key
+    export PANDA_AGI_KEY="your-api-key"
+    ```
+  </Step>
+  
+  <Step title="Create your first agent">
+    ```python
+    from panda_agi import Agent
+    from panda_agi.envs import LocalEnv
+    
+    # Create a local environment
+    env = LocalEnv(base_path="./my_workspace")
+    
+    # Initialize agent with the environment
+    agent = Agent(environment=env)
+    
+    # Run the agent and process events
+    async for event in agent.run("Build me a simple web app"):
+        print(f"Event: {event.type} - {event.data}")
+    ```
+  </Step>
+</Steps>
 
-## General AI Agents, Events, Envs, and Apps 
+## Explore PandaAGI Components
 
 <CardGroup cols={2}>
   <Card
-    title="Start Building"
+    title="Quick Start Guide"
     icon="rocket"
     href="/quickstart"
+    color="#0285c7"
   >
     Get up and running with PandaAGI in minutes
   </Card>
   <Card
-    title="General AI Agents"
+    title="Agent Concepts"
     icon="robot"
     href="/concepts/agents"
+    color="#16a34a"
   >
-    Learn about general AI agent capabilities, configuration, and best practices
+    Learn about agent capabilities, configuration, and best practices
   </Card>
   <Card
-    title="Events"
-    icon="bell"
+    title="Event System"
+    icon="bolt"
     href="/concepts/events"
+    color="#8b5cf6"
   >
     Understand the event-driven communication system
   </Card>
@@ -113,22 +302,25 @@ What matters is that execution is local to the general AI agent—self-contained
     title="Environments"
     icon="server"
     href="/concepts/environments"
+    color="#f59e0b"
   >
     Explore execution environments and their capabilities
   </Card>
   <Card
-    title="Sample Applications"
-    icon="code"
-    href="/apps"
+    title="CLI Interface"
+    icon="terminal"
+    href="/cli"
+    color="#ef4444"
   >
-    Browse example applications built with PandaAGI
+    Use the command-line interface for quick prototyping
   </Card>
   <Card
-    title="API Keys"
-    icon="key"
-    href="https://agi.pandas-ai.com"
+    title="Chat Interface"
+    icon="comments"
+    href="/chat-interface"
+    color="#6366f1"
   >
-    Learn how to obtain and manage your PandaAGI API keys
+    Build interactive chat applications with PandaAGI
   </Card>
 </CardGroup>
 
