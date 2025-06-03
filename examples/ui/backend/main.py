@@ -93,6 +93,29 @@ def should_render_event(event: Union[BaseStreamEvent, str]) -> bool:
     return True
 
 
+def truncate_long_content(data, max_length: int = 5000):
+    """
+    Recursively truncate long string values in a dictionary or list.
+
+    Args:
+        data: The data structure to truncate (dict, list, or any other type)
+        max_length: Maximum length for string values before truncation
+
+    Returns:
+        The data structure with truncated string values
+    """
+    if isinstance(data, dict):
+        return {
+            key: truncate_long_content(value, max_length) for key, value in data.items()
+        }
+    elif isinstance(data, list):
+        return [truncate_long_content(item, max_length) for item in data]
+    elif isinstance(data, str) and len(data) > max_length:
+        return data[:max_length] + "\n\n... [Content truncated]"
+    else:
+        return data
+
+
 def process_event_for_frontend(event) -> Optional[Dict]:
     """Process an event for frontend consumption with type safety"""
     try:
@@ -104,14 +127,8 @@ def process_event_for_frontend(event) -> Optional[Dict]:
             # Get the event data
             event_data = event.to_dict()
 
-            # Truncate long content fields
-            if event_type == "web_navigation_result" and "content" in event_data:
-                max_content_length = 5000  # Adjust as needed
-                if len(event_data["content"]) > max_content_length:
-                    event_data["content"] = (
-                        event_data["content"][:max_content_length]
-                        + "\n\n... [Content truncated]"
-                    )
+            # Apply truncation to all string fields
+            event_data = truncate_long_content(event_data)
 
             return {
                 "data": {
@@ -128,13 +145,8 @@ def process_event_for_frontend(event) -> Optional[Dict]:
             )
 
             event_data = event.data
-            if event_type == "web_navigation_result" and "content" in event_data:
-                max_content_length = 5000
-                if len(event_data["content"]) > max_content_length:
-                    event_data["content"] = (
-                        event_data["content"][:max_content_length]
-                        + "\n\n... [Content truncated]"
-                    )
+            # Apply truncation to all string fields
+            event_data = truncate_long_content(event_data)
 
             return {
                 "data": {
