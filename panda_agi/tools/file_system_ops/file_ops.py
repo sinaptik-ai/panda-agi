@@ -1,10 +1,14 @@
 import fnmatch
+import logging
 import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 # Import the BaseEnv base class
 from panda_agi.envs import BaseEnv
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 async def file_read(

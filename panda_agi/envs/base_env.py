@@ -65,8 +65,10 @@ class BaseEnv(ABC):
             if str(path).startswith(str(self.base_path)):
                 return path
             else:
-                # Treat as relative to base_path
-                return self.base_path / path.name
+                # Treat as relative to base_path, preserving directory structure
+                # Remove leading slash and use relative to base_path
+                relative_path = str(path).lstrip("/")
+                return self.base_path / relative_path
         else:
             return self.working_directory / path
 
