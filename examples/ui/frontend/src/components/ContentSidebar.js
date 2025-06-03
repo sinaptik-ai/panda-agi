@@ -34,7 +34,11 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
   
   // Fetch file content when previewData changes
   useEffect(() => {
-    if (previewData && previewData.filename) {
+    if (!previewData) {
+      return;
+    }
+
+    if (previewData.filename) {
       const normalized = normalizeFilename(previewData.filename);
       setNormalizedFilename(normalized);
       
@@ -48,6 +52,11 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
         setIsLoading(false);
         setError(null);
       }
+    } else {
+      setNormalizedFilename("");
+      setFileContent(null);
+      setIsLoading(false);
+      setError(null);
     }
   }, [previewData]);
   
