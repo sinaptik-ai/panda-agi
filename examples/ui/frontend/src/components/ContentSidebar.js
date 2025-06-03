@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   X,
   ExternalLink,
@@ -13,7 +13,104 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./MarkdownRenderer";
 
-const ContentSidebar = ({ isOpen, onClose, previewData }) => {
+const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
+  // State for sidebar width - use props if provided, otherwise default to 900
+  const [sidebarWidth, setSidebarWidth] = useState(width || 900);
+  
+  // Update internal state when width prop changes
+  useEffect(() => {
+    if (width && width !== sidebarWidth) {
+      setSidebarWidth(width);
+    }
+  }, [width, sidebarWidth]);
+  const [isResizing, setIsResizing] = useState(false);
+  const minWidth = 400;
+  const maxWidth = 1050;
+  const resizeRef = useRef(null);
+  
+  // Add resize event listeners with improved handling
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizing) return;
+      
+      // Calculate new width based on mouse position
+      let newWidth = window.innerWidth - e.clientX;
+      
+      // Apply constraints with smoothing
+      newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+      
+      // Always update width when resizing for smoother experience
+      setSidebarWidth(newWidth);
+      
+      // Notify parent component about width changes if callback is provided
+      if (onResize) {
+        onResize(newWidth);
+      }
+      
+      // Prevent text selection during resize
+      e.preventDefault();
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+    
+    // Handle cases where mouse moves outside the window
+    const handleMouseLeave = () => {
+      if (isResizing) {
+        setIsResizing(false);
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = 'auto';
+      }
+    };
+    
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('mouseleave', handleMouseLeave);
+    }
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, [isResizing, minWidth, maxWidth, onResize]);
+  
+  // Start resizing
+  const startResizing = () => {
+    setIsResizing(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+  
+  // Apply sidebar open class to body for main content shrinking
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('sidebar-open');
+      // Add specific class to app container element for better targeting
+      const appContainer = document.querySelector('#root > div');
+      if (appContainer) {
+        appContainer.classList.add('content-shrink');
+      }
+    } else {
+      document.body.classList.remove('sidebar-open');
+      const appContainer = document.querySelector('#root > div');
+      if (appContainer) {
+        appContainer.classList.remove('content-shrink');
+      }
+    }
+    
+    return () => {
+      document.body.classList.remove('sidebar-open');
+      const appContainer = document.querySelector('#root > div');
+      if (appContainer) {
+        appContainer.classList.remove('content-shrink');
+      }
+    };
+  }, [isOpen]);
   // Utility function to normalize filenames (remove leading './' or '/' if present)
   const normalizeFilename = (filename) => {
     if (!filename) return "";
@@ -558,7 +655,16 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
   };
 
   return (
-    <div className="fixed right-0 top-0 h-full max-w-[800px] w-[100vw] bg-white border-l border-gray-200 shadow-lg z-50 flex flex-col">
+    <div 
+      className="fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-lg z-50 flex flex-col" 
+      style={{ width: `${sidebarWidth}px`, '--sidebar-width': `${sidebarWidth}px` }}
+    >
+      {/* Resize handle */}
+      <div 
+        ref={resizeRef}
+        className="absolute left-0 top-0 w-1 h-full cursor-col-resize hover:bg-blue-500 hover:opacity-50 z-50"
+        onMouseDown={startResizing}
+      />
       {/* Inject custom styles */}
       <style dangerouslySetInnerHTML={{ __html: customSyntaxStyles }} />
 
@@ -631,3 +737,42 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
 };
 
 export default ContentSidebar;
+
+// Add this to your global CSS file or inject it here
+const globalStyles = `
+  body.sidebar-open {
+    overflow-x: hidden;
+  }
+  
+  /* Direct targeting for main app container */
+  .content-shrink {
+    max-width: calc(100% - var(--sidebar-width));
+    transition: max-width 0.3s ease;
+  }
+  
+  /* Make sure chat interface and messages shrink */
+  .content-shrink .max-w-4xl {
+    width: 100%;
+    max-width: calc(100% - 2rem) !important;
+    transition: max-width 0.3s ease;
+  }
+  
+  /* Ensure message cards shrink properly */
+  .content-shrink .max-w-4xl .bg-white/70 {
+    width: 100%;
+  }
+  
+  /* Ensure the input area shrinks properly */
+  .content-shrink .max-w-4xl textarea,
+  .content-shrink .max-w-4xl .flex-1 {
+    width: 100%;
+  }
+`;
+
+// Inject the global styles
+if (typeof document !== 'undefined') {
+  const styleEl = document.createElement('style');
+  styleEl.type = 'text/css';
+  styleEl.innerHTML = globalStyles;
+  document.head.appendChild(styleEl);
+}

@@ -21,6 +21,7 @@ function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(900); // Default sidebar width (match initial in ContentSidebar)
   const [previewData, setPreviewData] = useState(null);
   const [conversationId, setConversationId] = useState(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);
@@ -469,14 +470,15 @@ function App() {
     <div className="flex h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Main content */}
       <div
-        className={`flex flex-col transition-all duration-300 ${
-          sidebarOpen ? "w-[calc(100%-24rem)]" : "w-full"
-        }`}
+        className="flex flex-col transition-all duration-300 w-full"
+        style={{
+          width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : '100%',
+        }}
       >
         {/* Header - positioned absolutely over content */}
         <div
           className="glass-header p-4 fixed top-0 left-0 right-0 z-10"
-          style={{ width: sidebarOpen ? "calc(100vw - 24rem)" : "100vw" }}
+          style={{ width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw" }}
         >
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -597,7 +599,7 @@ function App() {
         {/* Input - positioned absolutely at bottom */}
         <div
           className="p-4 fixed bottom-0 left-0 right-0"
-          style={{ width: sidebarOpen ? "calc(100vw - 24rem)" : "100vw" }}
+          style={{ width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw" }}
         >
           <div className="max-w-4xl mx-auto">
             <div className="bg-white/70 backdrop-blur-xl border border-black/20 rounded-2xl p-3 shadow-2xl">
@@ -706,6 +708,8 @@ function App() {
         isOpen={sidebarOpen}
         onClose={closeSidebar}
         previewData={previewData}
+        width={sidebarWidth}
+        onResize={setSidebarWidth}
       />
     </div>
   );
