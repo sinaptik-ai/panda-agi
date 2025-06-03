@@ -222,48 +222,16 @@ function App() {
     return "text";
   };
 
-  // Function to fetch and open file in sidebar
-  const handleFileClick = async (filename) => {
+  // Function to open file in sidebar - content fetching is handled by ContentSidebar
+  const handleFileClick = (filename) => {
     const fileType = getFileType(filename);
-
-    try {
-      let content = null;
-
-      // Handle different file types appropriately
-      if (fileType === "image") {
-        // For images, we don't fetch content - ContentSidebar will construct the URL from filename
-        content = null;
-      } else {
-        // For text-based files, get the actual content
-        const fileUrl = `${
-          process.env.REACT_APP_API_URL || "http://localhost:8001"
-        }/files/${encodeURIComponent(filename)}`;
-
-        const response = await fetch(fileUrl);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch file: ${response.status}`);
-        }
-        content = await response.text();
-      }
-
-      setPreviewData({
-        filename: filename,
-        content: content,
-        title: `File: ${filename.split("/").pop()}`,
-        type: fileType,
-      });
-      setSidebarOpen(true);
-    } catch (error) {
-      console.error("Error reading file:", error);
-      // Show error in preview
-      setPreviewData({
-        filename: filename,
-        content: `Error loading file: ${error.message}`,
-        title: `File: ${filename.split("/").pop()}`,
-        type: "text",
-      });
-      setSidebarOpen(true);
-    }
+    
+    setPreviewData({
+      filename: filename,
+      title: `File: ${filename.split("/").pop()}`,
+      type: fileType,
+    });
+    setSidebarOpen(true);
   };
 
   const sendMessage = async () => {

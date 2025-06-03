@@ -14,7 +14,7 @@ const ImageGenerationEvent = ({ payload, onPreviewClick }) => {
   };
 
   const handlePreviewClick = () => {
-    if (payload["images"] && payload["images"].length > 0 && onPreviewClick) {
+    if (onPreviewClick) {
       onPreviewClick({
         filename: filename,
         title: `Generated image: ${filename}`,

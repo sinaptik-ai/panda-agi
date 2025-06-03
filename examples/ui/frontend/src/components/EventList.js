@@ -75,7 +75,7 @@ const SPECIAL_EVENT_HANDLERS = {
   user_question: (props) => UserMessageEvent(props),
 };
 
-const EventCard = ({ message, onPreviewClick, onFileClick }) => {
+const EventList = ({ message, onPreviewClick, onFileClick }) => {
   if (!message.event || !message.event.data) return null;
 
   const eventData = message.event.data;
@@ -107,4 +107,4 @@ const EventCard = ({ message, onPreviewClick, onFileClick }) => {
   return Component(componentProps);
 };
 
-export default EventCard;
+export default EventList;

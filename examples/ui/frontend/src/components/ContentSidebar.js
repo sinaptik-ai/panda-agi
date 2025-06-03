@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   ExternalLink,
@@ -14,6 +14,60 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./MarkdownRenderer";
 
 const ContentSidebar = ({ isOpen, onClose, previewData }) => {
+  // Utility function to normalize filenames (remove leading './' if present)
+  const normalizeFilename = (filename) => {
+    if (!filename) return "";
+    return filename.startsWith('./') ? filename.substring(2) : filename;
+  };
+  
+  // State for normalized filename and content
+  const [normalizedFilename, setNormalizedFilename] = useState("");
+  const [fileContent, setFileContent] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
+  // Fetch file content when previewData changes
+  useEffect(() => {
+    if (previewData && previewData.filename) {
+      const normalized = normalizeFilename(previewData.filename);
+      setNormalizedFilename(normalized);
+      
+      // Only fetch content if it's not an image and we don't already have content
+      const fileType = previewData.type || "text";
+      if (fileType !== "image" && !previewData.content) {
+        fetchFileContent(normalized);
+      } else if (previewData.content) {
+        // If content was provided directly, use it
+        setFileContent(previewData.content);
+        setIsLoading(false);
+        setError(null);
+      }
+    }
+  }, [previewData]);
+  
+  // Function to fetch file content
+  const fetchFileContent = async (filename) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const fileUrl = `${process.env.REACT_APP_API_URL || "http://localhost:8001"}/files/${encodeURIComponent(filename)}`;
+      const response = await fetch(fileUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file: ${response.status}`);
+      }
+      
+      const content = await response.text();
+      setFileContent(content);
+    } catch (err) {
+      console.error("Error fetching file content:", err);
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
   if (!isOpen || !previewData) return null;
 
   // Get language for syntax highlighting
@@ -135,7 +189,32 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
   // Render content based on type
   const renderContent = () => {
     const type = previewData.type || "text";
-    const content = previewData.content || "";
+    const content = fileContent || previewData.content || "";
+    
+    // Show loading state
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
+            <p className="text-gray-600">Loading file content...</p>
+          </div>
+        </div>
+      );
+    }
+    
+    // Show error state
+    if (error) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center text-red-500">
+            <div className="text-4xl mb-4">⚠️</div>
+            <p className="font-medium">Error loading file</p>
+            <p className="text-sm mt-2">{error}</p>
+          </div>
+        </div>
+      );
+    }
 
     switch (type) {
       case "iframe":
@@ -156,7 +235,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
           </div>
         );
       case "table":
-        const tableFilename = previewData.filename || previewData.url || "";
+        const tableFilename = normalizedFilename || previewData.url || "";
         const tableExtension = tableFilename.split(".").pop().toLowerCase();
         const tableData = parseCSV(content);
 
@@ -237,7 +316,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
           </div>
         );
       case "html":
-        const htmlFilename = previewData.filename || previewData.url || "";
+        const htmlFilename = normalizedFilename || previewData.url || "";
         return (
           <div className="editor-container bg-gray-900 text-gray-100 rounded overflow-hidden h-full flex flex-col">
             {/* Editor Header - same style as other code files */}
@@ -282,7 +361,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
         // For images, construct the URL from the filename
         const imageUrl = `${
           process.env.REACT_APP_API_URL || "http://localhost:8001"
-        }/files/${encodeURIComponent(previewData.filename)}`;
+        }/files/${encodeURIComponent(normalizedFilename)}`;
 
         return (
           <div className="flex justify-center">
@@ -299,7 +378,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
               <FileImage className="w-12 h-12 mx-auto mb-2 text-gray-400" />
               <p>Image preview not available</p>
               <p className="text-xs text-gray-400 mt-1">
-                File: {previewData.filename}
+                File: {normalizedFilename}
               </p>
             </div>
           </div>
@@ -352,7 +431,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
           </div>
         );
       case "code":
-        const filename = previewData.filename || previewData.url || "";
+        const filename = normalizedFilename || previewData.url || "";
         const extension = filename.split(".").pop().toLowerCase();
         const languageMap = {
           js: "JavaScript",
@@ -449,15 +528,15 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
   };
 
   // Handle file download
-  const handleFileDownload = (filename) => {
+  const handleFileDownload = () => {
     const downloadUrl = `${
       process.env.REACT_APP_API_URL || "http://localhost:8001"
-    }/files/download?file_path=${encodeURIComponent(filename)}`;
+    }/files/download?file_path=${encodeURIComponent(normalizedFilename)}`;
 
     // Create a temporary link and trigger download
     const link = document.createElement("a");
     link.href = downloadUrl;
-    link.download = filename.split("/").pop(); // Get just the filename
+    link.download = normalizedFilename.split("/").pop(); // Get just the filename
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -475,20 +554,20 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
             {getFileIcon()}
             {previewData.title}
           </h3>
-          {(previewData.filename || previewData.url) && (
+          {(normalizedFilename || previewData.url) && (
             <a
               href={
                 previewData.url ||
                 `${
                   process.env.REACT_APP_API_URL || "http://localhost:8001"
-                }/files/${encodeURIComponent(previewData.filename)}`
+                }/files/${encodeURIComponent(normalizedFilename)}`
               }
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-blue-600 hover:underline flex items-center space-x-1 mt-1"
             >
               <span className="truncate">
-                {previewData.filename || previewData.url}
+                {normalizedFilename || previewData.url}
               </span>
               <ExternalLink className="w-3 h-3 flex-shrink-0" />
             </a>
@@ -496,14 +575,12 @@ const ContentSidebar = ({ isOpen, onClose, previewData }) => {
         </div>
         <div className="flex items-center space-x-2">
           {/* Download button - only show for actual files, not iframes */}
-          {(previewData.filename || previewData.url) &&
+          {(normalizedFilename || previewData.url) &&
             previewData.type !== "iframe" && (
               <button
-                onClick={() =>
-                  handleFileDownload(previewData.filename || previewData.url)
-                }
+                onClick={handleFileDownload}
                 className="p-1 hover:bg-gray-200 rounded transition-colors"
-                title={`Download as ${(previewData.filename || previewData.url)
+                title={`Download as ${(normalizedFilename || previewData.url)
                   .split(".")
                   .pop()
                   .replace("md", "pdf")

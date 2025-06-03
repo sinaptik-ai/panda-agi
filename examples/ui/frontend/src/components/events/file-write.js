@@ -14,7 +14,7 @@ const FileWriteEvent = ({ payload, onPreviewClick }) => {
   };
 
   const handlePreviewClick = () => {
-    if (payload.content && onPreviewClick) {
+    if (onPreviewClick) {
       const getFileType = (filePath) => {
         if (!filePath) return "text";
         console.log(filePath);
@@ -56,7 +56,6 @@ const FileWriteEvent = ({ payload, onPreviewClick }) => {
 
       onPreviewClick({
         filename: filename,
-        content: payload.content,
         title: `Created file: ${filename.split("/").pop()}`,
         type: getFileType(filename),
       });

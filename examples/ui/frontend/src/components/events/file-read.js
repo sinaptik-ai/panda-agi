@@ -53,10 +53,9 @@ const FileReadEvent = ({ payload, onPreviewClick }) => {
   };
 
   const handlePreviewClick = () => {
-    if (payload.content && onPreviewClick) {
+    if (onPreviewClick) {
       onPreviewClick({
         filename: filename,
-        content: payload.content,
         title: `read: ${filename.split("/").pop()}`,
         type: fileType,
       });

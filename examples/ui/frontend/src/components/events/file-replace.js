@@ -14,7 +14,7 @@ const FileReplaceEvent = ({ payload, onPreviewClick }) => {
   };
 
   const handlePreviewClick = () => {
-    if (payload.content && onPreviewClick) {
+    if (onPreviewClick) {
       const getFileType = (filePath) => {
         if (!filePath) return "text";
         const extension = filePath.split(".").pop().toLowerCase();
@@ -55,7 +55,6 @@ const FileReplaceEvent = ({ payload, onPreviewClick }) => {
 
       onPreviewClick({
         filename: filename,
-        content: payload.content,
         title: `Edited file: ${filename.split("/").pop()}`,
         type: getFileType(filename),
       });

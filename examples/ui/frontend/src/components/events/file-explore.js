@@ -17,10 +17,9 @@ const FileExploreEvent = ({ payload, onPreviewClick }) => {
   };
 
   const handlePreviewClick = () => {
-    if (payload.content && onPreviewClick) {
+    if (onPreviewClick) {
       onPreviewClick({
         filename: filename,
-        content: payload.content,
         title: `exploring: ${filename.split("/").pop()}`,
         type: "text",
       });

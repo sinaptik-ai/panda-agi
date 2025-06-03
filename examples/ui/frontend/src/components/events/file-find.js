@@ -7,10 +7,9 @@ const FileFindEvent = ({ payload, onPreviewClick }) => {
   const filename = payload.file || payload.path;
 
   const handlePreviewClick = () => {
-    if (payload.content && onPreviewClick) {
+    if (onPreviewClick) {
       onPreviewClick({
         filename: filename,
-        content: payload.content,
         title: `finding: ${filename.split("/").pop()}`,
         type: "text",
       });
