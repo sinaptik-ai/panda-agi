@@ -1,7 +1,6 @@
 import React from "react";
 import {
   AlertCircle,
-  CreditCard,
   Eye,
   Download,
   FileText,
@@ -22,11 +21,7 @@ const UserMessageEvent = ({
 }) => {
   if (!payload) return null;
 
-  // Check if this is an error notification
   const isError = payload.error;
-
-  // Check specifically for token/credit related errors
-  const isTokenError = isError && typeof payload.credits_left !== "undefined";
 
   const handleFileClick = (filename) => {
     if (onFileClick) {
@@ -152,29 +147,12 @@ const UserMessageEvent = ({
         <div className="flex items-start">
           <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
           <div className="flex-1">
-            <h4 className="font-semibold text-gray-900 text-sm">
-              {isTokenError ? "Insufficient Credits" : "Error"}
-            </h4>
+            <h4 className="font-semibold text-gray-900 text-sm">Error</h4>
             <p className="text-sm text-gray-700 mt-1 leading-relaxed">
-              {payload.error ||
-                payload.text ||
-                payload.message ||
-                "An error occurred"}
+              <MarkdownRenderer onPreviewClick={onPreviewClick}>
+                {payload.error || "An error occurred"}
+              </MarkdownRenderer>
             </p>
-
-            {isTokenError && (
-              <div className="mt-3 bg-gray-50 border border-gray-200 p-3 rounded-lg">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center text-gray-600 font-medium">
-                    <CreditCard className="w-4 h-4 mr-2 text-gray-500" />
-                    Credits Remaining
-                  </span>
-                  <span className="font-semibold text-gray-900">
-                    {payload.credits_left} / {payload.total_credits || "∞"}
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
         {timestamp && (
@@ -189,7 +167,7 @@ const UserMessageEvent = ({
   const renderStandardContent = () => (
     <div>
       <MarkdownRenderer onPreviewClick={onPreviewClick}>
-        {payload.text || payload.message}
+        {payload.text}
       </MarkdownRenderer>
 
       {timestamp && (
