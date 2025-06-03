@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -181,6 +182,7 @@ async def event_stream(
             }
         }
         yield f"data: {json.dumps(conversation_event)}\n\n"
+        await asyncio.sleep(0.01)
 
         # Stream events
         async for event in agent.run(query):
