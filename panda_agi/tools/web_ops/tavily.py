@@ -13,10 +13,6 @@ from tavily import TavilyClient
 # Load environment variables
 load_dotenv()
 
-# Initialize Tavily client
-tavily_api_key = os.getenv("TAVILY_API_KEY")
-tavily_client = TavilyClient(api_key=tavily_api_key)
-
 
 def tavily_search_web(query: str, max_results: int = 5) -> Dict[str, Any]:
     """
@@ -29,10 +25,8 @@ def tavily_search_web(query: str, max_results: int = 5) -> Dict[str, Any]:
     Returns:
         Dict containing search results
     """
-    if not tavily_api_key:
-        return [
-            "I'm sorry, I don't have access to the internet. I dont have Tavily API key"
-        ]
+    tavily_api_key = os.getenv("TAVILY_API_KEY")
+    tavily_client = TavilyClient(api_key=tavily_api_key)
 
     try:
         # Search using Tavily API

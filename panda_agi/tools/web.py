@@ -18,7 +18,18 @@ class WebSearchHandler(ToolHandler):
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         await self.add_event(EventType.WEB_SEARCH, params)
-        results = tavily_search_web(**params)
+        try:
+            results = tavily_search_web(**params)
+        except Exception as e:
+            await self.add_event(
+                EventType.ERROR,
+                {"error": "Error in web search, please check if TAVILY_API_KEY is set"},
+            )
+            return ToolResult(
+                success=False,
+                error=f"Error in web search: {str(e)}. Do not visit any websites. Complete the task.",
+            )
+
         await self.add_event(EventType.WEB_SEARCH_RESULT, results)
 
         # Check if the result indicates success
