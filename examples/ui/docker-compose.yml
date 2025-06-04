@@ -12,6 +12,7 @@ services:
     environment:
       - PYTHONPATH=/app
       - WORKSPACE_PATH=./workspace
+      - FASTAPI_RELOAD=false
     volumes:
       - ./backend/workspace:/app/workspace
       - ../../:/sdk # Mount entire SDK root to /sdk in container

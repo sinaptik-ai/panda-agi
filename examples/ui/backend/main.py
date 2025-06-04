@@ -581,7 +581,6 @@ async def debug_workspace():
         "workspace_resolved": str(Path(WORKSPACE_PATH).resolve()),
         "current_working_directory": os.getcwd(),
         "file_exists": Path(WORKSPACE_PATH).exists(),
-        "csv_file_exists": (Path(WORKSPACE_PATH) / "py4ai_2025_speakers.csv").exists(),
     }
 
 
@@ -590,6 +589,10 @@ if __name__ == "__main__":
 
     # Allow reload to be controlled by environment variable
     # Defaults to True for development, can be set to False in production
-    reload_enabled = os.getenv("FASTAPI_RELOAD", "true").lower() in ("true", "1", "yes")
+    reload_enabled = os.getenv("FASTAPI_RELOAD", "false").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
 
     uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=reload_enabled)
