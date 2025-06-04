@@ -1479,7 +1479,7 @@ class AgentCLI:
                             await self.agent.connect()
 
                         # Process the query
-                        async for event in self.agent.run(query):
+                        async for event in self.agent.run_stream(query):
                             self.progress.update(
                                 task, description="🔄 Processing events..."
                             )

@@ -3,7 +3,7 @@ import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Dict, Optional, Union
+from typing import Any, AsyncGenerator, Dict, Optional, Union, Callable
 
 from dotenv import load_dotenv
 
@@ -14,6 +14,7 @@ from ..tools.file_system_ops.file_ops import file_explore_directory
 from .event_manager import EventManager
 from .models import (
     COMPLETION_MESSAGE_TYPES,
+    AgentResponse,
     BaseStreamEvent,
     MessageType,
     WebSocketMessage,
@@ -153,7 +154,7 @@ class Agent:
             )
             return False
 
-    async def run(
+    async def run_stream(
         self,
         query: str,
     ) -> AsyncGenerator[BaseStreamEvent, None]:
@@ -255,3 +256,36 @@ class Agent:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.disconnect()
+
+    async def run(self, query: str, event_handler: Callable[[BaseStreamEvent], Optional[BaseStreamEvent]] = None) -> AgentResponse:
+        """
+        Run the agent and return a response with all collected events and final output.
+
+        This method consumes all events and returns an AgentResponse object which contains
+        all events and the final response from the agent, typically from a UserNotificationEvent.
+
+        Args:
+            query: The query to send to the agent
+            event_handler: Optional function to process events before returning (e.g., event_handler_for_frontend)
+
+        Returns:
+            An AgentResponse object containing all events and the final output
+        """
+        response = AgentResponse()
+
+        # Run and collect all events
+        async for event in self.run_stream(query):
+            # Store the original event
+            response.events.append(event)
+
+            # Process the event if a processing function is provided
+            processed_event = event_handler(event) if event_handler else event
+
+            # Skip events that couldn't be processed
+            if processed_event is None:
+                continue
+
+            # Add the processed event to the response
+            response.add_event(processed_event)
+
+        return response

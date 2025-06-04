@@ -27,7 +27,7 @@ from panda_agi import Agent
 async def main():
     agent = Agent()
     
-    async for event in agent.run("What's the weather like today?"):
+    async for event in agent.run_stream("What's the weather like today?"):
         print(f"Event: {event.type} - {event.data}")
 
 asyncio.run(main())
@@ -144,12 +144,12 @@ async def persistent_conversation():
     agent = Agent(conversation_id=conversation_id)
     
     # First request
-    async for event in agent.run("Tell me about Alice in Wonderland"):
+    async for event in agent.run_stream("Tell me about Alice in Wonderland"):
         if event.type == "completed_task":
             break
     
     # Follow-up request with context
-    async for event in agent.run("What's the main character's personality like?"):
+    async for event in agent.run_stream("What's the main character's personality like?"):
         print(event) # Should mention "Alice"
 
 asyncio.run(persistent_conversation())
@@ -179,7 +179,7 @@ async def multi_turn_conversation():
     
     # Initial request
     print("=== Initial Question ===")
-    async for event in agent.run("What are the main types of neural networks?"):
+    async for event in agent.run_stream("What are the main types of neural networks?"):
         if event.type == EventType.USER_NOTIFICATION:
             print(event.data)
         elif event.type == EventType.COMPLETED_TASK:
@@ -187,7 +187,7 @@ async def multi_turn_conversation():
     
     # Follow-up question - no need to repeat context
     print("\n=== Follow-up Question ===")
-    async for event in agent.run("Which one is best for image recognition?"):
+    async for event in agent.run_stream("Which one is best for image recognition?"):
         if event.type == EventType.USER_NOTIFICATION:
             print(event.data)  # Agent knows we're talking about neural networks
         elif event.type == EventType.COMPLETED_TASK:
@@ -195,7 +195,7 @@ async def multi_turn_conversation():
     
     # Another follow-up
     print("\n=== Another Follow-up ===")
-    async for event in agent.run("Can you show me a code example?"):
+    async for event in agent.run_stream("Can you show me a code example?"):
         if event.type == EventType.USER_NOTIFICATION:
             print(event.data)  # Agent will provide CNN code example
         elif event.type == EventType.FILE_WRITE:
@@ -235,7 +235,7 @@ async def file_operations():
     # Change working directory
     agent.change_working_directory("./documents")
     
-    async for event in agent.run("Organize these files by type"):
+    async for event in agent.run_stream("Organize these files by type"):
         if event.type == EventType.FILE_EXPLORE:
             print(f"Exploring files: {event.data}")
         elif event.type == EventType.FILE_READ:
@@ -267,7 +267,7 @@ async def start_research():
     # Start a research session
     agent = Agent(conversation_id=CONVERSATION_ID)
     
-    async for event in agent.run("Please analyze the Python project in my workspace"):
+    async for event in agent.run_stream("Please analyze the Python project in my workspace"):
         if event.type == EventType.FILE_EXPLORE:
             print(f"Exploring project: {event.data}")
         elif event.type == EventType.USER_NOTIFICATION:
@@ -292,7 +292,7 @@ async def continue_research():
     agent = Agent(conversation_id=CONVERSATION_ID)
     
     # Agent remembers the previous analysis
-    async for event in agent.run("Based on your analysis, what improvements would you suggest?"):
+    async for event in agent.run_stream("Based on your analysis, what improvements would you suggest?"):
         if event.type == EventType.USER_NOTIFICATION:
             print(event.data)
         elif event.type == EventType.FILE_WRITE:

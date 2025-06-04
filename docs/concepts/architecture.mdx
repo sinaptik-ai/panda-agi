@@ -140,7 +140,7 @@ description: 'Understanding PandaAGI as a development framework for building and
       agent = Agent(environment=env)
       
       # Subscribe to real-time events
-      async for event in agent.run("Build me a simple web app"):
+      async for event in agent.run_stream("Build me a simple web app"):
           if event.type == EventType.THINKING:
               print(f"Agent is thinking: {event.data}")
           elif event.type == EventType.WEB_SEARCH:
@@ -265,7 +265,7 @@ The general AI agents generate real-time events in their own execution environme
     agent = Agent(environment=env)
     
     # Run the agent and process events
-    async for event in agent.run("Build me a simple web app"):
+    async for event in agent.run_stream("Build me a simple web app"):
         print(f"Event: {event.type} - {event.data}")
     ```
   </Step>

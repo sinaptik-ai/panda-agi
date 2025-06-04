@@ -113,7 +113,7 @@ async def main():
     agent = Agent(environment=agent_env)
     
     # Submit a task and stream results
-    async for event in agent.run(
+    async for event in agent.run_stream(
         "Research the latest AI developments and create a summary report",
     ):
         # The general AI agent will:
@@ -146,7 +146,7 @@ async def main():
     agent = Agent(environment=agent_env)
     
     # General AI agent can read, write, and analyze files
-    async for event in agent.run(
+    async for event in agent.run_stream(
         "Analyze the data in sales.csv and create a visualization report"
     ):
         # The general AI agent will:
@@ -175,7 +175,7 @@ async def main():
     agent_env = DockerEnv("./workspace")
     agent = Agent(environment=agent_env)
     
-    async for event in agent.run(
+    async for event in agent.run_stream(
         "Research the electric vehicle market and create a comprehensive report"
     ):
         # The general AI agent will:
@@ -204,7 +204,7 @@ async def main():
     agent_env = LocalEnv("./my_workspace")
     agent = Agent(environment=agent_env)
     
-    async for event in agent.run(
+    async for event in agent.run_stream(
         "Design a database schema for an e-commerce platform"
     ):
         # The general AI agent will:
@@ -233,7 +233,7 @@ async def main():
     agent_env = DockerEnv("./workspace")
     agent = Agent(environment=agent_env)
     
-    async for event in agent.run(
+    async for event in agent.run_stream(
         "Create user documentation for our REST API with examples"
     ):
         # The general AI agent will:
@@ -356,11 +356,11 @@ agent = Agent(
 )
 
 # First interaction
-async for event in agent.run("Find information about electric vehicles"):
+async for event in agent.run_stream("Find information about electric vehicles"):
     print(event)
 
 # Later interaction (continues the same conversation)
-async for event in agent.run("Now compare the top 3 models"):
+async for event in agent.run_stream("Now compare the top 3 models"):
     print(event)
 ```
 
@@ -371,7 +371,7 @@ Filter and process specific event types for custom UIs:
 ```python
 from panda_agi import EventType
 
-async for event in agent.run("Create a data visualization"):
+async for event in agent.run_stream("Create a data visualization"):
     if event.type == EventType.THINKING:
         print(f"Agent is thinking: {event.data}")
     elif event.type == EventType.ACTION:

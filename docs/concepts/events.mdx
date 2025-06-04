@@ -22,7 +22,7 @@ The PandaAGI SDK streams events from a remote autonomous general AI agent that o
 
 ```python
 # Events stream asynchronously from the remote general AI agent
-async for event in agent.run("Research AI trends and create a report"):
+async for event in agent.run_stream("Research AI trends and create a report"):
     # Each event represents a real action the general AI agent is taking
     print(f"[{event.timestamp}] {event.type}: {event.data}")
 ```
@@ -402,7 +402,7 @@ async def main():
     agent = Agent(environment=agent_env)
 
     # Stream events as the general AI agent works autonomously
-    async for event in agent.run("Research machine learning trends and create a comprehensive report"):
+    async for event in agent.run_stream("Research machine learning trends and create a comprehensive report"):
         # Type checker knows exactly what type each event is!
         
         if is_agent_connection_success_event(event):
@@ -475,7 +475,7 @@ async def advanced_event_monitoring():
     agent = Agent(environment=agent_env)
     
     # Track different categories of activities with type safety
-    async for event in agent.run("Analyze codebase and generate documentation"):
+    async for event in agent.run_stream("Analyze codebase and generate documentation"):
         
         # Web activities
         if is_web_search_event(event):

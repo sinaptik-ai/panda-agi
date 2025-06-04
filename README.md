@@ -1,6 +1,13 @@
-# PandaAGI SDK
+# PandaAGI SDK - An SDK for AGI (Agentic General Intelligence)
 
-A Python SDK for building and interacting with General AI Agents.
+[![Release](https://img.shields.io/pypi/v/panda-agi?label=Release&style=flat-square)](https://pypi.org/project/panda-agi/)
+[![Discord](https://dcbadge.vercel.app/api/server/kF7FqH2FwS?style=flat&compact=true)](https://discord.gg/KYKj9F2FRH)
+[![Downloads](https://static.pepy.tech/badge/panda-agi)](https://pepy.tech/project/panda-agi)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+
+The PandaAGI SDK provides a simple, intuitive API for building general AI agents in just a few lines of code. It abstracts away the complexity of Agentic Loops and provides a powerful interface for you to build autonomous agents.
+Each agent can be configured to run in a custom environment, interacting with the web, your file system, writing code, and running shell commands.
 
 ## Installation
 
@@ -14,7 +21,7 @@ Or with uv:
 uv add panda-agi
 ```
 
-## Quick Start
+## 🔧 Getting started
 
 ```python
 import asyncio
@@ -29,8 +36,8 @@ async def main():
     agent = Agent(environment=agent_env)
     
     # Run the agent with a prompt
-    async for event in agent.run("Tell me a joke about pandas"):
-        print(f"[{event.timestamp}] {event.type}: {event.data}")
+    response = agent.run("Tell me a joke about pandas")
+    print(response.output)
     
     # Disconnect when done
     await agent.disconnect()
@@ -39,18 +46,34 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Features
+## 📱 Running with the UI
+
+In case you don't want to build an app from scratch, we provide a UI that you can use to run your agents.
+
+Running it is as simple as:
+
+```bash
+# Run the UI
+cd examples/ui
+./start.sh
+```
+
+This will start a docker container with the UI running. You can access it at `http://localhost:3000` and start using it.
+
+[![Demo](docs/images/chat_interface.png)](docs/images/chat_interface.png)
+
+## 🛠️ Features
 
 - Simple, intuitive API for interacting with PandaAGI agents
 - Support for local and Docker environments
 - Asynchronous event-based communication
 - Pydantic models for type safety
 
-## Documentation
+## 📚 Documentation
 
-For complete documentation, visit our [documentation site](https://docs.pandas-ai.com).
+For complete documentation, visit our [documentation site](https://agi-docs.pandas-ai.com).
 
-## Development
+## 🛠️ Development
 
 ### Prerequisites
 
@@ -74,6 +97,6 @@ Run tests with pytest:
 uv run pytest
 ```
 
-## License
+## 📝 License
 
 MIT License

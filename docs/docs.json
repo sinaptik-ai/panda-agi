@@ -9,42 +9,33 @@
   },
   "favicon": "/favicon.svg",
   "navigation": {
-    "tabs": [
+    "anchors": [
       {
-        "tab": "Documentation",
+        "anchor": "Documentation",
+        "icon": "book-open",
         "groups": [
           {
-            "group": "Overview",
+            "group": "Getting Started",
             "pages": [
-              "introduction"
+              "introduction",
+              "quickstart"
             ]
           },
           {
-            "group": "Using PandaAGI",
+            "group": "Examples",
             "pages": [
-              "quickstart",
-              "installation",
+              "chat-interface",
               "cli"
             ]
           },
           {
-            "group": "Building with PandaAGI",
+            "group": "Advanced Usage",
             "pages": [
               "concepts/architecture",
               "concepts/agents",
               "concepts/events",
-              "concepts/environments"
-            ]
-          }
-        ]
-      },
-      {
-        "tab": "Apps",
-        "groups": [
-          {
-            "group": "Apps",
-            "pages": [
-              "apps/chat-interface"
+              "concepts/environments",
+              "installation"
             ]
           }
         ]

@@ -79,7 +79,7 @@ The PandaAGI CLI provides a powerful terminal-based interface for interacting wi
     
     ```python
     # Event streaming is built into the CLI
-    async for event in agent.run(query):
+    async for event in agent.run_stream(query):
         # Process events in real-time
         if isinstance(event, BaseStreamEvent):
             event_type = event.type.value if hasattr(event.type, "value") else str(event.type)

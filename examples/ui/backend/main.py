@@ -197,7 +197,7 @@ async def event_stream(
         await asyncio.sleep(0.01)
 
         # Stream events
-        async for event in agent.run(query):
+        async for event in agent.run_stream(query):
             # Apply filtering first
             if not should_render_event(event):
                 continue

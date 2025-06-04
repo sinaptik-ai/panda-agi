@@ -4,33 +4,6 @@ import asyncio
 from panda_agi import Agent
 from panda_agi.envs import LocalEnv
 
-
-def truncate(d, max_length=100):
-    if isinstance(d, str):
-        if len(d) > max_length:
-            return d[:max_length] + "..."
-        return d
-    elif isinstance(d, list):
-        truncated = []
-        for item in d:
-            if isinstance(item, str) and len(item) > max_length:
-                truncated.append(item[:max_length] + "...")
-            else:
-                truncated.append(item)
-        return truncated
-    elif isinstance(d, dict):
-        truncated = {}
-        for key, value in d.items():
-            if isinstance(value, str) and len(value) > max_length:
-                truncated[key] = value[:max_length] + "..."
-            else:
-                truncated[key] = value
-        return truncated
-    else:
-        # For any other type, return as-is
-        return d
-
-
 async def main():
     """Example usage of the Agent with BaseEnv and Pydantic events"""
 
@@ -50,10 +23,8 @@ async def main():
 
     # First request - will automatically connect
     # The run method now returns a generator of AgentEvent
-    async for event in agent.run(
-        args.query,
-    ):
-        print(f"[RECEIVED] {event.type}")
+    response = agent.run(args.query)
+    print(response.output)
 
     # Manually disconnect when completely done
     await agent.disconnect()
