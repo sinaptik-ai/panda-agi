@@ -1,4 +1,4 @@
-# PandaAGI SDK - An SDK for AGI (Agentic General Intelligence)
+# 🐼 PandaAGI SDK - An SDK for AGI (Agentic General Intelligence)
 
 [![Release](https://img.shields.io/pypi/v/panda-agi?label=Release&style=flat-square)](https://pypi.org/project/panda-agi/)
 [![Discord](https://dcbadge.vercel.app/api/server/kF7FqH2FwS?style=flat&compact=true)](https://discord.gg/KYKj9F2FRH)
