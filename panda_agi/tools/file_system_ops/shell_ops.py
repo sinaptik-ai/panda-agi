@@ -16,6 +16,15 @@ from panda_agi.envs import BaseEnv
 _shell_sessions: Dict[str, Dict[str, Any]] = {}
 
 
+def _limit_output(output: str, limit: int = 10) -> str:
+    """
+    Limit the output to the first and last 10 rows.
+    """
+    return "\n".join(
+        output.split("\n")[:limit] + [" ... "] + output.split("\n")[-limit:]
+    )
+
+
 async def shell_exec_command(
     environment: BaseEnv, id: str, exec_dir: str, command: str, blocking: bool = True
 ) -> Dict[str, Any]:
@@ -55,6 +64,12 @@ async def shell_exec_command(
         result = await environment.exec_shell(
             command=command, capture_output=True, blocking=blocking
         )
+
+        if result.get("stdout"):
+            result["stdout"] = _limit_output(result["stdout"])
+
+        if result.get("stderr"):
+            result["stderr"] = _limit_output(result["stderr"])
 
         # Update session info
         session["last_command"] = command

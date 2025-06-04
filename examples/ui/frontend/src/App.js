@@ -227,7 +227,7 @@ function App() {
   // Function to open file in sidebar - content fetching is handled by ContentSidebar
   const handleFileClick = (filename) => {
     const fileType = getFileType(filename);
-    
+
     setPreviewData({
       filename: filename,
       title: `File: ${filename.split("/").pop()}`,
@@ -252,7 +252,7 @@ function App() {
     const userMessage = {
       id: Date.now(),
       type: "user",
-      content: messageContent,
+      content: inputValue.trim(),
       timestamp: new Date().toISOString(),
     };
 
@@ -344,12 +344,11 @@ function App() {
 
                 // Check for any errors in user_notification or error events
                 if (
-                  (eventData.data && 
-                   eventData.data.type === "user_notification" && 
-                   eventData.data.payload && 
-                   eventData.data.payload.error) ||
-                  (eventData.data && 
-                   eventData.data.type === "error")
+                  (eventData.data &&
+                    eventData.data.type === "user_notification" &&
+                    eventData.data.payload &&
+                    eventData.data.payload.error) ||
+                  (eventData.data && eventData.data.type === "error")
                 ) {
                   // Set loading to false for any error event
                   setIsLoading(false);
@@ -473,13 +472,15 @@ function App() {
       <div
         className="flex flex-col transition-all duration-300 w-full"
         style={{
-          width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : '100%',
+          width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : "100%",
         }}
       >
         {/* Header - positioned absolutely over content */}
         <div
           className="glass-header p-4 fixed top-0 left-0 right-0 z-10"
-          style={{ width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw" }}
+          style={{
+            width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw",
+          }}
         >
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -555,53 +556,82 @@ function App() {
                   Welcome to PandaAGI
                 </h3>
                 <p className="text-gray-600 mb-8 max-w-lg mx-auto">
-                  I can help you with coding, research, and much more. What would you like to work on today?
+                  I can help you with coding, research, and much more. What
+                  would you like to work on today?
                 </p>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
                   {/* Suggestion cards with example prompts */}
-                  <button 
-                    onClick={() => setInputValue("Analyze this CSV data and create a visualization of the monthly sales trends")}
+                  <button
+                    onClick={() =>
+                      setInputValue(
+                        "Analyze this CSV data and create a visualization of the monthly sales trends"
+                      )
+                    }
                     className="bg-white/70 backdrop-blur-sm hover:bg-white/90 border border-gray-200 rounded-xl p-4 text-left transition-all hover:shadow-md"
                   >
                     <h4 className="font-medium text-blue-600 mb-2 flex items-center">
                       <FileText className="w-5 h-5 mr-2" />
                       Data Analysis
                     </h4>
-                    <p className="text-sm text-gray-600">"Analyze this CSV data and create a visualization of the monthly sales trends"</p>
+                    <p className="text-sm text-gray-600">
+                      "Analyze this CSV data and create a visualization of the
+                      monthly sales trends"
+                    </p>
                   </button>
-                  
-                  <button 
-                    onClick={() => setInputValue("Help me generate a modern landing page for my SaaS product that focuses on AI workflow automation")}
+
+                  <button
+                    onClick={() =>
+                      setInputValue(
+                        "Help me generate a modern landing page for my SaaS product that focuses on AI workflow automation"
+                      )
+                    }
                     className="bg-white/70 backdrop-blur-sm hover:bg-white/90 border border-gray-200 rounded-xl p-4 text-left transition-all hover:shadow-md"
                   >
                     <h4 className="font-medium text-green-600 mb-2 flex items-center">
                       <Code className="w-5 h-5 mr-2" />
                       Landing Page
                     </h4>
-                    <p className="text-sm text-gray-600">"Help me generate a modern landing page for my SaaS product that focuses on AI workflow automation"</p>
+                    <p className="text-sm text-gray-600">
+                      "Help me generate a modern landing page for my SaaS
+                      product that focuses on AI workflow automation"
+                    </p>
                   </button>
-                  
-                  <button 
-                    onClick={() => setInputValue("Create a comprehensive report on the latest trends in renewable energy based on online research")}
+
+                  <button
+                    onClick={() =>
+                      setInputValue(
+                        "Create a comprehensive report on the latest trends in renewable energy based on online research"
+                      )
+                    }
                     className="bg-white/70 backdrop-blur-sm hover:bg-white/90 border border-gray-200 rounded-xl p-4 text-left transition-all hover:shadow-md"
                   >
                     <h4 className="font-medium text-orange-600 mb-2 flex items-center">
                       <FileCode className="w-5 h-5 mr-2" />
                       Research Reports
                     </h4>
-                    <p className="text-sm text-gray-600">"Create a comprehensive report on the latest trends in renewable energy based on online research"</p>
+                    <p className="text-sm text-gray-600">
+                      "Create a comprehensive report on the latest trends in
+                      renewable energy based on online research"
+                    </p>
                   </button>
-                  
-                  <button 
-                    onClick={() => setInputValue("Build a dashboard that visualizes market data for my product's performance across different regions")}
+
+                  <button
+                    onClick={() =>
+                      setInputValue(
+                        "Build a dashboard that visualizes market data for my product's performance across different regions"
+                      )
+                    }
                     className="bg-white/70 backdrop-blur-sm hover:bg-white/90 border border-gray-200 rounded-xl p-4 text-left transition-all hover:shadow-md"
                   >
                     <h4 className="font-medium text-purple-600 mb-2 flex items-center">
                       <Image className="w-5 h-5 mr-2" />
                       Dashboard Design
                     </h4>
-                    <p className="text-sm text-gray-600">"Build a dashboard that visualizes market data for my product's performance across different regions"</p>
+                    <p className="text-sm text-gray-600">
+                      "Build a dashboard that visualizes market data for my
+                      product's performance across different regions"
+                    </p>
                   </button>
                 </div>
               </div>
@@ -647,7 +677,9 @@ function App() {
         {/* Input - positioned absolutely at bottom */}
         <div
           className="p-4 fixed bottom-0 left-0 right-0"
-          style={{ width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw" }}
+          style={{
+            width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw",
+          }}
         >
           <div className="max-w-4xl mx-auto">
             <div className="bg-white/70 backdrop-blur-xl border border-black/20 rounded-2xl p-3 shadow-2xl">

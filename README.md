@@ -1,4 +1,4 @@
-# PandaAGI SDK - An SDK for AGI (Agentic General Intelligence)
+# 🐼 PandaAGI SDK - An SDK for AGI (Agentic General Intelligence)
 
 [![Release](https://img.shields.io/pypi/v/panda-agi?label=Release&style=flat-square)](https://pypi.org/project/panda-agi/)
 [![Discord](https://dcbadge.vercel.app/api/server/kF7FqH2FwS?style=flat&compact=true)](https://discord.gg/KYKj9F2FRH)
@@ -35,10 +35,20 @@ async def main():
     # Create the agent
     agent = Agent(environment=agent_env)
     
-    # Run the agent with a prompt
+    # Run the agent with a task
     response = agent.run("Tell me a joke about pandas")
     print(response.output)
-    
+
+    # Other possible tasks
+    response = agent.run("Make a report of the real estate market in Germany")
+    # -> will generate a reporrt in the provided workspace folder
+
+    response = agent.run("Can you analyze our sales and create a dashboard?")
+    # -> will generate a dashboard in the provided workspace folder starting from a csv file in the workspace folder
+
+    response = agent.run("Can you create a website for our company?")
+    # -> will generate a website in the provided workspace folder
+
     # Disconnect when done
     await agent.disconnect()
 
