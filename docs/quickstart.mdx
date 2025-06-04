@@ -25,7 +25,9 @@ This guide will help you get started with PandaAGI in two ways: using the **read
           cd panda-agi/examples/ui
           
           # Set your API key
-          echo "PANDA_AGI_KEY=your-api-key-here" > .env
+          echo "PANDA_AGI_KEY=your-api-key-here" > ./backend/.env
+          echo "TAVILY_API_KEY=your-tavily-api-key-here" >> ./backend/.env
+          echo "WORKSPACE_PATH=./workspace" >> ./backend/.env
           
           # Start the application
           ./start.sh
@@ -81,11 +83,12 @@ This guide will help you get started with PandaAGI in two ways: using the **read
             **Required**: You must obtain an API key from [https://agi.pandas-ai.com/](https://agi.pandas-ai.com/) to use the PandaAGI SDK.
           </Warning>
           
-          Set the `PANDA_AGI_KEY` environment variable in your .env file or directly in your code:
+          Set the `PANDA_AGI_KEY` and `TAVILY_API_KEY` environment variables in your .env file or directly in your code:
           
           ```python
           import os
           os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
+          os.environ['TAVILY_API_KEY'] = 'your-tavily-api-key-here'
           ```
         </Card>
       </Step>
@@ -107,6 +110,7 @@ from panda_agi.envs import DockerEnv
 async def main():
 
     os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
+    os.environ['TAVILY_API_KEY'] = 'your-tavily-api-key-here'
 
     # Create environment for the general AI agent to work in
     agent_env = DockerEnv("./workspace")
@@ -140,6 +144,7 @@ from panda_agi.envs import LocalEnv
 async def main():
 
     os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
+    os.environ['TAVILY_API_KEY'] = 'your-tavily-api-key-here'
 
     # Use local environment for file operations
     agent_env = LocalEnv("./my_workspace")
@@ -171,7 +176,8 @@ from panda_agi.envs import DockerEnv
 
 async def main():
     os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
-    
+    os.environ['TAVILY_API_KEY'] = 'your-tavily-api-key-here'
+
     agent_env = DockerEnv("./workspace")
     agent = Agent(environment=agent_env)
     
@@ -200,7 +206,8 @@ from panda_agi.envs import LocalEnv
 
 async def main():
     os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
-    
+    os.environ['TAVILY_API_KEY'] = 'your-tavily-api-key-here'
+
     agent_env = LocalEnv("./my_workspace")
     agent = Agent(environment=agent_env)
     
@@ -229,6 +236,7 @@ from panda_agi.envs import DockerEnv
 
 async def main():
     os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
+    os.environ['TAVILY_API_KEY'] = 'your-tavily-api-key-here'
     
     agent_env = DockerEnv("./workspace")
     agent = Agent(environment=agent_env)
@@ -298,6 +306,8 @@ PandaAGI includes a production-ready chat interface that lets you interact with 
     
     # Set your API key in .env file
     echo "PANDA_AGI_KEY=your-api-key-here" > .env
+    echo "TAVILY_API_KEY=your-tavily-api-key-here" >> .env
+    echo "WORKSPACE_PATH=./workspace" >> .env
     
     # Start with Docker Compose
     ./start.sh
