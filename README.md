@@ -23,6 +23,21 @@ uv add panda-agi
 
 ## 🔧 Getting started
 
+First of all, make sure you have a API key. You can get one for free [here](https://agi.pandas-ai.com/).
+Make sure to set it as an environment variable:
+
+```bash
+export PANDA_AGI_KEY=your_api_key
+```
+
+or set it in the .env file:
+
+```bash
+PANDA_AGI_KEY=your_api_key
+```
+
+Once you have the API key, you can start using the SDK:
+
 ```python
 import asyncio
 from panda_agi import Agent
@@ -54,6 +69,12 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+```
+
+In case you want to enable te web search, you will also need a Tavily API key. You can get one for free [here](https://tavily.ai/). Then set it as an environment variable or set it in the .env file:
+
+```bash
+TAVILY_API_KEY=your_api_key
 ```
 
 ## 📱 Running with the UI
