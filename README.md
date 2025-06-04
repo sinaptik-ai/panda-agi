@@ -91,7 +91,7 @@ cd examples/ui
 
 This will start a docker container with the UI running. You can access it at `http://localhost:3000` and start using it.
 
-[![Demo](docs/images/chat_interface.png)](docs/images/chat_interface.png)
+<video src="docs/videos/ui-video.mp4" width="100%" controls></video>
 
 ## 🛠️ Features
 
