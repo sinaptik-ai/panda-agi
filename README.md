@@ -71,7 +71,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-In case you want to enable te web search, you will also need a Tavily API key. You can get one for free [here](https://tavily.ai/). Then set it as an environment variable or set it in the .env file:
+In case you want to enable te web search, you will also need a Tavily API key. You can get one for free [here](https://www.tavily.com/). Then set it as an environment variable or set it in the .env file:
 
 ```bash
 TAVILY_API_KEY=your_api_key
