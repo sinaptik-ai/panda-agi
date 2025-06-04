@@ -20,7 +20,9 @@ def _limit_output(output: str, limit: int = 10) -> str:
     """
     Limit the output to the first and last 10 rows.
     """
-    return "\n".join(output.split("\n")[:limit] + output.split("\n")[-limit:])
+    return "\n".join(
+        output.split("\n")[:limit] + [" ... "] + output.split("\n")[-limit:]
+    )
 
 
 async def shell_exec_command(
