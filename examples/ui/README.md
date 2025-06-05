@@ -41,13 +41,35 @@ fastapi-server/
     └── tailwind.config.js  # Tailwind configuration
 ```
 
-## 🐳 Docker Setup (Recommended)
+## 🚀 Quick Start
 
-**✅ Fully Implemented and Tested**
+### Production Mode (Default - uses pre-built images)
+
+```bash
+# Start using pre-built production images (default)
+./start.sh
+
+# Force pull latest production images
+./start.sh --build
+```
+
+### Development Mode (local builds)
+
+```bash
+# Start in development mode (builds images locally)
+./start.sh --dev
+
+# Force rebuild of local images
+./start.sh --dev --build
+```
+
+## 🐳 Docker Setup
+
+### Development with Docker Compose
 
 The easiest way to run the PandaAGI Enhanced Chat Interface is using Docker Compose, which handles all dependencies and configuration automatically.
 
-### Quick Start with Docker
+#### Quick Start with Docker
 
 Use the provided start script for one-command setup:
 
@@ -214,11 +236,14 @@ For production deployment, you can use the same Docker Compose setup:
 
 ```bash
 # Pull latest changes
+# Pull latest changes
 git pull origin main
 
-# Rebuild and restart containers
-docker-compose down
-docker-compose up --build -d
+# Rebuild and restart containers in development mode
+./start.sh --build
+
+# Or in production mode
+./start.sh --prod
 
 # View logs
 docker-compose logs -f

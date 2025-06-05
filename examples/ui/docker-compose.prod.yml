@@ -1,8 +1,6 @@
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ghcr.io/sinaptik-ai/panda-agi/panda-agi-ui:main-backend
     container_name: panda-agi-backend
     ports:
       - "8000:8000"
@@ -14,7 +12,7 @@ services:
       - WORKSPACE_PATH=./workspace
       - FASTAPI_RELOAD=false
     volumes:
-      - ./backend/workspace:/app/workspace
+      - ./workspace:/app/workspace
     networks:
       - panda-agi-network
     restart: unless-stopped
@@ -22,9 +20,7 @@ services:
       - .env
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: ghcr.io/sinaptik-ai/panda-agi/panda-agi-ui:main-frontend
     container_name: panda-agi-frontend
     ports:
       - "3000:80"

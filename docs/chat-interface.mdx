@@ -55,15 +55,22 @@ PandaAGI includes a production-ready chat interface in the examples folder that 
       </Step>
       <Step title="Launch Application">
         ```bash
+        # For production (uses pre-built images)
         ./start.sh
+        
+        # For local development (will build the image based on the new changes)
+        # ./start.sh --dev
         ```
         
         This command will:
         - ✅ Check Docker requirements  
         - 🛑 Stop any existing containers
-        - 🔨 Build and start both services
+        - 🔄 Pull pre-built production images (default)
+        - 🔨 Build and start services (in development mode with --dev)
         - 🔍 Perform health checks
         - 📊 Display service status and URLs
+        
+        **Pro Tip:** Use `--build` to force rebuild images when needed.
       </Step>
       <Step title="Access the Interface">
         Once running, access:
@@ -72,21 +79,30 @@ PandaAGI includes a production-ready chat interface in the examples folder that 
       </Step>
     </Steps>
   </Tab>
-  <Tab title="Manual Setup">
+  <Tab title="Development Setup">
     <Steps>
-      <Step title="Start Backend">
+      <Step title="Start in Development Mode">
         ```bash
+        cd examples/ui
+        ./start.sh --dev
+        ```
+        
+        This will build and run the application locally with hot-reloading.
+      </Step>
+      <Step title="Manual Development (Alternative)">
+        ```bash
+        # Backend
         cd examples/ui/backend
         poetry install
         python main.py
-        ```
-      </Step>
-      <Step title="Start Frontend">
-        ```bash
+        
+        # Frontend (in a new terminal)
         cd examples/ui/frontend
         yarn install
         yarn start
         ```
+        
+        Use this approach if you need to run services separately.
       </Step>
     </Steps>
   </Tab>
