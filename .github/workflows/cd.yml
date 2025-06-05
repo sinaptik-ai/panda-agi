@@ -1,0 +1,86 @@
+name: CD - Build and Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/ui/**'
+      - '.github/workflows/cd.yml'
+  workflow_dispatch: # Allow manual triggering
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/panda-agi-ui
+
+jobs:
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v3
+        with:
+          context: ./examples/ui/backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}-backend
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v3
+        with:
+          context: ./examples/ui/frontend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}-frontend
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          
+      - name: Update image tags in docker-compose.prod.yml
+        run: |
+          # Extract the main tag (without -backend/-frontend suffix)
+          MAIN_TAG=$(echo "${{ steps.meta.outputs.tags }}" | grep main | head -n 1)
+          echo "Using tag: $MAIN_TAG"
+          
+          # Update the image references in docker-compose.prod.yml
+          sed -i "s|image: ghcr.io/sinaptik-ai/panda-agi/panda-agi-ui:main-backend|image: ${MAIN_TAG}-backend|g" examples/ui/docker-compose.prod.yml
+          sed -i "s|image: ghcr.io/sinaptik-ai/panda-agi/panda-agi-ui:main-frontend|image: ${MAIN_TAG}-frontend|g" examples/ui/docker-compose.prod.yml
+          
+          # Show the changes
+          echo "Updated docker-compose.prod.yml:"
+          cat examples/ui/docker-compose.prod.yml
+      
+      - name: Commit and push updated docker-compose.prod.yml
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add examples/ui/docker-compose.prod.yml
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update image tags in docker-compose.prod.yml [skip ci]"
+          git push
