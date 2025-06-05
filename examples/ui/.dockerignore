@@ -12,6 +12,5 @@ backend/.git
 .git
 .gitignore
 *.md
-.env
 .DS_Store
-Thumbs.db 
+Thumbs.db
