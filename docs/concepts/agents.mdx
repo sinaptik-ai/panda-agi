@@ -23,14 +23,21 @@ The simplest way to create an agent:
 ```python
 import asyncio
 from panda_agi import Agent
+from panda_agi.handlers import LogsHandler
 
 async def main():
     agent = Agent()
     
-    async for event in agent.run_stream("What's the weather like today?"):
-        print(f"Event: {event.type} - {event.data}")
+    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
 
-asyncio.run(main())
+    response = await agent.run(
+        "What's the weather like today?",
+        event_handlers=handlers
+    )
+    print(f"Task completed: {response.output}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 ### General AI Agent with Custom Configuration
@@ -118,10 +125,14 @@ current_dir = agent.get_working_directory()
 Customize tool handling behavior:
 
 ```python
-from panda_agi.handlers import CustomHandler
+from panda_agi.handlers import BaseHandler
+
+class CustomToolHandler(BaseHandler):
+    # ... implementation ...
+    pass
 
 custom_handlers = {
-    "custom_tool": CustomHandler(),
+    "custom_tool": CustomToolHandler(),
     # Add your custom handlers here
 }
 
@@ -136,6 +147,7 @@ Enable follow-up questions and maintain context across multiple requests:
 import asyncio
 import uuid
 from panda_agi import Agent
+from panda_agi.handlers import LogsHandler
 
 async def persistent_conversation():
     # Use same conversation_id for related requests
@@ -143,16 +155,24 @@ async def persistent_conversation():
     conversation_id = str(uuid.uuid4())
     agent = Agent(conversation_id=conversation_id)
     
+    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+    
     # First request
-    async for event in agent.run_stream("Tell me about Alice in Wonderland"):
-        if event.type == "completed_task":
-            break
+    response1 = await agent.run(
+        "Tell me about Alice in Wonderland",
+        event_handlers=handlers
+    )
+    print(f"First response: {response1.output}")
     
     # Follow-up request with context
-    async for event in agent.run_stream("What's the main character's personality like?"):
-        print(event) # Should mention "Alice"
+    response2 = await agent.run(
+        "What's the main character's personality like?",
+        event_handlers=handlers
+    )
+    print(f"Follow-up response: {response2.output}")  # Should mention "Alice"
 
-asyncio.run(persistent_conversation())
+if __name__ == "__main__":
+    asyncio.run(persistent_conversation())
 ```
 
 **Key Benefits:**
@@ -170,6 +190,7 @@ Build complex interactions with follow-up questions:
 import asyncio
 import uuid
 from panda_agi import Agent, EventType
+from panda_agi.handlers import LogsHandler
 
 async def multi_turn_conversation():
     # Consistent conversation_id enables follow-up questions
@@ -177,33 +198,34 @@ async def multi_turn_conversation():
     conversation_id = str(uuid.uuid4())
     agent = Agent(conversation_id=conversation_id)
     
+    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+
     # Initial request
     print("=== Initial Question ===")
-    async for event in agent.run_stream("What are the main types of neural networks?"):
-        if event.type == EventType.USER_NOTIFICATION:
-            print(event.data)
-        elif event.type == EventType.COMPLETED_TASK:
-            break
+    response1 = await agent.run(
+        "What are the main types of neural networks?",
+        event_handlers=handlers
+    )
+    print(f"Response: {response1.output}")
     
     # Follow-up question - no need to repeat context
     print("\n=== Follow-up Question ===")
-    async for event in agent.run_stream("Which one is best for image recognition?"):
-        if event.type == EventType.USER_NOTIFICATION:
-            print(event.data)  # Agent knows we're talking about neural networks
-        elif event.type == EventType.COMPLETED_TASK:
-            break
+    response2 = await agent.run(
+        "Which one is best for image recognition?",
+        event_handlers=handlers
+    )
+    print(f"Response: {response2.output}")  # Agent knows we're talking about neural networks
     
     # Another follow-up
     print("\n=== Another Follow-up ===")
-    async for event in agent.run_stream("Can you show me a code example?"):
-        if event.type == EventType.USER_NOTIFICATION:
-            print(event.data)  # Agent will provide CNN code example
-        elif event.type == EventType.FILE_WRITE:
-            print(f"Creating code file: {event.data}")
-        elif event.type == EventType.COMPLETED_TASK:
-            break
+    response3 = await agent.run(
+        "Can you show me a code example?",
+        event_handlers=handlers
+    )
+    print(f"Response: {response3.output}")  # Agent will provide CNN code example
 
-asyncio.run(multi_turn_conversation())
+if __name__ == "__main__":
+    asyncio.run(multi_turn_conversation())
 ```
 
 ### Available Event Types
@@ -223,6 +245,8 @@ General AI agents can work with files in their environment:
 ```python
 import asyncio
 from panda_agi import Agent, EventType
+from panda_agi.handlers import BaseHandler, LogsHandler
+from panda_agi.client.models import BaseStreamEvent
 
 async def file_operations():
     agent = Agent()
@@ -235,17 +259,24 @@ async def file_operations():
     # Change working directory
     agent.change_working_directory("./documents")
     
-    async for event in agent.run_stream("Organize these files by type"):
-        if event.type == EventType.FILE_EXPLORE:
-            print(f"Exploring files: {event.data}")
-        elif event.type == EventType.FILE_READ:
-            print(f"Reading file: {event.data}")
-        elif event.type == EventType.FILE_WRITE:
-            print(f"Organizing file: {event.data}")
-        elif event.type == EventType.USER_NOTIFICATION:
-            print(f"Organization update: {event.data}")
+    # Create custom handler to monitor file operations
+    class FileMonitorHandler(BaseHandler):
+        def process(self, event: BaseStreamEvent) -> None:
+            if event.type == EventType.FILE_EXPLORE:
+                print(f"Exploring files: {event.data}")
+            elif event.type == EventType.FILE_READ:
+                print(f"Reading file: {event.data}")
+            elif event.type == EventType.FILE_WRITE:
+                print(f"Organizing file: {event.data}")
+            elif event.type == EventType.USER_NOTIFICATION:
+                print(f"Organization update: {event.data}")
 
-asyncio.run(file_operations())
+    handlers = [FileMonitorHandler("FileMonitor"), LogsHandler()]
+    response = await agent.run("Organize these files by type", event_handlers=handlers)
+    print(f"File organization completed: {response.output}")
+
+if __name__ == "__main__":
+    asyncio.run(file_operations())
 ```
 
 ### Cross-Session Persistence
@@ -257,6 +288,7 @@ Maintain conversations across different script executions:
 import asyncio
 import uuid
 from panda_agi import Agent, EventType
+from panda_agi.handlers import LogsHandler
 
 # Generate and save conversation ID for reuse
 CONVERSATION_ID = str(uuid.uuid4())
@@ -267,22 +299,24 @@ async def start_research():
     # Start a research session
     agent = Agent(conversation_id=CONVERSATION_ID)
     
-    async for event in agent.run_stream("Please analyze the Python project in my workspace"):
-        if event.type == EventType.FILE_EXPLORE:
-            print(f"Exploring project: {event.data}")
-        elif event.type == EventType.USER_NOTIFICATION:
-            print(f"Analysis: {event.data}")
-        elif event.type == EventType.COMPLETED_TASK:
-            print("Initial analysis complete. Check session2.py for follow-ups.")
-            break
+    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
 
-asyncio.run(start_research())
+    response = await agent.run(
+        "Please analyze the Python project in my workspace",
+        event_handlers=handlers
+    )
+    print(f"Analysis complete: {response.output}")
+    print("Check session2.py for follow-ups.")
+
+if __name__ == "__main__":
+    asyncio.run(start_research())
 ```
 
 ```python
 # session2.py - Run this later with the same conversation ID
 import asyncio
 from panda_agi import Agent, EventType
+from panda_agi.handlers import LogsHandler
 
 # Use the same conversation ID from session1.py
 CONVERSATION_ID = "your-uuid-from-session1"  # Replace with actual UUID
@@ -292,15 +326,16 @@ async def continue_research():
     agent = Agent(conversation_id=CONVERSATION_ID)
     
     # Agent remembers the previous analysis
-    async for event in agent.run_stream("Based on your analysis, what improvements would you suggest?"):
-        if event.type == EventType.USER_NOTIFICATION:
-            print(event.data)
-        elif event.type == EventType.FILE_WRITE:
-            print(f"Creating improvement suggestions: {event.data}")
-        elif event.type == EventType.COMPLETED_TASK:
-            break
+    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
 
-asyncio.run(continue_research())
+    response = await agent.run(
+        "Based on your analysis, what improvements would you suggest?",
+        event_handlers=handlers
+    )
+    print(f"Improvement suggestions completed: {response.output}")
+
+if __name__ == "__main__":
+    asyncio.run(continue_research())
 ```
 
 ### Resource Management

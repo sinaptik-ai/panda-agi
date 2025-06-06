@@ -21,10 +21,16 @@ The PandaAGI SDK streams events from a remote autonomous general AI agent that o
 - Completes tasks and reports results
 
 ```python
-# Events stream asynchronously from the remote general AI agent
-async for event in agent.run_stream("Research AI trends and create a report"):
-    # Each event represents a real action the general AI agent is taking
-    print(f"[{event.timestamp}] {event.type}: {event.data}")
+from panda_agi.handlers import LogsHandler
+
+# Events are processed by event handlers as the remote general AI agent works
+handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+
+response = await agent.run(
+    "Research AI trends and create a report",
+    event_handlers=handlers
+)
+print(f"Task completed: {response.output}")
 ```
 
 ## Core Event Types
@@ -377,6 +383,40 @@ EventType.SHELL_WRITE              # Writing shell scripts
 
 ## Event Streaming
 
+### Using Event Handlers
+
+Process events with custom handlers for better organization and reusability:
+
+```python
+from panda_agi import Agent, BaseHandler
+from panda_agi.handlers import LogsHandler
+from panda_agi.envs import DockerEnv
+import asyncio
+
+async def main():
+    agent_env = DockerEnv("./workspace")
+    agent = Agent(environment=agent_env)
+
+    # Use the built-in logs handler
+    handlers = [LogsHandler(
+        use_colors=True,
+        show_timestamps=True,
+        compact_mode=False
+    )]
+
+    # Run with event handler
+    response = await agent.run(
+        "Research machine learning trends and create a report",
+        event_handlers=handlers
+    )
+
+    print(f"Task completed: {response.output}")
+    await agent.disconnect()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
 ### Basic Streaming with Type Safety
 
 Stream events in real-time as your remote general AI agent works through complex tasks:
@@ -393,7 +433,9 @@ from panda_agi.client.models import (
     is_shell_exec_event,
     is_user_notification_event,
     is_completed_task_event,
+    BaseStreamEvent,
 )
+from panda_agi.handlers import BaseHandler
 import asyncio
 
 async def main():
@@ -401,120 +443,120 @@ async def main():
     agent_env = DockerEnv("./workspace")
     agent = Agent(environment=agent_env)
 
-    # Stream events as the general AI agent works autonomously
-    async for event in agent.run_stream("Research machine learning trends and create a comprehensive report"):
-        # Type checker knows exactly what type each event is!
-        
-        if is_agent_connection_success_event(event):
-            # Type checker knows event is AgentConnectionSuccessEvent here
-            file_system = event.data.get("file_system", {})
-            directory = file_system.get("directory", "unknown")
-            print(f"🔗 Agent connected: {directory}")
-        
-        elif is_web_search_event(event):
-            # Type checker knows event is WebSearchEvent here
-            query = event.data.get("query", "")
-            print(f"🔍 Searching: {query}")
-        
-        elif is_web_navigation_event(event):
-            # Type checker knows event is WebNavigationEvent here
-            url = event.data.get("url", "")
-            print(f"🌐 Reading: {url}")
-        
-        elif is_file_write_event(event):
-            # Type checker knows event is FileWriteEvent here
-            filename = event.data.get("file", "")
-            print(f"📝 Created: {filename}")
-        
-        elif is_shell_exec_event(event):
-            # Type checker knows event is ShellExecEvent here
-            command = event.data.get("command", "")
-            print(f"⚙️ Executing: {command}")
-        
-        elif is_user_notification_event(event):
-            # Type checker knows event is UserNotificationEvent here
-            text = event.data.get("text", "")
-            attachments = event.data.get("attachments", [])
-            print(f"📢 Update: {text}")
-            if attachments:
-                print(f"📎 Files: {', '.join(attachments)}")
-        
-        elif is_completed_task_event(event):
-            # Type checker knows event is CompletedTaskEvent here
-            print("🎉 Task completed!")
-            break
+    # Create custom handler to track different categories of activities with type safety
+    class AdvancedMonitorHandler(BaseHandler):
+        def process(self, event: BaseStreamEvent) -> None:
+            # Type checker knows exactly what type each event is!
+            
+            if is_agent_connection_success_event(event):
+                # Type checker knows event is AgentConnectionSuccessEvent here
+                file_system = event.data.get("file_system", {})
+                directory = file_system.get("directory", "unknown")
+                print(f"🔗 Agent connected: {directory}")
+            
+            elif is_web_search_event(event):
+                # Type checker knows event is WebSearchEvent here
+                query = event.data.get("query", "")
+                print(f"🔍 Searching: {query}")
+            
+            elif is_web_navigation_event(event):
+                # Type checker knows event is WebNavigationEvent here
+                url = event.data.get("url", "")
+                print(f"🌐 Reading: {url}")
+            
+            elif is_file_write_event(event):
+                # Type checker knows event is FileWriteEvent here
+                filename = event.data.get("file", "")
+                print(f"📝 Created: {filename}")
+            
+            elif is_shell_exec_event(event):
+                # Type checker knows event is ShellExecEvent here
+                command = event.data.get("command", "")
+                print(f"⚙️ Executing: {command}")
+            
+            elif is_user_notification_event(event):
+                # Type checker knows event is UserNotificationEvent here
+                text = event.data.get("text", "")
+                attachments = event.data.get("attachments", [])
+                print(f"📢 Update: {text}")
+                if attachments:
+                    print(f"📎 Files: {', '.join(attachments)}")
+            
+            elif is_completed_task_event(event):
+                # Type checker knows event is CompletedTaskEvent here
+                print("🎉 Task completed!")
+
+    # Use the custom handler
+    handlers = [AdvancedMonitorHandler("AdvancedMonitor")]
+    response = await agent.run(
+        "Analyze codebase and generate documentation",
+        event_handlers=handlers
+    )
+    print(f"Documentation generation completed: {response.output}")
     
     await agent.disconnect()
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-### Advanced Event Handling with Typed Models
+### Custom Event Handler Patterns
+
+Create specialized handlers for different use cases:
 
 ```python
-from panda_agi import Agent
-from panda_agi.envs import DockerEnv
-from panda_agi.client.models import (
-    StreamEvent,
-    # Import specific event types
-    WebSearchEvent,
-    FileWriteEvent,
-    UserNotificationEvent,
-    # Type guards
-    is_web_search_event,
-    is_file_write_event,
-    is_user_notification_event,
-    is_shell_exec_event,
-    is_image_generation_event,
-    is_completed_task_event,
-)
+from panda_agi import Agent, BaseHandler, FilterHandler, CompositeHandler
+from panda_agi.client.models import BaseStreamEvent
+from panda_agi.handlers import LogsHandler
 import asyncio
 
-async def advanced_event_monitoring():
-    agent_env = DockerEnv("./workspace")
-    agent = Agent(environment=agent_env)
-    
-    # Track different categories of activities with type safety
-    async for event in agent.run_stream("Analyze codebase and generate documentation"):
-        
-        # Web activities
-        if is_web_search_event(event):
-            query = event.data.get("query", "")
-            max_results = event.data.get("max_results", 0)
-            print(f"🌐 Web search: '{query}' (max {max_results} results)")
-            
-        # File activities  
-        elif is_file_write_event(event):
-            filename = event.data.get("file", "")
-            content_length = len(event.data.get("content", ""))
-            append_mode = event.data.get("append", False)
-            mode = "appended to" if append_mode else "created"
-            print(f"📁 File {mode}: {filename} ({content_length} chars)")
-            
-        # Shell activities
-        elif is_shell_exec_event(event):
-            command = event.data.get("command", "")
-            exec_dir = event.data.get("exec_dir", "")
-            print(f"💻 Shell: {command} (in {exec_dir})")
-            
-        # Creative activities
-        elif is_image_generation_event(event):
-            prompt = event.data.get("prompt", "")
-            image_path = event.data.get("image_path", "")
-            print(f"🎨 Generated: {image_path} from '{prompt}'")
-            
-        # Communication
-        elif is_user_notification_event(event):
-            text = event.data.get("text", "")
-            print(f"📢 Progress: {text}")
-            
-        elif is_completed_task_event(event):
-            print("✅ Task completed!")
-            break
-    
+# 1. Statistics Handler - Track event metrics
+class StatsHandler(BaseHandler):
+    def __init__(self, name: str = "StatsHandler"):
+        super().__init__(name)
+        self.event_counts = {}
+
+    def process(self, event: BaseStreamEvent) -> None:
+        event_type = event.type
+        self.event_counts[event_type] = self.event_counts.get(event_type, 0) + 1
+
+    def print_summary(self):
+        print("\n📊 Event Statistics:")
+        for event_type, count in self.event_counts.items():
+            print(f"  {event_type}: {count}")
+
+# 2. File-only Handler - Only process file events
+class FileEventsHandler(FilterHandler):
+    def should_process(self, event: BaseStreamEvent) -> bool:
+        return event.type.startswith('file_')
+
+    def process_filtered_event(self, event: BaseStreamEvent) -> None:
+        print(f"📁 File activity: {event.type} - {event.data.get('file', 'N/A')}")
+
+# 3. Multiple Handlers - Multiple handlers working together
+async def demo_handlers():
+    agent = Agent()
+
+    # Create multiple handlers
+    stats_handler = StatsHandler("EventStats")
+    handlers = [
+        LogsHandler("EventLogger"),
+        stats_handler,
+        FileEventsHandler("FileTracker")
+    ]
+
+    response = await agent.run(
+        "Analyze project files and create documentation",
+        event_handlers=handlers
+    )
+
+    # Access individual handler results
+    stats_handler.print_summary()
+
     await agent.disconnect()
 
-asyncio.run(advanced_event_monitoring())
+if __name__ == "__main__":
+    asyncio.run(demo_handlers())
 ```
 
 ### Creating Events Programmatically
@@ -527,6 +569,8 @@ from panda_agi.client.models import (
     FileWriteEvent,
     WebSearchEvent,
     StreamEvent,
+    is_user_notification_event,
+    is_file_write_event,
 )
 
 # Create a typed notification event

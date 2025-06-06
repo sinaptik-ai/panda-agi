@@ -34,19 +34,19 @@ The `LogsHandler` extends `BaseHandler` and provides a comprehensive, color-code
 from panda_agi import Agent, LogsHandler
 from panda_agi.envs import LocalEnv
 
-# Create a handler instance
-event_handler = LogsHandler()
+# Single handler - wrap in list
+handlers = [LogsHandler()]
 
-# Or with custom configuration
-event_handler = LogsHandler(
-    compact_mode=True,     # Use compact output
-    use_colors=True,       # Enable colors
-    show_timestamps=True   # Show timestamps
-)
+# Multiple handlers (executed in order)
+handlers = [
+    LogsHandler(compact_mode=True),
+    MyCustomHandler(),
+    StatsHandler()
+]
 
-# Use with agent - automatically detects BaseHandler subclasses!
+# Use with agent - always pass a list of handlers
 agent = Agent(environment=LocalEnv("./workspace"))
-response = await agent.run("your query", event_handler=event_handler)
+response = await agent.run("your query", event_handlers=handlers)
 ```
 
 ### Creating Custom Handlers
@@ -68,9 +68,12 @@ class WebHandler(FilterHandler):
     def process_filtered_event(self, event: BaseStreamEvent) -> None:
         print(f"Web search: {event.query}")
 
-# Use your custom handler
-handler = MyHandler("CustomHandler")
-response = await agent.run("query", event_handler=handler)
+# Use your custom handler - always wrap in list
+response = await agent.run("query", event_handlers=[MyHandler("CustomHandler")])
+
+# Or use multiple handlers together
+handlers = [MyHandler("First"), WebHandler("Second")]
+response = await agent.run("query", event_handlers=handlers)
 ```
 
 ### Advanced Usage
@@ -166,19 +169,21 @@ Base class for handlers that filter events before processing.
 - `should_process(event)`: Return True if event should be processed
 - `process_filtered_event(event)`: Process events that pass the filter
 
-### CompositeHandler
+### Multiple Handlers
 
-Combines multiple handlers to process events together.
+You can use multiple handlers together by passing them as a list. They will be executed in order.
 
 ```python
-from panda_agi import CompositeHandler, LogsHandler
+from panda_agi import LogsHandler
 
-# Combine multiple handlers
-handler = CompositeHandler([
+# Multiple handlers executed in sequence
+handlers = [
     LogsHandler(compact_mode=True),
     MyCustomHandler(),
     StatsHandler()
-])
+]
+
+response = await agent.run("query", event_handlers=handlers)
 ```
 
 ### Examples
@@ -186,37 +191,37 @@ handler = CompositeHandler([
 #### Basic Event Handler
 
 ```python
-# Create with defaults
-handler = LogsHandler()
+# Create with defaults - always use list
+handlers = [LogsHandler()]
 
-# Use with agent - handler class is automatically detected
-response = await agent.run("search for python tutorials", event_handler=handler)
+# Use with agent
+response = await agent.run("search for python tutorials", event_handlers=handlers)
 ```
 
 #### Compact Mode for Logs
 
 ```python
 # Compact mode for log files
-handler = LogsHandler(
+handlers = [LogsHandler(
     compact_mode=True,
     use_colors=False,      # Disable colors for log files
     show_timestamps=True
-)
+)]
 ```
 
 #### Handler Class vs Callable Function
 
 ```python
 # Method 1: Handler class (recommended)
-handler = LogsHandler(
+handlers = [LogsHandler(
     show_timestamps=False,   # Hide timestamps
     show_metadata=False,     # Hide metadata
     compact_mode=True,       # Compact output
     use_colors=True          # Keep colors
-)
+)]
 
 # Agent automatically detects it's a handler class and calls process()
-response = await agent.run("query", event_handler=handler)
+response = await agent.run("query", event_handlers=handlers)
 
 # Method 2: Callable function (backward compatibility)
 def simple_handler(event):
@@ -224,7 +229,7 @@ def simple_handler(event):
     return event
 
 # Agent detects it's callable and calls it directly
-response = await agent.run("query", event_handler=simple_handler)
+response = await agent.run("query", event_handlers=[simple_handler])
 ```
 
 #### Manual Event Processing
@@ -238,6 +243,9 @@ handler.process(event)
 
 # Or use as callable for backward compatibility
 handler(event)
+
+# When using with agent, always wrap in list
+response = await agent.run("query", event_handlers=[handler])
 ```
 
 ### Error Handling
@@ -259,3 +267,4 @@ Each event type uses a specific color to make them easily distinguishable:
 - 🔴 **Red**: Errors, failures
 - 🟠 **Cyan**: Directories, URLs, file paths
 - ⚫ **Gray**: Metadata, IDs, timestamps
+ 
