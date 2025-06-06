@@ -8,6 +8,7 @@ from typing import Any, AsyncGenerator, Dict, Optional, Union, Callable
 from dotenv import load_dotenv
 
 from ..envs import BaseEnv, LocalEnv
+from ..handlers.base_handler import BaseHandler
 from ..tools import ToolRegistry
 from ..tools.base import ToolHandler
 from ..tools.file_system_ops.file_ops import file_explore_directory
@@ -257,7 +258,7 @@ class Agent:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.disconnect()
 
-    async def run(self, query: str, event_handler: Callable[[BaseStreamEvent], Optional[BaseStreamEvent]] = None) -> AgentResponse:
+    async def run(self, query: str, event_handler: Union[Callable[[BaseStreamEvent], Optional[BaseStreamEvent]], BaseHandler] = None) -> AgentResponse:
         """
         Run the agent and return a response with all collected events and final output.
 
@@ -266,7 +267,9 @@ class Agent:
 
         Args:
             query: The query to send to the agent
-            event_handler: Optional function to process events before returning (e.g., event_handler_for_frontend)
+            event_handler: Optional handler - can be either:
+                         - A callable function: (event) -> Optional[event]
+                         - A BaseHandler subclass with a process(event) method (e.g., LogsHandler)
 
         Returns:
             An AgentResponse object containing all events and the final output
@@ -278,8 +281,8 @@ class Agent:
             # Store the original event
             response.events.append(event)
 
-            # Process the event if a processing function is provided
-            processed_event = event_handler(event) if event_handler else event
+            # Process the event if a handler is provided
+            processed_event = self._process_event_with_handler(event, event_handler)
 
             # Skip events that couldn't be processed
             if processed_event is None:
@@ -289,3 +292,36 @@ class Agent:
             response.add_event(processed_event)
 
         return response
+    
+    def _process_event_with_handler(self, event: BaseStreamEvent, event_handler: Union[Callable, BaseHandler]) -> Optional[BaseStreamEvent]:
+        """
+        Process an event with the provided handler.
+        
+        Supports both callable functions and handler classes with a process method.
+        
+        Args:
+            event: The event to process
+            event_handler: Handler to use - callable function or BaseHandler subclass
+            
+        Returns:
+            Processed event or None if processing failed
+        """
+        if event_handler is None:
+            return event
+            
+        try:
+            # Check if it's a handler class with a process method
+            if hasattr(event_handler, 'process') and callable(getattr(event_handler, 'process')):
+                # Call the process method (handler classes typically don't return events)
+                event_handler.process(event)
+                return event
+            # Check if it's a callable (backward compatibility)
+            elif callable(event_handler):
+                return event_handler(event)
+            else:
+                logger.warning(f"Event handler is neither callable nor has a process method: {type(event_handler)}")
+                return event
+                
+        except Exception as e:
+            logger.error(f"Error processing event with handler: {e}")
+            return event
