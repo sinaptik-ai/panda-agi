@@ -135,17 +135,25 @@ description: 'Understanding PandaAGI as a development framework for building and
   <Tab title="Event System">
     <Frame caption="Real-time Event Streaming">
       ```python
-      from panda_agi import Agent, EventType
+      from panda_agi import Agent, EventType, BaseHandler
+      from panda_agi.client.models import BaseStreamEvent
       
       agent = Agent(environment=env)
       
-      # Subscribe to real-time events
-      async for event in agent.run_stream("Build me a simple web app"):
-          if event.type == EventType.THINKING:
-              print(f"Agent is thinking: {event.data}")
-          elif event.type == EventType.WEB_SEARCH:
-              print(f"Searching the web for: {event.data}")
-          # Handle other event types...
+      # Use event handler for real-time processing
+      class WebAppHandler(BaseHandler):
+          def process(self, event: BaseStreamEvent) -> None:
+              if event.type == EventType.THINKING:
+                  print(f"Agent is thinking: {event.data}")
+              elif event.type == EventType.WEB_SEARCH:
+                  print(f"Searching the web for: {event.data}")
+              # Handle other event types...
+      
+      handlers = [WebAppHandler("WebAppBuilder")]
+      response = await agent.run(
+          "Build me a simple web app",
+          event_handlers=handlers
+      )
       ```
     </Frame>
     
@@ -257,6 +265,7 @@ The general AI agents generate real-time events in their own execution environme
     ```python
     from panda_agi import Agent
     from panda_agi.envs import LocalEnv
+    from panda_agi.handlers import LogsHandler
     
     # Create a local environment
     env = LocalEnv(base_path="./my_workspace")
@@ -264,9 +273,10 @@ The general AI agents generate real-time events in their own execution environme
     # Initialize agent with the environment
     agent = Agent(environment=env)
     
-    # Run the agent and process events
-    async for event in agent.run_stream("Build me a simple web app"):
-        print(f"Event: {event.type} - {event.data}")
+    # Run the agent with event handlers
+    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+    response = await agent.run("Build me a simple web app", event_handlers=handlers)
+    print(f"Web app creation completed: {response.output}")
     ```
   </Step>
 </Steps>

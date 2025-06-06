@@ -22,15 +22,17 @@ async def main():
     # Create the agent
     agent = Agent(environment=agent_env)
 
-    # Create a custom event handler (optional)
-    # Create a logs handler instance
-    handler = LogsHandler(compact_mode=True, use_colors=True, show_timestamps=True)
+    # Create event handlers (optional)
+    # Always pass handlers as a list
+    handlers = [
+        LogsHandler(compact_mode=True, use_colors=True, show_timestamps=True)
+    ]
     
     # First request - will automatically connect
-    # The run method now accepts handler classes with process() method
+    # The run method accepts a list of handlers
     response = await agent.run(
         args.query,
-        event_handler=handler
+        event_handlers=handlers
     )
     print(response.output)
 

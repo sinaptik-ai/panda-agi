@@ -106,6 +106,7 @@ The PandaAGI SDK connects you to a pre-configured autonomous general AI agent wi
 import os, asyncio
 from panda_agi import Agent
 from panda_agi.envs import DockerEnv
+from panda_agi.handlers import LogsHandler
 
 async def main():
 
@@ -116,19 +117,22 @@ async def main():
     agent_env = DockerEnv("./workspace")
     agent = Agent(environment=agent_env)
     
-    # Submit a task and stream results
-    async for event in agent.run_stream(
+    # Create a handler for logging events
+    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+
+    # Submit a task with event handlers
+    response = await agent.run(
         "Research the latest AI developments and create a summary report",
-    ):
-        # The general AI agent will:
-        # 1. Search multiple sources for recent AI news and developments
-        # 2. Analyze and synthesize information from various websites
-        # 3. Create a structured report with key findings
-        # 4. Save the report as a markdown file in your workspace
-        # 5. Include citations and sources for all information
+        event_handlers=handlers
+    )
+    # The general AI agent will:
+    # 1. Search multiple sources for recent AI news and developments
+    # 2. Analyze and synthesize information from various websites
+    # 3. Create a structured report with key findings
+    # 4. Save the report as a markdown file in your workspace
+    # 5. Include citations and sources for all information
 
-        print(f"[{event.timestamp}] {event.type}: {event.data}")
-
+    print(f"Task completed: {response.output}")
     
     await agent.disconnect()
 
@@ -140,6 +144,7 @@ if __name__ == "__main__":
 import os, asyncio
 from panda_agi import Agent
 from panda_agi.envs import LocalEnv
+from panda_agi.handlers import LogsHandler
 
 async def main():
 
@@ -150,29 +155,35 @@ async def main():
     agent_env = LocalEnv("./my_workspace")
     agent = Agent(environment=agent_env)
     
+    # Create a handler for logging events
+    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+    
     # General AI agent can read, write, and analyze files
-    async for event in agent.run_stream(
-        "Analyze the data in sales.csv and create a visualization report"
-    ):
-        # The general AI agent will:
-        # 1. Read and parse the sales.csv file
-        # 2. Perform statistical analysis on the data
-        # 3. Identify trends, patterns, and insights
-        # 4. Generate charts and visualizations
-        # 5. Create an HTML report with interactive graphs
-        # 6. Provide actionable recommendations based on findings
+    response = await agent.run(
+        "Analyze the data in sales.csv and create a visualization report",
+        event_handlers=handlers
+    )
+    # The general AI agent will:
+    # 1. Read and parse the sales.csv file
+    # 2. Perform statistical analysis on the data
+    # 3. Identify trends, patterns, and insights
+    # 4. Generate charts and visualizations
+    # 5. Create an HTML report with interactive graphs
+    # 6. Provide actionable recommendations based on findings
 
-        print(f"[{event.timestamp}] {event.type}: {event.data}")
+    print(f"Task completed: {response.output}")
 
     await agent.disconnect()
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 ```python Market Research
 import os, asyncio
 from panda_agi import Agent
 from panda_agi.envs import DockerEnv
+from panda_agi.handlers import LogsHandler
 
 async def main():
     os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
@@ -181,17 +192,20 @@ async def main():
     agent_env = DockerEnv("./workspace")
     agent = Agent(environment=agent_env)
     
-    async for event in agent.run_stream(
-        "Research the electric vehicle market and create a comprehensive report"
-    ):
-        # The general AI agent will:
-        # 1. Gather data from industry reports, news sources, and market analyses
-        # 2. Compile information on market size, key players, and growth trends
-        # 3. Create forecasts and investment opportunity analysis
-        # 4. Generate a complete 50-page professional report with visualizations
-        # 5. Include executive summary and strategic recommendations
+    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+    
+    response = await agent.run(
+        "Research the electric vehicle market and create a comprehensive report",
+        event_handlers=handlers
+    )
+    # The general AI agent will:
+    # 1. Gather data from industry reports, news sources, and market analyses
+    # 2. Compile information on market size, key players, and growth trends
+    # 3. Create forecasts and investment opportunity analysis
+    # 4. Generate a complete 50-page professional report with visualizations
+    # 5. Include executive summary and strategic recommendations
         
-        print(f"[{event.timestamp}] {event.type}: {event.data}")
+    print(f"Task completed: {response.output}")
         
     await agent.disconnect()
 
@@ -203,6 +217,7 @@ if __name__ == "__main__":
 import os, asyncio
 from panda_agi import Agent
 from panda_agi.envs import LocalEnv
+from panda_agi.handlers import LogsHandler
 
 async def main():
     os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
@@ -211,17 +226,20 @@ async def main():
     agent_env = LocalEnv("./my_workspace")
     agent = Agent(environment=agent_env)
     
-    async for event in agent.run_stream(
-        "Design a database schema for an e-commerce platform"
-    ):
-        # The general AI agent will:
-        # 1. Create entity-relationship diagrams for the entire platform
-        # 2. Generate SQL scripts for database creation and sample data
-        # 3. Document data flows and relationships between entities
-        # 4. Provide scalability considerations and optimization strategies
-        # 5. Include implementation guidelines and best practices
+    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+
+    response = await agent.run(
+        "Design a database schema for an e-commerce platform",
+        event_handlers=handlers
+    )
+    # The general AI agent will:
+    # 1. Create entity-relationship diagrams for the entire platform
+    # 2. Generate SQL scripts for database creation and sample data
+    # 3. Document data flows and relationships between entities
+    # 4. Provide scalability considerations and optimization strategies
+    # 5. Include implementation guidelines and best practices
         
-        print(f"[{event.timestamp}] {event.type}: {event.data}")
+    print(f"Task completed: {response.output}")
         
     await agent.disconnect()
 
@@ -233,6 +251,7 @@ if __name__ == "__main__":
 import os, asyncio
 from panda_agi import Agent
 from panda_agi.envs import DockerEnv
+from panda_agi.handlers import LogsHandler
 
 async def main():
     os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
@@ -241,18 +260,21 @@ async def main():
     agent_env = DockerEnv("./workspace")
     agent = Agent(environment=agent_env)
     
-    async for event in agent.run_stream(
-        "Create user documentation for our REST API with examples"
-    ):
-        # The general AI agent will:
-        # 1. Analyze your API structure and endpoints
-        # 2. Create comprehensive documentation with clear descriptions
-        # 3. Generate request/response examples for each endpoint
-        # 4. Include authentication guides and error handling
-        # 5. Provide SDK examples in multiple programming languages
-        # 6. Structure everything in a developer-friendly format
+    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+
+    response = await agent.run(
+        "Create user documentation for our REST API with examples",
+        event_handlers=handlers
+    )
+    # The general AI agent will:
+    # 1. Analyze your API structure and endpoints
+    # 2. Create comprehensive documentation with clear descriptions
+    # 3. Generate request/response examples for each endpoint
+    # 4. Include authentication guides and error handling
+    # 5. Provide SDK examples in multiple programming languages
+    # 6. Structure everything in a developer-friendly format
         
-        print(f"[{event.timestamp}] {event.type}: {event.data}")
+    print(f"Task completed: {response.output}")
         
     await agent.disconnect()
 
@@ -359,19 +381,31 @@ agent = Agent(environment=docker_env)
 Manage conversation state for multi-turn interactions:
 
 ```python
+from panda_agi.handlers import LogsHandler
+from panda_agi.envs import DockerEnv
+
 # Create agent with conversation ID for persistence
 agent = Agent(
     environment=DockerEnv("./workspace"),
     conversation_id="unique-conversation-id"
 )
 
+# Create event handler
+handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+
 # First interaction
-async for event in agent.run_stream("Find information about electric vehicles"):
-    print(event)
+response1 = await agent.run(
+    "Find information about electric vehicles",
+    event_handlers=handlers
+)
+print(f"First task completed: {response1.output}")
 
 # Later interaction (continues the same conversation)
-async for event in agent.run_stream("Now compare the top 3 models"):
-    print(event)
+response2 = await agent.run(
+    "Now compare the top 3 models",
+    event_handlers=handlers
+)
+print(f"Second task completed: {response2.output}")
 ```
 
 ### Event Handling
@@ -379,15 +413,21 @@ async for event in agent.run_stream("Now compare the top 3 models"):
 Filter and process specific event types for custom UIs:
 
 ```python
-from panda_agi import EventType
+from panda_agi import BaseHandler, EventType
+from panda_agi.client.models import BaseStreamEvent
 
-async for event in agent.run_stream("Create a data visualization"):
-    if event.type == EventType.THINKING:
-        print(f"Agent is thinking: {event.data}")
-    elif event.type == EventType.ACTION:
-        print(f"Agent is taking action: {event.data}")
-    elif event.type == EventType.RESULT:
-        print(f"Agent produced result: {event.data}")
+class CustomEventHandler(BaseHandler):
+    def process(self, event: BaseStreamEvent) -> None:
+        if event.type == EventType.THINKING:
+            print(f"Agent is thinking: {event.data}")
+        elif event.type == EventType.ACTION:
+            print(f"Agent is taking action: {event.data}")
+        elif event.type == EventType.RESULT:
+            print(f"Agent produced result: {event.data}")
+
+# Use custom handler
+handler = CustomEventHandler("CustomUI")
+response = await agent.run("Create a data visualization", event_handlers=[handler])
 ```
 
 ## Next Steps

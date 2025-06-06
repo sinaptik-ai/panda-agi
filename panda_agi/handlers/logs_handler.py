@@ -513,5 +513,5 @@ class LogsHandler(BaseHandler):
             print(f"  │ Failed to process event: {type(event).__name__}")
             print(f"  │ Error: {str(e)}")
             print(f"  │ Raw event data: {event.to_dict()}")
-    
+
 

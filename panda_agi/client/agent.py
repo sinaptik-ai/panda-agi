@@ -3,7 +3,7 @@ import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Dict, Optional, Union, Callable
+from typing import Any, AsyncGenerator, Dict, List, Optional, Union, Callable
 
 from dotenv import load_dotenv
 
@@ -258,7 +258,7 @@ class Agent:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.disconnect()
 
-    async def run(self, query: str, event_handler: Union[Callable[[BaseStreamEvent], Optional[BaseStreamEvent]], BaseHandler] = None) -> AgentResponse:
+    async def run(self, query: str, event_handlers: List[Union[Callable[[BaseStreamEvent], Optional[BaseStreamEvent]], BaseHandler]] = None) -> AgentResponse:
         """
         Run the agent and return a response with all collected events and final output.
 
@@ -267,9 +267,10 @@ class Agent:
 
         Args:
             query: The query to send to the agent
-            event_handler: Optional handler - can be either:
-                         - A callable function: (event) -> Optional[event]
-                         - A BaseHandler subclass with a process(event) method (e.g., LogsHandler)
+            event_handlers: Optional list of handlers - each handler can be:
+                          - A callable function: (event) -> Optional[event]
+                          - A BaseHandler subclass with a process(event) method
+                          Handlers will be executed in the order they are provided in the list.
 
         Returns:
             An AgentResponse object containing all events and the final output
@@ -281,8 +282,8 @@ class Agent:
             # Store the original event
             response.events.append(event)
 
-            # Process the event if a handler is provided
-            processed_event = self._process_event_with_handler(event, event_handler)
+            # Process the event if handlers are provided
+            processed_event = self._process_event_with_handlers(event, event_handlers)
 
             # Skip events that couldn't be processed
             if processed_event is None:
@@ -293,35 +294,49 @@ class Agent:
 
         return response
     
-    def _process_event_with_handler(self, event: BaseStreamEvent, event_handler: Union[Callable, BaseHandler]) -> Optional[BaseStreamEvent]:
+    def _process_event_with_handlers(self, event: BaseStreamEvent, event_handlers: List[Union[Callable, BaseHandler]]) -> Optional[BaseStreamEvent]:
         """
-        Process an event with the provided handler.
+        Process an event with the provided handlers.
         
         Supports both callable functions and handler classes with a process method.
+        Processes multiple handlers in sequence.
         
         Args:
             event: The event to process
-            event_handler: Handler to use - callable function or BaseHandler subclass
+            event_handlers: List of handlers to use
             
         Returns:
             Processed event or None if processing failed
         """
-        if event_handler is None:
+        if event_handlers is None:
             return event
-            
-        try:
-            # Check if it's a handler class with a process method
-            if hasattr(event_handler, 'process') and callable(getattr(event_handler, 'process')):
-                # Call the process method (handler classes typically don't return events)
-                event_handler.process(event)
-                return event
-            # Check if it's a callable (backward compatibility)
-            elif callable(event_handler):
-                return event_handler(event)
-            else:
-                logger.warning(f"Event handler is neither callable nor has a process method: {type(event_handler)}")
-                return event
+        
+        current_event = event
+        
+        # Process through each handler in order
+        for handler in event_handlers:
+            if handler is None:
+                continue
                 
-        except Exception as e:
-            logger.error(f"Error processing event with handler: {e}")
-            return event
+            try:
+                # Check if it's a handler class with a process method
+                if hasattr(handler, 'process') and callable(getattr(handler, 'process')):
+                    # Call the process method (handler classes typically don't return events)
+                    handler.process(current_event)
+                    # Keep the current event for the next handler
+                # Check if it's a callable (backward compatibility)
+                elif callable(handler):
+                    processed = handler(current_event)
+                    # Update current_event if the callable returned something
+                    if processed is not None:
+                        current_event = processed
+                else:
+                    logger.warning(f"Handler is neither callable nor has a process method: {type(handler)}")
+                    continue
+                    
+            except Exception as e:
+                logger.error(f"Error processing event with handler {getattr(handler, 'name', type(handler).__name__)}: {e}")
+                # Continue processing with other handlers even if one fails
+                continue
+        
+        return current_event
