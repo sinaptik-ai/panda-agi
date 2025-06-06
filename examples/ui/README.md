@@ -59,8 +59,11 @@ fastapi-server/
 # Start in development mode (builds images locally)
 ./start.sh --dev
 
-# Force rebuild of local images
+# Force rebuild of local images (with cache)
 ./start.sh --dev --build
+
+# Force rebuild without cache (recommended after Dockerfile changes)
+./start.sh --dev --no-cache
 ```
 
 ## 🐳 Docker Setup
@@ -78,6 +81,13 @@ cd examples/ui
 chmod +x start.sh
 ./start.sh
 ```
+
+**Script Options:**
+
+- `./start.sh` - Production mode with existing images
+- `./start.sh --build` - Production mode, pull latest images
+- `./start.sh --dev` - Development mode with cached builds
+- `./start.sh --dev --no-cache` - Development mode, fresh build (use after Dockerfile changes)
 
 This script will:
 
@@ -406,6 +416,11 @@ docker-compose logs frontend
 ```bash
 # Clean Docker cache and rebuild
 docker system prune -f
+
+# Use the script with no-cache flag
+./start.sh --dev --no-cache
+
+# Or manually with docker-compose
 docker-compose build --no-cache
 ```
 

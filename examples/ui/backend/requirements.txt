@@ -3,7 +3,7 @@ uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 python-dotenv==1.0.0
 markdown==3.5.1
-weasyprint==60.2
+weasyprint>=63.0
 pandas>=2.0.0
 matplotlib>=3.7.0
 numpy>=1.24.0

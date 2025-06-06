@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Exit on error
 set -e
 
@@ -41,6 +40,7 @@ REQUIRED_ENV_VARS=("PANDA_AGI_KEY" "TAVILY_API_KEY")
 # Parse command line arguments
 BUILD_IMAGES=false
 USE_PROD=true
+NO_CACHE=false
 COMPOSE_FILE="docker-compose.prod.yml"
 
 while [[ $# -gt 0 ]]; do
@@ -54,10 +54,15 @@ while [[ $# -gt 0 ]]; do
       COMPOSE_FILE="docker-compose.yml"
       shift
       ;;
+    --no-cache)
+      NO_CACHE=true
+      shift
+      ;;
     *)
-      echo "Usage: $0 [--build] [--dev]"
-      echo "  --build   Pull latest images from registry (production) or rebuild locally (dev)"
-      echo "  --dev     Use local development setup (builds images locally)"
+      echo "Usage: $0 [--build] [--dev] [--no-cache]"
+      echo "  --build     Pull latest images from registry (production) or rebuild locally (dev)"
+      echo "  --dev       Use local development setup (builds images locally)"
+      echo "  --no-cache  Force rebuild without using Docker build cache"
       exit 1
       ;;
   esac
@@ -168,9 +173,16 @@ done
 # Function to build images if needed
 build_images() {
   if [ "$USE_PROD" = false ]; then
-    # Development mode: always build locally
-    status "🔨 Building Docker images for development..."
-    if ! docker-compose -f docker-compose.yml build; then
+    # Development mode: build locally
+    local build_args=""
+    if [ "$NO_CACHE" = true ]; then
+      build_args="--no-cache"
+      status "🔨 Building Docker images for development (without cache)..."
+    else
+      status "🔨 Building Docker images for development..."
+    fi
+    
+    if ! docker-compose -f docker-compose.yml build $build_args; then
       error "Failed to build Docker images. Check the logs for details."
     fi
   elif [ "$BUILD_IMAGES" = true ] && [ "$USE_PROD" = true ]; then
@@ -300,9 +312,12 @@ main() {
     echo "  View backend logs:     docker-compose -f $COMPOSE_FILE logs -f backend"
     echo "  View frontend logs:    docker-compose -f $COMPOSE_FILE logs -f frontend"
     echo "  Stop services:         docker-compose -f $COMPOSE_FILE down"
-    echo "  Rebuild containers:    ./start.sh --build"
-    echo "  Use production mode:   ./start.sh --prod"
-    echo "  Build and start:       ./start.sh --build --prod"
+    echo ""
+    echo "  Development mode:      ./start.sh --dev"
+    echo "  Rebuild (cached):      ./start.sh --dev --build"
+    echo "  Rebuild (no cache):    ./start.sh --dev --no-cache"
+    echo "  Production mode:       ./start.sh"
+    echo "  Production rebuild:    ./start.sh --build"
 
     if [ $backend_status -eq 0 ] && [ $frontend_status -eq 0 ]; then
         echo -e "\n${GREEN}🎉 All services are up and running!${NC}"

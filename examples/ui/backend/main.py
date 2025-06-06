@@ -415,9 +415,18 @@ async def download_file(
                 logger.debug("Created HTML with styling")
 
                 # Convert HTML to PDF
-                pdf_buffer = BytesIO()
-                weasyprint.HTML(string=html_with_style).write_pdf(pdf_buffer)
-                pdf_buffer.seek(0)
+                try:
+                    # Create HTML document from string and convert to PDF bytes
+                    html_doc = weasyprint.HTML(string=html_with_style)
+                    pdf_bytes = html_doc.write_pdf()
+                    
+                    # Write to buffer
+                    pdf_buffer = BytesIO()
+                    pdf_buffer.write(pdf_bytes)
+                    pdf_buffer.seek(0)
+                except Exception as pdf_error:
+                    logger.debug(f"PDF conversion error details: {type(pdf_error).__name__}: {pdf_error}")
+                    raise pdf_error
 
                 logger.debug("Successfully converted HTML to PDF")
 

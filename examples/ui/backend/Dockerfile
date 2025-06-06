@@ -3,10 +3,25 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install Node.js
+# Install system dependencies for WeasyPrint and Node.js
 RUN apt-get update && apt-get install -y \
     curl \
     gnupg \
+    # WeasyPrint system dependencies
+    libglib2.0-0 \
+    libglib2.0-dev \
+    libcairo2 \
+    libcairo2-dev \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libgdk-pixbuf-2.0-0 \
+    libgdk-pixbuf2.0-dev \
+    libffi-dev \
+    libxml2-dev \
+    libxslt-dev \
+    zlib1g-dev \
+    libjpeg-dev \
+    shared-mime-info \
     && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
     && apt-get install -y nodejs \
     && apt-get clean \

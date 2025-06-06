@@ -1,10 +1,12 @@
 ---
-title: 'Chat Interface'
-description: 'Build your own AI assistant with a real-time streaming interface'
+title: "Chat Interface"
+description: "Build your own AI assistant with a real-time streaming interface"
 ---
 
 <Note>
-Create your own version of powerful AI assistants like ManusAI, Lovable, Cursor, Windsurf, etc... with plugins - all using PandaAGI's ready-made chat interface.
+  Create your own version of powerful AI assistants like ManusAI, Lovable,
+  Cursor, Windsurf, etc... with plugins - all using PandaAGI's ready-made chat
+  interface.
 </Note>
 
 <Frame caption="PandaAGI Chat Interface">
@@ -42,67 +44,42 @@ PandaAGI includes a production-ready chat interface in the examples folder that 
   <Tab title="Docker Setup (Recommended)">
     <Steps>
       <Step title="Clone Repository">
-        ```bash
-        git clone https://github.com/sinaptik-ai/panda-agi.git
-        cd panda-agi
-        ```
+        ```bash git clone https://github.com/sinaptik-ai/panda-agi.git cd
+        panda-agi ```
       </Step>
       <Step title="Configure API Key">
-        ```bash
-        cd examples/ui
-        echo "PANDA_AGI_KEY=your-api-key-here" > .env
-        ```
+        ```bash cd examples/ui echo "PANDA_AGI_KEY=your-api-key-here" > .env ```
       </Step>
       <Step title="Launch Application">
-        ```bash
-        # For production (uses pre-built images)
-        ./start.sh
-        
-        # For local development (will build the image based on the new changes)
-        # ./start.sh --dev
-        ```
-        
-        This command will:
-        - ✅ Check Docker requirements  
-        - 🛑 Stop any existing containers
-        - 🔄 Pull pre-built production images (default)
-        - 🔨 Build and start services (in development mode with --dev)
-        - 🔍 Perform health checks
-        - 📊 Display service status and URLs
-        
-        **Pro Tip:** Use `--build` to force rebuild images when needed.
+        ```bash # For production (uses pre-built images) ./start.sh # For local
+        development (will build the image based on the new changes) # ./start.sh
+        --dev # For development with fresh rebuild (no cache) # ./start.sh --dev
+        --no-cache ``` This command will: - ✅ Check Docker requirements - 🛑
+        Stop any existing containers - 🔄 Pull pre-built production images
+        (default) - 🔨 Build and start services (in development mode with --dev)
+        - 🔍 Perform health checks - 📊 Display service status and URLs **Pro
+        Tips:** - Use `--build` to force pull/rebuild images when needed - Use
+        `--no-cache` to force rebuild without using Docker build cache (useful
+        for clean builds)
       </Step>
       <Step title="Access the Interface">
-        Once running, access:
-        - **Frontend**: http://localhost:3000
-        - **Backend API**: http://localhost:8001
+        Once running, access: - **Frontend**: http://localhost:3000 - **Backend
+        API**: http://localhost:8001
       </Step>
     </Steps>
   </Tab>
   <Tab title="Development Setup">
     <Steps>
       <Step title="Start in Development Mode">
-        ```bash
-        cd examples/ui
-        ./start.sh --dev
-        ```
-        
-        This will build and run the application locally with hot-reloading.
+        ```bash cd examples/ui # Standard development mode ./start.sh --dev #
+        Development mode with fresh rebuild (no cache) ./start.sh --dev
+        --no-cache ``` This will build and run the application locally with
+        hot-reloading. Use `--no-cache` when you need a completely fresh build.
       </Step>
       <Step title="Manual Development (Alternative)">
-        ```bash
-        # Backend
-        cd examples/ui/backend
-        poetry install
-        python main.py
-        
-        # Frontend (in a new terminal)
-        cd examples/ui/frontend
-        yarn install
-        yarn start
-        ```
-        
-        Use this approach if you need to run services separately.
+        ```bash # Backend cd examples/ui/backend poetry install python main.py #
+        Frontend (in a new terminal) cd examples/ui/frontend yarn install yarn
+        start ``` Use this approach if you need to run services separately.
       </Step>
     </Steps>
   </Tab>
@@ -111,20 +88,10 @@ PandaAGI includes a production-ready chat interface in the examples folder that 
 ## Next Steps
 
 <CardGroup cols={3}>
-  <Card
-    title="Quickstart Guide"
-    icon="play"
-    href="/quickstart"
-    color="#0285c7"
-  >
+  <Card title="Quickstart Guide" icon="play" href="/quickstart" color="#0285c7">
     Return to the quickstart guide to explore more capabilities
   </Card>
-  <Card
-    title="CLI Interface"
-    icon="terminal"
-    href="/cli"
-    color="#16a34a"
-  >
+  <Card title="CLI Interface" icon="terminal" href="/cli" color="#16a34a">
     Try the command-line interface for terminal-based interactions
   </Card>
   <Card
@@ -135,4 +102,4 @@ PandaAGI includes a production-ready chat interface in the examples folder that 
   >
     Learn more about PandaAGI's event system for real-time interactions
   </Card>
-</CardGroup> 
+</CardGroup>{" "}
