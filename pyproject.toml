@@ -32,5 +32,14 @@ dev = [
     "flake8",
 ]
 
+[tool.hatch.build]
+exclude = [
+    "/docs",
+    "/examples",
+    "my_agent_workspace",
+    "panda_agi/tests",
+    "**/.DS_Store"
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["panda_agi"]
