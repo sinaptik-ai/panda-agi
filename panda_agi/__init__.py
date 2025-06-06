@@ -43,6 +43,7 @@ from .client.models import (
     is_web_search_result_event,
 )
 from .client.state import AgentState
+from .handlers import BaseHandler, LogsHandler
 
 __all__ = [
     # Core classes
@@ -50,6 +51,9 @@ __all__ = [
     "AgentState",
     "BaseStreamEvent",
     "EventType",
+    # Event handlers
+    "BaseHandler",
+    "LogsHandler",
     # Event models
     "AgentConnectionSuccessEvent",
     "ErrorEvent",

@@ -2,8 +2,8 @@ import argparse
 import asyncio
 
 from panda_agi import Agent
-from panda_agi.client.models import BaseStreamEvent, UserNotificationEvent, WebNavigationEvent, WebSearchEvent
 from panda_agi.envs import LocalEnv
+from panda_agi.handlers import LogsHandler
 
 async def main():
     """Example usage of the Agent with BaseEnv and Pydantic events"""
@@ -23,21 +23,14 @@ async def main():
     agent = Agent(environment=agent_env)
 
     # Create a custom event handler (optional)
-    def event_handler(event: BaseStreamEvent):
-        if isinstance(event, WebSearchEvent):
-            print("*** Searching on the web with query:", event.query)
-        elif isinstance(event, WebNavigationEvent):
-            print("*** Navigating to:", event.url)
-        elif isinstance(event, UserNotificationEvent):
-            print("*** Saying:", event.text)
-        else:
-            print("*** Doing something else:", event)
-
+    # Create a logs handler instance
+    handler = LogsHandler(compact_mode=True, use_colors=True, show_timestamps=True)
+    
     # First request - will automatically connect
-    # The run method now returns a generator of AgentEvent
+    # The run method now accepts handler classes with process() method
     response = await agent.run(
         args.query,
-        event_handler=event_handler
+        event_handler=handler
     )
     print(response.output)
 
