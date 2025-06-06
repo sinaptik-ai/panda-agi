@@ -19,23 +19,26 @@ async def main():
     agent_env = LocalEnv("./my_agent_workspace")
     # agent_env = DockerEnv("./my_agent_workspace")
 
+    # Create the agent
+    agent = Agent(environment=agent_env)
+
     # Create a custom event handler (optional)
     def event_handler(event: BaseStreamEvent):
         if isinstance(event, WebSearchEvent):
-            print("Searching on the web with query:", event.query)
+            print("*** Searching on the web with query:", event.query)
         elif isinstance(event, WebNavigationEvent):
-            print("Navigating to:", event.url)
+            print("*** Navigating to:", event.url)
         elif isinstance(event, UserNotificationEvent):
-            print(event.message)
+            print("*** Saying:", event.text)
         else:
-            print("Doing something else:", event)
-
-    # Create the agent
-    agent = Agent(environment=agent_env, event_handler=event_handler)
+            print("*** Doing something else:", event)
 
     # First request - will automatically connect
     # The run method now returns a generator of AgentEvent
-    response = agent.run(args.query)
+    response = await agent.run(
+        args.query,
+        event_handler=event_handler
+    )
     print(response.output)
 
     # Manually disconnect when completely done
