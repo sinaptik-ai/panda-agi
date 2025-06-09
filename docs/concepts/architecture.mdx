@@ -138,7 +138,6 @@ description: 'Understanding PandaAGI as a development framework for building and
       from panda_agi import Agent, EventType, BaseHandler
       from panda_agi.client.models import BaseStreamEvent
       
-      agent = Agent(environment=env)
       
       # Use event handler for real-time processing
       class WebAppHandler(BaseHandler):
@@ -150,10 +149,9 @@ description: 'Understanding PandaAGI as a development framework for building and
               # Handle other event types...
       
       handlers = [WebAppHandler("WebAppBuilder")]
-      response = await agent.run(
-          "Build me a simple web app",
-          event_handlers=handlers
-      )
+
+      agent = Agent(environment=env, event_handlers=handlers)
+      response = await agent.run("Build me a simple web app")
       ```
     </Frame>
     

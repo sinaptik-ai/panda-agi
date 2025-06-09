@@ -23,17 +23,11 @@ The simplest way to create an agent:
 ```python
 import asyncio
 from panda_agi import Agent
-from panda_agi.handlers import LogsHandler
 
 async def main():
     agent = Agent()
     
-    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
-
-    response = await agent.run(
-        "What's the weather like today?",
-        event_handlers=handlers
-    )
+    response = await agent.run("What's the weather like today?")
     print(f"Task completed: {response.output}")
 
 if __name__ == "__main__":
@@ -153,22 +147,16 @@ async def persistent_conversation():
     # Use same conversation_id for related requests
     # Must be a proper UUID4 string
     conversation_id = str(uuid.uuid4())
-    agent = Agent(conversation_id=conversation_id)
-    
     handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+
+    agent = Agent(conversation_id=conversation_id, event_handlers=handlers)
     
     # First request
-    response1 = await agent.run(
-        "Tell me about Alice in Wonderland",
-        event_handlers=handlers
-    )
+    response1 = await agent.run("Tell me about Alice in Wonderland")
     print(f"First response: {response1.output}")
     
     # Follow-up request with context
-    response2 = await agent.run(
-        "What's the main character's personality like?",
-        event_handlers=handlers
-    )
+    response2 = await agent.run("What's the main character's personality like?")
     print(f"Follow-up response: {response2.output}")  # Should mention "Alice"
 
 if __name__ == "__main__":
@@ -196,32 +184,23 @@ async def multi_turn_conversation():
     # Consistent conversation_id enables follow-up questions
     # Must be a proper UUID4 string
     conversation_id = str(uuid.uuid4())
-    agent = Agent(conversation_id=conversation_id)
-    
     handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
 
+    agent = Agent(conversation_id=conversation_id, event_handlers=handlers)
+    
     # Initial request
     print("=== Initial Question ===")
-    response1 = await agent.run(
-        "What are the main types of neural networks?",
-        event_handlers=handlers
-    )
+    response1 = await agent.run("What are the main types of neural networks?")
     print(f"Response: {response1.output}")
     
     # Follow-up question - no need to repeat context
     print("\n=== Follow-up Question ===")
-    response2 = await agent.run(
-        "Which one is best for image recognition?",
-        event_handlers=handlers
-    )
+    response2 = await agent.run("Which one is best for image recognition?")
     print(f"Response: {response2.output}")  # Agent knows we're talking about neural networks
     
     # Another follow-up
     print("\n=== Another Follow-up ===")
-    response3 = await agent.run(
-        "Can you show me a code example?",
-        event_handlers=handlers
-    )
+    response3 = await agent.run("Can you show me a code example?")
     print(f"Response: {response3.output}")  # Agent will provide CNN code example
 
 if __name__ == "__main__":
@@ -301,10 +280,7 @@ async def start_research():
     
     handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
 
-    response = await agent.run(
-        "Please analyze the Python project in my workspace",
-        event_handlers=handlers
-    )
+    response = await agent.run("Please analyze the Python project in my workspace")
     print(f"Analysis complete: {response.output}")
     print("Check session2.py for follow-ups.")
 
@@ -322,16 +298,13 @@ from panda_agi.handlers import LogsHandler
 CONVERSATION_ID = "your-uuid-from-session1"  # Replace with actual UUID
 
 async def continue_research():
+    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+    
     # Continue the same conversation
-    agent = Agent(conversation_id=CONVERSATION_ID)
+    agent = Agent(conversation_id=CONVERSATION_ID, event_handlers=handlers)
     
     # Agent remembers the previous analysis
-    handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
-
-    response = await agent.run(
-        "Based on your analysis, what improvements would you suggest?",
-        event_handlers=handlers
-    )
+    response = await agent.run("Based on your analysis, what improvements would you suggest?")
     print(f"Improvement suggestions completed: {response.output}")
 
 if __name__ == "__main__":

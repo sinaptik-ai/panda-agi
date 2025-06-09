@@ -100,6 +100,10 @@ This guide will help you get started with PandaAGI in two ways: using the **read
 
 The PandaAGI SDK connects you to a pre-configured autonomous general AI agent with built-in capabilities for web browsing, file system access, and code execution. You simply submit tasks and receive results:
 
+<Note>
+**New in this release**: Agent responses now include an `attachments` property that provides access to files created or referenced by the agent during task execution. Use `response.attachments` to get a list of file paths that the agent has generated or wants to share.
+</Note>
+
 <CodeGroup>
 
 ```python Deep Research
@@ -113,17 +117,17 @@ async def main():
     os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
     os.environ['TAVILY_API_KEY'] = 'your-tavily-api-key-here'
 
-    # Create environment for the general AI agent to work in
-    agent_env = DockerEnv("./workspace")
-    agent = Agent(environment=agent_env)
-    
     # Create a handler for logging events
     handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+
+    # Create environment for the general AI agent to work in
+    agent_env = DockerEnv("./workspace")
+    agent = Agent(environment=agent_env, event_handlers=handlers)
 
     # Submit a task with event handlers
     response = await agent.run(
         "Research the latest AI developments and create a summary report",
-        event_handlers=handlers
+        #event_handlers=handlers # Overrides the event_handlers passed to the Agent constructor
     )
     # The general AI agent will:
     # 1. Search multiple sources for recent AI news and developments
@@ -133,6 +137,12 @@ async def main():
     # 5. Include citations and sources for all information
 
     print(f"Task completed: {response.output}")
+    
+    # Access any files created by the agent
+    if response.attachments:
+        print(f"Files created: {response.attachments}")
+        for file_path in response.attachments:
+            print(f"  - {file_path}")
     
     await agent.disconnect()
 
@@ -151,17 +161,17 @@ async def main():
     os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
     os.environ['TAVILY_API_KEY'] = 'your-tavily-api-key-here'
 
-    # Use local environment for file operations
-    agent_env = LocalEnv("./my_workspace")
-    agent = Agent(environment=agent_env)
-    
     # Create a handler for logging events
     handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+
+    # Use local environment for file operations
+    agent_env = LocalEnv("./my_workspace")  
+    agent = Agent(environment=agent_env, event_handlers=handlers)
     
     # General AI agent can read, write, and analyze files
     response = await agent.run(
         "Analyze the data in sales.csv and create a visualization report",
-        event_handlers=handlers
+        #event_handlers=handlers # Overrides the event_handlers passed to the Agent constructor
     )
     # The general AI agent will:
     # 1. Read and parse the sales.csv file
@@ -172,6 +182,12 @@ async def main():
     # 6. Provide actionable recommendations based on findings
 
     print(f"Task completed: {response.output}")
+
+    # Access visualization files and reports created by the agent
+    if response.attachments:
+        print(f"Generated files: {response.attachments}")
+        for file_path in response.attachments:
+            print(f"  - {file_path}")
 
     await agent.disconnect()
 
@@ -189,14 +205,15 @@ async def main():
     os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
     os.environ['TAVILY_API_KEY'] = 'your-tavily-api-key-here'
 
-    agent_env = DockerEnv("./workspace")
-    agent = Agent(environment=agent_env)
-    
+    # Create a handler for logging events
     handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+
+    agent_env = DockerEnv("./workspace")
+    agent = Agent(environment=agent_env, event_handlers=handlers)
     
     response = await agent.run(
         "Research the electric vehicle market and create a comprehensive report",
-        event_handlers=handlers
+        #event_handlers=handlers # Overrides the event_handlers passed to the Agent constructor
     )
     # The general AI agent will:
     # 1. Gather data from industry reports, news sources, and market analyses
@@ -206,6 +223,10 @@ async def main():
     # 5. Include executive summary and strategic recommendations
         
     print(f"Task completed: {response.output}")
+    
+    # Access the comprehensive report and any supporting files
+    if response.attachments:
+        print(f"Report files generated: {response.attachments}")
         
     await agent.disconnect()
 
@@ -223,14 +244,15 @@ async def main():
     os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
     os.environ['TAVILY_API_KEY'] = 'your-tavily-api-key-here'
 
-    agent_env = LocalEnv("./my_workspace")
-    agent = Agent(environment=agent_env)
-    
+    # Create a handler for logging events
     handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+
+    agent_env = LocalEnv("./my_workspace")
+    agent = Agent(environment=agent_env, event_handlers=handlers)
 
     response = await agent.run(
         "Design a database schema for an e-commerce platform",
-        event_handlers=handlers
+        #event_handlers=handlers # Overrides the event_handlers passed to the Agent constructor
     )
     # The general AI agent will:
     # 1. Create entity-relationship diagrams for the entire platform
@@ -240,6 +262,17 @@ async def main():
     # 5. Include implementation guidelines and best practices
         
     print(f"Task completed: {response.output}")
+    
+    # Access schema files, SQL scripts, and documentation
+    if response.attachments:
+        print(f"Database design files: {response.attachments}")
+        for file_path in response.attachments:
+            if file_path.endswith('.sql'):
+                print(f"  📄 SQL Script: {file_path}")
+            elif file_path.endswith('.md'):
+                print(f"  📋 Documentation: {file_path}")
+            else:
+                print(f"  📁 File: {file_path}")
         
     await agent.disconnect()
 
@@ -257,14 +290,15 @@ async def main():
     os.environ['PANDA_AGI_KEY'] = 'your-api-key-here'
     os.environ['TAVILY_API_KEY'] = 'your-tavily-api-key-here'
     
-    agent_env = DockerEnv("./workspace")
-    agent = Agent(environment=agent_env)
-    
+    # Create a handler for logging events
     handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
+
+    agent_env = DockerEnv("./workspace")
+    agent = Agent(environment=agent_env, event_handlers=handlers)
 
     response = await agent.run(
         "Create user documentation for our REST API with examples",
-        event_handlers=handlers
+        #event_handlers=handlers # Overrides the event_handlers passed to the Agent constructor
     )
     # The general AI agent will:
     # 1. Analyze your API structure and endpoints
@@ -275,6 +309,17 @@ async def main():
     # 6. Structure everything in a developer-friendly format
         
     print(f"Task completed: {response.output}")
+    
+    # Access documentation files and code examples
+    if response.attachments:
+        print(f"Documentation files created: {response.attachments}")
+        for file_path in response.attachments:
+            if 'api' in file_path.lower():
+                print(f"  📖 API Documentation: {file_path}")
+            elif file_path.endswith(('.py', '.js', '.java', '.go')):
+                print(f"  💻 Code Example: {file_path}")
+            else:
+                print(f"  📄 Documentation: {file_path}")
         
     await agent.disconnect()
 
@@ -384,28 +429,55 @@ Manage conversation state for multi-turn interactions:
 from panda_agi.handlers import LogsHandler
 from panda_agi.envs import DockerEnv
 
-# Create agent with conversation ID for persistence
-agent = Agent(
-    environment=DockerEnv("./workspace"),
-    conversation_id="unique-conversation-id"
-)
-
 # Create event handler
 handlers = [LogsHandler(use_colors=True, show_timestamps=True)]
 
-# First interaction
-response1 = await agent.run(
-    "Find information about electric vehicles",
+# Create agent with conversation ID for persistence
+agent = Agent(
+    environment=DockerEnv("./workspace"),
+    conversation_id="unique-conversation-id",
     event_handlers=handlers
 )
+
+# First interaction
+response1 = await agent.run("Find information about electric vehicles")
 print(f"First task completed: {response1.output}")
 
 # Later interaction (continues the same conversation)
-response2 = await agent.run(
-    "Now compare the top 3 models",
-    event_handlers=handlers
-)
+response2 = await agent.run("Now compare the top 3 models")
 print(f"Second task completed: {response2.output}")
+```
+
+### Accessing Agent Attachments
+
+The `AgentResponse` object provides access to files created or referenced by the agent:
+
+```python
+from panda_agi import Agent
+from panda_agi.envs import DockerEnv
+
+async def handle_attachments():
+    agent = Agent(environment=DockerEnv("./workspace"))
+    
+    response = await agent.run("Create a Python script that generates a CSV report")
+    
+    # Access the final output message
+    print(f"Agent response: {response.output}")
+    
+    # Access any files created by the agent
+    if response.attachments:
+        print(f"Agent created {len(response.attachments)} file(s):")
+        for file_path in response.attachments:
+            print(f"  📄 {file_path}")
+            
+            # You can now read or process these files
+            with open(file_path, 'r') as f:
+                content = f.read()
+                print(f"File size: {len(content)} characters")
+    else:
+        print("No files were created by the agent")
+    
+    await agent.disconnect()
 ```
 
 ### Event Handling
