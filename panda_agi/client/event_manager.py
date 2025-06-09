@@ -2,7 +2,7 @@ import asyncio
 import logging
 from typing import Any, AsyncGenerator, Dict, Optional
 
-from .models import BaseStreamEvent, EventFactory, EventType
+from .models import COMPLETION_MESSAGE_TYPES, BaseStreamEvent, EventFactory, EventType
 
 logger = logging.getLogger("AgentClient")
 
@@ -27,7 +27,6 @@ class EventManager:
 
     def __init__(self, event_queue: Optional[EventQueue] = None):
         self._event_queue = event_queue or EventQueue()
-        self._request_complete_event = None
 
     async def add_event(self, event_type: EventType, data: Dict[str, Any]):
         """Add an event to the queue"""
@@ -41,10 +40,6 @@ class EventManager:
     def set_event_queue(self, event_queue: EventQueue):
         """Set the event queue instance"""
         self._event_queue = event_queue
-
-    def set_request_complete_event(self, event: asyncio.Event):
-        """Set the current request future for completion tracking"""
-        self._request_complete_event = event
 
     async def stream_events(
         self, timeout: Optional[float] = None
@@ -91,26 +86,15 @@ class EventManager:
                 # Process completed tasks
                 for task in done:
                     try:
-                        event = task.result()
+                        event: BaseStreamEvent = task.result()
                         seen_events = True
                         yield event
-                        if (
-                            self._request_complete_event
-                            and self._request_complete_event.is_set()
-                        ):
-                            logger.info("Request completed due to stop event")
+                        if event.type in COMPLETION_MESSAGE_TYPES:
                             return
 
                     except Exception as e:
                         logger.error(f"Error processing event: {e}")
 
-        except asyncio.CancelledError:
-            # Handle cancellation gracefully
-            logger.info("Event streaming cancelled")
-            self._current_request_future = None
-            raise
         except Exception as e:
-            # Clean up
-            self._current_request_future = None
             logger.error(f"Error in event streaming: {e}")
-            raise
+            raise e

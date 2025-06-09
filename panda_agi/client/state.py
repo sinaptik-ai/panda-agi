@@ -1,4 +1,7 @@
 import asyncio
+from typing import List
+
+from panda_agi.client.models import Knowledge
 
 
 class AgentState:
@@ -6,6 +9,7 @@ class AgentState:
 
     def __init__(self):
         self.initialization_complete = asyncio.Event()
+        self.knowledge: List[Knowledge] = []
 
         # Connection state properties
         self.is_connected = False
