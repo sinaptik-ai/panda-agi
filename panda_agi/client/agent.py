@@ -3,7 +3,7 @@ import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Dict, List, Optional, Union, Callable
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Union
 
 from dotenv import load_dotenv
 
@@ -14,9 +14,9 @@ from ..tools.base import ToolHandler
 from ..tools.file_system_ops.file_ops import file_explore_directory
 from .event_manager import EventManager
 from .models import (
-    COMPLETION_MESSAGE_TYPES,
     AgentResponse,
     BaseStreamEvent,
+    Knowledge,
     MessageType,
     WebSocketMessage,
 )
@@ -39,14 +39,20 @@ class Agent:
     def __init__(
         self,
         host: str = "wss://agi-api.pandas-ai.com",
-        # host: str = "ws://localhost:8000",
         api_key: str = None,
         conversation_id: Optional[str] = None,
         auto_reconnect: bool = False,
         reconnect_interval: float = 5.0,
         tools_handlers: Optional[Dict[str, Any]] = None,
         environment: Optional[BaseEnv] = None,
-        event_handlers: Optional[List[Union[Callable[[BaseStreamEvent], Optional[BaseStreamEvent]], BaseHandler]]] = None,
+        event_handlers: Optional[
+            List[
+                Union[
+                    Callable[[BaseStreamEvent], Optional[BaseStreamEvent]], BaseHandler
+                ]
+            ]
+        ] = None,
+        knowledge: Optional[List[Knowledge]] = None,
     ):
         load_dotenv()
         self.api_key = api_key or os.getenv("PANDA_AGI_KEY")
@@ -60,6 +66,7 @@ class Agent:
         self.event_handlers = event_handlers
 
         self.state = AgentState()
+        self.state.knowledge = knowledge or []
 
         # Initialize event manager
         self.event_manager = EventManager()
@@ -128,12 +135,6 @@ class Agent:
         else:
             logger.warning(f"No handler found for message type: {msg_type}")
 
-        if msg_type in COMPLETION_MESSAGE_TYPES:
-            logger.info(f"Received stop event: {msg_type}")
-            if self._request_complete and not self._request_complete.is_set():
-                self._request_complete.set()
-                return
-
     async def send_message(self, message: Union[WebSocketMessage, dict]) -> str:
         """Send a message to the server"""
         return await self.ws_client.send_message(message)
@@ -167,7 +168,6 @@ class Agent:
         if self.is_connected:
             logger.info("Restarting connection for new request...")
             await self.disconnect()
-            self.state.initialization_complete.clear()
 
         logger.info("Connecting before sending request...")
         await self.connect()
@@ -181,31 +181,24 @@ class Agent:
             type=MessageType.REQUEST.value,
             payload={
                 "query": query,
+                "knowledge": [k.content for k in self.state.knowledge],
             },
         )
-        # Create a new future for this request
-        self._request_complete = asyncio.Event()
-
         try:
             # Send the message
             await self.send_message(message)
 
-            # Set the request future in the event manager
-            self.event_manager.set_request_complete_event(self._request_complete)
-
             # Stream events using the event manager
             async for event in self.event_manager.stream_events():
+                await asyncio.sleep(0.01)
                 yield event
 
-        except asyncio.CancelledError:
-            # Clean up the current request future
-            self._request_complete = None
-            raise
         except Exception as e:
-            # Clean up
-            self._request_complete = None
             logger.error(f"Error in run: {e}")
-            raise
+            raise e
+
+        finally:
+            await self.disconnect()
 
     def change_working_directory(self, path: str):
         """
@@ -260,7 +253,13 @@ class Agent:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.disconnect()
 
-    async def run(self, query: str, event_handlers: List[Union[Callable[[BaseStreamEvent], Optional[BaseStreamEvent]], BaseHandler]] = None) -> AgentResponse:
+    async def run(
+        self,
+        query: str,
+        event_handlers: List[
+            Union[Callable[[BaseStreamEvent], Optional[BaseStreamEvent]], BaseHandler]
+        ] = None,
+    ) -> AgentResponse:
         """
         Run the agent and return a response with all collected events and final output.
 
@@ -283,7 +282,11 @@ class Agent:
         async for event in self.run_stream(query):
             # Process the event with the appropriate handlers
             active_handlers = event_handlers or self.event_handlers
-            processed_event = self._process_event_with_handlers(event, active_handlers) if active_handlers else event
+            processed_event = (
+                self._process_event_with_handlers(event, active_handlers)
+                if active_handlers
+                else event
+            )
 
             # Skip events that couldn't be processed
             if processed_event is None:
@@ -293,34 +296,38 @@ class Agent:
             response.add_event(processed_event)
 
         return response
-    
-    def _process_event_with_handlers(self, event: BaseStreamEvent, event_handlers: List[Union[Callable, BaseHandler]]) -> Optional[BaseStreamEvent]:
+
+    def _process_event_with_handlers(
+        self, event: BaseStreamEvent, event_handlers: List[Union[Callable, BaseHandler]]
+    ) -> Optional[BaseStreamEvent]:
         """
         Process an event with the provided handlers.
-        
+
         Supports both callable functions and handler classes with a process method.
         Processes multiple handlers in sequence.
-        
+
         Args:
             event: The event to process
             event_handlers: List of handlers to use
-            
+
         Returns:
             Processed event or None if processing failed
         """
         if event_handlers is None:
             return event
-        
+
         current_event = event
-        
+
         # Process through each handler in order
         for handler in event_handlers:
             if handler is None:
                 continue
-                
+
             try:
                 # Check if it's a handler class with a process method
-                if hasattr(handler, 'process') and callable(getattr(handler, 'process')):
+                if hasattr(handler, "process") and callable(
+                    getattr(handler, "process")
+                ):
                     # Call the process method (handler classes typically don't return events)
                     handler.process(current_event)
                     # Keep the current event for the next handler
@@ -331,12 +338,16 @@ class Agent:
                     if processed is not None:
                         current_event = processed
                 else:
-                    logger.warning(f"Handler is neither callable nor has a process method: {type(handler)}")
+                    logger.warning(
+                        f"Handler is neither callable nor has a process method: {type(handler)}"
+                    )
                     continue
-                    
+
             except Exception as e:
-                logger.error(f"Error processing event with handler {getattr(handler, 'name', type(handler).__name__)}: {e}")
+                logger.error(
+                    f"Error processing event with handler {getattr(handler, 'name', type(handler).__name__)}: {e}"
+                )
                 # Continue processing with other handlers even if one fails
                 continue
-        
+
         return current_event
