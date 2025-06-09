@@ -19,20 +19,19 @@ async def main():
     agent_env = LocalEnv("./my_agent_workspace")
     # agent_env = DockerEnv("./my_agent_workspace")
 
-    # Create the agent
-    agent = Agent(environment=agent_env)
-
     # Create event handlers (optional)
-    # Always pass handlers as a list
     handlers = [
         LogsHandler(compact_mode=True, use_colors=True, show_timestamps=True)
     ]
+
+    # Create the agent
+    agent = Agent(environment=agent_env, event_handlers=handlers)
     
     # First request - will automatically connect
     # The run method accepts a list of handlers
     response = await agent.run(
         args.query,
-        event_handlers=handlers
+        # event_handlers=handlers # Overrides the event_handlers passed to the Agent constructor
     )
     print(response.output)
 
