@@ -281,9 +281,6 @@ class Agent:
 
         # Run and collect all events
         async for event in self.run_stream(query):
-            # Store the original event
-            response.events.append(event)
-
             # Process the event with the appropriate handlers
             active_handlers = event_handlers or self.event_handlers
             processed_event = self._process_event_with_handlers(event, active_handlers) if active_handlers else event
