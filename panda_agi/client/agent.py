@@ -46,6 +46,7 @@ class Agent:
         reconnect_interval: float = 5.0,
         tools_handlers: Optional[Dict[str, Any]] = None,
         environment: Optional[BaseEnv] = None,
+        event_handlers: Optional[List[Union[Callable[[BaseStreamEvent], Optional[BaseStreamEvent]], BaseHandler]]] = None,
     ):
         load_dotenv()
         self.api_key = api_key or os.getenv("PANDA_AGI_KEY")
@@ -56,6 +57,7 @@ class Agent:
 
         self.conversation_id = conversation_id or str(uuid.uuid4())
         self.environment = environment or LocalEnv("./tmp/agent_workspace")
+        self.event_handlers = event_handlers
 
         self.state = AgentState()
 
@@ -282,8 +284,9 @@ class Agent:
             # Store the original event
             response.events.append(event)
 
-            # Process the event if handlers are provided
-            processed_event = self._process_event_with_handlers(event, event_handlers)
+            # Process the event with the appropriate handlers
+            active_handlers = event_handlers or self.event_handlers
+            processed_event = self._process_event_with_handlers(event, active_handlers) if active_handlers else event
 
             # Skip events that couldn't be processed
             if processed_event is None:
