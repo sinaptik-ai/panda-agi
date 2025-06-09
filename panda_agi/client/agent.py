@@ -32,6 +32,8 @@ logging.basicConfig(
 logger = logging.getLogger("AgentClient")
 logger.setLevel(logging.WARNING)
 
+MAX_KNOWLEDGE_LENGTH = 10
+
 
 class Agent:
     """Agent class for managing WebSocket connections and tool"""
@@ -66,7 +68,12 @@ class Agent:
         self.event_handlers = event_handlers
 
         self.state = AgentState()
-        self.state.knowledge = knowledge or []
+        if len(knowledge) > MAX_KNOWLEDGE_LENGTH:
+            raise ValueError(
+                f"Knowledge length is greater than {MAX_KNOWLEDGE_LENGTH}. Reduce the number of knowledge items."
+            )
+        else:
+            self.state.knowledge = knowledge or []
 
         # Initialize event manager
         self.event_manager = EventManager()
@@ -157,6 +164,14 @@ class Agent:
                 f"Timed out waiting for connection initialization after {timeout}s"
             )
             return False
+
+    def add_knowledge(self, knowledge: Knowledge):
+        """Add knowledge to the agent"""
+        if len(self.state.knowledge) >= MAX_KNOWLEDGE_LENGTH:
+            raise ValueError(
+                f"Knowledge length is greater than {MAX_KNOWLEDGE_LENGTH}. Reduce the number of knowledge items."
+            )
+        self.state.knowledge.append(knowledge)
 
     async def run_stream(
         self,
