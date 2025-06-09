@@ -410,6 +410,15 @@ class AgentResponse:
             return user_notifications[-1].text
         else:
             return None
+        
+    @property
+    def attachments(self) -> Optional[List[str]]:
+        """Get the attachments from the last UserNotificationEvent"""
+        user_notifications = [event for event in self.events if isinstance(event, UserNotificationEvent)]
+        if user_notifications:
+            return user_notifications[-1].attachments
+        else:
+            return None
 
     def __repr__(self) -> str:
         """Debug representation showing event count"""
@@ -420,4 +429,5 @@ class AgentResponse:
         return {
             "events": [event.to_dict() for event in self.events],
             "output": self.output,
+            "attachments": self.attachments
         }
