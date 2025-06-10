@@ -11,7 +11,8 @@ from ..envs import BaseEnv, LocalEnv
 from ..handlers.base_handler import BaseHandler
 from ..tools import ToolRegistry
 from ..tools.base import ToolHandler
-from ..tools.file_system_ops.file_ops import file_explore_directory
+from ..tools.file_system_ops import file_explore_directory
+from ..tools.skills_ops import Skill
 from .event_manager import EventManager
 from .models import (
     AgentResponse,
@@ -33,6 +34,7 @@ logger = logging.getLogger("AgentClient")
 logger.setLevel(logging.WARNING)
 
 MAX_KNOWLEDGE_LENGTH = 10
+MAX_SKILLS_LENGTH = 10
 
 
 class Agent:
@@ -55,6 +57,7 @@ class Agent:
             ]
         ] = None,
         knowledge: Optional[List[Knowledge]] = None,
+        skills: Optional[List[Callable]] = None,
     ):
         load_dotenv()
         self.api_key = api_key or os.getenv("PANDA_AGI_KEY")
@@ -68,12 +71,19 @@ class Agent:
         self.event_handlers = event_handlers
 
         self.state = AgentState()
-        if len(knowledge) > MAX_KNOWLEDGE_LENGTH:
+        if knowledge and len(knowledge) > MAX_KNOWLEDGE_LENGTH:
             raise ValueError(
                 f"Knowledge length is greater than {MAX_KNOWLEDGE_LENGTH}. Reduce the number of knowledge items."
             )
         else:
             self.state.knowledge = knowledge or []
+
+        if skills:
+            if len(skills) > MAX_SKILLS_LENGTH:
+                raise ValueError(
+                    f"Skills length is greater than {MAX_SKILLS_LENGTH}. Reduce the number of skills."
+                )
+            self._process_skills(skills)
 
         # Initialize event manager
         self.event_manager = EventManager()
@@ -173,6 +183,14 @@ class Agent:
             )
         self.state.knowledge.append(knowledge)
 
+    def add_skill(self, skill_function: Callable):
+        """Add skill to the agent"""
+        if len(self.state.skills) >= MAX_SKILLS_LENGTH:
+            raise ValueError(
+                f"Skills length is greater than {MAX_SKILLS_LENGTH}. Reduce the number of skills."
+            )
+        self.state.skills.append(self._process_single_skill(skill_function))
+
     async def run_stream(
         self,
         query: str,
@@ -197,6 +215,7 @@ class Agent:
             payload={
                 "query": query,
                 "knowledge": [k.content for k in self.state.knowledge],
+                "skills": [s.to_string() for s in self.state.skills],
             },
         )
         try:
@@ -366,3 +385,44 @@ class Agent:
                 continue
 
         return current_event
+
+    def _process_single_skill(self, skill_function: Callable):
+        """
+        Process a single skill function and extract its Skill object.
+        """
+        if not hasattr(skill_function, "_skill"):
+            raise ValueError(
+                f"Function '{skill_function.__name__}' is not decorated with @skill. "
+                "Please ensure all functions in the skills list are decorated with @skill."
+            )
+
+        skill_obj = skill_function._skill
+        if not isinstance(skill_obj, Skill):
+            raise ValueError(
+                f"Invalid skill object found for function '{skill_function.__name__}'. "
+                "Expected Skill instance."
+            )
+
+        return skill_obj
+
+    def _process_skills(self, skill_functions: List[Callable]):
+        """
+        Process a list of decorated functions and extract their Skill objects.
+
+        Args:
+            skill_functions: List of functions decorated with @skill
+
+        Raises:
+            ValueError: If a function is not decorated with @skill
+        """
+        if len(skill_functions) > MAX_SKILLS_LENGTH:
+            raise ValueError(
+                f"Skills length is greater than {MAX_SKILLS_LENGTH}. Reduce the number of skills."
+            )
+
+        for func in skill_functions:
+            self.add_skill(func)
+
+        logger.info(
+            f"Processed {len(skill_functions)} skills: {[s.name for s in self.state.skills]}"
+        )
