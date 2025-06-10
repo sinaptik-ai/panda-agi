@@ -4,6 +4,7 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Union
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Union
 
 from dotenv import load_dotenv
 
@@ -11,11 +12,13 @@ from ..envs import BaseEnv, LocalEnv
 from ..handlers.base_handler import BaseHandler
 from ..tools import ToolRegistry
 from ..tools.base import ToolHandler
-from ..tools.file_system_ops.file_ops import file_explore_directory
+from ..tools.file_system_ops import file_explore_directory
+from ..tools.skills_ops import Skill
 from .event_manager import EventManager
 from .models import (
     AgentResponse,
     BaseStreamEvent,
+    Knowledge,
     Knowledge,
     MessageType,
     WebSocketMessage,
@@ -33,6 +36,7 @@ logger = logging.getLogger("AgentClient")
 logger.setLevel(logging.WARNING)
 
 MAX_KNOWLEDGE_LENGTH = 10
+MAX_SKILLS_LENGTH = 10
 
 
 class Agent:
@@ -55,6 +59,7 @@ class Agent:
             ]
         ] = None,
         knowledge: Optional[List[Knowledge]] = None,
+        skills: Optional[List[Callable]] = None,
     ):
         load_dotenv()
         self.api_key = api_key or os.getenv("PANDA_AGI_KEY")
@@ -72,7 +77,15 @@ class Agent:
             raise ValueError(
                 f"Knowledge length is greater than {MAX_KNOWLEDGE_LENGTH}. Reduce the number of knowledge items."
             )
-        self.state.knowledge = knowledge or []
+        else:
+            self.state.knowledge = knowledge or []
+
+        if skills:
+            if len(skills) > MAX_SKILLS_LENGTH:
+                raise ValueError(
+                    f"Skills length is greater than {MAX_SKILLS_LENGTH}. Reduce the number of skills."
+                )
+            self._process_skills(skills)
 
         # Initialize event manager
         self.event_manager = EventManager()
@@ -172,6 +185,14 @@ class Agent:
             )
         self.state.knowledge.append(knowledge)
 
+    def add_skill(self, skill_function: Callable):
+        """Add skill to the agent"""
+        if len(self.state.skills) >= MAX_SKILLS_LENGTH:
+            raise ValueError(
+                f"Skills length is greater than {MAX_SKILLS_LENGTH}. Reduce the number of skills."
+            )
+        self.state.skills.append(self._process_single_skill(skill_function))
+
     async def run_stream(
         self,
         query: str,
@@ -196,6 +217,7 @@ class Agent:
             payload={
                 "query": query,
                 "knowledge": [k.content for k in self.state.knowledge],
+                "skills": [s.to_string() for s in self.state.skills],
             },
         )
         try:
@@ -205,10 +227,15 @@ class Agent:
             # Stream events using the event manager
             async for event in self.event_manager.stream_events():
                 await asyncio.sleep(0.01)
+                await asyncio.sleep(0.01)
                 yield event
 
         except Exception as e:
             logger.error(f"Error in run: {e}")
+            raise e
+
+        finally:
+            await self.disconnect()
             raise e
 
         finally:
@@ -274,6 +301,13 @@ class Agent:
             Union[Callable[[BaseStreamEvent], Optional[BaseStreamEvent]], BaseHandler]
         ] = None,
     ) -> AgentResponse:
+    async def run(
+        self,
+        query: str,
+        event_handlers: List[
+            Union[Callable[[BaseStreamEvent], Optional[BaseStreamEvent]], BaseHandler]
+        ] = None,
+    ) -> AgentResponse:
         """
         Run the agent and return a response with all collected events and final output.
 
@@ -301,6 +335,11 @@ class Agent:
                 if active_handlers
                 else event
             )
+            processed_event = (
+                self._process_event_with_handlers(event, active_handlers)
+                if active_handlers
+                else event
+            )
 
             # Skip events that couldn't be processed
             if processed_event is None:
@@ -314,15 +353,22 @@ class Agent:
     def _process_event_with_handlers(
         self, event: BaseStreamEvent, event_handlers: List[Union[Callable, BaseHandler]]
     ) -> Optional[BaseStreamEvent]:
+
+    def _process_event_with_handlers(
+        self, event: BaseStreamEvent, event_handlers: List[Union[Callable, BaseHandler]]
+    ) -> Optional[BaseStreamEvent]:
         """
         Process an event with the provided handlers.
+
 
         Supports both callable functions and handler classes with a process method.
         Processes multiple handlers in sequence.
 
+
         Args:
             event: The event to process
             event_handlers: List of handlers to use
+
 
         Returns:
             Processed event or None if processing failed
@@ -330,15 +376,21 @@ class Agent:
         if event_handlers is None:
             return event
 
+
         current_event = event
+
 
         # Process through each handler in order
         for handler in event_handlers:
             if handler is None:
                 continue
 
+
             try:
                 # Check if it's a handler class with a process method
+                if hasattr(handler, "process") and callable(
+                    getattr(handler, "process")
+                ):
                 if hasattr(handler, "process") and callable(
                     getattr(handler, "process")
                 ):
@@ -355,13 +407,62 @@ class Agent:
                     logger.warning(
                         f"Handler is neither callable nor has a process method: {type(handler)}"
                     )
+                    logger.warning(
+                        f"Handler is neither callable nor has a process method: {type(handler)}"
+                    )
                     continue
 
+
             except Exception as e:
+                logger.error(
+                    f"Error processing event with handler {getattr(handler, 'name', type(handler).__name__)}: {e}"
+                )
                 logger.error(
                     f"Error processing event with handler {getattr(handler, 'name', type(handler).__name__)}: {e}"
                 )
                 # Continue processing with other handlers even if one fails
                 continue
 
+
         return current_event
+
+    def _process_single_skill(self, skill_function: Callable):
+        """
+        Process a single skill function and extract its Skill object.
+        """
+        if not hasattr(skill_function, "_skill"):
+            raise ValueError(
+                f"Function '{skill_function.__name__}' is not decorated with @skill. "
+                "Please ensure all functions in the skills list are decorated with @skill."
+            )
+
+        skill_obj = skill_function._skill
+        if not isinstance(skill_obj, Skill):
+            raise ValueError(
+                f"Invalid skill object found for function '{skill_function.__name__}'. "
+                "Expected Skill instance."
+            )
+
+        return skill_obj
+
+    def _process_skills(self, skill_functions: List[Callable]):
+        """
+        Process a list of decorated functions and extract their Skill objects.
+
+        Args:
+            skill_functions: List of functions decorated with @skill
+
+        Raises:
+            ValueError: If a function is not decorated with @skill
+        """
+        if len(skill_functions) > MAX_SKILLS_LENGTH:
+            raise ValueError(
+                f"Skills length is greater than {MAX_SKILLS_LENGTH}. Reduce the number of skills."
+            )
+
+        for func in skill_functions:
+            self.add_skill(func)
+
+        logger.info(
+            f"Processed {len(skill_functions)} skills: {[s.name for s in self.state.skills]}"
+        )

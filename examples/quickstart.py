@@ -1,9 +1,18 @@
 import argparse
 import asyncio
 
-from panda_agi import Agent, Knowledge
+from panda_agi import Agent, Knowledge, skill
 from panda_agi.envs import LocalEnv
 from panda_agi.handlers import LogsHandler
+
+
+@skill
+def example_skill(query: str) -> str:
+    """Example skill"""
+
+    # Do something
+
+    return f"Result of the example skill: {query}"  # The result of the skill is returned to the agent
 
 
 async def main():
@@ -25,8 +34,15 @@ async def main():
         Knowledge("Add here your custom knowledge instructions"),
     ]
 
+    skills = [example_skill]
+
     # Create the agent
-    agent = Agent(environment=agent_env, event_handlers=handlers, knowledge=knowledge)
+    agent = Agent(
+        environment=agent_env,
+        event_handlers=handlers,
+        # knowledge=knowledge,
+        # skills=[],
+    )
 
     # First request - will automatically connect
     # The run method accepts a list of handlers

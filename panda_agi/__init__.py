@@ -19,6 +19,7 @@ from .client.models import (
     # Core types
     UserNotificationEvent,
     UserQuestionEvent,
+    UseSkillEvent,
     WebNavigationEvent,
     WebNavigationResultEvent,
     WebSearchEvent,
@@ -26,6 +27,7 @@ from .client.models import (
 )
 from .client.state import AgentState
 from .handlers import BaseHandler, LogsHandler
+from .tools.skills_ops import Skill, SkillRegistry, skill
 
 __all__ = [
     # Core classes
@@ -33,6 +35,7 @@ __all__ = [
     "AgentState",
     "BaseStreamEvent",
     "EventType",
+    "Knowledge",
     "Knowledge",
     # Event handlers
     "BaseHandler",
@@ -54,6 +57,11 @@ __all__ = [
     "ShellWriteEvent",
     "UserNotificationEvent",
     "UserQuestionEvent",
+    "UseSkillEvent",
     "CompletedTaskEvent",
     "ImageGenerationEvent",
+    # Skills
+    "Skill",
+    "SkillRegistry",
+    "skill",
 ]

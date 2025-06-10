@@ -1,8 +1,9 @@
+import json
 import logging
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -64,8 +65,19 @@ class EventType(Enum):
     USER_QUESTION = "user_question"
     COMPLETED_TASK = "completed_task"
 
+    # Skill Events
+    USE_SKILL = "use_skill"
+
     # Creative & Generation Events
     IMAGE_GENERATION = "image_generation"
+
+
+# Message types that indicate completion/blocking operations
+COMPLETION_MESSAGE_TYPES = [
+    EventType.USER_QUESTION.value,
+    EventType.COMPLETED_TASK.value,
+    EventType.ERROR.value,
+]
 
 
 # Message types that indicate completion/blocking operations
@@ -261,6 +273,17 @@ class CompletedTaskEvent(BaseStreamEvent):
     )
 
 
+class UseSkillEvent(BaseStreamEvent):
+    """Event when agent uses a custom skill"""
+
+    type: str = "use_skill"
+    skill_name: str = Field(description="Name of the skill being used")
+    parameters: Dict[str, Any] = Field(description="Parameters passed to the skill")
+    result: Optional[Dict[str, Any]] = Field(
+        default=None, description="Result from skill execution"
+    )
+
+
 # Creative & Generation Events
 class ImageGenerationEvent(BaseStreamEvent):
     """Event when agent generates images or visual content"""
@@ -297,6 +320,7 @@ class EventFactory:
             EventType.USER_NOTIFICATION: UserNotificationEvent,
             EventType.USER_QUESTION: UserQuestionEvent,
             EventType.COMPLETED_TASK: CompletedTaskEvent,
+            EventType.USE_SKILL: UseSkillEvent,
             EventType.IMAGE_GENERATION: ImageGenerationEvent,
         }
 
@@ -328,6 +352,74 @@ class Knowledge(BaseModel):
         return self.content
 
 
+class SkillParameter(BaseModel):
+    """Parameter definition for a skill"""
+
+    name: str = Field(description="Parameter name")
+    type: str = Field(description="Parameter type")
+    description: str = Field(description="Parameter description")
+    required: bool = Field(default=True, description="Whether parameter is required")
+    default: Optional[Any] = Field(default=None, description="Default value if any")
+
+
+class Skill(BaseModel):
+    """Skill object that wraps a function and its metadata"""
+
+    name: str = Field(description="Skill name")
+    description: str = Field(description="Skill description")
+    parameters: List[SkillParameter] = Field(description="Skill parameters")
+    returns: str = Field(description="Return value description")
+    examples: List[str] = Field(default=[], description="Usage examples")
+    function: Callable = Field(description="The actual function", exclude=True)
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def execute(self, **kwargs) -> Any:
+        """Execute the skill with given parameters"""
+        # parse parameters to the correct type
+        for param in self.parameters:
+            if param.name not in kwargs:
+                # Skip parameters not provided (they might be optional)
+                continue
+
+            print(f"converting {param.name} to {param.type}: {kwargs[param.name]}")
+
+            # Skip conversion if value is already the correct type
+            param_value = kwargs[param.name]
+            if param.type == "str":
+                kwargs[param.name] = str(param_value)
+            elif param.type == "int":
+                kwargs[param.name] = int(param_value)
+            elif param.type == "float":
+                kwargs[param.name] = float(param_value)
+            elif param.type == "bool":
+                kwargs[param.name] = bool(param_value)
+            elif param.type == "list":
+                if isinstance(param_value, str):
+                    kwargs[param.name] = json.loads(param_value)
+                else:
+                    kwargs[param.name] = list(param_value)
+            elif param.type == "dict":
+                if isinstance(param_value, str):
+                    kwargs[param.name] = json.loads(param_value)
+                else:
+                    kwargs[param.name] = dict(param_value)
+            # For other types, leave as is
+
+        return self.function(**kwargs)
+
+    def to_string(self) -> str:
+        """Convert skill to string for agent"""
+        return self.model_dump_json()
+
+    def __str__(self) -> str:
+        return f"Skill({self.name})"
+
+    def __repr__(self) -> str:
+        return f"Skill(name='{self.name}', parameters={len(self.parameters)})"
+
+
 class AgentResponse:
     """Container for agent responses with all events and a final output"""
 
@@ -345,6 +437,9 @@ class AgentResponse:
         user_notifications = [
             event for event in self.events if isinstance(event, UserNotificationEvent)
         ]
+        user_notifications = [
+            event for event in self.events if isinstance(event, UserNotificationEvent)
+        ]
         if user_notifications:
             return user_notifications[-1].text
         else:
@@ -353,6 +448,9 @@ class AgentResponse:
     @property
     def attachments(self) -> Optional[List[str]]:
         """Get the attachments from the last UserNotificationEvent"""
+        user_notifications = [
+            event for event in self.events if isinstance(event, UserNotificationEvent)
+        ]
         user_notifications = [
             event for event in self.events if isinstance(event, UserNotificationEvent)
         ]
@@ -370,5 +468,6 @@ class AgentResponse:
         return {
             "events": [event.to_dict() for event in self.events],
             "output": self.output,
+            "attachments": self.attachments,
             "attachments": self.attachments,
         }
