@@ -68,12 +68,11 @@ class Agent:
         self.event_handlers = event_handlers
 
         self.state = AgentState()
-        if len(knowledge) > MAX_KNOWLEDGE_LENGTH:
+        if knowledge and len(knowledge) > MAX_KNOWLEDGE_LENGTH:
             raise ValueError(
                 f"Knowledge length is greater than {MAX_KNOWLEDGE_LENGTH}. Reduce the number of knowledge items."
             )
-        else:
-            self.state.knowledge = knowledge or []
+        self.state.knowledge = knowledge or []
 
         # Initialize event manager
         self.event_manager = EventManager()
