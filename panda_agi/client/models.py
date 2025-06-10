@@ -80,14 +80,6 @@ COMPLETION_MESSAGE_TYPES = [
 ]
 
 
-# Message types that indicate completion/blocking operations
-COMPLETION_MESSAGE_TYPES = [
-    EventType.USER_QUESTION.value,
-    EventType.COMPLETED_TASK.value,
-    EventType.ERROR.value,
-]
-
-
 class WebSocketMessage(BaseModel):
     """WebSocket message structure"""
 
@@ -437,9 +429,6 @@ class AgentResponse:
         user_notifications = [
             event for event in self.events if isinstance(event, UserNotificationEvent)
         ]
-        user_notifications = [
-            event for event in self.events if isinstance(event, UserNotificationEvent)
-        ]
         if user_notifications:
             return user_notifications[-1].text
         else:
@@ -448,9 +437,6 @@ class AgentResponse:
     @property
     def attachments(self) -> Optional[List[str]]:
         """Get the attachments from the last UserNotificationEvent"""
-        user_notifications = [
-            event for event in self.events if isinstance(event, UserNotificationEvent)
-        ]
         user_notifications = [
             event for event in self.events if isinstance(event, UserNotificationEvent)
         ]
@@ -468,6 +454,5 @@ class AgentResponse:
         return {
             "events": [event.to_dict() for event in self.events],
             "output": self.output,
-            "attachments": self.attachments,
             "attachments": self.attachments,
         }

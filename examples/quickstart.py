@@ -38,6 +38,7 @@ async def main():
 
     # Create the agent
     agent = Agent(
+        host="ws://localhost:8000",
         environment=agent_env,
         event_handlers=handlers,
         # knowledge=knowledge,

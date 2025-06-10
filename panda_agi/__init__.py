@@ -36,7 +36,6 @@ __all__ = [
     "BaseStreamEvent",
     "EventType",
     "Knowledge",
-    "Knowledge",
     # Event handlers
     "BaseHandler",
     "LogsHandler",
