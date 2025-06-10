@@ -447,7 +447,7 @@ class AgentResponse:
 
     def __repr__(self) -> str:
         """Debug representation showing event count"""
-        return f"AgentResponse(events={len(self.events)}, output={repr(self.output)})"
+        return f"AgentResponse(events={len(self.events)}, output={repr(self.output)}), attachments={repr(self.attachments)}"
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert the response to a dictionary"""
