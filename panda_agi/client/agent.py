@@ -4,6 +4,7 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Union
+from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Union
 
 from dotenv import load_dotenv
 
@@ -17,6 +18,7 @@ from .event_manager import EventManager
 from .models import (
     AgentResponse,
     BaseStreamEvent,
+    Knowledge,
     Knowledge,
     MessageType,
     WebSocketMessage,
@@ -225,10 +227,15 @@ class Agent:
             # Stream events using the event manager
             async for event in self.event_manager.stream_events():
                 await asyncio.sleep(0.01)
+                await asyncio.sleep(0.01)
                 yield event
 
         except Exception as e:
             logger.error(f"Error in run: {e}")
+            raise e
+
+        finally:
+            await self.disconnect()
             raise e
 
         finally:
@@ -294,6 +301,13 @@ class Agent:
             Union[Callable[[BaseStreamEvent], Optional[BaseStreamEvent]], BaseHandler]
         ] = None,
     ) -> AgentResponse:
+    async def run(
+        self,
+        query: str,
+        event_handlers: List[
+            Union[Callable[[BaseStreamEvent], Optional[BaseStreamEvent]], BaseHandler]
+        ] = None,
+    ) -> AgentResponse:
         """
         Run the agent and return a response with all collected events and final output.
 
@@ -321,6 +335,11 @@ class Agent:
                 if active_handlers
                 else event
             )
+            processed_event = (
+                self._process_event_with_handlers(event, active_handlers)
+                if active_handlers
+                else event
+            )
 
             # Skip events that couldn't be processed
             if processed_event is None:
@@ -334,15 +353,22 @@ class Agent:
     def _process_event_with_handlers(
         self, event: BaseStreamEvent, event_handlers: List[Union[Callable, BaseHandler]]
     ) -> Optional[BaseStreamEvent]:
+
+    def _process_event_with_handlers(
+        self, event: BaseStreamEvent, event_handlers: List[Union[Callable, BaseHandler]]
+    ) -> Optional[BaseStreamEvent]:
         """
         Process an event with the provided handlers.
+
 
         Supports both callable functions and handler classes with a process method.
         Processes multiple handlers in sequence.
 
+
         Args:
             event: The event to process
             event_handlers: List of handlers to use
+
 
         Returns:
             Processed event or None if processing failed
@@ -350,15 +376,21 @@ class Agent:
         if event_handlers is None:
             return event
 
+
         current_event = event
+
 
         # Process through each handler in order
         for handler in event_handlers:
             if handler is None:
                 continue
 
+
             try:
                 # Check if it's a handler class with a process method
+                if hasattr(handler, "process") and callable(
+                    getattr(handler, "process")
+                ):
                 if hasattr(handler, "process") and callable(
                     getattr(handler, "process")
                 ):
@@ -375,14 +407,22 @@ class Agent:
                     logger.warning(
                         f"Handler is neither callable nor has a process method: {type(handler)}"
                     )
+                    logger.warning(
+                        f"Handler is neither callable nor has a process method: {type(handler)}"
+                    )
                     continue
+
 
             except Exception as e:
                 logger.error(
                     f"Error processing event with handler {getattr(handler, 'name', type(handler).__name__)}: {e}"
                 )
+                logger.error(
+                    f"Error processing event with handler {getattr(handler, 'name', type(handler).__name__)}: {e}"
+                )
                 # Continue processing with other handlers even if one fails
                 continue
+
 
         return current_event
 
