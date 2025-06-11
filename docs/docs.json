@@ -81,5 +81,10 @@
       "linkedin": "https://www.linkedin.com/company/pandasai",
       "reddit": "https://www.reddit.com/r/PandasAI/"
     }
+  },
+  "integrations": {
+    "ga4": {
+      "measurementId": "G-6L6GZMBPS3"
+    }
   }
 }
