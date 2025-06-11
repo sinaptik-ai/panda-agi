@@ -4,7 +4,7 @@
 [![Discord](https://dcbadge.vercel.app/api/server/kF7FqH2FwS?style=flat&compact=true)](https://discord.gg/KYKj9F2FRH)
 [![Downloads](https://static.pepy.tech/badge/panda-agi)](https://pepy.tech/project/panda-agi)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1XEbeTeOgqUKKWsujgkDLKz23FPTPEmjM?usp=sharing)
 
 The PandaAGI SDK provides a simple, intuitive API for building general AI agents in just a few lines of code. It abstracts away the complexity of Agentic Loops and provides a powerful interface for you to build autonomous agents.
 Each agent can be configured to run in a custom environment, interacting with the web, your file system, writing code, and running shell commands.
@@ -92,6 +92,12 @@ cd examples/ui
 This will start a docker container with the UI running. You can access it at `http://localhost:3000` and start using it.
 
 ![UI Demo](docs/videos/ui-video.gif)
+
+## 📓 Try it Online
+
+Want to experiment with PandaAGI SDK without any setup? Try our interactive notebook:
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1XEbeTeOgqUKKWsujgkDLKz23FPTPEmjM?usp=sharing)
 
 ## 🛠️ Features
 
