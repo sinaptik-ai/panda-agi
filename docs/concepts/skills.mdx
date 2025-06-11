@@ -1,0 +1,489 @@
+---
+title: "Skills"
+description: "Learn how to create and use skills to extend your agent's capabilities"
+---
+
+## How to Add Skills to Your Agent
+
+**Quick Setup**: Pass your decorated functions to the `skills` parameter when creating an agent:
+
+```python
+from panda_agi import Agent, skill
+
+@skill
+def my_custom_skill(param: str) -> str:
+    """My custom skill description."""
+    return f"Processed: {param}"
+
+# Pass skills to agent - THIS IS HOW YOU DO IT!
+agent = Agent(
+    skills=[my_custom_skill]  # ← Add your skills here as a list
+)
+
+# Agent can now use your skills automatically
+async for event in agent.run_stream("Use my custom skill with 'hello world'"):
+    print(event)
+```
+
+## What Are Skills?
+
+Skills are essentially Python functions that:
+- Are decorated with the `@skill` decorator
+- Have well-defined parameters and return values
+- Include Google-style docstrings for automatic metadata extraction
+- Can be executed by agents during their workflow
+
+When you provide skills to an agent, the agent can intelligently decide when and how to use them based on the conversation context and the skill's description.
+
+## Creating Skills
+
+### Basic Skill Creation
+
+```python
+from panda_agi import skill
+
+@skill
+def calculate_area(width: float, height: float) -> float:
+    """Calculate the area of a rectangle.
+    
+    Args:
+        width (float): Width of the rectangle
+        height (float): Height of the rectangle
+    
+    Returns:
+        float: The calculated area
+    
+    Examples:
+        calculate_area(5.0, 3.0) returns 15.0
+    """
+    return width * height
+```
+
+### Custom Skill Names
+
+You can provide a custom name for your skill:
+
+```python
+@skill("rectangle_calculator")
+def calculate_area(width: float, height: float) -> float:
+    """Calculate the area of a rectangle."""
+    return width * height
+```
+
+### Skills with Optional Parameters
+
+```python
+@skill
+def format_text(text: str, uppercase: bool = False, prefix: str = "") -> str:
+    """Format text with optional transformations.
+    
+    Args:
+        text (str): The text to format
+        uppercase (bool): Whether to convert to uppercase, default False
+        prefix (str): Prefix to add to the text, default empty string
+    
+    Returns:
+        str: The formatted text
+    """
+    result = text
+    if uppercase:
+        result = result.upper()
+    if prefix:
+        result = f"{prefix}{result}"
+    return result
+```
+
+### Complex Skills with Multiple Return Types
+
+```python
+@skill
+def analyze_data(data: list, operation: str = "sum") -> dict:
+    """Analyze a list of numbers and return statistics.
+    
+    Args:
+        data (list): List of numbers to analyze
+        operation (str): Type of analysis ('sum', 'avg', 'min', 'max'), default 'sum'
+    
+    Returns:
+        dict: Analysis results containing the requested operation and basic stats
+    
+    Examples:
+        analyze_data([1, 2, 3, 4, 5], "avg") returns {"result": 3.0, "count": 5}
+    """
+    if not data:
+        return {"error": "Empty data provided"}
+    
+    result = {
+        "count": len(data),
+        "result": None
+    }
+    
+    if operation == "sum":
+        result["result"] = sum(data)
+    elif operation == "avg":
+        result["result"] = sum(data) / len(data)
+    elif operation == "min":
+        result["result"] = min(data)
+    elif operation == "max":
+        result["result"] = max(data)
+    else:
+        result["error"] = f"Unknown operation: {operation}"
+    
+    return result
+```
+
+## Using Skills with Agents
+
+### Adding Skills to an Agent
+
+```python
+import asyncio
+from panda_agi import Agent, skill
+
+@skill
+def get_weather(city: str) -> str:
+    """Get weather information for a city.
+    
+    Args:
+        city (str): Name of the city
+    
+    Returns:
+        str: Weather description
+    """
+    # In a real implementation, you'd call a weather API
+    return f"The weather in {city} is sunny and 75°F"
+
+@skill
+def calculate_tip(bill_amount: float, tip_percentage: float = 15.0) -> dict:
+    """Calculate tip amount and total bill.
+    
+    Args:
+        bill_amount (float): The original bill amount
+        tip_percentage (float): Tip percentage (default 15.0)
+    
+    Returns:
+        dict: Contains tip_amount and total_amount
+    """
+    tip_amount = bill_amount * (tip_percentage / 100)
+    total_amount = bill_amount + tip_amount
+    
+    return {
+        "bill_amount": bill_amount,
+        "tip_percentage": tip_percentage,
+        "tip_amount": round(tip_amount, 2),
+        "total_amount": round(total_amount, 2)
+    }
+
+async def main():
+    # Create skills list
+    skills = [get_weather, calculate_tip]
+    
+    # Create agent with skills
+    agent = Agent(
+        skills=skills
+    )
+    
+    # Use the agent
+    async for event in agent.run_stream("What's the weather in New York and calculate a 20% tip on a $50 bill?"):
+        print(event)
+
+# Run the example
+asyncio.run(main())
+```
+
+### Skill Limitations
+
+- Maximum of **10 skills** per agent
+- Skills must be decorated with `@skill`
+- All parameters must be JSON-serializable
+- Return values should be JSON-serializable for best results
+
+## How Skills Work Internally
+
+### Skill Registration
+
+When you decorate a function with `@skill`, the system:
+
+1. **Parses the docstring** using Google-style format to extract:
+   - Skill description
+   - Parameter types and descriptions
+   - Return value description
+   - Usage examples
+
+2. **Analyzes the function signature** to determine:
+   - Required vs optional parameters
+   - Default values
+   - Parameter types from annotations
+
+3. **Creates a Skill object** with complete metadata
+
+4. **Registers the skill** in the global SkillRegistry
+
+### Parameter Processing
+
+The system automatically converts string inputs to the correct types:
+
+```python
+@skill
+def process_numbers(count: int, rate: float, active: bool) -> str:
+    """Process numbers with different types.
+    
+    Args:
+        count (int): Number of items
+        rate (float): Processing rate
+        active (bool): Whether processing is active
+    
+    Returns:
+        str: Processing result
+    """
+    if active:
+        total = count * rate
+        return f"Processed {count} items at rate {rate}, total: {total}"
+    else:
+        return "Processing is inactive"
+```
+
+When the agent calls this skill with `{"count": "5", "rate": "2.5", "active": "true"}`, the system automatically converts:
+- `"5"` → `5` (int)
+- `"2.5"` → `2.5` (float)
+- `"true"` → `True` (bool)
+
+### Skill Execution Flow
+
+1. **Agent decides** to use a skill based on conversation context
+2. **Parameters are extracted** from the conversation or previous results
+3. **Type conversion** happens automatically
+4. **Skill function executes** with converted parameters
+5. **Result is returned** to the agent for further processing
+
+## Best Practices
+
+### Docstring Guidelines
+
+Always use Google-style docstrings with these sections:
+
+```python
+@skill
+def example_skill(param1: str, param2: int = 10) -> dict:
+    """Brief description of what the skill does.
+    
+    Args:
+        param1 (str): Description of the first parameter
+        param2 (int): Description of the second parameter, default 10
+    
+    Returns:
+        dict: Description of the return value
+    
+    Examples:
+        example_skill("hello", 5) returns {"message": "hello", "count": 5}
+    """
+    return {"message": param1, "count": param2}
+```
+
+### Error Handling
+
+Handle errors gracefully within your skills:
+
+```python
+@skill
+def safe_divide(a: float, b: float) -> dict:
+    """Safely divide two numbers.
+    
+    Args:
+        a (float): Numerator
+        b (float): Denominator
+    
+    Returns:
+        dict: Result with success status or error message
+    """
+    try:
+        if b == 0:
+            return {"success": False, "error": "Division by zero"}
+        
+        result = a / b
+        return {"success": True, "result": result}
+    
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+```
+
+### Type Hints
+
+Always use type hints for better parameter conversion:
+
+```python
+from typing import List, Dict, Optional
+
+@skill
+def process_list(items: List[str], options: Dict[str, str], limit: Optional[int] = None) -> Dict[str, any]:
+    """Process a list of items with options.
+    
+    Args:
+        items (List[str]): List of items to process
+        options (Dict[str, str]): Processing options
+        limit (Optional[int]): Maximum number of items to process, default None
+    
+    Returns:
+        Dict[str, any]: Processing results
+    """
+    processed_items = items[:limit] if limit else items
+    
+    return {
+        "processed": len(processed_items),
+        "total": len(items),
+        "options_used": options
+    }
+```
+
+## Advanced Features
+
+### Skill Registry
+
+You can interact with the skill registry directly:
+
+```python
+from panda_agi.tools.skills_ops import SkillRegistry
+
+# List all registered skills
+skill_names = SkillRegistry.list_skills()
+print(f"Available skills: {skill_names}")
+
+# Get a specific skill
+skill = SkillRegistry.get_skill("calculate_area")
+if skill:
+    print(f"Skill description: {skill.description}")
+    print(f"Parameters: {[p.name for p in skill.parameters]}")
+
+# Execute a skill directly
+result = skill.execute(width=5.0, height=3.0)
+print(f"Result: {result}")
+```
+
+### Dynamic Skill Creation
+
+You can create skills programmatically:
+
+```python
+from panda_agi.client.models import Skill, SkillParameter
+
+def create_dynamic_skill():
+    def dynamic_function(x: int, y: int) -> int:
+        return x + y
+    
+    skill_obj = Skill(
+        name="dynamic_add",
+        description="Add two numbers dynamically",
+        parameters=[
+            SkillParameter(name="x", type="int", description="First number", required=True),
+            SkillParameter(name="y", type="int", description="Second number", required=True)
+        ],
+        returns="int",
+        examples=["dynamic_add(2, 3) returns 5"],
+        function=dynamic_function
+    )
+    
+    SkillRegistry.register(skill_obj)
+    return dynamic_function
+
+dynamic_add = create_dynamic_skill()
+```
+
+## Common Use Cases
+
+### Data Processing Skills
+
+```python
+@skill
+def clean_data(data: list, remove_nulls: bool = True, lowercase: bool = False) -> list:
+    """Clean and preprocess data.
+    
+    Args:
+        data (list): Raw data to clean
+        remove_nulls (bool): Remove null/None values, default True
+        lowercase (bool): Convert strings to lowercase, default False
+    
+    Returns:
+        list: Cleaned data
+    """
+    cleaned = []
+    for item in data:
+        if remove_nulls and item is None:
+            continue
+        
+        if isinstance(item, str) and lowercase:
+            item = item.lower()
+        
+        cleaned.append(item)
+    
+    return cleaned
+```
+
+### API Integration Skills
+
+```python
+import requests
+
+@skill
+def fetch_user_data(user_id: int, include_posts: bool = False) -> dict:
+    """Fetch user data from an API.
+    
+    Args:
+        user_id (int): ID of the user to fetch
+        include_posts (bool): Whether to include user posts, default False
+    
+    Returns:
+        dict: User data with optional posts
+    """
+    try:
+        # Fetch basic user data
+        response = requests.get(f"https://jsonplaceholder.typicode.com/users/{user_id}")
+        user_data = response.json()
+        
+        if include_posts:
+            # Fetch user posts
+            posts_response = requests.get(f"https://jsonplaceholder.typicode.com/users/{user_id}/posts")
+            user_data["posts"] = posts_response.json()
+        
+        return {"success": True, "data": user_data}
+    
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+```
+
+### File Operations Skills
+
+```python
+import json
+import os
+
+@skill
+def save_json_data(data: dict, filename: str, pretty: bool = True) -> dict:
+    """Save data to a JSON file.
+    
+    Args:
+        data (dict): Data to save
+        filename (str): Name of the file to save
+        pretty (bool): Whether to format JSON nicely, default True
+    
+    Returns:
+        dict: Operation result
+    """
+    try:
+        with open(filename, 'w') as f:
+            if pretty:
+                json.dump(data, f, indent=2)
+            else:
+                json.dump(data, f)
+        
+        file_size = os.path.getsize(filename)
+        return {
+            "success": True,
+            "filename": filename,
+            "size_bytes": file_size
+        }
+    
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+```
+
+Skills are a powerful way to extend your agent's capabilities. By following these patterns and best practices, you can create robust, reusable skills that make your agents more effective and capable. 

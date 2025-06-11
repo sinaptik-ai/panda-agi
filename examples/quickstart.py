@@ -31,14 +31,19 @@ async def main():
     handlers = [LogsHandler(compact_mode=True, use_colors=True, show_timestamps=True)]
 
     knowledge = [
-        Knowledge("Add here your custom knowledge instructions"),
+        Knowledge("""
+When a user asks you to analyze data, you must follow these steps:
+1. Analyze the data
+2. Provide a summary of the data
+3. Provide a list of insights
+4. Provide a list of recommendations
+""")
     ]
 
     skills = [example_skill]
 
     # Create the agent
     agent = Agent(
-        host="ws://localhost:8000",
         environment=agent_env,
         event_handlers=handlers,
         # knowledge=knowledge,

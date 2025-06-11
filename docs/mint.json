@@ -53,6 +53,8 @@
       "pages": [
         "concepts/architecture",
         "concepts/agents",
+        "concepts/skills",
+        "concepts/knowledge",
         "concepts/events",
         "concepts/environments",
         "installation"

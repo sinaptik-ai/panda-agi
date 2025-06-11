@@ -1,0 +1,748 @@
+---
+title: "Knowledge"
+description: "Learn how to provide contextual information to guide your agent's behavior"
+---
+
+## How to Add Knowledge to Your Agent
+
+**Quick Setup**: Pass `Knowledge` objects to the `knowledge` parameter when creating an agent:
+
+```python
+from panda_agi import Agent, Knowledge
+
+# Create knowledge items
+my_knowledge = Knowledge("""
+When handling customer complaints:
+1. Listen actively and acknowledge concerns
+2. Apologize for any inconvenience
+3. Provide clear solutions or alternatives
+4. Follow up to ensure satisfaction
+""")
+
+# Pass knowledge to agent - THIS IS HOW YOU DO IT!
+agent = Agent(
+    knowledge=[my_knowledge]  # ← Add your knowledge here as a list
+)
+
+# Agent will now follow your guidelines
+async for event in agent.run_stream("A customer is upset about delayed shipping"):
+    print(event)
+```
+
+## What is Knowledge?
+
+Knowledge in PandaAGI is:
+- **Contextual information** that influences how agents respond
+- **Instructions or guidelines** for specific scenarios
+- **Domain expertise** that agents can reference
+- **Behavioral rules** that shape agent decision-making
+- **Background information** relevant to your use case
+
+Unlike skills (which are executable functions), knowledge is informational content that guides the agent's reasoning process.
+
+<Warning>
+**Critical**: Always include **"when to use"** conditions in your knowledge content. Specify exactly when each piece of knowledge should be applied based on specific circumstances, user types, or situations.
+</Warning>
+
+## When to Use Knowledge
+
+Knowledge is the right choice when you need to:
+
+### 🎯 **Provide Behavioral Guidelines**
+Use knowledge when you need to define how agents should behave or respond in specific situations:
+```python
+Knowledge("""
+When a customer seems frustrated:
+1. Acknowledge their feelings with empathy
+2. Avoid defensive language
+3. Focus on solutions, not blame
+4. Escalate to a supervisor if needed
+""")
+```
+
+### 📚 **Share Domain Expertise**
+Use knowledge when agents need to understand industry-specific information or best practices:
+```python
+Knowledge("""
+In financial planning:
+- Always consider the client's risk tolerance before recommending investments
+- Diversification across asset classes reduces portfolio risk
+- Emergency funds should cover 3-6 months of expenses
+- Tax implications should be discussed for all investment decisions
+""")
+```
+
+### 🛡️ **Set Compliance and Safety Rules**
+Use knowledge when you need to ensure agents follow regulatory requirements or safety protocols:
+```python
+Knowledge("""
+HIPAA Compliance Requirements:
+- Never share patient information without proper authorization
+- All conversations must maintain patient confidentiality
+- Use patient identifiers (ID numbers) instead of names when possible
+- Document all access to patient records
+""")
+```
+
+### 🔄 **Define Process Workflows**
+Use knowledge when agents need to follow specific procedures or decision trees:
+```python
+Knowledge("""
+Customer Support Escalation Process:
+1. Attempt to resolve the issue within 10 minutes
+2. If unresolved, check knowledge base for similar cases
+3. If still unresolved, escalate to tier 2 support
+4. Document the issue and attempted solutions
+""")
+```
+
+### 📝 **Provide Context and Background**
+Use knowledge when agents need background information to make informed decisions:
+```python
+Knowledge("""
+Company Background:
+We are a B2B SaaS company serving enterprise clients in healthcare.
+Our primary value proposition is reducing administrative burden by 40%.
+Our main competitors are MedTech Solutions and HealthFlow Pro.
+Decision makers are typically IT directors and operations managers.
+""")
+```
+
+### ⚖️ **Handle Edge Cases and Exceptions**
+Use knowledge when you need to provide guidance for unusual or complex scenarios:
+```python
+Knowledge("""
+Handling Refund Requests:
+
+Standard Cases (< $100, < 30 days): Approve automatically
+Medium Cases ($100-$500, < 60 days): Require manager approval
+Complex Cases (> $500 or > 60 days): Escalate to finance team
+
+Special Considerations:
+- Medical emergencies: Always approve regardless of time/amount
+- Technical failures on our end: Expedite approval process
+- Fraudulent transactions: Hold and contact security team
+""")
+```
+
+### 🚫 **When NOT to Use Knowledge**
+
+Don't use knowledge when you need:
+- **Executable functionality** → Use Skills instead
+- **Dynamic data retrieval** → Use Skills with API calls
+- **Calculations or data processing** → Use Skills with computational logic
+- **File operations** → Use Skills with file handling
+- **Real-time information** → Use Skills that fetch current data
+
+### 💡 **Knowledge vs Skills Decision Guide**
+
+| Need | Use Knowledge | Use Skills |
+|------|---------------|------------|
+| Guidelines for behavior | ✅ | ❌ |
+| Industry best practices | ✅ | ❌ |
+| Compliance requirements | ✅ | ❌ |
+| Process workflows | ✅ | ❌ |
+| Calculate values | ❌ | ✅ |
+| Fetch data from APIs | ❌ | ✅ |
+| Process files | ❌ | ✅ |
+| Perform complex logic | ❌ | ✅ |
+
+## Creating Knowledge
+
+<Info>
+**Best Practice**: Every knowledge item should start with **"When..."** or **"If..."** to clearly define when it applies.
+</Info>
+
+### Basic Knowledge Creation
+
+```python
+from panda_agi import Knowledge
+
+# ✅ GOOD: Includes clear "when" conditions
+knowledge = Knowledge("""
+When analyzing financial data for investment decisions:
+1. Always consider market volatility
+2. Review 5-year historical trends minimum
+3. Factor in current economic indicators
+4. Assess client-specific risk factors
+
+When data is incomplete or outdated:
+- Request updated information before proceeding
+- Clearly state limitations in your analysis
+""")
+```
+
+❌ **Avoid vague knowledge without conditions:**
+```python
+Knowledge("""
+Consider market volatility and historical trends.
+""")
+```
+
+### Multiple Knowledge Items
+
+```python
+from panda_agi import Agent, Knowledge
+
+# ✅ GOOD: Each knowledge item specifies WHEN to apply it
+knowledge_base = [
+    Knowledge("""
+    When handling any customer data or personal information:
+    - All data must comply with GDPR regulations
+    - Never store or transmit personal information without explicit consent
+    - Always inform users about data collection purposes
+    """),
+    
+    Knowledge("""
+    When conducting data analysis for business reports:
+    1. Always validate data quality before starting analysis
+    2. Use appropriate statistical methods for the data type
+    3. Document all assumptions and limitations clearly
+    4. Provide confidence intervals where applicable
+    """),
+    
+    Knowledge("""
+    When communicating with business stakeholders:
+    - Be professional but friendly in tone
+    - Use clear, non-technical language
+    - Provide actionable insights, not just raw data
+    - Include visual aids when explaining complex concepts
+    """)
+]
+
+# Use with an agent
+agent = Agent(
+    knowledge=knowledge_base
+)
+```
+
+## Using Knowledge with Agents
+
+### Basic Usage Example
+
+```python
+import asyncio
+from panda_agi import Agent, Knowledge
+
+async def main():
+    # Define domain-specific knowledge
+    customer_service_knowledge = [
+        Knowledge("""
+        Customer Service Guidelines:
+        1. Always greet customers politely
+        2. Listen actively to their concerns
+        3. Provide clear, step-by-step solutions
+        4. If unable to resolve, escalate to a human agent
+        5. End interactions by asking if there's anything else you can help with
+        """),
+        
+        Knowledge("""
+        Product Information:
+        - Standard shipping takes 3-5 business days
+        - Express shipping takes 1-2 business days
+        - Free shipping is available for orders over $50
+        - Returns are accepted within 30 days with receipt
+        """)
+    ]
+    
+    agent = Agent(
+        knowledge=customer_service_knowledge
+    )
+    
+    # The agent will use this knowledge to respond appropriately
+    async for event in agent.run_stream("A customer is asking about shipping times"):
+        print(event)
+
+asyncio.run(main())
+```
+
+### Knowledge with Skills Combined
+
+```python
+from panda_agi import Agent, Knowledge, skill
+
+@skill
+def calculate_shipping_cost(weight: float, distance: int, express: bool = False) -> dict:
+    """Calculate shipping cost based on weight, distance, and speed.
+    
+    Args:
+        weight (float): Package weight in pounds
+        distance (int): Distance in miles
+        express (bool): Whether to use express shipping
+    
+    Returns:
+        dict: Shipping cost and estimated delivery time
+    """
+    base_cost = weight * 0.5 + distance * 0.01
+    if express:
+        base_cost *= 2
+        delivery_days = "1-2"
+    else:
+        delivery_days = "3-5"
+    
+    return {
+        "cost": round(base_cost, 2),
+        "delivery_days": delivery_days
+    }
+
+async def main():
+    # Knowledge guides behavior, skills provide capabilities
+    shipping_knowledge = [
+        Knowledge("""
+        Shipping Policy:
+        - Always calculate exact shipping costs using the shipping calculator
+        - Inform customers about delivery timeframes
+        - Offer both standard and express options
+        - Mention free shipping threshold ($50) when applicable
+        """)
+    ]
+    
+    agent = Agent(
+        knowledge=shipping_knowledge,
+        skills=[calculate_shipping_cost]
+    )
+    
+    # Agent will use knowledge to guide how it uses the skill
+    async for event in agent.run_stream("How much would it cost to ship a 2-pound package 500 miles?"):
+        print(event)
+
+asyncio.run(main())
+```
+
+## Knowledge Categories and Use Cases
+
+### Behavioral Guidelines
+
+```python
+behavioral_knowledge = Knowledge("""
+When interacting with any user:
+1. Always be helpful and professional in tone
+2. If you don't know something, say so clearly and offer alternatives
+3. Provide step-by-step instructions when explaining processes
+4. Use examples to clarify complex concepts
+5. Ask clarifying questions when user requests are ambiguous
+
+When users seem frustrated or confused:
+- Acknowledge their feelings first
+- Slow down your explanations
+- Offer to break complex tasks into smaller steps
+""")
+```
+
+### Domain Expertise
+
+```python
+medical_knowledge = Knowledge("""
+Medical Consultation Guidelines:
+- Never provide specific medical diagnoses
+- Always recommend consulting a healthcare professional
+- Focus on general health information and prevention
+- Clearly distinguish between emergency and non-emergency situations
+- Maintain patient confidentiality at all times
+""")
+
+legal_knowledge = Knowledge("""
+Legal Advice Guidelines:
+- Provide general legal information, not specific legal advice
+- Always recommend consulting a qualified attorney for legal matters
+- Clearly state that responses are not legal advice
+- Focus on explaining legal concepts and processes
+""")
+```
+
+### Data Analysis Guidelines
+
+```python
+data_analysis_knowledge = [
+    Knowledge("""
+    Data Quality Standards:
+    1. Check for missing values and handle appropriately
+    2. Identify and address outliers
+    3. Validate data types and formats
+    4. Ensure sufficient sample size for statistical significance
+    """),
+    
+    Knowledge("""
+    Reporting Standards:
+    - Always provide context for numbers
+    - Include confidence intervals or error margins
+    - Explain methodology and assumptions
+    - Highlight limitations and potential biases
+    - Use visualizations to support findings
+    """)
+]
+```
+
+### Industry-Specific Knowledge
+
+```python
+# E-commerce knowledge
+ecommerce_knowledge = Knowledge("""
+E-commerce Best Practices:
+- Product recommendations should be based on customer history
+- Always mention current promotions and discounts
+- Provide detailed product information including specifications
+- Suggest related or complementary products
+- Handle returns and exchanges according to policy
+""")
+
+# Financial services knowledge
+finance_knowledge = Knowledge("""
+Financial Advisory Guidelines:
+- Always disclose that advice is general and not personalized
+- Consider client's risk tolerance and investment timeline
+- Diversification is key to risk management
+- Past performance doesn't guarantee future results
+- Regulatory compliance is mandatory
+""")
+```
+
+### Process and Workflow Knowledge
+
+```python
+workflow_knowledge = Knowledge("""
+Project Management Process:
+1. Requirements gathering and validation
+2. Project planning and timeline creation
+3. Resource allocation and team assignment
+4. Regular progress monitoring and reporting
+5. Risk assessment and mitigation planning
+6. Quality assurance and testing
+7. Delivery and post-project review
+""")
+```
+
+## Best Practices for Knowledge
+
+### 1. Always Start with "When" Conditions
+
+<Warning>
+**Most Important Rule**: Every knowledge item MUST start with **"When..."**, **"If..."**, or **"During..."** to specify exactly when it applies.
+</Warning>
+
+❌ **Avoid vague knowledge without conditions:**
+```python
+Knowledge("Be helpful and professional")
+```
+
+❌ **Avoid general guidelines without context:**
+```python
+Knowledge("""
+Customer Interaction Guidelines:
+1. Start with a polite greeting
+2. Ask clarifying questions
+3. Provide solutions
+""")
+```
+
+✅ **Always include specific "when" conditions:**
+```python
+Knowledge("""
+When handling customer service inquiries:
+1. Start with a polite greeting and introduce yourself
+2. Ask clarifying questions to understand the customer's specific needs
+3. Provide clear, step-by-step solutions with examples
+4. Confirm the customer understands before ending the interaction
+5. Offer additional assistance before closing
+
+When dealing with upset customers:
+1. Listen actively without interrupting
+2. Acknowledge their frustration with empathy
+3. Apologize for any inconvenience caused
+4. Focus on solutions rather than explanations
+5. Follow up to ensure resolution satisfaction
+""")
+```
+
+### 2. Be Specific and Actionable
+
+### 2. Structure Information Clearly
+
+Use lists, numbered steps, and clear headings:
+
+```python
+Knowledge("""
+Data Privacy Compliance:
+
+GDPR Requirements:
+- Obtain explicit consent before collecting personal data
+- Provide clear privacy notices
+- Allow users to access, correct, or delete their data
+- Report data breaches within 72 hours
+
+CCPA Requirements:
+- Disclose data collection practices
+- Allow opt-out of data sales
+- Provide equal service regardless of privacy choices
+""")
+```
+
+### 3. Include Context and Reasoning
+
+```python
+Knowledge("""
+Pricing Strategy Guidelines:
+
+Dynamic Pricing Rules:
+1. Consider competitor pricing (stay within 5% unless significant value difference)
+2. Factor in demand patterns (higher prices during peak periods)
+3. Account for inventory levels (discount slow-moving items)
+4. Maintain minimum profit margins (never below 15%)
+
+Rationale: This ensures competitiveness while maintaining profitability
+""")
+```
+
+### 4. Provide Examples and Edge Cases
+
+```python
+Knowledge("""
+Error Handling Guidelines:
+
+Standard Response Format:
+- Acknowledge the error occurred
+- Explain what went wrong (if known)
+- Provide next steps or alternatives
+- Offer additional assistance
+
+Examples:
+- File not found: "I couldn't locate that file. Please check the filename and try again."
+- Network error: "I'm experiencing connectivity issues. Please try again in a moment."
+- Invalid input: "The format you provided isn't recognized. Please use the format: YYYY-MM-DD"
+""")
+```
+
+### 5. Keep Knowledge Focused
+
+Each knowledge item should focus on one topic or domain:
+
+❌ **Avoid mixing unrelated topics:**
+```python
+Knowledge("""
+Handle customer complaints professionally and always calculate shipping costs accurately
+and remember to follow GDPR regulations when processing orders.
+""")
+```
+
+✅ **Keep knowledge focused:**
+```python
+# Separate knowledge items for each topic
+complaint_handling = Knowledge("""
+Customer Complaint Resolution:
+1. Listen actively and acknowledge concerns
+2. Apologize for any inconvenience
+3. Investigate the issue thoroughly
+4. Provide a clear resolution plan
+5. Follow up to ensure satisfaction
+""")
+
+shipping_knowledge = Knowledge("""
+Shipping Cost Calculation:
+- Use actual weight and dimensions
+- Include packaging materials in weight
+- Apply correct zone-based pricing
+- Add insurance for high-value items
+""")
+```
+
+### 6. Include "When to Use" Conditions in Your Knowledge
+
+**This is crucial!** Always specify when each piece of knowledge should be applied:
+
+❌ **Vague knowledge without conditions:**
+```python
+Knowledge("""
+Escalate to supervisor and offer 20% discount.
+""")
+```
+
+✅ **Clear knowledge with specific conditions:**
+```python
+Knowledge("""
+When a customer complaint involves:
+- Order value > $500 AND
+- Delay > 7 days AND  
+- Customer is repeat buyer
+
+Then escalate to supervisor and offer up to 20% discount.
+
+For all other complaints, follow standard resolution process.
+""")
+```
+
+### Examples of Well-Conditioned Knowledge
+
+```python
+# Financial advice with clear conditions
+Knowledge("""
+Investment Recommendations:
+
+When client age < 35 AND risk tolerance = high:
+- Recommend 80% stocks, 20% bonds
+- Focus on growth-oriented investments
+
+When client age 35-55 AND risk tolerance = moderate:
+- Recommend 60% stocks, 40% bonds
+- Balance growth and stability
+
+When client age > 55 OR risk tolerance = low:
+- Recommend 40% stocks, 60% bonds
+- Prioritize capital preservation
+""")
+
+# Customer service with specific triggers
+Knowledge("""
+Refund Authorization:
+
+When order was placed < 24 hours ago:
+- Auto-approve full refund, no questions asked
+
+When order was placed 24-72 hours ago:
+- Require manager approval for refunds > $100
+- Auto-approve refunds ≤ $100
+
+When order was placed > 72 hours ago:
+- Escalate all refund requests to management
+- Document reason for late request
+""")
+
+# Technical support with decision tree
+Knowledge("""
+System Performance Issues:
+
+When user reports "slow loading":
+1. First ask: What browser are you using?
+2. If Chrome/Firefox → Check extension conflicts
+3. If Safari/Edge → Check browser version
+4. If mobile → Check app version and restart
+
+When user reports "crashes":
+1. First ask: What were you doing when it crashed?
+2. If during file upload → Check file size limits
+3. If during data sync → Check internet connection
+4. If random crashes → Collect crash logs and escalate
+""")
+```
+
+## Knowledge Limitations
+
+### Maximum Knowledge Items
+- **Limit: 10 knowledge items** per agent
+- Each knowledge item should be focused on a specific domain
+- Combine related information into single knowledge items when possible
+
+### Content Length
+- Keep knowledge items concise but comprehensive
+- Focus on actionable information
+- Use clear, structured formatting
+
+### Update Frequency
+- Knowledge is static once provided to an agent
+- For dynamic information, consider using skills instead
+- Update knowledge when starting new conversations
+
+## Advanced Knowledge Patterns
+
+### Conditional Logic in Knowledge
+
+```python
+Knowledge("""
+Response Logic Based on User Type:
+
+For Business Users:
+- Focus on ROI and business impact
+- Use professional terminology
+- Provide executive summaries
+- Include implementation timelines
+
+For Technical Users:
+- Include technical details and specifications
+- Provide code examples when relevant
+- Discuss architecture and implementation
+- Mention potential technical challenges
+
+For General Users:
+- Use simple, non-technical language
+- Provide step-by-step instructions
+- Include screenshots or visual aids
+- Offer multiple solution approaches
+""")
+```
+
+### Knowledge with Decision Trees
+
+```python
+Knowledge("""
+Troubleshooting Decision Tree:
+
+Issue: User reports slow performance
+
+Step 1: Check system requirements
+- If requirements not met → Recommend system upgrade
+- If requirements met → Go to Step 2
+
+Step 2: Check network connectivity
+- If poor connection → Provide network troubleshooting
+- If good connection → Go to Step 3
+
+Step 3: Check application logs
+- If errors found → Address specific errors
+- If no errors → Escalate to technical support
+
+Always document the troubleshooting steps taken.
+""")
+```
+
+### Knowledge for Multi-step Processes
+
+```python
+Knowledge("""
+Customer Onboarding Process:
+
+Phase 1: Welcome and Setup (Day 1)
+- Send welcome email with login credentials
+- Provide quick start guide
+- Schedule onboarding call
+
+Phase 2: Initial Training (Week 1)
+- Conduct product demo
+- Set up initial configuration
+- Provide training materials
+
+Phase 3: Follow-up and Optimization (Week 2-4)
+- Check usage and adoption
+- Address any issues or questions
+- Optimize setup based on usage patterns
+
+Phase 4: Long-term Success (Month 2+)
+- Regular check-ins
+- Feature updates and training
+- Expansion opportunities
+""")
+```
+
+## Debugging Knowledge Issues
+
+### Common Problems and Solutions
+
+1. **Agent ignoring knowledge:**
+   - Ensure knowledge is specific and actionable
+   - Check that knowledge is relevant to the query
+   - Avoid overly general statements
+
+2. **Conflicting knowledge items:**
+   - Review knowledge for contradictions
+   - Prioritize and consolidate conflicting information
+   - Use clear hierarchies when multiple approaches exist
+
+3. **Knowledge too verbose:**
+   - Break down complex knowledge into focused items
+   - Use bullet points and clear structure
+   - Focus on essential information
+
+4. **Knowledge too vague:**
+   - Add specific examples and scenarios
+   - Include clear decision criteria
+   - Provide step-by-step processes
+
+Knowledge is a powerful tool for shaping agent behavior and ensuring consistent, domain-appropriate responses. By following these patterns and best practices, you can create effective knowledge bases that guide your agents to provide better, more contextual assistance. 
