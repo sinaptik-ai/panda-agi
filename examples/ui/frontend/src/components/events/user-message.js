@@ -92,11 +92,6 @@ const UserMessageEvent = ({
   };
 
   /**
-   * Replace all localhost:port/127.0.0.1:port/0.0.0.0:port in markdown hrefs with serverHost:port, only in the href (not visible text).
-   * @param {string} markdown
-   * @returns {string}
-   */
-  /**
    * Replace all localhost:port/127.0.0.1:port/0.0.0.0:port in any URL (markdown, HTML href/src, or plain text) with serverHost:port.
    * @param {string} text
    * @returns {string}
