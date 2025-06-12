@@ -13,10 +13,12 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./MarkdownRenderer";
 
+import { get_backend_server_url } from "../helpers/server";
+
 const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
   // State for sidebar width - use props if provided, otherwise default to 900
   const [sidebarWidth, setSidebarWidth] = useState(width || 900);
-  
+
   // Update internal state when width prop changes
   useEffect(() => {
     if (width && width !== sidebarWidth) {
@@ -27,108 +29,108 @@ const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
   const minWidth = 400;
   const maxWidth = 1050;
   const resizeRef = useRef(null);
-  
+
   // Add resize event listeners with improved handling
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isResizing) return;
-      
+
       // Calculate new width based on mouse position
       let newWidth = window.innerWidth - e.clientX;
-      
+
       // Apply constraints with smoothing
       newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
-      
+
       // Always update width when resizing for smoother experience
       setSidebarWidth(newWidth);
-      
+
       // Notify parent component about width changes if callback is provided
       if (onResize) {
         onResize(newWidth);
       }
-      
+
       // Prevent text selection during resize
       e.preventDefault();
     };
-    
+
     const handleMouseUp = () => {
       setIsResizing(false);
-      document.body.style.cursor = 'default';
-      document.body.style.userSelect = 'auto';
+      document.body.style.cursor = "default";
+      document.body.style.userSelect = "auto";
     };
-    
+
     // Handle cases where mouse moves outside the window
     const handleMouseLeave = () => {
       if (isResizing) {
         setIsResizing(false);
-        document.body.style.cursor = 'default';
-        document.body.style.userSelect = 'auto';
+        document.body.style.cursor = "default";
+        document.body.style.userSelect = "auto";
       }
     };
-    
+
     if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.addEventListener('mouseleave', handleMouseLeave);
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener("mouseleave", handleMouseLeave);
     }
-    
+
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('mouseleave', handleMouseLeave);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("mouseleave", handleMouseLeave);
     };
   }, [isResizing, minWidth, maxWidth, onResize]);
-  
+
   // Start resizing
   const startResizing = () => {
     setIsResizing(true);
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
   };
-  
+
   // Apply sidebar open class to body for main content shrinking
   useEffect(() => {
     if (isOpen) {
-      document.body.classList.add('sidebar-open');
+      document.body.classList.add("sidebar-open");
       // Add specific class to app container element for better targeting
-      const appContainer = document.querySelector('#root > div');
+      const appContainer = document.querySelector("#root > div");
       if (appContainer) {
-        appContainer.classList.add('content-shrink');
+        appContainer.classList.add("content-shrink");
       }
     } else {
-      document.body.classList.remove('sidebar-open');
-      const appContainer = document.querySelector('#root > div');
+      document.body.classList.remove("sidebar-open");
+      const appContainer = document.querySelector("#root > div");
       if (appContainer) {
-        appContainer.classList.remove('content-shrink');
+        appContainer.classList.remove("content-shrink");
       }
     }
-    
+
     return () => {
-      document.body.classList.remove('sidebar-open');
-      const appContainer = document.querySelector('#root > div');
+      document.body.classList.remove("sidebar-open");
+      const appContainer = document.querySelector("#root > div");
       if (appContainer) {
-        appContainer.classList.remove('content-shrink');
+        appContainer.classList.remove("content-shrink");
       }
     };
   }, [isOpen]);
   // Utility function to normalize filenames (remove leading './' or '/' if present)
   const normalizeFilename = (filename) => {
     if (!filename) return "";
-    if (filename.startsWith('./')) {
+    if (filename.startsWith("./")) {
       return filename.substring(2);
     }
-    if (filename.startsWith('/')) {
+    if (filename.startsWith("/")) {
       return filename.substring(1);
     }
     return filename;
   };
-  
+
   // State for normalized filename and content
   const [normalizedFilename, setNormalizedFilename] = useState("");
   const [fileContent, setFileContent] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  
+
   // Fetch file content when previewData changes
   useEffect(() => {
     if (!previewData) {
@@ -138,7 +140,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
     if (previewData.filename) {
       const normalized = normalizeFilename(previewData.filename);
       setNormalizedFilename(normalized);
-      
+
       // Only fetch content if it's not an image and we don't already have content
       const fileType = previewData.type || "text";
       if (fileType !== "image" && !previewData.content) {
@@ -156,20 +158,23 @@ const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
       setError(null);
     }
   }, [previewData]);
-  
+
   // Function to fetch file content
   const fetchFileContent = async (filename) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const fileUrl = `${process.env.REACT_APP_API_URL || "http://localhost:8001"}/files/${encodeURIComponent(filename)}`;
+      const fileUrl = get_backend_server_url(
+        `/files/${encodeURIComponent(filename)}`
+      );
+
       const response = await fetch(fileUrl);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch file: ${response.status}`);
       }
-      
+
       const content = await response.text();
       setFileContent(content);
     } catch (err) {
@@ -179,7 +184,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
       setIsLoading(false);
     }
   };
-  
+
   if (!isOpen || !previewData) return null;
 
   // Get language for syntax highlighting
@@ -302,7 +307,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
   const renderContent = () => {
     const type = previewData.type || "text";
     const content = fileContent || previewData.content || "";
-    
+
     // Show loading state
     if (isLoading) {
       return (
@@ -314,7 +319,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
         </div>
       );
     }
-    
+
     // Show error state
     if (error) {
       return (
@@ -471,9 +476,9 @@ const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
         );
       case "image":
         // For images, construct the URL from the filename
-        const imageUrl = `${
-          process.env.REACT_APP_API_URL || "http://localhost:8001"
-        }/files/${encodeURIComponent(normalizedFilename)}`;
+        const imageUrl = get_backend_server_url(
+          `/files/${encodeURIComponent(normalizedFilename)}`
+        );
 
         return (
           <div className="flex justify-center">
@@ -641,9 +646,9 @@ const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
 
   // Handle file download
   const handleFileDownload = () => {
-    const downloadUrl = `${
-      process.env.REACT_APP_API_URL || "http://localhost:8001"
-    }/files/download?file_path=${encodeURIComponent(normalizedFilename)}`;
+    const downloadUrl = get_backend_server_url(
+      `/files/download?file_path=${encodeURIComponent(normalizedFilename)}`
+    );
 
     // Create a temporary link and trigger download
     const link = document.createElement("a");
@@ -655,12 +660,15 @@ const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
   };
 
   return (
-    <div 
-      className="fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-lg z-50 flex flex-col" 
-      style={{ width: `${sidebarWidth}px`, '--sidebar-width': `${sidebarWidth}px` }}
+    <div
+      className="fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-lg z-50 flex flex-col"
+      style={{
+        width: `${sidebarWidth}px`,
+        "--sidebar-width": `${sidebarWidth}px`,
+      }}
     >
       {/* Resize handle */}
-      <div 
+      <div
         ref={resizeRef}
         className="absolute left-0 top-0 w-1 h-full cursor-col-resize hover:bg-blue-500 hover:opacity-50 z-50"
         onMouseDown={startResizing}
@@ -679,9 +687,9 @@ const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
             <a
               href={
                 previewData.url ||
-                `${
-                  process.env.REACT_APP_API_URL || "http://localhost:8001"
-                }/files/${encodeURIComponent(normalizedFilename)}`
+                get_backend_server_url(
+                  `/files/${encodeURIComponent(normalizedFilename)}`
+                )
               }
               target="_blank"
               rel="noopener noreferrer"
@@ -770,9 +778,9 @@ const globalStyles = `
 `;
 
 // Inject the global styles
-if (typeof document !== 'undefined') {
-  const styleEl = document.createElement('style');
-  styleEl.type = 'text/css';
+if (typeof document !== "undefined") {
+  const styleEl = document.createElement("style");
+  styleEl.type = "text/css";
   styleEl.innerHTML = globalStyles;
   document.head.appendChild(styleEl);
 }
