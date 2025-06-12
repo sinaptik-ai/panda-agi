@@ -222,9 +222,7 @@ const UserMessageEvent = ({
   };
 
   const renderStandardContent = () => {
-    console.log("Content::", payload.text);
     const replacedContent = replaceLocalhostInLinks(payload.text);
-    console.log("After content", payload.text);
     return (
       <div>
         <MarkdownRenderer onPreviewClick={onPreviewClick}>
