@@ -249,10 +249,10 @@ def get_all_skills_as_string() -> str:
     return "\n".join([skill.to_string() for skill in SkillRegistry.get_all_skills()])
 
 
-def execute_skill(skill_name: str, parameters: Dict[str, str]) -> Any:
+async def execute_skill(skill_name: str, parameters: Dict[str, str]) -> Any:
     """Execute a skill by name with given parameters"""
     skill_obj = SkillRegistry.get_skill(skill_name)
     if not skill_obj:
         raise ValueError(f"Skill '{skill_name}' not found")
 
-    return skill_obj.execute(**parameters)
+    return await skill_obj.execute(**parameters)
