@@ -5,6 +5,7 @@ WORKDIR /app
 
 # Install system dependencies for WeasyPrint and Node.js
 RUN apt-get update && apt-get install -y \
+    lsof \
     curl \
     gnupg \
     # WeasyPrint system dependencies

@@ -12,6 +12,7 @@ import FileExploreEvent from "./events/file-explore";
 import ShellExecEvent from "./events/shell-exec";
 import ShellViewEvent from "./events/shell-view";
 import ShellWriteEvent from "./events/shell-write";
+import SkillUseEvent from "./events/use-skill";
 
 // Event type mapping with their components and required props
 const EVENT_COMPONENTS = {
@@ -65,6 +66,10 @@ const EVENT_COMPONENTS = {
   },
   web_search_result: {
     component: WebSearchResultEvent,
+    props: ["payload"],
+  },
+  use_skill: {
+    component: SkillUseEvent,
     props: ["payload"],
   },
 };
