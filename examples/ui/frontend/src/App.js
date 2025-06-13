@@ -16,6 +16,8 @@ import MessageCard from "./components/MessageCard";
 import ContentSidebar from "./components/ContentSidebar";
 import "./App.css";
 
+import { get_backend_server_url } from "./helpers/server";
+
 function App() {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState("");
@@ -69,15 +71,12 @@ function App() {
             formData.append("conversation_id", conversationId);
           }
 
-          const response = await fetch(
-            `${
-              process.env.REACT_APP_API_URL || "http://localhost:8001"
-            }/files/upload`,
-            {
-              method: "POST",
-              body: formData,
-            }
-          );
+          const apiUrl = get_backend_server_url("/files/upload");
+
+          const response = await fetch(apiUrl, {
+            method: "POST",
+            body: formData,
+          });
 
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -287,10 +286,7 @@ function App() {
     setIsLoading(true);
 
     try {
-      const apiUrl =
-        process.env.NODE_ENV === "production"
-          ? "/api/agent/run"
-          : "http://localhost:8001/agent/run";
+      const apiUrl = get_backend_server_url("/agent/run");
 
       const requestBody = {
         query: messageContent,

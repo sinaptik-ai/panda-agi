@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import MarkdownRenderer from "../MarkdownRenderer";
 import { formatTimestamp } from "../../helpers/date";
+import { get_server_host, get_backend_server_url } from "../../helpers/server";
 
 const UserMessageEvent = ({
   payload,
@@ -32,9 +33,9 @@ const UserMessageEvent = ({
   const handleFileDownload = (filename) => {
     console.log("DEBUG: handleFileDownload called with filename:", filename);
 
-    const downloadUrl = `${
-      process.env.REACT_APP_API_URL || "http://localhost:8001"
-    }/files/download?file_path=${encodeURIComponent(filename)}`;
+    const downloadUrl = get_backend_server_url(
+      `/files/download?file_path=${encodeURIComponent(filename)}`
+    );
 
     console.log("DEBUG: Download URL:", downloadUrl);
 
@@ -55,7 +56,7 @@ const UserMessageEvent = ({
     if (onPreviewClick) {
       onPreviewClick({
         url: url,
-        title: `Localhost Server: ${url}`,
+        title: `Server URL: ${url}`,
         type: "iframe",
       });
     }
@@ -66,29 +67,80 @@ const UserMessageEvent = ({
     if (!text) return [];
 
     const localhostPatterns = [
-      // Full URLs - use negative lookahead to exclude trailing markdown syntax
-      /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?(?:\/[^\s]*?)?(?=\*{2,}|\s|$)/gi,
-      // Just localhost:port or 127.0.0.1:port
-      /(?:^|\s)((?:localhost|127\.0\.0\.1|0\.0\.0\.0):\d+)(?:\s|$)/gi,
+      // Full URLs: http://localhost:3000/docs
+      /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)([^\s]*)?/gi,
+      // Bare host:port, like localhost:3000
+      /\b(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)\b/gi,
     ];
 
     const urls = new Set();
+    const serverHost = get_server_host();
 
     localhostPatterns.forEach((pattern) => {
-      const matches = text.match(pattern);
-      if (matches) {
-        matches.forEach((match) => {
-          let url = match.trim();
-          // If it's just host:port, add http://
-          if (!url.startsWith("http")) {
-            url = `http://${url}`;
-          }
-          urls.add(url);
-        });
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        const [, , portWithColon, rawPath = ""] = match;
+
+        // Clean up any trailing markdown/punctuation artifacts
+        const cleanPath = rawPath.replace(/[`*)\]\s.,;!?]+$/, "");
+
+        urls.add(`${serverHost}${portWithColon}${cleanPath}`);
       }
     });
 
     return Array.from(urls);
+  };
+
+  /**
+   * Replace all localhost:port/127.0.0.1:port/0.0.0.0:port in any URL (markdown, HTML href/src, or plain text) with serverHost:port.
+   * @param {string} text
+   * @returns {string}
+   */
+  const replaceLocalhostInLinks = (text) => {
+    if (typeof text !== "string") return text || "";
+    const serverHost = get_server_host();
+
+    // Helper to ensure protocol is not duplicated
+    function safeReplace(proto, host, port) {
+      let cleanHost = serverHost;
+      // Always strip any protocol if proto is present
+      if (proto) cleanHost = cleanHost.replace(/^https?:\/\//, "");
+      return `${proto || ""}${cleanHost}${port}`;
+    }
+
+    // Replace in markdown links: [text](url)
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
+      const replacedUrl = url.replace(
+        /(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)/gi,
+        (m, proto = "", _host, port) => safeReplace(proto, _host, port)
+      );
+      return `[${linkText}](${replacedUrl})`;
+    });
+
+    // Replace in HTML href/src attributes
+    text = text.replace(
+      /(href|src)=("|')(.*?)(\2)/gi,
+      (match, attr, quote, url) => {
+        const replacedUrl = url.replace(
+          /(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)/gi,
+          (m, proto = "", _host, port) => safeReplace(proto, _host, port)
+        );
+        return `${attr}=${quote}${replacedUrl}${quote}`;
+      }
+    );
+
+    // Replace raw URLs in plain text (not part of markdown or HTML)
+    text = text.replace(
+      /(https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)([^\s)\]"']*)?)/gi,
+      (url, ...args) => {
+        return url.replace(
+          /(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)/i,
+          (m, proto = "", _host, port) => safeReplace(proto, _host, port)
+        );
+      }
+    );
+
+    return text;
   };
 
   // Get file icon based on extension
@@ -148,11 +200,11 @@ const UserMessageEvent = ({
           <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
           <div className="flex-1">
             <h4 className="font-semibold text-gray-900 text-sm">Error</h4>
-            <p className="text-sm text-gray-700 mt-1 leading-relaxed">
+            <div className="text-sm text-gray-700 mt-1 leading-relaxed">
               <MarkdownRenderer onPreviewClick={onPreviewClick}>
                 {payload.error || "An error occurred"}
               </MarkdownRenderer>
-            </p>
+            </div>
           </div>
         </div>
         {timestamp && (
@@ -164,19 +216,22 @@ const UserMessageEvent = ({
     );
   };
 
-  const renderStandardContent = () => (
-    <div>
-      <MarkdownRenderer onPreviewClick={onPreviewClick}>
-        {payload.text}
-      </MarkdownRenderer>
+  const renderStandardContent = () => {
+    const replacedContent = replaceLocalhostInLinks(payload.text);
+    return (
+      <div>
+        <MarkdownRenderer onPreviewClick={onPreviewClick}>
+          {replacedContent}
+        </MarkdownRenderer>
 
-      {timestamp && (
-        <p className="text-xs text-gray-400 mt-3 text-right font-medium">
-          {formatTimestamp(timestamp)}
-        </p>
-      )}
-    </div>
-  );
+        {timestamp && (
+          <p className="text-xs text-gray-400 mt-3 text-right font-medium">
+            {formatTimestamp(timestamp)}
+          </p>
+        )}
+      </div>
+    );
+  };
 
   const cardColor = isError
     ? "bg-red-50 border-red-200/60"
@@ -192,7 +247,7 @@ const UserMessageEvent = ({
       {/* Main Card */}
       <div className="flex justify-start">
         <div className={`event-card min-w-80 max-w-2xl ${cardColor} relative`}>
-          {content}
+          {replaceLocalhostInLinks(content)}
         </div>
       </div>
 
