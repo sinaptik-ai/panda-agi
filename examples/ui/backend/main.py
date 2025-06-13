@@ -12,7 +12,7 @@ from typing import AsyncGenerator, Dict, Optional, Union
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 from pydantic import BaseModel
 
 # Load environment variables from .env file
@@ -25,7 +25,8 @@ from panda_agi.client.models import (
     BaseStreamEvent,
     EventType,
 )
-from panda_agi.envs import LocalEnv
+from panda_agi.envs import LocalEnv, E2BEnv
+import mimetypes
 
 # Configure logging with more explicit settings
 logging.basicConfig(
@@ -46,7 +47,7 @@ WORKSPACE_PATH = os.getenv(
 )
 
 app = FastAPI(title="PandaAGI SDK API", version="1.0.0")
-local_env = LocalEnv(WORKSPACE_PATH)
+local_env: E2BEnv = E2BEnv("/workspace")
 
 # Store active conversations - in production, this would be in a database
 active_conversations: Dict[str, Agent] = {}
@@ -482,43 +483,43 @@ async def download_file(
 
 @app.get("/files/{file_path:path}")
 async def read_file(file_path: str):
-    """Read a file from the workspace and serve it directly"""
+    """
+    Read a file from the E2B sandbox workspace and serve it directly.
+    """
+    # Resolve and check within workspace via local_env logic
+    # local_env._resolve_path handles base_path restrictions
+    resolved = local_env._resolve_path(file_path)
+    # Optional: ensure it’s within base_path
+    base = Path(local_env.base_path).resolve()
     try:
-        # Resolve the file path relative to workspace
-        workspace_path = Path(WORKSPACE_PATH)
-        resolved_path = workspace_path / file_path
+        resolved.resolve().relative_to(base)
+    except Exception:
+        raise HTTPException(status_code=403, detail="Access denied: outside workspace")
 
-        # Security check: ensure the resolved path is within workspace
-        try:
-            resolved_path.resolve().relative_to(workspace_path.resolve())
-        except ValueError:
-            raise HTTPException(
-                status_code=403, detail="Access denied: path outside workspace"
-            )
+    # Check existence via sandbox API
+    exists_res = await local_env.path_exists(file_path)
+    if exists_res.get("status") != "exists":
+        raise HTTPException(status_code=404, detail="File not found")
 
-        # Check if file exists
-        if not resolved_path.exists():
-            raise HTTPException(status_code=404, detail="File not found")
+    # Read file as binary to preserve any type
+    read_res = await local_env.read_file(file_path, mode="rb")
+    if read_res.get("status") != "success":
+        detail = read_res.get("message", "Unknown error")
+        raise HTTPException(status_code=500, detail=f"Error reading file: {detail}")
 
-        if not resolved_path.is_file():
-            raise HTTPException(status_code=400, detail="Path is not a file")
+    content = read_res.get("content", b"")
+    # content may be bytes or str; ensure bytes for binary
+    if isinstance(content, str):
+        content_bytes = content.encode("utf-8")
+    else:
+        content_bytes = content
 
-        # Determine MIME type based on file extension
-        import mimetypes
+    # Determine MIME type by extension
+    mime_type, _ = mimetypes.guess_type(file_path)
+    if not mime_type:
+        mime_type = "application/octet-stream"
 
-        mime_type, _ = mimetypes.guess_type(str(resolved_path))
-        if mime_type is None:
-            mime_type = "application/octet-stream"
-
-        # Return file directly with proper content-type
-        return FileResponse(
-            path=resolved_path, media_type=mime_type, filename=resolved_path.name
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
+    return Response(content=content_bytes, media_type=mime_type)
 
 
 @app.get("/files/test-download")
