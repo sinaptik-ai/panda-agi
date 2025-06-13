@@ -163,9 +163,9 @@ def process_event_for_frontend(event) -> Optional[Dict]:
 
 
 @skill
-async def deploy_python_server(port):
+async def deploy_python_server(port) -> str:
     """
-    Deploys a simple Python HTTP server on the specified port.
+    Deploys a simple Python HTTP server on the specified port and return new url
 
     This function:
     - Kills any process currently running on the given port.
@@ -177,11 +177,12 @@ async def deploy_python_server(port):
     Returns:
         str: URL of the running server (e.g., http://localhost:8000).
     """
-    kill_cmd = f'PID=$(lsof -ti tcp:{port}) && if [ -n "$PID" ]; then kill -9 $PID; fi'
+    kill_cmd = "fuser -k 8000/tcp || true"
     start_cmd = f"nohup python -m http.server {port} > /dev/null 2>&1 &"
     logger.debug(f"Executing deploy skill to start server at port: {port}")
     await local_env.exec_shell(kill_cmd)
-    return await local_env.exec_shell(start_cmd)
+    await local_env.exec_shell(start_cmd)
+    return await local_env.get_hosted_url(port)
 
 def get_or_create_agent(conversation_id: Optional[str] = None) -> tuple[Agent, str]:
     """Get existing agent or create new one for conversation"""
@@ -273,6 +274,7 @@ async def run_agent(query_data: AgentQuery):
             },
         )
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 

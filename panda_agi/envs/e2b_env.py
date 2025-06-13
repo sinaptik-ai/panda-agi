@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Union
 from e2b_code_interpreter import Sandbox
 from .base_env import BaseEnv
+import time
 
 
 class E2BEnv(BaseEnv):
@@ -9,7 +10,7 @@ class E2BEnv(BaseEnv):
 
     def __init__(self, base_path: Union[str, Path]):
         super().__init__(base_path)
-        sbx =  Sandbox(timeout=3600)
+        sbx =  Sandbox()
         # Ensure base directory exists within sandbox
         sbx.files.make_dir(str(base_path))
         self.sandbox = sbx
@@ -52,18 +53,16 @@ class E2BEnv(BaseEnv):
         """
         Runs a shell command inside the sandbox.
         """
-        result = self.sandbox.commands.run(command, timeout=timeout, stream=False)
+        start = time.perf_counter()
+        result = self.sandbox.commands.run(command, cwd=str(self.working_directory) ,timeout=timeout)
+        end = time.perf_counter()
+
         return {
-            "status": "success" if result.return_code == 0 else "error",
+            "status": "success" if result.exit_code == 0 else "error",
             "stdout": result.stdout or "",
             "stderr": result.stderr or "",
-            "return_code": result.return_code,
-            "execution_time": result.execution_time,
-            **(
-                {"session_id": result.session_id, "pid": result.pid}
-                if not blocking
-                else {}
-            ),
+            "return_code": result.exit_code,
+            "execution_time": end - start
         }
 
     async def write_file(
@@ -170,3 +169,12 @@ class E2BEnv(BaseEnv):
                 return {"status": "not_found", "path": str_path}
             else:
                 return {"status": "error", "path": str_path, "details": msg}
+
+    async def get_hosted_url(self, port) -> str:
+        return self.sandbox.get_host(port)
+
+    def __del__(self):
+        """
+        Destructor: schedule sandbox.close() if possible.
+        """
+        self.sandbox.kill()
