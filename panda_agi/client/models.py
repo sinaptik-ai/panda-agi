@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
+import inspect
 
 from pydantic import BaseModel, Field
 
@@ -367,7 +368,7 @@ class Skill(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
-    def execute(self, **kwargs) -> Any:
+    async def execute(self, **kwargs) -> Any:
         """Execute the skill with given parameters"""
         # parse parameters to the correct type
         for param in self.parameters:
@@ -399,7 +400,7 @@ class Skill(BaseModel):
                     kwargs[param.name] = dict(param_value)
             # For other types, leave as is
 
-        return self.function(**kwargs)
+        return  await self.function(**kwargs) if inspect.iscoroutinefunction(self.function) else self.function(**kwargs)
 
     def to_string(self) -> str:
         """Convert skill to string for agent"""

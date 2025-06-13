@@ -36,7 +36,7 @@ class UseSkillHandler(ToolHandler):
             )
 
             # Execute the skill
-            result = execute_skill(skill_name, skill_parameters)
+            result = await execute_skill(skill_name, skill_parameters)
 
             # Add completion event with result
             await self.add_event(

@@ -20,7 +20,7 @@ load_dotenv()
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from panda_agi import Agent
+from panda_agi import Agent, skill
 from panda_agi.client.models import (
     BaseStreamEvent,
     EventType,
@@ -162,12 +162,33 @@ def process_event_for_frontend(event) -> Optional[Dict]:
         return None
 
 
+@skill
+async def deploy_python_server(port):
+    """
+    Deploys a simple Python HTTP server on the specified port.
+
+    This function:
+    - Kills any process currently running on the given port.
+    - Starts a new Python HTTP server on that port.
+
+    Args:
+        port (int): The port number on which to start the server.
+
+    Returns:
+        str: URL of the running server (e.g., http://localhost:8000).
+    """
+    kill_cmd = f'PID=$(lsof -ti tcp:{port}) && if [ -n "$PID" ]; then kill -9 $PID; fi'
+    start_cmd = f"nohup python -m http.server {port} > /dev/null 2>&1 &"
+    logger.debug(f"Executing deploy skill to start server at port: {port}")
+    await local_env.exec_shell(kill_cmd)
+    return await local_env.exec_shell(start_cmd)
+
 def get_or_create_agent(conversation_id: Optional[str] = None) -> tuple[Agent, str]:
     """Get existing agent or create new one for conversation"""
     if conversation_id and conversation_id in active_conversations:
         return active_conversations[conversation_id], conversation_id
 
-    agent = Agent(environment=local_env)
+    agent = Agent(environment=local_env, skills=[deploy_python_server])
     new_conversation_id = conversation_id or str(uuid.uuid4())
     active_conversations[new_conversation_id] = agent
 
@@ -420,13 +441,15 @@ async def download_file(
                     # Create HTML document from string and convert to PDF bytes
                     html_doc = weasyprint.HTML(string=html_with_style)
                     pdf_bytes = html_doc.write_pdf()
-                    
+
                     # Write to buffer
                     pdf_buffer = BytesIO()
                     pdf_buffer.write(pdf_bytes)
                     pdf_buffer.seek(0)
                 except Exception as pdf_error:
-                    logger.debug(f"PDF conversion error details: {type(pdf_error).__name__}: {pdf_error}")
+                    logger.debug(
+                        f"PDF conversion error details: {type(pdf_error).__name__}: {pdf_error}"
+                    )
                     raise pdf_error
 
                 logger.debug("Successfully converted HTML to PDF")
