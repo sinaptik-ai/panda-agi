@@ -1,10 +1,10 @@
+import inspect
 import json
 import logging
 import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
-import inspect
 
 from pydantic import BaseModel, Field
 
@@ -198,10 +198,10 @@ class FileFindEvent(BaseStreamEvent):
     """Event when agent searches for files or content within files"""
 
     type: str = "file_find"
-    file: Optional[str] = Field(description="Directory searched")
-    regex: Optional[str] = Field(description="Search pattern")
-    path: Optional[str] = Field(description="Path to the file")
-    glob_pattern: Optional[str] = Field(description="Search pattern")
+    file: Optional[str] = Field(default=None, description="Directory searched")
+    regex: Optional[str] = Field(default=None, description="Search pattern")
+    path: Optional[str] = Field(default=None, description="Path to the file")
+    glob_pattern: Optional[str] = Field(default=None, description="Search pattern")
 
 
 class FileExploreEvent(BaseStreamEvent):
@@ -403,7 +403,11 @@ class Skill(BaseModel):
                     kwargs[param.name] = dict(param_value)
             # For other types, leave as is
 
-        return  await self.function(**kwargs) if inspect.iscoroutinefunction(self.function) else self.function(**kwargs)
+        return (
+            await self.function(**kwargs)
+            if inspect.iscoroutinefunction(self.function)
+            else self.function(**kwargs)
+        )
 
     def to_string(self) -> str:
         """Convert skill to string for agent"""
