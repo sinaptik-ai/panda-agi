@@ -162,9 +162,10 @@ class WebNavigationResultEvent(BaseStreamEvent):
     """Event containing content extracted from a webpage"""
 
     type: str = "web_navigation_result"
-    url: str = Field(description="URL that was navigated")
-    content: str = Field(description="Extracted page content")
-    status_code: int = Field(description="HTTP status code")
+    success: bool = Field(description="Whether the navigation was successful")
+    url: Optional[str] = Field(default=None, description="URL that was navigated")
+    content: Optional[str] = Field(default=None, description="Extracted page content")
+    status_code: Optional[int] = Field(default=None, description="HTTP status code")
 
 
 # File System Events
@@ -228,7 +229,9 @@ class ShellViewEvent(BaseStreamEvent):
     type: str = "shell_view"
     id: str = Field(description="Execution ID")
     kill_process: bool = Field(description="Whether to kill the process")
-    wait_seconds: float = Field(description="Number of seconds to wait for output")
+    wait_seconds: Optional[float] = Field(
+        default=3, description="Number of seconds to wait for output"
+    )
 
 
 class ShellWriteEvent(BaseStreamEvent):

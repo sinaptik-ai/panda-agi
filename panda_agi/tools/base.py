@@ -76,6 +76,7 @@ class ToolHandler(ABC):
 
     async def send_response(self, msg_id: str, result: ToolResult) -> None:
         """Send standardized response message"""
+
         if not self.agent or not self.agent.is_connected:
             self.logger.warning("Cannot send response: agent not connected")
             return
@@ -83,7 +84,7 @@ class ToolHandler(ABC):
         response_message = WebSocketMessage(
             id=msg_id,
             type=MessageType.TOOL_RESULT.value,
-            payload=result.to_payload(),
+            payload=result.data,
         )
 
         try:

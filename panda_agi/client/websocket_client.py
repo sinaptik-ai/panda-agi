@@ -200,12 +200,15 @@ class WebSocketClient:
     async def send_message(self, message: Union[WebSocketMessage, dict]) -> str:
         """Send a message to the server"""
         logger.info(f"[WEBSOCKET] Sending message: {message}")
-        if not self.is_connected:
-            raise ConnectionError("Not connected to server")
+        try:
+            if not self.is_connected:
+                raise ConnectionError("Not connected to server")
+            if isinstance(message, dict):
+                message = WebSocketMessage(**message)
 
-        if isinstance(message, dict):
-            message = WebSocketMessage(**message)
-
-        await self.websocket.send(message.to_json())
-        logger.info(f"[WEBSOCKET] Sent message: {message.type}")
-        return message.id
+            await self.websocket.send(message.to_json())
+            logger.info(f"[WEBSOCKET] Sent message: {message.type}")
+            return message.id
+        except Exception as e:
+            logger.error(f"❌ Error sending message: {e}")
+            raise

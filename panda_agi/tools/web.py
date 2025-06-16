@@ -56,17 +56,13 @@ class WebNavigationHandler(ToolHandler):
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         await self.add_event(EventType.WEB_NAVIGATION, params)
-        result = beautiful_soup_navigation(**params)
+        result = await beautiful_soup_navigation(**params)
         await self.add_event(EventType.WEB_NAVIGATION_RESULT, result)
 
-        # Check if the result indicates success
-        if isinstance(result, dict) and "error" in result:
-            return ToolResult(
-                success=False,
-                error=result.get("error", "Unknown error in web navigation"),
-            )
+        success = result.pop("success", True)
 
-        return ToolResult(
-            success=True,
-            data=result if isinstance(result, dict) else {"content": result},
+        result = ToolResult(
+            success=success,
+            data=result,
         )
+        return result

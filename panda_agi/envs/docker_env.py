@@ -811,7 +811,7 @@ class DockerEnv(BaseEnv):
                 "command": command,
                 "working_directory": str(self.working_directory),
                 "container": self.container_name,
-                "note": "Non-blocking Docker processes run detached - use get_process_output to check status",
+                "note": "Non-blocking Docker processes run detached - use shell_view_output to check status",
             }
 
         except Exception as e:
@@ -837,7 +837,7 @@ class DockerEnv(BaseEnv):
             "running": True,  # We assume it's running since we can't easily check
             "command": process_info["command"],
             "container": process_info["container_name"],
-            "note": "Docker detached processes don't provide real-time status. Use get_process_output for logs.",
+            "note": "Docker detached processes don't provide real-time status. Use shell_view_output for logs.",
         }
 
     async def get_process_output(
