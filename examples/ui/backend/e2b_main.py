@@ -25,7 +25,7 @@ from panda_agi.client.models import (
     BaseStreamEvent,
     EventType,
 )
-from panda_agi.envs import LocalEnv, E2BEnv
+from panda_agi.envs import E2BEnv
 import mimetypes
 
 # Configure logging with more explicit settings
@@ -49,7 +49,6 @@ logger.setLevel(logging.DEBUG)
 WORKSPACE_PATH = "/workspace"
 
 app = FastAPI(title="PandaAGI SDK API", version="1.0.0")
-# local_env: E2BEnv = E2BEnv(WORKSPACE_PATH, timeout=900)
 
 # Store active conversations - in production, this would be in a database
 active_conversations: Dict[str, Agent] = {}
@@ -169,8 +168,8 @@ def get_or_create_agent(conversation_id: Optional[str] = None) -> tuple[Agent, s
     """Get existing agent or create new one for conversation"""
     if conversation_id and conversation_id in active_conversations:
         return active_conversations[conversation_id], conversation_id
-
-    local_env: E2BEnv = E2BEnv(WORKSPACE_PATH, timeout=900)
+    
+    local_env: E2BEnv = E2BEnv(WORKSPACE_PATH)
 
     @skill
     async def deploy_python_server(port) -> str:
@@ -358,7 +357,7 @@ async def upload_files(
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
-@app.get("/files/{conversation_id}/download")
+@app.get("/{conversation_id}/files/download")
 async def download_file(
     conversation_id: str,
     file_path: str = Query(..., description="Path to the file to download"),
@@ -678,4 +677,4 @@ if __name__ == "__main__":
         "yes",
     )
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=reload_enabled)
+    uvicorn.run("e2b_main:app", host="0.0.0.0", port=8001, reload=reload_enabled)

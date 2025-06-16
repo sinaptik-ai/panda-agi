@@ -35,7 +35,7 @@ const UserMessageEvent = ({
     console.log("DEBUG: handleFileDownload called with filename:", filename);
 
     const downloadUrl = get_backend_server_url(
-      `/files/${conversationId}/download?file_path=${encodeURIComponent(
+      `/${conversationId}/files/download?file_path=${encodeURIComponent(
         filename
       )}`
     );

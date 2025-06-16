@@ -654,7 +654,7 @@ const ContentSidebar = ({
   // Handle file download
   const handleFileDownload = () => {
     const downloadUrl = get_backend_server_url(
-      `/files/${conversationId}/download?file_path=${encodeURIComponent(
+      `/${conversationId}/files/download?file_path=${encodeURIComponent(
         normalizedFilename
       )}`
     );
@@ -697,7 +697,9 @@ const ContentSidebar = ({
               href={
                 previewData.url ||
                 get_backend_server_url(
-                  `/files/${encodeURIComponent(normalizedFilename)}`
+                  `/${conversationId}/files/${encodeURIComponent(
+                    normalizedFilename
+                  )}`
                 )
               }
               target="_blank"

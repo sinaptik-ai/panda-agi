@@ -12,7 +12,7 @@ from typing import AsyncGenerator, Dict, Optional, Union
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse, Response
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 # Load environment variables from .env file
@@ -25,8 +25,7 @@ from panda_agi.client.models import (
     BaseStreamEvent,
     EventType,
 )
-from panda_agi.envs import LocalEnv, E2BEnv
-import mimetypes
+from panda_agi.envs import LocalEnv
 
 # Configure logging with more explicit settings
 logging.basicConfig(
@@ -47,7 +46,7 @@ WORKSPACE_PATH = os.getenv(
 )
 
 app = FastAPI(title="PandaAGI SDK API", version="1.0.0")
-local_env: E2BEnv = E2BEnv("/workspace")
+local_env = LocalEnv(WORKSPACE_PATH)
 
 # Store active conversations - in production, this would be in a database
 active_conversations: Dict[str, Agent] = {}
@@ -163,9 +162,9 @@ def process_event_for_frontend(event) -> Optional[Dict]:
 
 
 @skill
-async def deploy_python_server(port) -> str:
+async def deploy_python_server(port):
     """
-    Deploys a simple Python HTTP server on the specified port and return new url
+    Deploys a simple Python HTTP server on the specified port.
 
     This function:
     - Kills any process currently running on the given port.
@@ -177,12 +176,11 @@ async def deploy_python_server(port) -> str:
     Returns:
         str: URL of the running server (e.g., http://localhost:8000).
     """
-    kill_cmd = "fuser -k 8000/tcp || true"
+    kill_cmd = f'PID=$(lsof -ti tcp:{port}) && if [ -n "$PID" ]; then kill -9 $PID; fi'
     start_cmd = f"nohup python -m http.server {port} > /dev/null 2>&1 &"
     logger.debug(f"Executing deploy skill to start server at port: {port}")
     await local_env.exec_shell(kill_cmd)
-    await local_env.exec_shell(start_cmd)
-    return await local_env.get_hosted_url(port)
+    return await local_env.exec_shell(start_cmd)
 
 def get_or_create_agent(conversation_id: Optional[str] = None) -> tuple[Agent, str]:
     """Get existing agent or create new one for conversation"""
@@ -274,7 +272,6 @@ async def run_agent(query_data: AgentQuery):
             },
         )
     except Exception as e:
-        print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -342,7 +339,7 @@ async def upload_files(
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
-@app.get("/files/download")
+@app.get("/{conversation_id}/files/download")
 async def download_file(
     file_path: str = Query(..., description="Path to the file to download"),
 ):
@@ -506,45 +503,45 @@ async def download_file(
         raise HTTPException(status_code=500, detail=f"Error downloading file: {str(e)}")
 
 
-@app.get("/files/{file_path:path}")
+@app.get("/{conversation_id}/files/{file_path:path}")
 async def read_file(file_path: str):
-    """
-    Read a file from the E2B sandbox workspace and serve it directly.
-    """
-    # Resolve and check within workspace via local_env logic
-    # local_env._resolve_path handles base_path restrictions
-    resolved = local_env._resolve_path(file_path)
-    # Optional: ensure it’s within base_path
-    base = Path(local_env.base_path).resolve()
+    """Read a file from the workspace and serve it directly"""
     try:
-        resolved.resolve().relative_to(base)
-    except Exception:
-        raise HTTPException(status_code=403, detail="Access denied: outside workspace")
+        # Resolve the file path relative to workspace
+        workspace_path = Path(WORKSPACE_PATH)
+        resolved_path = workspace_path / file_path
 
-    # Check existence via sandbox API
-    exists_res = await local_env.path_exists(file_path)
-    if exists_res.get("status") != "exists":
-        raise HTTPException(status_code=404, detail="File not found")
+        # Security check: ensure the resolved path is within workspace
+        try:
+            resolved_path.resolve().relative_to(workspace_path.resolve())
+        except ValueError:
+            raise HTTPException(
+                status_code=403, detail="Access denied: path outside workspace"
+            )
 
-    # Read file as binary to preserve any type
-    read_res = await local_env.read_file(file_path, mode="rb")
-    if read_res.get("status") != "success":
-        detail = read_res.get("message", "Unknown error")
-        raise HTTPException(status_code=500, detail=f"Error reading file: {detail}")
+        # Check if file exists
+        if not resolved_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
 
-    content = read_res.get("content", b"")
-    # content may be bytes or str; ensure bytes for binary
-    if isinstance(content, str):
-        content_bytes = content.encode("utf-8")
-    else:
-        content_bytes = content
+        if not resolved_path.is_file():
+            raise HTTPException(status_code=400, detail="Path is not a file")
 
-    # Determine MIME type by extension
-    mime_type, _ = mimetypes.guess_type(file_path)
-    if not mime_type:
-        mime_type = "application/octet-stream"
+        # Determine MIME type based on file extension
+        import mimetypes
 
-    return Response(content=content_bytes, media_type=mime_type)
+        mime_type, _ = mimetypes.guess_type(str(resolved_path))
+        if mime_type is None:
+            mime_type = "application/octet-stream"
+
+        # Return file directly with proper content-type
+        return FileResponse(
+            path=resolved_path, media_type=mime_type, filename=resolved_path.name
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
 
 
 @app.get("/files/test-download")
