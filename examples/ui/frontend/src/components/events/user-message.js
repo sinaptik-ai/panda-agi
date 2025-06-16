@@ -17,6 +17,7 @@ import { get_server_host, get_backend_server_url } from "../../helpers/server";
 const UserMessageEvent = ({
   payload,
   onPreviewClick,
+  conversationId,
   onFileClick,
   timestamp,
 }) => {
@@ -34,7 +35,9 @@ const UserMessageEvent = ({
     console.log("DEBUG: handleFileDownload called with filename:", filename);
 
     const downloadUrl = get_backend_server_url(
-      `/files/download?file_path=${encodeURIComponent(filename)}`
+      `/files/${conversationId}/download?file_path=${encodeURIComponent(
+        filename
+      )}`
     );
 
     console.log("DEBUG: Download URL:", downloadUrl);

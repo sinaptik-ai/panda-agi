@@ -15,7 +15,14 @@ import MarkdownRenderer from "./MarkdownRenderer";
 
 import { get_backend_server_url } from "../helpers/server";
 
-const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
+const ContentSidebar = ({
+  isOpen,
+  onClose,
+  previewData,
+  width,
+  onResize,
+  conversationId,
+}) => {
   // State for sidebar width - use props if provided, otherwise default to 900
   const [sidebarWidth, setSidebarWidth] = useState(width || 900);
 
@@ -166,7 +173,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
 
     try {
       const fileUrl = get_backend_server_url(
-        `/files/${encodeURIComponent(filename)}`
+        `/${conversationId}/files/${encodeURIComponent(filename)}`
       );
 
       const response = await fetch(fileUrl);
@@ -477,7 +484,7 @@ const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
       case "image":
         // For images, construct the URL from the filename
         const imageUrl = get_backend_server_url(
-          `/files/${encodeURIComponent(normalizedFilename)}`
+          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}`
         );
 
         return (
@@ -647,7 +654,9 @@ const ContentSidebar = ({ isOpen, onClose, previewData, width, onResize }) => {
   // Handle file download
   const handleFileDownload = () => {
     const downloadUrl = get_backend_server_url(
-      `/files/download?file_path=${encodeURIComponent(normalizedFilename)}`
+      `/files/${conversationId}/download?file_path=${encodeURIComponent(
+        normalizedFilename
+      )}`
     );
 
     // Create a temporary link and trigger download

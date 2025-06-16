@@ -81,7 +81,12 @@ const SPECIAL_EVENT_HANDLERS = {
   error: (props) => UserMessageEvent(props),
 };
 
-const EventList = ({ message, onPreviewClick, onFileClick }) => {
+const EventList = ({
+  message,
+  conversationId,
+  onPreviewClick,
+  onFileClick,
+}) => {
   if (!message.event || !message.event.data) return null;
 
   const eventData = message.event.data;
@@ -94,6 +99,7 @@ const EventList = ({ message, onPreviewClick, onFileClick }) => {
       payload,
       onPreviewClick,
       onFileClick,
+      conversationId,
       timestamp: eventData.timestamp,
     });
   }
