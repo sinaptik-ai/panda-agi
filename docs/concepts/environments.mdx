@@ -5,7 +5,7 @@ description: 'Understanding execution environments in PandaAGI SDK'
 
 ## What are Environments?
 
-Environments provide isolated execution contexts for general AI agents, allowing them to safely run code, access files, and execute shell commands. The PandaAGI SDK offers two main environment types that balance security, performance, and ease of use.
+Environments provide isolated execution contexts for general AI agents, allowing them to safely run code, access files, and execute shell commands. The PandaAGI SDK offers three main environment types that balance security, performance, and ease of use.
 
 <CardGroup cols={2}>
   <Card
@@ -21,6 +21,13 @@ Environments provide isolated execution contexts for general AI agents, allowing
     href="#docker-environment"
   >
     Containerized execution with strong isolation and port management
+  </Card>
+  <Card
+    title="E2B Environment"
+    icon="cloud"
+    href="#e2b-environment"
+  >
+    Cloud-based sandbox execution with secure isolation via E2B SDK
   </Card>
   <Card
     title="File Operations"
@@ -59,6 +66,38 @@ await local_env.write_file("hello.txt", "Hello, World!")
 content = await local_env.read_file("hello.txt")
 print(content["content"])
 ```
+
+## E2B Environment
+
+The `E2BEnv` executes operations in a secure cloud-based sandbox using the E2B Code Interpreter SDK, providing strong isolation without requiring Docker:
+
+```python
+from panda_agi.envs import E2BEnv
+
+# Create E2B sandbox environment
+e2b_env = E2BEnv(base_path="/workspace", timeout=3600)
+
+# Execute shell command in the sandbox
+result = await e2b_env.exec_shell("python --version")
+print(result["stdout"])
+
+# Write a file to the sandbox
+await e2b_env.write_file("hello.txt", "Hello from E2B sandbox!")
+
+# Read a file from the sandbox
+content = await e2b_env.read_file("hello.txt")
+print(content["content"])
+
+# Create directories with parent support
+await e2b_env.mkdir("path/to/new/dir", parents=True, exist_ok=True)
+```
+
+### Key Features
+
+- **Cloud-based Execution**: All operations run in a secure, isolated cloud environment
+- **No Local Installation**: No need to install Docker or other dependencies locally
+- **Automatic Cleanup**: Sandbox resources are automatically cleaned up after use
+- **Consistent Interface**: Uses the same API as other environment types for seamless switching
 
 ## Docker Environment
 
