@@ -576,10 +576,12 @@ class LocalEnv(BaseEnv):
         try:
             resolved_path = self._resolve_path(path)
             return resolved_path.exists()
-        except (OSError, ValueError, TypeError):
-            # Handle specific exceptions that might occur during path resolution
+        except (OSError, ValueError, TypeError) as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"Error in path_exists: {e}\n{error_trace}")
             return False
-            
+
     async def mkdir(self, path: Union[str, Path], parents: bool = False, exist_ok: bool = False) -> Dict[str, Any]:
         """
         Create a directory in the local environment.
