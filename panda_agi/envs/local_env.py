@@ -563,6 +563,50 @@ class LocalEnv(BaseEnv):
                 "path": str(self._resolve_path(path)),
             }
 
+    async def path_exists(self, path: Union[str, Path]) -> bool:
+        """
+        Check if a path exists in the local environment.
+
+        Args:
+            path: Path relative to current_directory or absolute within base_path.
+
+        Returns:
+            bool: True if the path exists, False otherwise
+        """
+        try:
+            resolved_path = self._resolve_path(path)
+            return resolved_path.exists()
+        except (OSError, ValueError, TypeError) as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"Error in path_exists: {e}\n{error_trace}")
+            return False
+
+    async def mkdir(self, path: Union[str, Path], parents: bool = False, exist_ok: bool = False) -> Dict[str, Any]:
+        """
+        Create a directory in the local environment.
+
+        Args:
+            path: Path relative to current_directory or absolute within base_path.
+            parents: If True, create parent directories as needed.
+            exist_ok: If False, an error is raised if the directory already exists.
+
+        Returns:
+            Dict[str, Any]: Result of the mkdir operation
+        """
+        try:
+            print("Creating directory: ", path)
+            resolved_path = self._resolve_path(path)
+            print("Resolved path: ", resolved_path)
+            resolved_path.mkdir(parents=parents, exist_ok=exist_ok)
+            return {"status": "success", "path": str(resolved_path)}
+        except FileExistsError:
+            if exist_ok:
+                return {"status": "success", "path": str(resolved_path), "message": "Directory already exists"}
+            return {"status": "error", "message": f"Directory already exists: {resolved_path}", "path": str(resolved_path)}
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to create directory: {str(e)}", "path": str(resolved_path)}
+            
     async def list_files(
         self,
         path: Optional[Union[str, Path]] = None,

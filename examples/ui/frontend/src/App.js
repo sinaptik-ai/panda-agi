@@ -642,6 +642,7 @@ function App() {
                 {message.type === "event" && (
                   <EventList
                     message={message}
+                    conversationId={conversationId}
                     onPreviewClick={handlePreviewClick}
                     onFileClick={handleFileClick}
                   />
@@ -784,6 +785,7 @@ function App() {
         isOpen={sidebarOpen}
         onClose={closeSidebar}
         previewData={previewData}
+        conversationId={conversationId}
         width={sidebarWidth}
         onResize={setSidebarWidth}
       />

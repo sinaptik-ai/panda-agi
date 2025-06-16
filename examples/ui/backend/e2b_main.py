@@ -12,7 +12,7 @@ from typing import AsyncGenerator, Dict, Optional, Union
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 from pydantic import BaseModel
 
 # Load environment variables from .env file
@@ -25,7 +25,8 @@ from panda_agi.client.models import (
     BaseStreamEvent,
     EventType,
 )
-from panda_agi.envs import LocalEnv
+from panda_agi.envs import E2BEnv
+import mimetypes
 
 # Configure logging with more explicit settings
 logging.basicConfig(
@@ -41,15 +42,17 @@ logger = logging.getLogger("panda_agi_api")
 logger.setLevel(logging.DEBUG)
 
 # Get workspace path from environment variable with fallback
-WORKSPACE_PATH = os.getenv(
-    "WORKSPACE_PATH", os.path.join(os.path.dirname(__file__), "workspace")
-)
+# WORKSPACE_PATH = os.getenv(
+#     "WORKSPACE_PATH", os.path.join(os.path.dirname(__file__), "workspace")
+# )
+
+WORKSPACE_PATH = "/workspace"
 
 app = FastAPI(title="PandaAGI SDK API", version="1.0.0")
-local_env = LocalEnv(WORKSPACE_PATH)
 
 # Store active conversations - in production, this would be in a database
 active_conversations: Dict[str, Agent] = {}
+
 
 # Add CORS middleware
 app.add_middleware(
@@ -161,31 +164,34 @@ def process_event_for_frontend(event) -> Optional[Dict]:
         return None
 
 
-@skill
-async def deploy_python_server(port):
-    """
-    Deploys a simple Python HTTP server on the specified port.
-
-    This function:
-    - Kills any process currently running on the given port.
-    - Starts a new Python HTTP server on that port.
-
-    Args:
-        port (int): The port number on which to start the server.
-
-    Returns:
-        str: URL of the running server (e.g., http://localhost:8000).
-    """
-    kill_cmd = f'PID=$(lsof -ti tcp:{port}) && if [ -n "$PID" ]; then kill -9 $PID; fi'
-    start_cmd = f"nohup python -m http.server {port} > /dev/null 2>&1 &"
-    logger.debug(f"Executing deploy skill to start server at port: {port}")
-    await local_env.exec_shell(kill_cmd)
-    return await local_env.exec_shell(start_cmd)
-
 def get_or_create_agent(conversation_id: Optional[str] = None) -> tuple[Agent, str]:
     """Get existing agent or create new one for conversation"""
     if conversation_id and conversation_id in active_conversations:
         return active_conversations[conversation_id], conversation_id
+    
+    local_env: E2BEnv = E2BEnv(WORKSPACE_PATH)
+
+    @skill
+    async def deploy_python_server(port) -> str:
+        """
+        Deploys a simple Python HTTP server on the specified port and return new url
+
+        This function:
+        - Kills any process currently running on the given port.
+        - Starts a new Python HTTP server on that port.
+
+        Args:
+            port (int): The port number on which to start the server.
+
+        Returns:
+            str: URL of the running server (e.g., http://localhost:8000).
+        """
+        kill_cmd = f"fuser -k {port}/tcp || true"
+        start_cmd = f"nohup python -m http.server {port} > /dev/null 2>&1 &"
+        logger.debug(f"Executing deploy skill to start server at port: {port}")
+        await local_env.exec_shell(kill_cmd)
+        await local_env.exec_shell(start_cmd)
+        return await local_env.get_hosted_url(port)
 
     agent = Agent(environment=local_env, skills=[deploy_python_server])
     new_conversation_id = conversation_id or str(uuid.uuid4())
@@ -230,8 +236,6 @@ async def event_stream(
                 # Skip events that couldn't be processed
                 continue
 
-            print(event_dict)
-
             # Format as SSE
             yield f"data: {json.dumps(event_dict)}\n\n"
 
@@ -272,6 +276,7 @@ async def run_agent(query_data: AgentQuery):
             },
         )
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -295,12 +300,16 @@ async def end_conversation(conversation_id: str):
 async def upload_files(
     file: UploadFile = File(...), conversation_id: Optional[str] = Form(None)
 ):
-    """Upload a file to the workspace"""
+    """Upload a file to the workspace using E2BEnv"""
     try:
-        # Ensure workspace directory exists
+        local_env = get_or_create_agent(conversation_id)[0].environment
+        # Use the environment's workspace path
         workspace_path = Path(WORKSPACE_PATH)
-        workspace_path.mkdir(parents=True, exist_ok=True)
 
+        if not local_env.path_exists(workspace_path):
+            # Ensure workspace directory exists using environment abstraction
+            await local_env.mkdir(workspace_path, parents=True, exist_ok=True)
+        
         # Sanitize filename to prevent directory traversal
         safe_filename = (
             file.filename.replace("..", "").replace("/", "_").replace("\\", "_")
@@ -308,7 +317,7 @@ async def upload_files(
         if not safe_filename:
             raise HTTPException(status_code=400, detail="Invalid filename")
 
-        # Create the full file path
+        # Create the target file path
         file_path = workspace_path / safe_filename
 
         # Handle file name conflicts by adding a counter
@@ -316,68 +325,82 @@ async def upload_files(
         original_stem = file_path.stem
         original_suffix = file_path.suffix
 
-        while file_path.exists():
+        # Check if file exists using E2BEnv and handle conflicts
+        while await local_env.path_exists(file_path):
             file_path = workspace_path / f"{original_stem}_{counter}{original_suffix}"
             counter += 1
 
-        # Write the file
+        # Read the uploaded file content
         content = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
+        
+        # Write the file using E2BEnv
+        result = await local_env.write_file(safe_filename, content, mode="wb", encoding=None)
+        
+        if result["status"] != "success":
+            raise Exception(f"Failed to write file: {result.get('message', 'Unknown error')}")
 
+        # Return success response
         return {
             "status": "success",
             "filename": file_path.name,
             "original_filename": file.filename,
             "size": len(content),
-            "path": str(file_path.relative_to(workspace_path)),
+            "path": str(file_path).replace(WORKSPACE_PATH, ""),
             "conversation_id": conversation_id,
             "event_type": "file_upload",
         }
 
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        logger.error(f"Error in upload_files: {e}\n{error_trace}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
 @app.get("/{conversation_id}/files/download")
 async def download_file(
+    conversation_id: str,
     file_path: str = Query(..., description="Path to the file to download"),
 ):
     """Download a file from the workspace"""
     try:
+        local_env = get_or_create_agent(conversation_id)[0].environment
         logger.debug(f"Download request for file_path: '{file_path}'")
         logger.debug(f"Current working directory: {os.getcwd()}")
         logger.debug(f"WORKSPACE_PATH: {WORKSPACE_PATH}")
 
-        # Resolve the file path relative to workspace
+        # Resolve the file path within environment
         workspace_path = Path(WORKSPACE_PATH)
-        logger.debug(f"Resolved workspace_path: {workspace_path.resolve()}")
+        file_path_str = str(file_path).lstrip("/")
+        resolved_path = workspace_path / file_path_str
+        logger.debug(f"Resolved file path: {resolved_path}")
 
-        resolved_path = workspace_path / file_path
-        logger.debug(f"Resolved file path: {resolved_path.resolve()}")
-        logger.debug(f"File exists: {resolved_path.exists()}")
-        logger.debug(
-            f"Is file: {resolved_path.is_file() if resolved_path.exists() else 'N/A'}"
-        )
+        # Check if file exists using E2BEnv
+        path_exists = await local_env.path_exists(file_path_str)
+        logger.debug(f"Path exists: {path_exists}")
 
         # Security check: ensure the resolved path is within workspace
-        try:
-            resolved_path.resolve().relative_to(workspace_path.resolve())
-            logger.debug("Security check passed")
-        except ValueError:
+        if not str(resolved_path).startswith(str(workspace_path)):
             logger.debug("Security check failed")
             raise HTTPException(
                 status_code=403, detail="Access denied: path outside workspace"
             )
 
         # Check if file exists
-        if not resolved_path.exists():
+        if not path_exists:
             logger.debug("File not found, raising 404")
             raise HTTPException(status_code=404, detail="File not found")
-
-        if not resolved_path.is_file():
-            logger.debug("Path is not a file, raising 400")
-            raise HTTPException(status_code=400, detail="Path is not a file")
+            
+        # Get file info to check if it's a directory
+        file_info = await local_env.list_files(resolved_path.parent)
+        if file_info["status"] == "success":
+            logger.debug(f"File info: {file_info}")
+            for file in file_info["files"]:
+                logger.debug(f"Checking file: {file}")
+                # Check if this is the file we're looking for and if it's a directory
+                if isinstance(file, dict) and file.get("name") == resolved_path.name and file.get("type") == "directory":
+                    logger.debug("Path is not a file, raising 400")
+                    raise HTTPException(status_code=400, detail="Path is not a file")
 
         logger.debug("File found, proceeding with download logic")
 
@@ -392,10 +415,12 @@ async def download_file(
 
                 logger.debug("Successfully imported markdown and weasyprint")
 
-                # Read markdown content
-                with open(resolved_path, "r", encoding="utf-8") as f:
-                    md_content = f.read()
-
+                # Read markdown content using E2BEnv
+                file_result = await local_env.read_file(resolved_path, mode="r", encoding="utf-8")
+                if file_result["status"] != "success":
+                    raise Exception(f"Failed to read file: {file_result.get('message', 'Unknown error')}")
+                
+                md_content = file_result["content"]
                 logger.debug(f"Read markdown content, length: {len(md_content)}")
 
                 # Convert markdown to HTML
@@ -486,61 +511,86 @@ async def download_file(
                 pass
 
         logger.debug(f"Serving regular file download: {resolved_path.name}")
-        # Return file for regular download with proper headers
+        # Read file content using E2BEnv and return it as a download
+        filename = resolved_path.name
+        
+        # Read file content using E2BEnv
+        file_result = await local_env.read_file(resolved_path, mode="rb", encoding=None)
+        if file_result["status"] != "success":
+            raise Exception(f"Failed to read file: {file_result.get('message', 'Unknown error')}")
+        
+        # Create a temporary file to serve
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            # Ensure content is bytes
+            content = file_result["content"]
+            if isinstance(content, str):
+                content = content.encode('utf-8')
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+            
+        # Return file for download
         return FileResponse(
-            path=resolved_path,
-            filename=resolved_path.name,
-            media_type="application/octet-stream",
-            headers={
-                "Content-Disposition": f"attachment; filename={resolved_path.name}"
-            },
+            path=temp_file_path,
+            filename=filename,
+            media_type=mimetypes.guess_type(filename)[0] or "application/octet-stream",
         )
-
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.debug(f"Unexpected error: {e}")
+        import traceback
+        error_trace = traceback.format_exc()
+        logger.error(f"Error in download_file: {e}\n{error_trace}")
         raise HTTPException(status_code=500, detail=f"Error downloading file: {str(e)}")
 
 
 @app.get("/{conversation_id}/files/{file_path:path}")
-async def read_file(file_path: str):
-    """Read a file from the workspace and serve it directly"""
+async def read_file(conversation_id: str, file_path: str):
+    """
+    Read a file from the E2B sandbox workspace and serve it directly.
+    """
     try:
-        # Resolve the file path relative to workspace
-        workspace_path = Path(WORKSPACE_PATH)
-        resolved_path = workspace_path / file_path
-
-        # Security check: ensure the resolved path is within workspace
+        local_env = get_or_create_agent(conversation_id)[0].environment
+        # Resolve and check within workspace via local_env logic
+        # local_env._resolve_path handles base_path restrictions
+        resolved = local_env._resolve_path(file_path)
+        # Optional: ensure it's within base_path
+        base = Path(local_env.base_path).resolve()
         try:
-            resolved_path.resolve().relative_to(workspace_path.resolve())
-        except ValueError:
-            raise HTTPException(
-                status_code=403, detail="Access denied: path outside workspace"
-            )
+            resolved.resolve().relative_to(base)
+        except Exception:
+            raise HTTPException(status_code=403, detail="Access denied: outside workspace")
 
-        # Check if file exists
-        if not resolved_path.exists():
+        # Check existence via sandbox API
+        exists_res = await local_env.path_exists(file_path)
+        if not exists_res:
             raise HTTPException(status_code=404, detail="File not found")
 
-        if not resolved_path.is_file():
-            raise HTTPException(status_code=400, detail="Path is not a file")
+        # Read file as binary to preserve any type
+        read_res = await local_env.read_file(file_path, mode="rb")
+        if read_res.get("status") != "success":
+            detail = read_res.get("message", "Unknown error")
+            raise HTTPException(status_code=500, detail=f"Error reading file: {detail}")
 
-        # Determine MIME type based on file extension
-        import mimetypes
+        content = read_res.get("content", b"")
+        # content may be bytes or str; ensure bytes for binary
+        if isinstance(content, str):
+            content_bytes = content.encode("utf-8")
+        else:
+            content_bytes = content
 
-        mime_type, _ = mimetypes.guess_type(str(resolved_path))
-        if mime_type is None:
+        # Determine MIME type by extension
+        mime_type, _ = mimetypes.guess_type(file_path)
+        if not mime_type:
             mime_type = "application/octet-stream"
 
-        # Return file directly with proper content-type
-        return FileResponse(
-            path=resolved_path, media_type=mime_type, filename=resolved_path.name
-        )
-
+        return Response(content=content_bytes, media_type=mime_type)
+        
     except HTTPException:
+        # Re-raise HTTP exceptions without modification
         raise
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        logger.error(f"Error in read_file: {e}\n{error_trace}")
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
 
 
@@ -627,4 +677,4 @@ if __name__ == "__main__":
         "yes",
     )
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=reload_enabled)
+    uvicorn.run("e2b_main:app", host="0.0.0.0", port=8001, reload=reload_enabled)
