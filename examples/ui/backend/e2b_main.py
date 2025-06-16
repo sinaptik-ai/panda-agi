@@ -186,7 +186,7 @@ def get_or_create_agent(conversation_id: Optional[str] = None) -> tuple[Agent, s
         Returns:
             str: URL of the running server (e.g., http://localhost:8000).
         """
-        kill_cmd = "fuser -k 8000/tcp || true"
+        kill_cmd = f"fuser -k {port}/tcp || true"
         start_cmd = f"nohup python -m http.server {port} > /dev/null 2>&1 &"
         logger.debug(f"Executing deploy skill to start server at port: {port}")
         await local_env.exec_shell(kill_cmd)
