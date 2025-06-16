@@ -8,7 +8,14 @@ from panda_agi.handlers import LogsHandler
 
 @skill
 def example_skill(query: str) -> str:
-    """Example skill"""
+    """Example skill
+    This skill is can be used to... (add description)
+    Args:
+        query: The query to send to the skill
+
+    Returns:
+        The result of the skill
+    """
 
     # Do something
 
@@ -47,7 +54,7 @@ When a user asks you to analyze data, you must follow these steps:
         environment=agent_env,
         event_handlers=handlers,
         # knowledge=knowledge,
-        # skills=[],
+        # skills=skills,
     )
 
     # First request - will automatically connect

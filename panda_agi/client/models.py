@@ -1,10 +1,10 @@
+import inspect
 import json
 import logging
 import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
-import inspect
 
 from pydantic import BaseModel, Field
 
@@ -162,9 +162,10 @@ class WebNavigationResultEvent(BaseStreamEvent):
     """Event containing content extracted from a webpage"""
 
     type: str = "web_navigation_result"
-    url: str = Field(description="URL that was navigated")
-    content: str = Field(description="Extracted page content")
-    status_code: int = Field(description="HTTP status code")
+    success: bool = Field(description="Whether the navigation was successful")
+    url: Optional[str] = Field(default=None, description="URL that was navigated")
+    content: Optional[str] = Field(default=None, description="Extracted page content")
+    status_code: Optional[int] = Field(default=None, description="HTTP status code")
 
 
 # File System Events
@@ -197,10 +198,10 @@ class FileFindEvent(BaseStreamEvent):
     """Event when agent searches for files or content within files"""
 
     type: str = "file_find"
-    file: Optional[str] = Field(description="Directory searched")
-    regex: Optional[str] = Field(description="Search pattern")
-    path: Optional[str] = Field(description="Path to the file")
-    glob_pattern: Optional[str] = Field(description="Search pattern")
+    file: Optional[str] = Field(default=None, description="Directory searched")
+    regex: Optional[str] = Field(default=None, description="Search pattern")
+    path: Optional[str] = Field(default=None, description="Path to the file")
+    glob_pattern: Optional[str] = Field(default=None, description="Search pattern")
 
 
 class FileExploreEvent(BaseStreamEvent):
@@ -228,7 +229,9 @@ class ShellViewEvent(BaseStreamEvent):
     type: str = "shell_view"
     id: str = Field(description="Execution ID")
     kill_process: bool = Field(description="Whether to kill the process")
-    wait_seconds: float = Field(description="Number of seconds to wait for output")
+    wait_seconds: Optional[float] = Field(
+        default=3, description="Number of seconds to wait for output"
+    )
 
 
 class ShellWriteEvent(BaseStreamEvent):
@@ -400,7 +403,11 @@ class Skill(BaseModel):
                     kwargs[param.name] = dict(param_value)
             # For other types, leave as is
 
-        return  await self.function(**kwargs) if inspect.iscoroutinefunction(self.function) else self.function(**kwargs)
+        return (
+            await self.function(**kwargs)
+            if inspect.iscoroutinefunction(self.function)
+            else self.function(**kwargs)
+        )
 
     def to_string(self) -> str:
         """Convert skill to string for agent"""
