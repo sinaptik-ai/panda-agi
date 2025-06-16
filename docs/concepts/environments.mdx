@@ -1,6 +1,6 @@
 ---
-title: 'Environments'
-description: 'Understanding execution environments in PandaAGI SDK'
+title: "Environments"
+description: "Understanding execution environments in PandaAGI SDK"
 ---
 
 ## What are Environments?
@@ -8,40 +8,20 @@ description: 'Understanding execution environments in PandaAGI SDK'
 Environments provide isolated execution contexts for general AI agents, allowing them to safely run code, access files, and execute shell commands. The PandaAGI SDK offers three main environment types that balance security, performance, and ease of use.
 
 <CardGroup cols={2}>
-  <Card
-    title="Local Environment"
-    icon="computer"
-    href="#local-environment"
-  >
+  <Card title="Local Environment" icon="computer" href="#local-environment">
     Direct execution on the host system with working directory isolation
   </Card>
-  <Card
-    title="Docker Environment"
-    icon="docker"
-    href="#docker-environment"
-  >
+  <Card title="Docker Environment" icon="docker" href="#docker-environment">
     Containerized execution with strong isolation and port management
   </Card>
-  <Card
-    title="E2B Environment"
-    icon="cloud"
-    href="#e2b-environment"
-  >
-    Cloud-based sandbox execution with secure isolation via E2B SDK
-  </Card>
-  <Card
-    title="File Operations"
-    icon="file"
-    href="#file-operations"
-  >
+  <Card title="File Operations" icon="file" href="#file-operations">
     Read, write, delete files with support for various formats including PDFs
   </Card>
-  <Card
-    title="Shell Execution"
-    icon="terminal"
-    href="#shell-command-execution"
-  >
+  <Card title="Shell Execution" icon="terminal" href="#shell-command-execution">
     Execute shell commands with both blocking and non-blocking modes
+  </Card>
+  <Card title="E2B Environment" icon="cloud" href="#e2b-environment">
+    Cloud-based sandbox execution with secure isolation via E2B SDK
   </Card>
 </CardGroup>
 
@@ -67,40 +47,7 @@ content = await local_env.read_file("hello.txt")
 print(content["content"])
 ```
 
-## E2B Environment
-
-The `E2BEnv` executes operations in a secure cloud-based sandbox using the E2B Code Interpreter SDK, providing strong isolation without requiring Docker:
-
-```python
-from panda_agi.envs import E2BEnv
-
-# Create E2B sandbox environment
-e2b_env = E2BEnv(base_path="/workspace", timeout=3600)
-
-# Execute shell command in the sandbox
-result = await e2b_env.exec_shell("python --version")
-print(result["stdout"])
-
-# Write a file to the sandbox
-await e2b_env.write_file("hello.txt", "Hello from E2B sandbox!")
-
-# Read a file from the sandbox
-content = await e2b_env.read_file("hello.txt")
-print(content["content"])
-
-# Create directories with parent support
-await e2b_env.mkdir("path/to/new/dir", parents=True, exist_ok=True)
-```
-
-### Key Features
-
-- **Cloud-based Execution**: All operations run in a secure, isolated cloud environment
-- **No Local Installation**: No need to install Docker or other dependencies locally
-- **Automatic Cleanup**: Sandbox resources are automatically cleaned up after use
-- **Consistent Interface**: Uses the same API as other environment types for seamless switching
-
 ## Docker Environment
-
 
 The `DockerEnv` runs operations inside a Docker container for better isolation:
 
@@ -141,7 +88,7 @@ Mount additional directories from the host:
 
 ```python
 env = DockerEnv(
-    base_path="/workspace", 
+    base_path="/workspace",
     image="python:3.9-slim",
     volumes={
         "/host/data": "/container/data",
@@ -157,7 +104,7 @@ Pass environment variables to the container:
 ```python
 env = DockerEnv(
     base_path="/workspace",
-    image="python:3.9-slim", 
+    image="python:3.9-slim",
     env_vars={
         "PYTHONPATH": "/workspace/lib",
         "API_KEY": "your-secret-key",
@@ -180,7 +127,7 @@ env = DockerEnv(
 
 # Custom port mappings
 env = DockerEnv(
-    base_path="/workspace", 
+    base_path="/workspace",
     image="python:3.9-slim",
     ports={
         8080: 8080,  # host_port: container_port
@@ -257,8 +204,8 @@ for file_info in result["files"]:
 
 # List files recursively with hidden files
 result = await env.list_files(
-    path="src/", 
-    recursive=True, 
+    path="src/",
+    recursive=True,
     include_hidden=True
 )
 
@@ -285,7 +232,7 @@ print(f"Execution time: {result['execution_time']} seconds")
 
 # Command with timeout
 result = await env.exec_shell(
-    "sleep 10", 
+    "sleep 10",
     timeout=5.0
 )
 if result["status"] == "timeout":
@@ -299,29 +246,61 @@ Perfect for long-running processes or interactive commands:
 ```python
 # Start non-blocking process
 result = await env.exec_shell(
-    "python server.py", 
+    "python server.py",
     blocking=False
 )
 
 if result["status"] == "success":
     session_id = result["session_id"]
     print(f"Process started with session ID: {session_id}")
-    
+
     # Check process status
     status = env.get_process_status(session_id)
     print(f"Process running: {status['running']}")
-    
+
     # Get process output
     output = env.get_process_output(session_id)
     print(f"Current output: {output['stdout']}")
-    
+
     # Write to process (Local environment only)
     if hasattr(env, 'write_to_process'):
         env.write_to_process(session_id, "help", press_enter=True)
-    
+
     # Terminate process
     env.terminate_process(session_id)
 ```
+
+## E2B Environment
+
+The `E2BEnv` executes operations in a secure cloud-based sandbox using the E2B Code Interpreter SDK, providing strong isolation without requiring Docker:
+
+```python
+from panda_agi.envs import E2BEnv
+
+# Create E2B sandbox environment
+e2b_env = E2BEnv(base_path="/workspace", timeout=3600)
+
+# Execute shell command in the sandbox
+result = await e2b_env.exec_shell("python --version")
+print(result["stdout"])
+
+# Write a file to the sandbox
+await e2b_env.write_file("hello.txt", "Hello from E2B sandbox!")
+
+# Read a file from the sandbox
+content = await e2b_env.read_file("hello.txt")
+print(content["content"])
+
+# Create directories with parent support
+await e2b_env.mkdir("path/to/new/dir", parents=True, exist_ok=True)
+```
+
+### Key Features
+
+- **Cloud-based Execution**: All operations run in a secure, isolated cloud environment
+- **No Local Installation**: No need to install Docker or other dependencies locally
+- **Automatic Cleanup**: Sandbox resources are automatically cleaned up after use
+- **Consistent Interface**: Uses the same API as other environment types for seamless switching
 
 ## Container Lifecycle Management
 
@@ -348,8 +327,6 @@ if env.is_running:
 await env.stop_container(remove=True)
 ```
 
-
-
 ## Best Practices
 
 <AccordionGroup>
@@ -366,22 +343,23 @@ await env.stop_container(remove=True)
         image="python:3.9-slim",
         auto_remove=True
     )
+    
+    # Cloud-based sandbox isolation - E2B environment
+    cloud_env = E2BEnv(
+        base_path="/workspace",
+        timeout=3600
+    )
     ```
   </Accordion>
 
-  <Accordion title="Error Handling">
-    Always check operation results:
-    
-    ```python
-    result = await env.exec_shell("command")
-    if result["status"] != "success":
-        logger.error(f"Command failed: {result.get('message', result.get('stderr'))}")
-        return
-    
-    # Process successful result
-    print(result["stdout"])
-    ```
-  </Accordion>
+{" "}
+
+<Accordion title="Error Handling">
+  Always check operation results: ```python result = await
+  env.exec_shell("command") if result["status"] != "success":
+  logger.error(f"Command failed: {result.get("message", result.get("stderr"))}")
+  return # Process successful result print(result["stdout"]) ```
+</Accordion>
 
   <Accordion title="Path Management">
     Use relative paths within the environment:
@@ -459,18 +437,10 @@ await env.stop_container(remove=True)
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card
-    title="Quickstart"
-    icon="bolt"
-    href="/quickstart"
-  >
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
     Get started quickly with PandaAGI
   </Card>
-  <Card
-    title="API Key"
-    icon="key"
-    href="https://agi.pandas-ai.com"
-  >
+  <Card title="API Key" icon="key" href="https://agi.pandas-ai.com">
     Learn how to obtain and use your API key
   </Card>
-</CardGroup> 
+</CardGroup>
