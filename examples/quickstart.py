@@ -8,14 +8,7 @@ from panda_agi.handlers import LogsHandler
 
 @skill
 def example_skill(query: str) -> str:
-    """Example skill
-    This skill is can be used to... (add description)
-    Args:
-        query: The query to send to the skill
-
-    Returns:
-        The result of the skill
-    """
+    """Example skill"""
 
     # Do something
 

@@ -3,7 +3,7 @@ import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Callable, Dict, List, Optional, Union
+from typing import Any, AsyncGenerator, Callable, Dict, List, Literal, Optional, Union
 
 from dotenv import load_dotenv
 
@@ -44,6 +44,7 @@ class Agent:
         self,
         host: str = "wss://agi-api.pandas-ai.com",
         api_key: str = None,
+        llm_type: Literal["lite", "pro"] = "pro",
         conversation_id: Optional[str] = None,
         auto_reconnect: bool = False,
         reconnect_interval: float = 5.0,
@@ -61,6 +62,7 @@ class Agent:
     ):
         load_dotenv()
         self.api_key = api_key or os.getenv("PANDA_AGI_KEY")
+        self.llm_type = llm_type
         if not self.api_key:
             logger.warning(
                 "No API key provided. Please set PANDA_AGI_KEY in environment or pass api_key parameter"
@@ -216,6 +218,7 @@ class Agent:
                 "query": query,
                 "knowledge": [k.content for k in self.state.knowledge],
                 "skills": [s.to_string() for s in self.state.skills],
+                "llm_type": self.llm_type,
             },
         )
         try:
