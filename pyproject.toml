@@ -22,6 +22,7 @@ dependencies = [
     "markdownify",
     "websockets",
     "tavily-python",
+    "e2b-code-interpreter",
 ]
 
 [project.optional-dependencies]
