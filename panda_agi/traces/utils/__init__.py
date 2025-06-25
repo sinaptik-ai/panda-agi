@@ -39,7 +39,7 @@ async def send_traces(traces: Union[LLMCallTrace, List[LLMCallTrace]]):
         return False
     
     # Get server URL from environment variable or use default
-    server_url = os.environ.get("PANDA_AGI_SERVER", "https://api.pandaagi.com")
+    server_url = os.environ.get("PANDA_AGI_SERVER", "https://agi-api.pandas-ai.com")
     backend_url = f"{server_url}/llm/trace"
     
     # Convert single trace to list if needed
