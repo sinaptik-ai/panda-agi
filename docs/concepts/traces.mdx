@@ -24,7 +24,6 @@ The `observe` class is designed to:
 - Collect detailed information about requests and responses
 - Track usage metrics (tokens, costs)
 - Measure latency and performance
-- Print summaries of collected data
 
 ### Usage Patterns
 
@@ -35,7 +34,7 @@ The decorator pattern is perfect for monitoring entire functions that make LLM A
 ```python
 from panda_agi.traces import observe
 
-@observe(providers=["openai"], model_name="gpt-4")
+@observe(providers=["openai"], model_name="openai_train")
 async def generate_content():
     # Your code making API calls
     response = await openai.ChatCompletion.acreate(
@@ -88,167 +87,6 @@ PandaAGI traces currently support the following LLM providers:
     Universal provider that supports multiple backends
   </Card>
 </CardGroup>
-
-## Example: Model Performance Analysis
-
-One powerful application is comparing performance metrics across different models:
-
-```python
-import asyncio
-import openai
-from panda_agi.traces import observe
-
-async def compare_models():
-    # Define test prompt
-    prompt = "Explain the theory of relativity in simple terms"
-
-    # Test with GPT-3.5
-    with observe(model_name="gpt-3.5-turbo", providers=["openai"]):
-        await openai.ChatCompletion.acreate(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-    # Test with GPT-4
-    with observe(model_name="gpt-4", providers=["openai"]):
-        await openai.ChatCompletion.acreate(
-            model="gpt-4",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-if __name__ == "__main__":
-    asyncio.run(compare_models())
-```
-
-In this example, the `model_name` parameter serves as a tag that helps you clearly identify which trace belongs to which model when reviewing the output.
-
-## Real-World Use Cases
-
-### Debugging Complex Workflows
-
-When your application has complex chains of LLM calls, traces help you understand exactly what's happening at each step:
-
-```python
-from panda_agi.traces import observe
-
-@observe(debug=True)
-async def content_generation_pipeline():
-    # Stage 1: Generate outline
-    outline = await generate_outline(topic)
-
-    # Stage 2: Expand each section
-    sections = []
-    for item in outline:
-        section = await expand_section(item)
-        sections.append(section)
-
-    # Stage 3: Final polish
-    final_content = await polish_content(sections)
-
-    return final_content
-```
-
-### Cost Optimization
-
-Trace LLM API usage to identify opportunities for optimization:
-
-```python
-with observe(providers=["openai"]):
-    # Run your application code
-    await my_app_function()
-
-# Analyze the output to find:
-# - Excessive token usage
-# - Redundant API calls
-# - Slow response times
-```
-
-### A/B Testing
-
-Compare different prompt structures or models to determine which performs best:
-
-```python
-# Test Prompt A
-with observe(model_name="prompt-a"):
-    response_a = await openai.ChatCompletion.acreate(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt_a}]
-    )
-
-# Test Prompt B
-with observe(model_name="prompt-b"):
-    response_b = await openai.ChatCompletion.acreate(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt_b}]
-    )
-```
-
-Here, the `model_name` parameter is used to tag each experiment, making it easy to distinguish between the two in the output.
-
-## Advanced Usage: Custom Data Processing
-
-For advanced usage, you can access the collected data programmatically:
-
-```python
-from panda_agi.traces import observe
-
-async def analyze_call_patterns():
-    # Setup the observer
-    observer = observe(providers=["openai"])
-
-    # Use as context manager
-    with observer:
-        # Your code making API calls
-        await perform_multiple_calls()
-
-    # Access collected data after the context exits
-    for proxy in observer.active:
-        if hasattr(proxy, "collected_data"):
-            # Calculate average response time
-            total_time = sum(item.get("duration", 0) for item in proxy.collected_data)
-            avg_time = total_time / len(proxy.collected_data)
-
-            # Calculate total token usage
-            total_tokens = sum(
-                item.get("usage", {}).get("total_tokens", 0)
-                for item in proxy.collected_data
-            )
-
-            print(f"Average response time: {avg_time:.2f}s")
-            print(f"Total tokens used: {total_tokens}")
-```
-
-## Integration with Other Tools
-
-The traces module works seamlessly with other components of the PandaAGI ecosystem:
-
-```python
-from panda_agi import Agent, Knowledge
-from panda_agi.envs import LocalEnv
-from panda_agi.traces import observe
-from panda_agi.handlers import LogsHandler
-
-@observe(providers=["openai", "anthropic"])
-async def agent_workflow():
-    # Create and configure agent
-    agent = Agent(
-        environment=LocalEnv("./workspace"),
-        event_handlers=[LogsHandler(use_colors=True)]
-    )
-
-    # Run agent tasks
-    response = await agent.run("Research quantum computing advancements")
-
-    return response
-```
-
-## Performance Considerations
-
-While the traces module is extremely useful for development and debugging, be aware of these considerations for production use:
-
-- There is a small performance overhead for intercepting and collecting data
-- With `debug=True`, memory usage increases due to storing complete request/response objects
-- For high-throughput applications, consider using sampling instead of tracing every call
 
 ## Conclusion
 
