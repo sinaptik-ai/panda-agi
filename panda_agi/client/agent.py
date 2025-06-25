@@ -44,7 +44,7 @@ class Agent:
         self,
         host: str = "wss://agi-api.pandas-ai.com",
         api_key: str = None,
-        llm_type: Literal["lite", "pro"] = "pro",
+        llm_type: Literal["annie-lite", "annie-pro", "auto"] = "annie-pro",
         conversation_id: Optional[str] = None,
         auto_reconnect: bool = False,
         reconnect_interval: float = 5.0,
