@@ -106,7 +106,8 @@ class ToolHandler(ABC):
                 return
 
             # Execute the actual handler logic
-            result = await self.execute(params)
+            params_no_llm_type = {k: v for k, v in params.items() if k != "llm_type"}
+            result = await self.execute(params_no_llm_type)
             await self.send_response(msg_id, result)
 
         except Exception as e:
