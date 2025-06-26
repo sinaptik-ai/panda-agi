@@ -67,6 +67,84 @@ from panda_agi import Agent
 agent = Agent()
 ```
 
+## LLM Types
+
+PandaAGI SDK supports two different language models, each optimized for different use cases:
+
+### Annie-Lite
+- **Lightweight and performant**: Fast response times with efficient resource usage
+- **Excels at**: Simple website development, dashboard generation, and data analysis
+- **Best for**: Quick development tasks, UI generation, and data processing
+
+### Annie-Pro  
+- **Frontier model**: Advanced capabilities for complex reasoning and problem-solving
+- **More expensive**: Higher cost but superior performance on difficult tasks
+- **Best for**: Complex analysis, advanced coding tasks, and sophisticated problem-solving
+
+### LLM Selection
+
+You can specify which model to use with the `llm_type` parameter:
+
+```python
+# Use annie-lite for lightweight tasks
+agent = Agent(llm_type="annie-lite")
+
+# Use annie-pro for complex tasks
+agent = Agent(llm_type="annie-pro")
+
+# Let PandaAGI choose automatically based on task complexity
+agent = Agent(llm_type="auto")  # Default behavior
+```
+
+When using `llm_type="auto"`, PandaAGI automatically selects the most appropriate model based on the complexity and requirements of your task.
+
+### Pricing
+
+| Model | Input Tokens | Output Tokens |
+|-------|-------------|---------------|
+| **annie-lite** | 20 panda-tokens per 1M tokens | 80 panda-tokens per 1M tokens |
+| **annie-pro** | 300 panda-tokens per 1M tokens | 1500 panda-tokens per 1M tokens |
+
+**Cost-Effective Usage Tips:**
+- Use `annie-lite` for straightforward development tasks
+- Use `annie-pro` for complex analysis and advanced problem-solving
+- Use `llm_type="auto"` to let PandaAGI optimize costs automatically
+
+### Updated Configuration Examples
+
+```python
+import uuid
+from panda_agi import Agent
+from panda_agi.envs import LocalEnv
+
+# Lightweight agent for web development
+agent = Agent(
+    api_key="your-api-key",
+    conversation_id=str(uuid.uuid4()),
+    llm_type="annie-lite",         # Optimized for web dev
+    auto_reconnect=True,
+    environment=LocalEnv("./web_project")
+)
+
+# Powerful agent for complex analysis
+agent = Agent(
+    api_key="your-api-key",
+    conversation_id=str(uuid.uuid4()),
+    llm_type="annie-pro",          # Advanced capabilities
+    auto_reconnect=True,
+    environment=LocalEnv("./analysis_workspace")
+)
+
+# Auto-selecting agent (recommended)
+agent = Agent(
+    api_key="your-api-key",
+    conversation_id=str(uuid.uuid4()),
+    llm_type="auto",               # Automatic model selection
+    auto_reconnect=True,
+    environment=LocalEnv("./workspace")
+)
+```
+
 ## How do general AI agents work?
 
 Understanding how agents work internally:
