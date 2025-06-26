@@ -102,6 +102,7 @@ class BaseStreamEvent(BaseModel):
     """Base class for all stream events"""
 
     type: EventType
+    llm_type: Optional[str] = Field(default=None, description="LLM type")
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
 
     def to_dict(self) -> Dict[str, Any]:
