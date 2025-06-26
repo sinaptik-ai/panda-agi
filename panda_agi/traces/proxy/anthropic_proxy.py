@@ -236,6 +236,17 @@ class AnthropicProxy(BaseProxy):
         # Add the new trace
         self._track(trace)
         self.collected_data.append(trace)
+
+    def _structure_usage(self, usage):
+        if usage.input_tokens is None:
+            usage.input_tokens = 0
+        if usage.output_tokens is None:
+            usage.output_tokens = 0
+        return {
+                    "prompt_tokens": usage.input_tokens,
+                    "completion_tokens": usage.output_tokens,
+                    "total_tokens": usage.input_tokens + usage.output_tokens,
+                }
     
     def patched_messages_create(self, *args, **kwargs):
         """Patched version of Messages.create"""
@@ -273,8 +284,8 @@ class AnthropicProxy(BaseProxy):
             }
             
             # Add usage information if available
-            if hasattr(response, "usage"):
-                response_data["usage"] = response.usage
+            if hasattr(response, "usage") and response.usage is not None:
+                response_data["usage"] = self._structure_usage(response.usage)
             
             # Record the trace data
             collected_item = {
@@ -402,8 +413,8 @@ class AnthropicProxy(BaseProxy):
             }
             
             # Add usage information if available
-            if hasattr(response, "usage"):
-                response_data["usage"] = response.usage
+            if hasattr(response, "usage") and response.usage is not None:
+                response_data["usage"] = self._structure_usage(response.usage)
             
             # Record the trace data
             collected_item = {
@@ -473,7 +484,7 @@ class AnthropicProxy(BaseProxy):
             }
             
             # Return a wrapped stream
-            return AnthropicAsyncStreamManagerWrapper(stream, proxy, request_data, response_data)
+            return AnthropicAsyncStreamWrapper(stream, proxy, request_data, response_data)
         except Exception as e:
             # Calculate duration even for errors
             duration = time.time() - start_time
@@ -612,6 +623,21 @@ class AnthropicStreamWrapper:
             }
             self.proxy._record(collected_item)
         return result
+
+    def __iter__(self):
+        for event in self._message_stream:
+            if event.type == "message_delta" and hasattr(event, "usage"):
+                # Cumulative usage metadata is present here
+                prompt_tokens = event.usage.input_tokens if event.usage.input_tokens is not None else 0
+                completion_tokens = event.usage.output_tokens if event.usage.output_tokens is not None else 0
+                total_tokens = prompt_tokens + completion_tokens
+                usage = {
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": total_tokens
+                }
+                self.response_data["usage"] = usage
+            yield event
         
     @property
     def text_stream(self):
@@ -623,46 +649,25 @@ class AnthropicStreamWrapper:
             def __iter__(self):
                 # Access the text_stream from the MessageStream object
                 if self.parent._message_stream and hasattr(self.parent._message_stream, 'text_stream'):
-                    original_iter = iter(self.parent._message_stream.text_stream)
-                    
-                    try:
-                        for text_chunk in original_iter:
-                            # Accumulate text
-                            self.parent.accumulated_text += text_chunk
-                            
-                            # Yield the chunk
-                            yield text_chunk
-                    except Exception as e:
-                        print(f"Error in text_stream iterator: {e}")
-                        raise
+                    # original_iter = iter(self.parent._message_stream.text_stream)
+                    for event in self.parent:
+                        try:
+                            if event.type == "content_block_delta":
+                                self.parent.accumulated_text += event.delta.text
+                                yield event.delta.text
+                        except Exception as e:
+                            print(f"Error in text_stream iterator: {e}")
+                            raise
                 else:
                     # Fallback for compatibility
                     yield ""
+
         
         return TextStreamWrapper(self)
     
     # Forward any attribute access to the original stream
     def __getattr__(self, name):
         return getattr(self.original_stream, name)
-
-# Wrapper class for AsyncMessageStreamManager objects
-class AnthropicAsyncStreamManagerWrapper:
-    def __init__(self, original_stream_manager, proxy, request_data, response_data):
-        self.original_stream_manager = original_stream_manager
-        self.proxy = proxy
-        self.request_data = request_data
-        self.response_data = response_data
-        self.is_finished = False
-        self.accumulated_text = ""
-    
-    async def __aenter__(self):
-        # Get the AsyncMessageStream from the AsyncMessageStreamManager
-        self._message_stream = await self.original_stream_manager.__aenter__()
-        # Return a wrapped AsyncMessageStream
-        return AnthropicAsyncStreamWrapper(self._message_stream, self.proxy, self.request_data, self.response_data)
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        return await self.original_stream_manager.__aexit__(exc_type, exc_val, exc_tb)
 
 # Wrapper class for asynchronous streaming responses
 class AnthropicAsyncStreamWrapper:
@@ -673,6 +678,22 @@ class AnthropicAsyncStreamWrapper:
         self.response_data = response_data
         self.is_finished = False
         self.accumulated_text = ""
+        self._message_stream = None
+
+    async def __aiter__(self):
+        async for event in self._message_stream.__aiter__():
+            if event.type == "message_delta" and hasattr(event, "usage"):
+                # Cumulative usage metadata is present here
+                prompt_tokens = event.usage.input_tokens if event.usage.input_tokens is not None else 0
+                completion_tokens = event.usage.output_tokens if event.usage.output_tokens is not None else 0
+                total_tokens = prompt_tokens + completion_tokens
+                usage = {
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": total_tokens
+                }
+                self.response_data["usage"] = usage
+            yield event
     
     @property
     def text_stream(self):
@@ -688,15 +709,19 @@ class AnthropicAsyncStreamWrapper:
                 try:
                     # Get the original text_stream
                     if not hasattr(self, "_original_aiter"):
-                        self._original_aiter = self.parent.original_stream.text_stream.__aiter__()
+                        self._original_aiter = self.parent.__aiter__()
                     
-                    # Get the next chunk
-                    text_chunk = await self._original_aiter.__anext__()
+                    # Get the next chunk and continue iterating until we find content or stop
                     
-                    # Accumulate text
-                    self.parent.accumulated_text += text_chunk
+                    event = await self._original_aiter.__anext__()
                     
-                    return text_chunk
+                    if event.type == "content_block_delta":
+                        # Found text content, add it to accumulated text and return
+                        self.parent.accumulated_text += event.delta.text
+                        return event.delta.text
+
+                    # If we've reached the maximum iterations without finding content
+                    return ""
                 except StopAsyncIteration:
                     # Record the data when the iterator is exhausted
                     if not self.parent.is_finished:
@@ -723,7 +748,7 @@ class AnthropicAsyncStreamWrapper:
     
     # Support async context manager protocol
     async def __aenter__(self):
-        self._stream = await self.original_stream.__aenter__()
+        self._message_stream = await self.original_stream.__aenter__()
         return self
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
