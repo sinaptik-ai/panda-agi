@@ -37,6 +37,13 @@ class LiteLLMProxy(BaseProxy):
     def _is_streaming_request(self, kwargs: Dict[str, Any]) -> bool:
         """Check if this is a streaming request."""
         return kwargs.get("stream", False)
+    
+    def _enable_usage_collection(self, kwargs: Dict[str, Any]):
+        """Enable usage collection for a streaming request."""
+        if "stream_options" not in kwargs:
+            kwargs["stream_options"] = {"include_usage": True}
+        else:
+            kwargs["stream_options"]["include_usage"] = True
         
     def _record(self, data: Dict[str, Any]):
         """Convert collected data to LLMCallTrace and append to collected_data."""
@@ -133,8 +140,9 @@ class LiteLLMProxy(BaseProxy):
         
         try:
             # Make the API call
+            self._enable_usage_collection(kwargs)
+
             response = self.original_completion(*args, **kwargs)
-            
             # Calculate duration
             duration = time.time() - start_time
             response_data["duration"] = duration
@@ -201,6 +209,7 @@ class LiteLLMProxy(BaseProxy):
         
         try:
             # Call the original function
+            self._enable_usage_collection(kwargs)
             response = await self.original_acompletion(*args, **kwargs)
             
             # Calculate duration
@@ -344,6 +353,9 @@ class StreamingResponseWrapper:
                         "delta_text": delta_text,
                         "chunk": chunk
                     }
+                    if hasattr(chunk, "model_extra") and chunk.model_extra:
+                        self.response_data["usage"] = chunk.model_extra.get("usage", {})
+            
                     self.response_data["chunks"].append(chunk_data)
                 
                 yield chunk
@@ -386,6 +398,9 @@ class AsyncStreamingResponseWrapper:
                     delta = chunk.choices[0].delta
                     if hasattr(delta, "content") and delta.content:
                         self.streaming_delta += delta.content
+                    
+                    if hasattr(chunk, "model_extra") and chunk.model_extra:
+                        self.response_data["usage"] = chunk.model_extra.get("usage", {})
             
             return chunk
         except StopAsyncIteration:

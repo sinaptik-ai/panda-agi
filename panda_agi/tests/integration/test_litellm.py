@@ -9,7 +9,7 @@ import os
 import asyncio
 import dotenv
 from panda_agi.traces.observe import observe
-from pandaa_agi.traces.proxy.litellm_proxy import LiteLLMProxy
+from panda_agi.traces.proxy.litellm_proxy import LiteLLMProxy
 import litellm
 
 # Load environment variables from .env file if it exists
@@ -40,7 +40,7 @@ def test_litellm_sync_stream():
     
     # Create a streaming completion
     response = litellm.completion(
-        model="gpt-3.5-turbo",
+        model="claude-3-opus-20240229",
         messages=[
             {"role": "user", "content": "Tell me a short story about a robot and a cat."}
         ],
