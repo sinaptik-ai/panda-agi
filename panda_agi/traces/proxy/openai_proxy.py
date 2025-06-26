@@ -112,6 +112,13 @@ class OpenAIProxy(BaseProxy):
 
         usage = response["usage"] if "usage" in response else {}
         return content, usage
+
+    def _enable_usage_collection(self, kwargs):
+        """Enable usage collection for a streaming request."""
+        if "stream_options" not in kwargs:
+            kwargs["stream_options"] = {"include_usage": True}
+        else:
+            kwargs["stream_options"]["include_usage"] = True
     
     def _patched_completions_acreate_v0(self, original_method):
         """Return a patched version of the openai.Completion.acreate method for v0.x."""
@@ -137,6 +144,9 @@ class OpenAIProxy(BaseProxy):
             start_time = time.time()
             
             # Call the original method
+            if is_stream:
+                self._enable_usage_collection(kwargs)
+
             response = await original_method(*args, **kwargs)
             
             # Calculate duration
@@ -172,6 +182,9 @@ class OpenAIProxy(BaseProxy):
                                     trace.output += content
 
                         yield chunk
+                    # track at the end of the stream response
+                    if "usage" in chunk and chunk["usage"]:
+                        trace.usage = chunk["usage"]
                     self._track(trace)
                 
                 # Return our wrapped generator instead
@@ -213,6 +226,8 @@ class OpenAIProxy(BaseProxy):
             start_time = time.time()
             
             # Call the original method
+            if is_stream:
+                self._enable_usage_collection(kwargs)
             response = original_method(*args, **kwargs)
             
             # Calculate duration
@@ -247,10 +262,14 @@ class OpenAIProxy(BaseProxy):
                                 content = chunk.choices[0].delta.content
                                 if content:
                                     trace.output += content
+                            
 
                         yield chunk
 
                     # track at the end of the stream response
+                    if "usage" in chunk and chunk["usage"]:
+                        trace.usage = chunk["usage"]
+
                     self._track(trace)
 
                 # Return our wrapped generator instead
@@ -307,10 +326,30 @@ class OpenAIProxy(BaseProxy):
         )
         return trace
 
+    def _patch_client_sync_request(self, original_method):
+        @wraps(original_method)
+        def wrapper(self_client, *args, **kwargs):
+            if args[1].json_data.get("stream", False):
+                args[1].json_data["stream_options"] = {"include_usage": True}
+            return original_method(self_client, *args, **kwargs)
+        
+        return wrapper
+    
+    def _patch_client_async_request(self, original_method):
+        @wraps(original_method)
+        async def wrapper(self_client, *args, **kwargs):
+            if args[1].json_data.get("stream", False):
+                args[1].json_data["stream_options"] = {"include_usage": True}
+            return await original_method(self_client, *args, **kwargs)
+        
+        return wrapper
+
     def _patched_sync_send_v1(self, original_method):
         """Return a patched version of the SyncHttpxClientWrapper.send method for v1.x+."""
         @wraps(original_method)
         def wrapper(self_client, request, *args, **kwargs):
+            print(args)
+            print(kwargs)
             # Skip if not in the active context for this thread
             if not hasattr(self.thread_local, 'is_active') or not self.thread_local.is_active:
                 return original_method(self_client, request, *args, **kwargs)
@@ -394,8 +433,9 @@ class OpenAIProxy(BaseProxy):
                                         try:
                                             # Parse the JSON data
                                             chunk_data = json.loads(event.data)
-                                            content, _ = self._get_content_from_response_from_json(chunk_data)
+                                            content, response_usage = self._get_content_from_response_from_json(chunk_data)
                                             trace.output += content
+                                            trace.usage = response_usage
                                         except json.JSONDecodeError:
                                             # Non-JSON data
                                             pass
@@ -509,8 +549,10 @@ class OpenAIProxy(BaseProxy):
                                         try:
                                             # Parse the JSON data
                                             chunk_data = json.loads(event.data)
-                                            content, _ = self._get_content_from_response_from_json(chunk_data)
+                                            content, response_usage = self._get_content_from_response_from_json(chunk_data)
+
                                             trace.output += content
+                                            trace.usage = response_usage
                                         except json.JSONDecodeError:
                                             # Non-JSON data
                                             pass
@@ -591,24 +633,25 @@ class OpenAIProxy(BaseProxy):
     def _apply_patches_v1(self):
         """Apply patches specific to OpenAI SDK v1.x+."""
         import openai
-
         # Find the client module
         try:
             from openai._client import SyncHttpxClientWrapper, AsyncHttpxClientWrapper
         except ImportError:
             try:
-                from openai._base_client import SyncHttpxClientWrapper, AsyncHttpxClientWrapper
+                from openai._base_client import SyncHttpxClientWrapper, AsyncAPIClient, SyncAPIClient, AsyncHttpxClientWrapper
             except ImportError:
                 print("Could not find OpenAI SDK client classes. Patching may not work correctly.")
                 return
 
         # Patch SyncHttpxClientWrapper.send
         if hasattr(SyncHttpxClientWrapper, "send"):
+            SyncAPIClient.request = self._patch_client_sync_request(SyncAPIClient.request)
             self.original_sync_send = SyncHttpxClientWrapper.send
             SyncHttpxClientWrapper.send = self._patched_sync_send_v1(self.original_sync_send)
 
         # Patch AsyncHttpxClientWrapper.send
         if hasattr(AsyncHttpxClientWrapper, "send"):
+            AsyncAPIClient.request = self._patch_client_async_request(AsyncAPIClient.request)
             self.original_async_send = AsyncHttpxClientWrapper.send
             AsyncHttpxClientWrapper.send = self._patched_async_send_v1(self.original_async_send)
 
