@@ -100,7 +100,7 @@ const EventList = ({
       onPreviewClick,
       onFileClick,
       conversationId,
-      timestamp: eventData.timestamp,
+      timestamp: new Date(eventData.timestamp),
     });
   }
 
