@@ -1,0 +1,123 @@
+---
+title: "Collect Training Data"
+description: "Effortlessly collect real-world LLM interactions to build high-quality training datasets with PandaAGI."
+---
+
+# Collect - Create Training Datasets from Live LLM Interactions
+
+<Info>
+  PandaAGI's `collect` utility allows you to capture real-world LLM API calls and automatically save them as structured datasets, perfect for fine-tuning your own models.
+</Info>
+
+## Introduction
+
+High-quality training data is the cornerstone of effective LLM fine-tuning. The best data often comes from real-world interactions with your models. PandaAGI's `collect` utility is designed to seamlessly capture these interactions, helping you build powerful, domain-specific datasets with minimal effort.
+
+Instead of just debugging, `collect` focuses on gathering `prompt -> completion` pairs and associated metadata, which can be directly used for training.
+
+## The `collect` Utility
+
+The `collect` class is designed to:
+
+- Intercept live LLM API calls.
+- Capture the full request (prompt, model, parameters) and response.
+- Structure this information into a clean, ready-to-use format.
+- Send the collected data directly to your workspace on the PandaAGI platform.
+
+### Usage Patterns
+
+#### As a Decorator
+
+The decorator pattern is ideal for capturing all interactions within a function, turning its entire execution into a source for your training data.
+
+```python
+from panda_agi.traces import collect
+
+@collect(model_name="customer_support_agent_v1")
+async def generate_response(query: str):
+    # Your code making API calls to an LLM
+    response = await openai.ChatCompletion.acreate(
+        model="gpt-4",
+        messages=[{"role": "user", "content": query}]
+    )
+    return response.choices[0].message.content
+```
+
+#### As a Context Manager
+
+The context manager is perfect for selectively capturing interactions from specific parts of your application, allowing you to create highly targeted datasets.
+
+```python
+from panda_agi.traces import collect
+
+async def run_complex_workflow(user_input: str):
+    # Code that doesn't involve the final model
+    agent_state = pre_process(user_input)
+
+    # Only collect interactions for the final response generation
+    with collect(model_name="final_answer_generator"):
+        final_response = await openai.ChatCompletion.acreate(...)
+
+    # Post-processing code that shouldn't be in the dataset
+    log_results(final_response)
+```
+
+### Configuration Options
+
+The `collect` utility accepts several parameters to customize its behavior:
+
+| Parameter    | Type                  | Description                                                                                                                                              |
+| ------------ | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `model_name` | `Optional[str]`       | **Crucial for training.** A tag to identify the task or model purpose (e.g., `sql_generator`, `summarizer_v2`). This helps organize your collected data. |
+| `providers`  | `Optional[List[str]]` | List of providers to monitor (`"openai"`, `"anthropic"`, `"litellm"`). If not specified, all available providers are monitored.                              |
+| `debug`      | `Optional[bool]`      | When `True`, provides verbose output of the data being collected in real-time. Defaults to `False`.                                                      |
+
+## Data on the PandaAGI Platform
+
+The `collect` utility sends each captured interaction directly to your PandaAGI workspace. On the platform, this data is organized and made available for you to browse, filter, and use to create fine-tuning jobs.
+
+Each data point sent to the platform contains the following structured information:
+
+**Example Data Point Structure:**
+```json
+{
+  "model_name_tag": "customer_support_agent_v1",
+  "provider": "openai",
+  "model": "gpt-4",
+  "prompt": [{"role": "user", "content": "My order hasn't arrived yet."}],
+  "response": {
+    "content": "I'm sorry to hear that. Could you please provide your order number so I can look into it for you?",
+    "role": "assistant"
+  },
+  "usage": {
+    "prompt_tokens": 12,
+    "completion_tokens": 25,
+    "total_tokens": 37
+  },
+  "latency": 1.25,
+  "timestamp": "2024-07-01T12:00:00Z"
+}
+```
+This structured data allows you to easily manage your datasets and launch training runs without ever having to manage local files.
+
+## Supported Providers
+
+PandaAGI's data collection works with the most popular LLM providers:
+
+<CardGroup cols={3}>
+  <Card title="OpenAI" icon="robot">
+    Both v0 and v1 API formats
+  </Card>
+  <Card title="Anthropic" icon="a">
+    Claude and Claude Instant models
+  </Card>
+  <Card title="LiteLLM" icon="sparkles">
+    Universal provider that supports multiple backends
+  </Card>
+</CardGroup>
+
+## Conclusion
+
+The `panda_agi.traces.collect` utility transforms your live application into a powerful data generation engine. By effortlessly capturing real-world interactions and sending them directly to the PandaAGI platform, you can build high-quality, domain-specific datasets that are essential for fine-tuning LLMs to your exact needs.
+
+Remember to use the `model_name` parameter to tag and organize your data effectively, making it easy to identify and use within the PandaAGI platform for all your model training efforts.

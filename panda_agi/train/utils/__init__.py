@@ -1,5 +1,5 @@
 """
-Utility functions and classes for pandaagi_trace.
+Utility functions and classes for pandaagi_train.
 """
 from typing import Union, List
 from ..llm_call_trace import LLMCallTrace

@@ -1,5 +1,5 @@
 """
-Logging utility for pandaagi_trace.
+Logging utility for pandaagi_train.
 
 This module provides standardized logging functionality for the proxy classes.
 """

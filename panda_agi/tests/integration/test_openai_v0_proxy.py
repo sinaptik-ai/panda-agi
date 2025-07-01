@@ -9,12 +9,10 @@ and trace API calls made using the OpenAI v0 Python SDK.
 """
 
 import os
-import json
 import asyncio
 import dotenv
 import openai
-from panda_agi.traces.proxy.openai_proxy import OpenAIProxy
-from panda_agi.traces.observe import observe
+from panda_agi.train.collect import collect
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -256,7 +254,7 @@ async def run_async_tests():
     await test_chat_completion_async_stream()
 
 
-@observe(providers=["openai"])
+@collect(providers=["openai"])
 async def main():
     """Main function to run all tests."""
     print("Running OpenAI v0 proxy tests...")

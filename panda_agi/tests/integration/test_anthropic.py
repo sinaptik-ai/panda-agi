@@ -8,7 +8,7 @@ both synchronous and asynchronous API calls, with and without streaming.
 import os
 import asyncio
 import dotenv
-from panda_agi.traces.observe import observe
+from panda_agi.train.collect import collect
 from anthropic import Anthropic
 
 # Load environment variables from .env file if it exists
@@ -118,8 +118,8 @@ def test_parallel():
     print("thread finished")
 
 
-# Main function to run all tests with the observe decorator
-@observe(providers=["anthropic"], model_name="anthropic")
+# Main function to run all tests with the collect decorator
+@collect(providers=["anthropic"], model_name="anthropic")
 async def main():
     """Run all Anthropic proxy tests."""
     print("Running Anthropic proxy tests...")

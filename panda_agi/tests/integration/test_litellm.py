@@ -8,8 +8,7 @@ both synchronous and asynchronous API calls, with and without streaming.
 import os
 import asyncio
 import dotenv
-from panda_agi.traces.observe import observe
-from panda_agi.traces.proxy.litellm_proxy import LiteLLMProxy
+from panda_agi.train.proxy.litellm_proxy import LiteLLMProxy
 import litellm
 
 # Load environment variables from .env file if it exists
@@ -103,7 +102,7 @@ async def test_litellm_async_stream():
     
     print(f"\n\nAsync streaming response complete. Total length: {len(full_text)} characters")
 
-# Main function to run all tests with the observe decorator
+# Main function to run all tests with the collect decorator
 async def main():
     """Run all LiteLLM proxy tests."""
     print("Running LiteLLM proxy tests...")

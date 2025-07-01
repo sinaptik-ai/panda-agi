@@ -1,9 +1,9 @@
-from .observe import observe
+from .collect import collect
 from .llm_call_trace import LLMCallTrace
 
 
 __all__ = [
-    "observe",
+    "collect",
     "LLMCallTrace",
 ]
     
