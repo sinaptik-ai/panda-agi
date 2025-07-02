@@ -31,7 +31,7 @@ The `collect` class is designed to:
 The decorator pattern is ideal for capturing all interactions within a function, turning its entire execution into a source for your training data.
 
 ```python
-from panda_agi.traces import collect
+from panda_agi.train import collect
 
 @collect(model_name="customer_support_agent_v1")
 async def generate_response(query: str):
