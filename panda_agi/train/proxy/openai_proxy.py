@@ -638,7 +638,7 @@ class OpenAIProxy(BaseProxy):
             try:
                 from openai._base_client import SyncHttpxClientWrapper, AsyncAPIClient, SyncAPIClient, AsyncHttpxClientWrapper
             except ImportError:
-                print("Could not find OpenAI SDK client classes. Patching may not work correctly.")
+                self.logger.error("Could not find OpenAI SDK client classes. Patching may not work correctly.")
                 return
 
         # Patch SyncHttpxClientWrapper.send

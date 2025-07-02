@@ -220,7 +220,7 @@ class AnthropicProxy(BaseProxy):
                 metadata=metadata
             )
         except Exception as e:
-            print(f"Error creating trace: {e}")
+            self.logger.error(f"Error creating trace: {e}")
             return
         
         # Check if we already have a trace for this request (for streaming responses)
