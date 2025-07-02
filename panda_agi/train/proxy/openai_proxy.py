@@ -348,8 +348,6 @@ class OpenAIProxy(BaseProxy):
         """Return a patched version of the SyncHttpxClientWrapper.send method for v1.x+."""
         @wraps(original_method)
         def wrapper(self_client, request, *args, **kwargs):
-            print(args)
-            print(kwargs)
             # Skip if not in the active context for this thread
             if not hasattr(self.thread_local, 'is_active') or not self.thread_local.is_active:
                 return original_method(self_client, request, *args, **kwargs)

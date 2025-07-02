@@ -266,60 +266,6 @@ class LiteLLMProxy(BaseProxy):
             litellm.completion = self.original_completion
         if self.original_acompletion:
             litellm.acompletion = self.original_acompletion
-            
-    def _print_summary_impl(self):
-        """Print a summary of the collected LiteLLM API call data."""
-        self.logger.info("\n" + "=" * 80)
-        self.logger.info(f"LiteLLM API Calls Summary ({len(self.collected_data)} calls)")
-        self.logger.info("=" * 80)
-        
-        for i, trace in enumerate(self.collected_data, 1):
-            metadata = trace.metadata
-            
-            # Print request information
-            self.logger.info(f"[{i}] LiteLLM {metadata.get('function', '')}")
-            self.logger.info(f"  Duration: {metadata.get('duration', 0):.4f}s")
-            
-            # Print request details
-            self.logger.info("  Request:")
-            self.logger.info(f"    Model: {trace.model_name or 'Not specified'}")
-            self.logger.info(f"    Messages: {len(trace.messages)} items")
-            
-            # Show the user message
-            for msg in trace.messages[:2]:  # Show first couple messages
-                content = msg.get('content', '')
-                if isinstance(content, str):
-                    content_str = content[:50] + ('...' if len(content) > 50 else '')
-                else:
-                    content_str = str(content)[:50] + '...'
-                self.logger.info(f"      {msg.get('role', '')}: {content_str}")
-            
-            # Print streaming info if applicable
-            if metadata.get("streaming", False):
-                self.logger.info(f"    Stream: {metadata.get('streaming')}")
-            
-            # Print response details
-            self.logger.info("  Response:")
-            output = trace.output
-            if output:
-                output_str = output[:100] + ('...' if len(output) > 100 else '')
-                self.logger.info(f"    Output: {output_str}")
-            
-            # Print usage if available
-            if trace.usage:
-                self.logger.info("  Usage:")
-                for key, value in trace.usage.items():
-                    self.logger.info(f"    {key}: {value}")
-            
-            # Print errors if present
-            if "error" in metadata:
-                self.logger.info("  Error:")
-                self.logger.info(f"    {metadata.get('error_type', 'Unknown error')}: {metadata.get('error', '')}")
-            
-            self.logger.info("")
-            # End of trace summary
-        
-        self.logger.info("=" * 80)
 
 
 # Create a streaming response wrapper class to ensure we capture all data

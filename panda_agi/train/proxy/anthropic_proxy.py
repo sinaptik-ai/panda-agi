@@ -23,7 +23,6 @@ Usage:
 
 import time
 from typing import Dict, Any, List
-import anthropic
 from .base_proxy import BaseProxy
 from ..llm_call_trace import LLMCallTrace
 
@@ -507,89 +506,7 @@ class AnthropicProxy(BaseProxy):
             
             # Re-raise the exception
             raise
-    
-    def _print_summary_impl(self):
-        """Print a summary of the collected data."""
-        if not self.collected_data:
-            print("No data collected.")
-            return
-        
-        for i, trace in enumerate(self.collected_data):
-            print(f"\nCall {i+1}:")
-            print(f"  Model: {trace.model_name}")
-            print(f"  Function: {trace.metadata.get('function', 'unknown')}")
-            print(f"  Streaming: {trace.metadata.get('streaming', False)}")
-            print(f"  Duration: {trace.metadata.get('duration', 0):.2f}s")
-            
-            # Print usage if available
-            if trace.usage:
-                print("  Usage:")
-                for key, value in trace.usage.items():
-                    print(f"    {key}: {value}")
-            
-            # Print error if present
-            if "error" in trace.metadata:
-                self.logger.info(f"  Error: {trace.metadata.get('error')}")
-                self.logger.info(f"  Error Type: {trace.metadata.get('error_type')}")
-            
-            # Print input/output summary
-            input_summary = trace.input[:50] + "..." if len(trace.input) > 50 else trace.input
-            output_summary = trace.output[:50] + "..." if len(trace.output) > 50 else trace.output
-            self.logger.info(f"  Input: {input_summary}")
-            self.logger.info(f"  Output: {output_summary}")
-            
-            self.logger.info("-" * 40)
-    
-    def _print_summary_impl(self):
-        """Print a summary of the collected Anthropic API data."""
-        self.logger.info("\n" + "=" * 80)
-        self.logger.info(f"Anthropic API Calls Summary ({len(self.collected_data)} calls)")
-        self.logger.info("=" * 80)
-        
-        for i, trace in enumerate(self.collected_data, 1):
-            # Print basic information
-            self.logger.info(f"\n[{i}] Anthropic API Call")
-            
-            # Print model information
-            model = trace.model_name or "unknown"
-            self.logger.info(f"  Model: {model}")
-            
-            # Print function information if available
-            function = trace.metadata.get("function", "unknown")
-            self.logger.info(f"  Function: {function}")
-            
-            # Print streaming status if available
-            if trace.metadata.get("streaming", False):
-                self.logger.info("  Type: Streaming response")
-            
-            # Print messages information
-            messages = trace.messages
-            if isinstance(messages, list) and messages:
-                print(f"  Messages: {len(messages)}")
-                for msg in messages[:2]:  # Show first 2 messages
-                    role = msg.get("role", "unknown")
-                    content = msg.get("content", "")
-                    if isinstance(content, str):
-                        content_preview = content[:50] + "..." if len(content) > 50 else content
-                        self.logger.info(f"    {role}: {content_preview}")
-                    elif isinstance(content, list):
-                        self.logger.info(f"    {role}: [content parts: {len(content)}]")
-                
-                if len(messages) > 2:
-                    self.logger.info(f"    ... and {len(messages) - 2} more messages")
-            
-            # Print input and output
-            input_preview = trace.input[:50] + "..." if len(trace.input) > 50 else trace.input
-            self.logger.info(f"  Input: {input_preview}")
-            
-            output_preview = trace.output[:100] + "..." if len(trace.output) > 100 else trace.output
-            self.logger.info(f"  Output: {output_preview}")
-            
-            # Print usage information if available
-            if trace.usage and trace.usage.get("total_tokens"):
-                self.logger.info(f"  Total tokens: {trace.usage.get('total_tokens')}")
-        
-        self.logger.info("\n" + "=" * 80)
+
 
 
 # Wrapper class for synchronous streaming responses
