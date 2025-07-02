@@ -22,7 +22,7 @@ class LLMCallTrace(BaseModel):
     )
     # Request information as JSON
     usage: Optional[Dict[str, Any]] = Field(
-        description="Complete request llm usage in JSON format"
+        description="Complete request LLM usage in JSON format"
     )
     # Metadata with function name
     metadata: Optional[Dict[str, Any]] = Field(
