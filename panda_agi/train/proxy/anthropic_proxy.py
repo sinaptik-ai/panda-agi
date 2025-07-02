@@ -753,25 +753,3 @@ class AnthropicAsyncStreamWrapper:
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         return await self.original_stream.__aexit__(exc_type, exc_val, exc_tb)
-        try:
-            # Restore original methods if they exist
-            if self.original_messages_create:
-                anthropic.Anthropic.messages.create = self.original_messages_create
-                self.original_messages_create = None
-                
-            if self.original_messages_stream:
-                anthropic.Anthropic.messages.stream = self.original_messages_stream
-                self.original_messages_stream = None
-                
-            if self.original_async_messages_create:
-                anthropic.AsyncAnthropic.messages.create = self.original_async_messages_create
-                self.original_async_messages_create = None
-                
-            if self.original_async_messages_stream:
-                anthropic.AsyncAnthropic.messages.stream = self.original_async_messages_stream
-                self.original_async_messages_stream = None
-                
-            if self.debug:
-                print("Removed patches from Anthropic SDK.")
-        except Exception as e:
-            print(f"Error removing patches: {e}")
