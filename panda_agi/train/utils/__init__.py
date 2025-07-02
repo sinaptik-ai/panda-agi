@@ -6,6 +6,9 @@ from ..llm_call_trace import LLMCallTrace
 import os
 import requests
 import json
+from .logger import ProxyLogger
+
+logger = ProxyLogger(__name__, debug=False)
 
 
 def is_openai_v0():
@@ -35,7 +38,7 @@ async def send_traces(traces: Union[LLMCallTrace, List[LLMCallTrace]]):
     # Get API key from environment variable
     api_key = os.environ.get("PANDA_AGI_KEY")
     if not api_key:
-        print("Warning: PANDA_AGI_KEY environment variable not set. Cannot send traces to backend.")
+        logger.warning("Warning: PANDA_AGI_KEY environment variable not set. Cannot send traces to backend.")
         return False
     
     # Get server URL from environment variable or use default
@@ -66,13 +69,13 @@ async def send_traces(traces: Union[LLMCallTrace, List[LLMCallTrace]]):
         
         # Check if request was successful
         if response.status_code == 200 or response.status_code == 201:
-            print("Traces sent successfully")
+            logger.info("Trace sent successfully!")
             return True
         else:
-            print(f"Error sending traces to backend: {response.status_code} - {response.text}")
+            logger.error(f"Error sending traces to backend: {response.status_code} - {response.text}")
             return False
             
     except Exception as e:
-        print(f"Error sending traces to backend: {str(e)}")
+        logger.error(f"Error sending traces to backend: {str(e)}")
         return False
 

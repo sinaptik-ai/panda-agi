@@ -2,6 +2,7 @@ import importlib.util
 from functools import wraps
 import inspect
 from contextlib import ContextDecorator, ExitStack
+from .utils.logger import ProxyLogger
 from typing import List, Optional
 
 # Safely import proxies
@@ -48,6 +49,7 @@ class collect(ContextDecorator):
         self.providers = [p for p in self.providers if p in available]
         self.available = available
         self.debug = debug
+        self.logger = ProxyLogger(self.__class__.__name__, debug)
 
     def __enter__(self):
         self.stack = ExitStack()
@@ -57,7 +59,8 @@ class collect(ContextDecorator):
                 proxy = self.stack.enter_context(self.available[provider](model_name=self.model_name, debug=self.debug))
                 self.active.append(proxy)
             except Exception as e:
-                print(f"Error setting up {provider} proxy: {e}")
+                self.logger.error(f"Error setting up {provider} proxy: {e}")
+
         return self
 
     def __exit__(self, exc_type, exc, tb):
@@ -65,8 +68,9 @@ class collect(ContextDecorator):
         for proxy in self.active:
             data = getattr(proxy, "collected_data", None)
             if data:
-                print(f"{proxy.__class__.__name__} collected data:\n{data}")
-        return False  # don't swallow exceptions
+                self.logger.debug(f"{proxy.__class__.__name__} collected data:\n{data}")
+        self.stack.close()
+        return False
 
     def __call__(self, func):
         if inspect.iscoroutinefunction(func):
