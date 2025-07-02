@@ -44,7 +44,7 @@ class Agent:
         self,
         host: str = "wss://agi-api.pandas-ai.com",
         api_key: str = None,
-        llm_type: Literal["annie-lite", "annie-pro", "auto"] = "annie-pro",
+        model: Literal["annie-lite", "annie-pro", "auto"] = "auto",
         conversation_id: Optional[str] = None,
         auto_reconnect: bool = False,
         reconnect_interval: float = 5.0,
@@ -62,7 +62,7 @@ class Agent:
     ):
         load_dotenv()
         self.api_key = api_key or os.getenv("PANDA_AGI_KEY")
-        self.llm_type = llm_type
+        self.model = model
         if not self.api_key:
             logger.warning(
                 "No API key provided. Please set PANDA_AGI_KEY in environment or pass api_key parameter"
@@ -218,7 +218,7 @@ class Agent:
                 "query": query,
                 "knowledge": [k.content for k in self.state.knowledge],
                 "skills": [s.to_string() for s in self.state.skills],
-                "llm_type": self.llm_type,
+                "model": self.model,
             },
         )
         try:

@@ -52,6 +52,21 @@ agent = Agent(
 )
 ```
 
+### Models
+
+PandaAGI offers two powerful agentic models to suit your needs. You can specify the model using the `model` parameter in the `Agent` constructor.
+
+| Model | Description |
+| :--- | :--- |
+| **`annie-pro`** | Our most powerful and advanced generalist agentic technology. It excels at complex reasoning, multi-step task planning, and sophisticated skill integration. This is the recommended model for production applications that require high accuracy and robust performance. |
+| **`annie-lite`** | A super powerful, yet lightweight, generalist agentic model optimized for speed and efficiency, at a fraction of the cost. It's ideal for rapid prototyping, simple automation tasks, and applications where response time is critical. |
+
+By default, the SDK uses `annie-pro`. You can select `annie-lite` like this:
+
+```python
+agent = Agent(model="annie-lite")
+```
+
 ### Using Environment Variables
 
 Set your API key in environment variables:
