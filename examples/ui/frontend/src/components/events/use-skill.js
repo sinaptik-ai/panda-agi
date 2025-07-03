@@ -12,7 +12,13 @@ const SkillUseEvent = ({ payload }) => {
 
   const getDisplayContent = () => {
     const skillName = payload.skill_name || "Unknown Skill";
-    return `Skill used: ${skillName}`;
+    const params = payload.parameters || {};
+    const paramsString = Object.entries(params)
+      .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+      .join(", ");
+    return `Using skill: ${skillName}${
+      paramsString ? ` with ${paramsString}` : ""
+    }`;
   };
 
   const renderExpandedContent = () => {
@@ -22,33 +28,12 @@ const SkillUseEvent = ({ payload }) => {
       <div className="mx-3 mb-4 bg-blue-50 border border-blue-200 rounded-md overflow-hidden">
         <div className="flex items-center px-3 py-2 bg-blue-100 border-b border-blue-200">
           <Zap className="w-4 h-4 mr-2 text-blue-600" />
-          <span className="text-sm font-mono text-blue-700">Skill Used</span>
+          <span className="text-sm font-mono text-blue-700">Skill used</span>
         </div>
         <div className="p-3 font-mono text-sm space-y-2">
-          <div className="flex items-center">
-            <span className="text-blue-600 mr-2">Skill:</span>
-            <span className="text-gray-700">{skill_name}</span>
-          </div>
-          <div className="flex items-center">
-            <span className="text-blue-600 mr-2">Timestamp:</span>
-            <span className="text-gray-700">{timestamp}</span>
-          </div>
-
-          {parameters && (
-            <div>
-              <div className="text-blue-600 mb-1">Parameters:</div>
-              <div className="bg-gray-100 p-2 rounded text-gray-800 text-xs">
-                <pre>{JSON.stringify(parameters, null, 2)}</pre>
-              </div>
-            </div>
-          )}
-
           {result && (
             <div>
-              <div className="text-blue-600 mb-1">Result:</div>
-              <div className="bg-white p-2 rounded border text-gray-800 text-xs whitespace-pre-wrap break-words">
-                <pre>{JSON.stringify(result, null, 2)}</pre>
-              </div>
+              {result["data"]}
             </div>
           )}
         </div>

@@ -40,7 +40,7 @@ class UseSkillHandler(ToolHandler):
 
             # Add completion event with result
             await self.add_event(
-                EventType.USE_SKILL,
+                EventType.USE_SKILL_RESULT,
                 {
                     "skill_name": skill_name,
                     "parameters": skill_parameters,
@@ -57,7 +57,7 @@ class UseSkillHandler(ToolHandler):
         except Exception as e:
             # Add error event
             await self.add_event(
-                EventType.USE_SKILL,
+                EventType.USE_SKILL_RESULT,
                 {
                     "skill_name": skill_name,
                     "parameters": skill_parameters,

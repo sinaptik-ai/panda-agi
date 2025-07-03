@@ -68,7 +68,7 @@ const EVENT_COMPONENTS = {
     component: WebSearchResultEvent,
     props: ["payload"],
   },
-  use_skill: {
+  use_skill_result: {
     component: SkillUseEvent,
     props: ["payload"],
   },

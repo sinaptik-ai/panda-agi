@@ -68,6 +68,7 @@ class EventType(Enum):
 
     # Skill Events
     USE_SKILL = "use_skill"
+    USE_SKILL_RESULT = "use_skill_result"
 
     # Creative & Generation Events
     IMAGE_GENERATION = "image_generation"
@@ -275,10 +276,17 @@ class UseSkillEvent(BaseStreamEvent):
     type: str = "use_skill"
     skill_name: str = Field(description="Name of the skill being used")
     parameters: Dict[str, Any] = Field(description="Parameters passed to the skill")
+
+
+class UseSkillResultEvent(BaseStreamEvent):
+    """Event when agent uses a custom skill"""
+
+    type: str = "use_skill_result"
+    skill_name: str = Field(description="Name of the skill being used")
+    parameters: Dict[str, Any] = Field(description="Parameters passed to the skill")
     result: Optional[Dict[str, Any]] = Field(
         default=None, description="Result from skill execution"
     )
-
 
 # Creative & Generation Events
 class ImageGenerationEvent(BaseStreamEvent):
@@ -317,6 +325,7 @@ class EventFactory:
             EventType.USER_QUESTION: UserQuestionEvent,
             EventType.COMPLETED_TASK: CompletedTaskEvent,
             EventType.USE_SKILL: UseSkillEvent,
+            EventType.USE_SKILL_RESULT: UseSkillResultEvent,
             EventType.IMAGE_GENERATION: ImageGenerationEvent,
         }
 
