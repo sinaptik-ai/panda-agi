@@ -31,6 +31,7 @@ dev = [
     "black",
     "flake8",
 ]
+e2b = ["e2b_code_interpreter"]
 
 [tool.hatch.build]
 exclude = [
