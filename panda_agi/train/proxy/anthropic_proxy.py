@@ -26,6 +26,7 @@ from typing import Dict, Any, List
 from .base_proxy import BaseProxy
 from ..llm_call_trace import LLMCallTrace
 
+
 class AnthropicProxy(BaseProxy):
     """
     A proxy class that collects Anthropic API request and response data.
@@ -33,15 +34,15 @@ class AnthropicProxy(BaseProxy):
     This class patches the Anthropic main library functions to intercept and collect data
     from all API calls, including streaming responses.
     """
-    
-    def __init__(self, model_name=None, debug=False):
+    def __init__(self, model_name=None, tags=None, debug=False):
         """Initialize the AnthropicProxy.
         
         Args:
             model_name: The default model name to use if not specified in the request.
+            tags: Optional tags to use for requests if not specified.
             debug: Whether to print debug information.
         """
-        super().__init__(model_name=model_name, debug=debug)
+        super().__init__(model_name=model_name, tags=tags, debug=debug)
         
         # Initialize original methods to None
         self.original_messages_create = None
@@ -216,6 +217,7 @@ class AnthropicProxy(BaseProxy):
                 input=input_text,
                 output=output_text,
                 model_name=model_name,
+                tags=self.tags,
                 usage=usage_dict,
                 metadata=metadata
             )

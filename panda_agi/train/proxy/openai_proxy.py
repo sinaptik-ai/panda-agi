@@ -23,9 +23,6 @@ Usage:
     # Get collected data
     collected_data = proxy.get_collected_data()
     
-    # Print summary
-    proxy.print_summary()
-    
     # Remove patches when done
     proxy.remove_patches()
 """
@@ -47,14 +44,15 @@ class OpenAIProxy(BaseProxy):
     patching strategy to intercept and collect data from all API calls, including streaming responses.
     """
     
-    def __init__(self, model_name=None, debug=False):
+    def __init__(self, model_name = None, tags=[], debug=False):
         """Initialize the proxy with empty collections.
         
         Args:
             model_name: Optional model name to use for requests if not specified
+            tags: Optional tags to use for requests if not specified
             debug: Whether to print debug information
         """
-        super().__init__(model_name=model_name, debug=debug)
+        super().__init__(model_name=model_name, tags=tags, debug=debug)
         self.is_v0 = is_openai_v0()
         self.patches_applied = False
         
@@ -320,6 +318,7 @@ class OpenAIProxy(BaseProxy):
             messages=request["body"].get("messages", []),
             input=input_text,
             output=response.get('content', ''),
+            tags=self.tags,
             model_name=self.model_name,
             usage=response.get('usage', {}), 
             metadata=metadata

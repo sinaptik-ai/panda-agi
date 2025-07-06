@@ -42,8 +42,9 @@ def get_available_proxies():
     return proxies
 
 class collect(ContextDecorator):
-    def __init__(self, model_name: Optional[str] = None, providers: Optional[List[str]] = None, debug: Optional[bool] = False):
+    def __init__(self, model_name: Optional[str] = None, tags: List[str] = [], providers: Optional[List[str]] = None, debug: Optional[bool] = False):
         self.model_name = model_name
+        self.tags = tags
         available = get_available_proxies()
         self.providers = providers or list(available.keys())
         self.providers = [p for p in self.providers if p in available]
@@ -56,7 +57,7 @@ class collect(ContextDecorator):
         self.active = []
         for provider in self.providers:
             try:
-                proxy = self.stack.enter_context(self.available[provider](model_name=self.model_name, debug=self.debug))
+                proxy = self.stack.enter_context(self.available[provider](model_name=self.model_name, tags=self.tags, debug=self.debug))
                 self.active.append(proxy)
             except Exception as e:
                 self.logger.error(f"Error setting up {provider} proxy: {e}")

@@ -16,8 +16,13 @@ class LLMCallTrace(BaseModel):
     output: str = Field(
         description="Output text from the response content"
     )
+    tags: List[str] = Field(
+        default=[],
+        description="Tags associated with the request"
+    )
     # Model name
     model_name: Optional[str] = Field(
+        default=None,
         description="Name of the language model used for the call"
     )
     # Request information as JSON
