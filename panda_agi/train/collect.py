@@ -44,7 +44,7 @@ def get_available_proxies():
 class collect(ContextDecorator):
     def __init__(self, model_name: Optional[str] = None, tags: Optional[List[str]] = None, providers: Optional[List[str]] = None, debug: Optional[bool] = False):
         self.model_name = model_name
-        self.tags = tags
+        self.tags = tags or []
         available = get_available_proxies()
         self.providers = providers or list(available.keys())
         self.providers = [p for p in self.providers if p in available]
