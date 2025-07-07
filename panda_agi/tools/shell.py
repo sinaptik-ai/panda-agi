@@ -1,3 +1,4 @@
+import uuid
 from typing import Any, Dict, Optional
 
 from ..client.models import EventType
@@ -150,10 +151,6 @@ class ExecuteScriptHandler(ToolHandler):
 
         # Get execution directory, default to current directory
         exec_dir = params.get("exec_dir", ".")
-
-        # Generate a unique ID for this execution
-        import uuid
-
         execution_id = f"script_{uuid.uuid4().hex[:8]}"
 
         # Create parameters for shell execution
@@ -305,7 +302,7 @@ class DeployServerHandler(ToolHandler):
                 {
                     "id": f"{deployment_id}_install",
                     "exec_dir": source_path,
-                    "command": "npm install",
+                    "command": f"{install_command}",
                 },
             )
 
@@ -313,7 +310,7 @@ class DeployServerHandler(ToolHandler):
                 environment=self.environment,
                 id=f"{deployment_id}_install",
                 exec_dir=source_path,
-                command="npm install",
+                command=f"{install_command}",
                 blocking=True,
             )
 
