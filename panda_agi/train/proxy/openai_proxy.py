@@ -23,9 +23,6 @@ Usage:
     # Get collected data
     collected_data = proxy.get_collected_data()
     
-    # Print summary
-    proxy.print_summary()
-    
     # Remove patches when done
     proxy.remove_patches()
 """
@@ -37,6 +34,7 @@ from functools import wraps
 from .base_proxy import BaseProxy
 from ..utils import is_openai_v0
 from ..llm_call_trace import LLMCallTrace
+from typing import List, Optional
 
 
 class OpenAIProxy(BaseProxy):
@@ -46,15 +44,15 @@ class OpenAIProxy(BaseProxy):
     This class automatically detects the OpenAI SDK version and applies the appropriate
     patching strategy to intercept and collect data from all API calls, including streaming responses.
     """
-    
-    def __init__(self, model_name=None, debug=False):
+    def __init__(self, model_name: Optional[str] = None, tags: Optional[List[str]] = None, debug: bool=False):
         """Initialize the proxy with empty collections.
         
         Args:
             model_name: Optional model name to use for requests if not specified
+            tags: Optional tags to use for requests if not specified
             debug: Whether to print debug information
         """
-        super().__init__(model_name=model_name, debug=debug)
+        super().__init__(model_name=model_name, tags=tags, debug=debug)
         self.is_v0 = is_openai_v0()
         self.patches_applied = False
         
@@ -68,9 +66,8 @@ class OpenAIProxy(BaseProxy):
         self.original_sync_send = None
         self.original_async_send = None
         self.original_stream_iter = None
-    
+
     # Using _redact_headers from BaseProxy
-    
     def _is_streaming_request(self, request_data):
         """Determine if a request is for streaming based on its parameters."""
         # Check body parameters
@@ -320,6 +317,7 @@ class OpenAIProxy(BaseProxy):
             messages=request["body"].get("messages", []),
             input=input_text,
             output=response.get('content', ''),
+            tags=self.tags,
             model_name=self.model_name,
             usage=response.get('usage', {}), 
             metadata=metadata

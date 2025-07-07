@@ -7,11 +7,12 @@ request and response data for analysis and debugging.
 
 import time
 import functools
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 import litellm
 from .base_proxy import BaseProxy
 from ..llm_call_trace import LLMCallTrace
 from pydantic import BaseModel
+
 
 class LiteLLMProxy(BaseProxy):
     """A proxy class that collects LiteLLM API request and response data.
@@ -20,20 +21,20 @@ class LiteLLMProxy(BaseProxy):
     to intercept and collect data from all API calls, including streaming responses.
     """
     
-    def __init__(self, model_name=None, debug=False):
+    def __init__(self, model_name: Optional[str] = None, tags: Optional[List[str]] = None,  debug: bool=False):
         """Initialize the LiteLLMProxy.
         
         Args:
             model_name: Optional model name to use for requests if not specified
+            tags: Optional tags to use for requests if not specified
             debug: Enable debug output for tracing
         """
-        super().__init__(model_name=model_name, debug=debug)
+        super().__init__(model_name=model_name, tags=tags, debug=debug)
         self.original_completion = None
         self.original_acompletion = None
         self.original_completion_with_retries = None
     
     # Using _redact_headers from BaseProxy
-    
     def _is_streaming_request(self, kwargs: Dict[str, Any]) -> bool:
         """Check if this is a streaming request."""
         return kwargs.get("stream", False)
@@ -98,6 +99,7 @@ class LiteLLMProxy(BaseProxy):
             messages=messages,
             input=input_text,
             output=output_text,
+            tags=self.tags,
             model_name=model_name,
             usage=usage,
             metadata=metadata
