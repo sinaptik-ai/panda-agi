@@ -34,6 +34,7 @@ from functools import wraps
 from .base_proxy import BaseProxy
 from ..utils import is_openai_v0
 from ..llm_call_trace import LLMCallTrace
+from typing import List, Optional
 
 
 class OpenAIProxy(BaseProxy):
@@ -43,8 +44,7 @@ class OpenAIProxy(BaseProxy):
     This class automatically detects the OpenAI SDK version and applies the appropriate
     patching strategy to intercept and collect data from all API calls, including streaming responses.
     """
-    
-    def __init__(self, model_name = None, tags=[], debug=False):
+    def __init__(self, model_name: Optional[str] = None, tags: Optional[List[str]] = None, debug: bool=False):
         """Initialize the proxy with empty collections.
         
         Args:
@@ -66,9 +66,8 @@ class OpenAIProxy(BaseProxy):
         self.original_sync_send = None
         self.original_async_send = None
         self.original_stream_iter = None
-    
+
     # Using _redact_headers from BaseProxy
-    
     def _is_streaming_request(self, request_data):
         """Determine if a request is for streaming based on its parameters."""
         # Check body parameters

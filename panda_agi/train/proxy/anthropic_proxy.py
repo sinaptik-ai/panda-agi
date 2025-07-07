@@ -22,7 +22,7 @@ Usage:
 """
 
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from .base_proxy import BaseProxy
 from ..llm_call_trace import LLMCallTrace
 
@@ -34,7 +34,7 @@ class AnthropicProxy(BaseProxy):
     This class patches the Anthropic main library functions to intercept and collect data
     from all API calls, including streaming responses.
     """
-    def __init__(self, model_name=None, tags=None, debug=False):
+    def __init__(self, model_name: Optional[str] = None, tags: Optional[List[str]] = None, debug: bool=False):
         """Initialize the AnthropicProxy.
         
         Args:

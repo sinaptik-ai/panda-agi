@@ -7,7 +7,7 @@ request and response data for analysis and debugging.
 
 import time
 import functools
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 import litellm
 from .base_proxy import BaseProxy
 from ..llm_call_trace import LLMCallTrace
@@ -21,7 +21,7 @@ class LiteLLMProxy(BaseProxy):
     to intercept and collect data from all API calls, including streaming responses.
     """
     
-    def __init__(self, model_name=None, tags=None,  debug=False):
+    def __init__(self, model_name: Optional[str] = None, tags: Optional[List[str]] = None,  debug: bool=False):
         """Initialize the LiteLLMProxy.
         
         Args:

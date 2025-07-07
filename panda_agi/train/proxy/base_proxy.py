@@ -1,5 +1,5 @@
 from ..utils import send_traces
-from typing import Union, List
+from typing import Union, List, Optional
 from ..llm_call_trace import LLMCallTrace
 from ..utils.logger import ProxyLogger
 import asyncio
@@ -13,7 +13,7 @@ class BaseProxy:
     This class provides common functionality that all proxies will inherit,
     including data collection, recording, and summary printing.
     """
-    def __init__(self, model_name = None, tags = [], debug=False):
+    def __init__(self, model_name: Optional[str] = None, tags: Optional[List[str]] = None, debug: bool=False):
         """Initialize the BaseProxy with empty collected data.
         
         Args:
@@ -24,7 +24,7 @@ class BaseProxy:
         self.collected_data = []
         self.patches_applied = False
         self.model_name = model_name
-        self.tags = tags
+        self.tags = tags or []
         # Thread-local storage to track which threads are within the context
         self.thread_local = threading.local()
         self.thread_local.is_active = False
