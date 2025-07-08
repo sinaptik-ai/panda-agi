@@ -1,9 +1,10 @@
 from .collect import collect
-from .llm_call_trace import LLMCallTrace
+from .conversation import Conversation
+from .training_model import TrainingModel
 
 
 __all__ = [
     "collect",
-    "LLMCallTrace",
+    "Conversation",
+    "TrainingModel",
 ]
-    

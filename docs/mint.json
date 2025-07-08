@@ -57,6 +57,7 @@
         "concepts/knowledge",
         "concepts/events",
         "concepts/environments",
+        "concepts/training",
         "installation"
       ]
     }

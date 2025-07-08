@@ -2,7 +2,7 @@
 Utility functions and classes for pandaagi_train.
 """
 from typing import Union, List
-from ..llm_call_trace import LLMCallTrace
+from ..conversation import Conversation
 import os
 import requests
 import json
@@ -26,11 +26,11 @@ def is_openai_v0():
         # If we can't determine version from string, use feature detection
         return hasattr(openai, "ChatCompletion") and hasattr(openai.ChatCompletion, "create")
 
-async def send_traces(traces: Union[LLMCallTrace, List[LLMCallTrace]]):
+async def send_traces(traces: Union[Conversation, List[Conversation]]):
     """Send LLM trace data to the backend server.
     
     Args:
-        traces: A single LLMCallTrace or a list of LLMCallTrace objects
+        traces: A single Conversation or a list of Conversation objects
     
     Returns:
         bool: True if successful, False otherwise
@@ -46,7 +46,7 @@ async def send_traces(traces: Union[LLMCallTrace, List[LLMCallTrace]]):
     backend_url = f"{server_url}/llm/trace"
     
     # Convert single trace to list if needed
-    if isinstance(traces, LLMCallTrace):
+    if isinstance(traces, Conversation):
         traces = [traces]
     
     # Prepare data for sending
@@ -78,4 +78,3 @@ async def send_traces(traces: Union[LLMCallTrace, List[LLMCallTrace]]):
     except Exception as e:
         logger.error(f"Error sending traces to backend: {str(e)}")
         return False
-

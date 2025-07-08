@@ -1,6 +1,6 @@
 from ..utils import send_traces
 from typing import Union, List, Optional
-from ..llm_call_trace import LLMCallTrace
+from ..conversation import Conversation
 from ..utils.logger import ProxyLogger
 import asyncio
 import threading
@@ -33,7 +33,7 @@ class BaseProxy:
         self.logger = ProxyLogger(self.__class__.__name__, debug)
         self.logger.info(f"Initialized {self.__class__.__name__}")
     
-    def _track(self, trace: Union[LLMCallTrace, List[LLMCallTrace]]):
+    def _track(self, trace: Union[Conversation, List[Conversation]]):
         if not hasattr(self.thread_local, 'is_active') or not self.thread_local.is_active:
             return
     

@@ -24,7 +24,7 @@ Usage:
 import time
 from typing import Dict, Any, List, Optional
 from .base_proxy import BaseProxy
-from ..llm_call_trace import LLMCallTrace
+from ..conversation import Conversation, LLMUsage, ConversationMessage
 
 
 class AnthropicProxy(BaseProxy):
@@ -166,14 +166,13 @@ class AnthropicProxy(BaseProxy):
         return output_text
     
     def _record(self, data: Dict[str, Any]):
-        """Convert collected data to LLMCallTrace and append to collected_data."""
+        """Convert collected data to Conversation and append to collected_data."""
         request = data.get("request", {})
         response = data.get("response", {})
         messages = request.get("kwargs", {}).get("messages", [])
-        
-        # Extract input text from the last user message
+
         input_text = self._extract_input_text(messages)
-        
+    
         # Extract output text from response
         output_text = ""
         if "content" in response:
@@ -181,14 +180,22 @@ class AnthropicProxy(BaseProxy):
         elif response.get("streaming", False):
             # For streaming responses, get the accumulated delta text
             output_text = response.get("streaming_delta", "")
-        
+
+        # Convert messages to ConversationMessage objects
+        messages = [ConversationMessage(role=message["role"], content=message["content"]) for message in messages]
+        # Check if messages are empty and add a message using input_text
+        if messages:
+            messages.append(ConversationMessage(role="assistant", content=output_text))
+        else:
+            messages = [ConversationMessage(role="user", content=input_text), ConversationMessage(role="assistant", content=output_text)]
+    
         # Extract model name
         model_name = self.model_name or request.get("kwargs", {}).get("model", None)
         
         # Extract usage information
         usage = {}
         if "usage" in response:
-            usage = response.get("usage", {})
+            usage = response.get("usage", None)
         
         # Prepare metadata
         metadata = {
@@ -211,14 +218,19 @@ class AnthropicProxy(BaseProxy):
         try:
             # Create the trace object
             # Check if usage is already a dict or if it has a dict() method
-            usage_dict = usage if isinstance(usage, dict) else usage.dict() if hasattr(usage, 'dict') else {}
-            trace = LLMCallTrace(
+            llm_usage = usage if isinstance(usage, dict) else usage.dict() if hasattr(usage, 'dict') else None
+
+            if llm_usage:
+                llm_usage = response.get('usage', None)
+                if llm_usage:
+                    llm_usage = LLMUsage(
+                        **llm_usage
+                    )
+            trace = Conversation(
                 messages=messages,
-                input=input_text,
-                output=output_text,
                 model_name=model_name,
                 tags=self.tags,
-                usage=usage_dict,
+                usage=llm_usage,
                 metadata=metadata
             )
         except Exception as e:
@@ -243,12 +255,13 @@ class AnthropicProxy(BaseProxy):
             usage.input_tokens = 0
         if usage.output_tokens is None:
             usage.output_tokens = 0
+
         return {
-                    "prompt_tokens": usage.input_tokens,
-                    "completion_tokens": usage.output_tokens,
-                    "total_tokens": usage.input_tokens + usage.output_tokens,
-                }
-    
+            "prompt_tokens": usage.input_tokens,
+            "completion_tokens": usage.output_tokens,
+            "total_tokens": usage.input_tokens + usage.output_tokens
+        }
+
     def patched_messages_create(self, *args, **kwargs):
         """Patched version of Messages.create"""
         # Get the proxy instance
@@ -550,12 +563,11 @@ class AnthropicStreamWrapper:
                 prompt_tokens = event.usage.input_tokens if event.usage.input_tokens is not None else 0
                 completion_tokens = event.usage.output_tokens if event.usage.output_tokens is not None else 0
                 total_tokens = prompt_tokens + completion_tokens
-                usage = {
+                self.response_data["usage"] = {
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
                     "total_tokens": total_tokens
                 }
-                self.response_data["usage"] = usage
             yield event
         
     @property
@@ -606,12 +618,11 @@ class AnthropicAsyncStreamWrapper:
                 prompt_tokens = event.usage.input_tokens if event.usage.input_tokens is not None else 0
                 completion_tokens = event.usage.output_tokens if event.usage.output_tokens is not None else 0
                 total_tokens = prompt_tokens + completion_tokens
-                usage = {
+                self.response_data["usage"] = {
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
                     "total_tokens": total_tokens
                 }
-                self.response_data["usage"] = usage
             yield event
     
     @property
