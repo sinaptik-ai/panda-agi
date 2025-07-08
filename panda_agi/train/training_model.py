@@ -26,13 +26,6 @@ class TrainingModel:
             {"role": "user", "content": "Hello, how are you?"},
             {"role": "assistant", "content": "I'm doing well, thank you!"}
         ])
-        
-        # Asynchronous usage
-        model = TrainingModel(name="model_name")
-        await model.acollect([
-            {"role": "user", "content": "Hello, how are you?"},
-            {"role": "assistant", "content": "I'm doing well, thank you!"}
-        ])
         ```
     """
     def __init__(self, name: str, tags: Optional[List[str]] = None, meta: Optional[Dict]=None):
