@@ -33,7 +33,7 @@ import asyncio
 from functools import wraps
 from .base_proxy import BaseProxy
 from ..utils import is_openai_v0
-from ..llm_call_trace import LLMCallTrace
+from ..conversation import Conversation, ConversationMessage, LLMUsage
 from typing import List, Optional
 
 
@@ -81,7 +81,12 @@ class OpenAIProxy(BaseProxy):
                 return True
         
         return False
-    
+
+    def _add_streaming_content_to_trace(self, trace, chunk):
+        last_message = trace.messages[-1]
+        if last_message.role == "assistant":
+            last_message.content += chunk
+        
     # ===== V0.x Specific Methods =====
     def _get_content_from_response(self, response):
         content = ""
@@ -93,7 +98,7 @@ class OpenAIProxy(BaseProxy):
                 content += choice.message.content
             elif hasattr(choice, "delta"):
                 content += choice.delta.content
-        usage = response.usage if hasattr(response, "usage") else {}
+        usage = response.usage if hasattr(response, "usage") else None
         return content, usage
 
     def _get_content_from_response_from_json(self, response):
@@ -107,7 +112,7 @@ class OpenAIProxy(BaseProxy):
             elif "delta" in choice:
                 content += choice["delta"].get("content", "")
 
-        usage = response["usage"] if "usage" in response else {}
+        usage = response["usage"] if "usage" in response else None
         return content, usage
 
     def _enable_usage_collection(self, kwargs):
@@ -172,16 +177,18 @@ class OpenAIProxy(BaseProxy):
                         # Store the chunk in our record
                         if hasattr(chunk, "choices") and len(chunk.choices) > 0:
                             if hasattr(chunk.choices[0], "text"):
-                                trace.output += chunk.choices[0].text
+                                self._add_streaming_content_to_trace(trace, chunk.choices[0].text)
                             elif hasattr(chunk.choices[0], "delta") and hasattr(chunk.choices[0].delta, "content"):
                                 content = chunk.choices[0].delta.content
                                 if content:
-                                    trace.output += content
+                                    self._add_streaming_content_to_trace(trace, content)
 
                         yield chunk
                     # track at the end of the stream response
                     if "usage" in chunk and chunk["usage"]:
-                        trace.usage = chunk["usage"]
+                        trace.usage = LLMUsage(
+                            **chunk["usage"]
+                        )
                     self._track(trace)
                 
                 # Return our wrapped generator instead
@@ -254,18 +261,19 @@ class OpenAIProxy(BaseProxy):
                         if hasattr(chunk, "choices") and len(chunk.choices) > 0:
 
                             if hasattr(chunk.choices[0], "text"):
-                                trace.output += chunk.choices[0].text
+                                self._add_streaming_content_to_trace(trace, chunk.choices[0].text)
                             elif hasattr(chunk.choices[0], "delta") and hasattr(chunk.choices[0].delta, "content"):
                                 content = chunk.choices[0].delta.content
                                 if content:
-                                    trace.output += content
-                            
+                                    self._add_streaming_content_to_trace(trace, content)
 
                         yield chunk
 
                     # track at the end of the stream response
                     if "usage" in chunk and chunk["usage"]:
-                        trace.usage = chunk["usage"]
+                        trace.usage = LLMUsage(
+                         **chunk["usage"]
+                        )
 
                     self._track(trace)
 
@@ -287,17 +295,12 @@ class OpenAIProxy(BaseProxy):
     
     # ===== V1.x+ Specific Methods =====
     def _process_response(self, request, response, kwargs):
-        # Create LLMCallTrace object
+        # Create Conversation object
         input_text = ""
         if 'prompt' in kwargs:
             input_text = kwargs['prompt']
-        elif 'messages' in request["body"]:
-            input_text = request["body"]['messages'][-1].get('content', '')
-        elif 'body' in request and 'messages' in request['body']:
-            input_text = request['body']['messages'][-1].get('content', '')
         elif 'body' in request and 'prompt' in request['body']:
             input_text = request['body']['prompt']
-
         
         # Prepare metadata
         metadata = {
@@ -313,13 +316,25 @@ class OpenAIProxy(BaseProxy):
         other_args = {k: v for k, v in request.get("kwargs", {}).items() if k != "messages"}
         metadata.update(other_args)
 
-        trace = LLMCallTrace(
-            messages=request["body"].get("messages", []),
-            input=input_text,
-            output=response.get('content', ''),
+        messages = request["body"].get("messages", [])
+
+        messages = [ConversationMessage(role=message["role"], content=message["content"]) for message in messages]
+        # check if messages are empty add message from the input_text
+        if messages:
+            messages.append(ConversationMessage(role="assistant", content=response.get('content', '')))
+        else:
+            messages = [ConversationMessage(role="user", content=input_text), ConversationMessage(role="assistant", content=response.get('content', ''))]
+
+        llm_usage = response.get('usage', None)
+        if llm_usage:
+            llm_usage = LLMUsage(
+                **llm_usage
+            )
+        trace = Conversation(
+            messages=messages,
             tags=self.tags,
             model_name=self.model_name,
-            usage=response.get('usage', {}), 
+            usage=llm_usage,
             metadata=metadata
         )
         return trace
@@ -430,8 +445,10 @@ class OpenAIProxy(BaseProxy):
                                             # Parse the JSON data
                                             chunk_data = json.loads(event.data)
                                             content, response_usage = self._get_content_from_response_from_json(chunk_data)
-                                            trace.output += content
-                                            trace.usage = response_usage
+                                            self._add_streaming_content_to_trace(trace, content)
+                                            trace.usage = LLMUsage(
+                                                **response_usage
+                                            )
                                         except json.JSONDecodeError:
                                             # Non-JSON data
                                             pass
@@ -546,9 +563,10 @@ class OpenAIProxy(BaseProxy):
                                             # Parse the JSON data
                                             chunk_data = json.loads(event.data)
                                             content, response_usage = self._get_content_from_response_from_json(chunk_data)
-
-                                            trace.output += content
-                                            trace.usage = response_usage
+                                            self._add_streaming_content_to_trace(trace, content)
+                                            trace.usage = LLMUsage(
+                                                **response_usage
+                                            )
                                         except json.JSONDecodeError:
                                             # Non-JSON data
                                             pass

@@ -10,7 +10,7 @@ import functools
 from typing import Dict, Any, List, Optional
 import litellm
 from .base_proxy import BaseProxy
-from ..llm_call_trace import LLMCallTrace
+from ..conversation import Conversation, LLMUsage, ConversationMessage
 from pydantic import BaseModel
 
 
@@ -47,7 +47,7 @@ class LiteLLMProxy(BaseProxy):
             kwargs["stream_options"]["include_usage"] = True
         
     def _record(self, data: Dict[str, Any]):
-        """Convert collected data to LLMCallTrace and append to collected_data."""
+        """Convert collected data to Conversation and append to collected_data."""
         request = data.get("request", {})
         response = data.get("response", {})
         messages = request.get("kwargs", {}).get("messages", [])
@@ -68,9 +68,9 @@ class LiteLLMProxy(BaseProxy):
             output_text = response.get("streaming_delta", "")
         
         # Extract usage information
-        usage = {}
+        usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         if "usage" in response:
-            usage = response.get("usage", {})
+            usage = response.get("usage", None)
             if isinstance(usage, BaseModel):
                 usage = usage.dict()
          
@@ -93,12 +93,21 @@ class LiteLLMProxy(BaseProxy):
         if "error" in response:
             metadata["error"] = response.get("error", "")
             metadata["error_type"] = response.get("error_type", "Unknown")
-        
+
+        messages = [ConversationMessage(role=message["role"], content=message["content"]) for message in messages]
+        # check if messages are empty add message from the input_text
+        if messages:
+            messages.append(ConversationMessage(role="assistant", content=output_text))
+        else:
+            messages = [ConversationMessage(role="user", content=input_text), ConversationMessage(role="assistant", content=output_text)]
+
+
+        if usage:
+            usage = LLMUsage(**usage)
+
         # Create the trace object
-        trace = LLMCallTrace(
+        trace = Conversation(
             messages=messages,
-            input=input_text,
-            output=output_text,
             tags=self.tags,
             model_name=model_name,
             usage=usage,
@@ -237,7 +246,7 @@ class LiteLLMProxy(BaseProxy):
                         response_data["content"] = response.choices[0].message.content
                         response_data["usage"] = response.model_extra.get("usage", {})
                 
-                # Store the collected data using _record to create LLMCallTrace
+                # Store the collected data using _record to create Conversation
                 collected_item = {
                     "request": request_data,
                     "response": response_data,

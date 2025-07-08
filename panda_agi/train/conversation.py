@@ -1,20 +1,36 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Literal
 from pydantic import BaseModel, Field
 from datetime import datetime
 
 
-class LLMCallTrace(BaseModel):
+class ConversationMessage(BaseModel):
+    """Pydantic model for OpenAI message format."""
+    role: Literal["system", "user", "assistant", "tool"] = Field(
+        description="The role of the message author"
+    )
+    content: Optional[str] = Field(
+        description="The content of the message"
+    )
+
+class LLMUsage(BaseModel):
+    """Pydantic model for OpenAI usage format."""
+    prompt_tokens: int = Field(
+        description="Number of tokens used for the prompt"
+    )
+    completion_tokens: int = Field(
+        description="Number of tokens used for the completion"
+    )
+    total_tokens: int = Field(
+        description="Total number of tokens used"
+    )
+
+
+class Conversation(BaseModel):
     """Pydantic model to store LLM call trace information."""
     
     # Request information as JSON
-    messages: List[Dict[str, Any]] = Field(
+    messages: List[ConversationMessage] = Field(
         description="Complete messages from the request"
-    )
-    input: str = Field(
-        description="Input text from the last message in the conversation"
-    )
-    output: str = Field(
-        description="Output text from the response content"
     )
     tags: List[str] = Field(
         default=[],
@@ -26,7 +42,8 @@ class LLMCallTrace(BaseModel):
         description="Name of the language model used for the call"
     )
     # Request information as JSON
-    usage: Optional[Dict[str, Any]] = Field(
+    usage: Optional[LLMUsage] = Field(
+        default=None,
         description="Complete request LLM usage in JSON format"
     )
     # Metadata with function name

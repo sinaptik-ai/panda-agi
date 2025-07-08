@@ -1,0 +1,128 @@
+---
+title: "Training"
+description: "Collect and send conversation data for model training and evaluation"
+---
+
+# Training Module
+
+The Training module in Panda AGI provides tools to collect, process, and send conversation data to backend systems for model training, evaluation, and analysis. This module enables you to track interactions with various LLM providers and gather valuable data for improving your models.
+
+## Conversation Tracking
+
+The core of the training module is the conversation tracking system, which captures messages exchanged between users and AI models along with metadata about the interaction.
+
+### Key Components
+
+<AccordionGroup>
+  <Accordion title="Conversation">
+    The `Conversation` class is a Pydantic model that represents a complete interaction with an LLM. It includes:
+    
+    - A list of messages exchanged
+    - The model name used
+    - Usage statistics (tokens) [Optional]
+    - Metadata and tags for categorization [Optional]
+    
+    ```python
+    from panda_agi.train.conversation import Conversation, ConversationMessage, LLMUsage
+    
+    # Create a conversation
+    conversation = Conversation(
+        messages=[
+            ConversationMessage(role="user", content="Hello, how are you?"),
+            ConversationMessage(role="assistant", content="I'm doing well, thank you!")
+        ],
+        model_name="model_name",
+        usage=LLMUsage(prompt_tokens=10, completion_tokens=8, total_tokens=18),
+        meta={"session_id": "abc123"},
+        tags=["customer-support", "greeting"]
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="ConversationMessage">
+    The `ConversationMessage` class represents individual messages in a conversation, following the OpenAI message format:
+    
+    - `role`: The sender of the message (system, user, assistant, or tool)
+    - `content`: The text content of the message
+    
+    ```python
+    from panda_agi.train.conversation import ConversationMessage
+    
+    # Create a system message
+    system_msg = ConversationMessage(
+        role="system",
+        content="You are a helpful assistant."
+    )
+    
+    # Create a user message
+    user_msg = ConversationMessage(
+        role="user",
+        content="Can you help me with Python?"
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="LLMUsage">
+    The `LLMUsage` class tracks token usage statistics for a conversation:
+    
+    - `prompt_tokens`: Number of tokens in the prompt
+    - `completion_tokens`: Number of tokens in the completion
+    - `total_tokens`: Total number of tokens used
+    
+    ```python
+    from panda_agi.train.conversation import LLMUsage
+    
+    # Create usage statistics
+    usage = LLMUsage(
+        prompt_tokens=150,
+        completion_tokens=50,
+        total_tokens=200
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## TrainingModel
+
+The `TrainingModel` class provides a simple interface for collecting and sending conversation data to backend systems for training.
+
+```python
+from panda_agi.train.training_model import TrainingModel
+from panda_agi.train.conversation import ConversationMessage
+
+# Initialize a training model
+model = TrainingModel(
+    name="model_name",
+    tags=["production", "customer-service"],
+    meta={"app_version": "1.0.0"}
+)
+
+# Collect conversation data
+conversation = model.collect([
+    {"role": "user", "content": "Hello, how are you?"},
+    {"role": "assistant", "content": "I'm doing well, thank you!"}
+])
+
+```
+
+## Environment Configuration
+
+To enable sending conversation data to backend systems, set the `PANDA_AGI_KEY` environment variable with your API key:
+
+```bash
+export PANDA_AGI_KEY=your_api_key_here
+```
+
+Without this key, the system will log a warning and skip sending traces.
+
+## Best Practices
+
+1. **Add Meaningful Tags**: Use tags to categorize conversations for easier filtering and analysis.
+2. **Include Metadata**: Add relevant metadata like session IDs, user IDs, or application versions.
+3. **Handle Errors**: Implement error handling around trace sending to ensure your application remains robust.
+4. **Privacy Considerations**: Be mindful of sensitive data in conversations and implement appropriate anonymization.
+
+## Next Steps
+
+- Explore the [Collect](/concepts/collect) module to understand how conversation data is used for training
+- Learn about [Events](/concepts/events) to see how conversations can trigger event-based workflows
