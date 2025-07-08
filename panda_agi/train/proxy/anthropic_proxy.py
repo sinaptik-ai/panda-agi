@@ -183,7 +183,7 @@ class AnthropicProxy(BaseProxy):
 
         # Convert messages to ConversationMessage objects
         messages = [ConversationMessage(role=message["role"], content=message["content"]) for message in messages]
-        # check if messages are empty add message from the input_text
+        # Check if messages are empty and add a message using input_text
         if messages:
             messages.append(ConversationMessage(role="assistant", content=output_text))
         else:
