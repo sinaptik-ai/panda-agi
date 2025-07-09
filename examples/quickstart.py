@@ -46,6 +46,8 @@ When a user asks you to analyze data, you must follow these steps:
     agent = Agent(
         environment=agent_env,
         event_handlers=handlers,
+        model="annie-pro",
+        host="ws://localhost:8000",
         # knowledge=knowledge,
         # skills=skills,
     )

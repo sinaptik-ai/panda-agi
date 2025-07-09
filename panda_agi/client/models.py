@@ -1,7 +1,6 @@
 import inspect
 import json
 import logging
-import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
@@ -82,14 +81,8 @@ COMPLETION_MESSAGE_TYPES = [
 ]
 
 
-class WebSocketMessage(BaseModel):
-    """WebSocket message structure"""
-
-    type: str
-    id: str = Field(default_factory=lambda: uuid.uuid4().hex[:8])
-    payload: Optional[Dict[str, Any]] = None
-    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat())
-    status: Optional[str] = None
+class AgentRequestMessage(BaseModel):
+    """Agent request message structure"""
 
     def to_dict(self):
         return self.model_dump()
@@ -287,6 +280,7 @@ class UseSkillResultEvent(BaseStreamEvent):
     result: Optional[Dict[str, Any]] = Field(
         default=None, description="Result from skill execution"
     )
+
 
 # Creative & Generation Events
 class ImageGenerationEvent(BaseStreamEvent):

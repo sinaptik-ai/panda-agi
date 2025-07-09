@@ -1,9 +1,6 @@
-import asyncio
 import logging
 import os
 import uuid
-from contextlib import asynccontextmanager
-from enum import Enum
 from typing import (
     Any,
     AsyncGenerator,
@@ -17,7 +14,7 @@ from typing import (
 
 from dotenv import load_dotenv
 
-from ..envs import BaseEnv, LocalEnv
+from ..environments import BaseEnv, LocalEnv
 from ..handlers.base_handler import BaseHandler
 from ..tools import ToolRegistry
 from ..tools.base import ToolHandler
@@ -25,14 +22,14 @@ from ..tools.file_system_ops import file_explore_directory
 from ..tools.skills_ops import Skill
 from .event_manager import EventManager
 from .models import (
+    AgentRequestMessage,
     AgentResponse,
     BaseStreamEvent,
     Knowledge,
-    MessageType,
-    WebSocketMessage,
 )
+from .panda_agi_client import PandaAgiClient
 from .state import AgentState
-from .websocket_client import WebSocketClient
+from .token_processor import TokenProcessor
 
 # Configure logging
 logging.basicConfig(
@@ -47,53 +44,52 @@ MAX_KNOWLEDGE_LENGTH = 10
 MAX_SKILLS_LENGTH = 10
 
 
-class Tools(Enum):
-    """Tools that the agent can use"""
-
-    FILE_MANAGEMENT = "file_management"
-    SHELL_EXECUTION = "shell_execution"
-    MESSAGING = "messaging"
-    WEB_SEARCH = "web_search"
-    IMAGE_GENERATION = "image_generation"
-
-
 class Agent:
     """Agent class for managing WebSocket connections and tool"""
 
     def __init__(
         self,
-        host: str = "wss://agi-api.pandas-ai.com",
+        base_url: str = None,
         api_key: str = None,
         model: Literal["annie-lite", "annie-pro", "auto"] = "auto",
         conversation_id: Optional[str] = None,
-        auto_reconnect: bool = False,
-        reconnect_interval: float = 5.0,
-        tools_handlers: Optional[Dict[str, Any]] = None,
+        use_internet: bool = True,
+        use_filesystem: bool = True,
+        use_shell: bool = True,
+        use_image_generation: bool = True,
         environment: Optional[BaseEnv] = None,
-        event_handlers: Optional[
-            List[
-                Union[
-                    Callable[[BaseStreamEvent], Optional[BaseStreamEvent]], BaseHandler
-                ]
-            ]
-        ] = None,
         knowledge: Optional[List[Knowledge]] = None,
         skills: Optional[List[Callable]] = None,
-        enabled_tools: Optional[List[Tools]] = None,
     ):
         load_dotenv()
         self.api_key = api_key or os.getenv("PANDA_AGI_KEY")
+        self.base_url = base_url or os.getenv(
+            "PANDA_AGI_BASE_URL",
+            "localhost:8000/v2",  # "wss://agi-api.pandas-ai.com/"
+        )
         self.model = model
         if not self.api_key:
-            logger.warning(
+            raise ValueError(
                 "No API key provided. Please set PANDA_AGI_KEY in environment or pass api_key parameter"
             )
 
-        self.conversation_id = conversation_id or str(uuid.uuid4())
+        self.conversation_id = conversation_id or str(
+            uuid.uuid4()
+        )  # Generate a new UUID if not provided
         self.environment = environment or LocalEnv("./tmp/agent_workspace")
-        self.event_handlers = event_handlers
 
         self.state = AgentState()
+        self.event_manager = EventManager()
+
+        # Initialize HTTP client and token processor
+        self.client = PandaAgiClient(
+            base_url=self.base_url,
+            api_key=self.api_key,
+            conversation_id=self.conversation_id,
+            state=self.state,
+        )
+        self.token_processor = TokenProcessor()
+
         if knowledge and len(knowledge) > MAX_KNOWLEDGE_LENGTH:
             raise ValueError(
                 f"Knowledge length is greater than {MAX_KNOWLEDGE_LENGTH}. Reduce the number of knowledge items."
@@ -108,39 +104,15 @@ class Agent:
                 )
             self._process_skills(skills)
 
+        self.state.use_internet = use_internet
+        self.state.use_filesystem = use_filesystem
+        self.state.use_shell = use_shell
+        self.state.use_image_generation = use_image_generation
+
         # Initialize event manager
-        self.event_manager = EventManager()
-
-        # Initialize WebSocket client
-        self.ws_client = WebSocketClient(
-            host=host,
-            api_key=self.api_key,
-            conversation_id=self.conversation_id,
-            auto_reconnect=auto_reconnect,
-            reconnect_interval=reconnect_interval,
-            state=self.state,
-        )
-
-        # Set up message handler
-        self.ws_client.set_message_handler(self._handle_message)
-
-        self._request_complete = None
-
         logger.info(
             f"Agent initialized with environment at: {self.environment.base_path}"
         )
-
-        # Set up message handlers with environment support
-        self.tool_handlers = tools_handlers or self._create_handlers()
-
-        # Set agent and event manager and environment references for all handlers
-        for handler in self.tool_handlers.values():
-            handler.set_agent(self)
-            handler.set_event_manager(self.event_manager)
-            handler.set_environment(self.environment)
-
-        # Enable or disable tools
-        self.enabled_tools = enabled_tools
 
     def _create_handlers(self) -> Dict[str, ToolHandler]:
         """Create handlers using the new unified tool system"""
@@ -148,58 +120,9 @@ class Agent:
         handlers = ToolRegistry.create_all_handlers()
         return handlers
 
-    @property
-    def is_connected(self) -> bool:
-        """Check if the WebSocket client is connected"""
-        return self.ws_client.is_connected
-
-    async def connect(self) -> None:
-        """Connect to the WebSocket server"""
-        await self.ws_client.connect()
-
-    async def disconnect(self) -> None:
-        """Disconnect from the WebSocket server"""
-        self.state.initialization_complete.clear()
-        await self.ws_client.disconnect()
-
-    async def _handle_message(self, data: Dict[str, Any]):
-        """Handle incoming messages"""
-        logger.info(f"Handling message: {data}")
-
-        msg_type = data.get("type", "default")
-        msg_id = data.get("id")
-
-        # Use message handlers with new tool system
-        handler = self.tool_handlers.get(msg_type)
-        if handler:
-            logger.info(f"Handling message with handler: {handler}")
-            payload = data.get("payload")
-            await handler.handle(msg_id, payload)
-        else:
-            logger.warning(f"No handler found for message type: {msg_type}")
-
-    async def send_message(self, message: Union[WebSocketMessage, dict]) -> str:
-        """Send a message to the server"""
-        return await self.ws_client.send_message(message)
-
-    async def wait_for_initialization(self, timeout=30.0):
-        """
-        Wait for connection initialization (simplified).
-
-        Args:
-            timeout: Maximum time to wait in seconds
-
-        Returns:
-            True if initialization completed, False if timed out
-        """
-        try:
-            await asyncio.wait_for(self.state.initialization_complete.wait(), timeout)
-            return True
-        except asyncio.TimeoutError:
-            logger.warning(
-                f"Timed out waiting for connection initialization after {timeout}s"
-            )
-            return False
+    async def send_request(self, request: Union[AgentRequestMessage, dict]) -> dict:
+        """Send a request to the server"""
+        return await self.client.send_request(request)
 
     def add_knowledge(self, knowledge: Knowledge):
         """Add knowledge to the agent"""
@@ -223,46 +146,41 @@ class Agent:
     ) -> AsyncGenerator[BaseStreamEvent, None]:
         """Send a request and stream events from both in and out queues as they occur"""
 
-        # Restart the connection for each run
-        if self.is_connected:
-            logger.info("Restarting connection for new request...")
-            await self.disconnect()
-
-        logger.info("Connecting before sending request...")
-        await self.connect()
-
-        # Wait for connection initialization if needed
-        if not self.state.initialization_complete.is_set():
-            logger.info("Waiting for connection initialization before sending request")
-            await self.wait_for_initialization()
-
-        message = WebSocketMessage(
-            type=MessageType.REQUEST.value,
-            payload={
-                "query": query,
-                "knowledge": [k.model_dump() for k in self.state.knowledge],
-                "skills": [s.to_string() for s in self.state.skills],
-                "enabled_tools": [t.value for t in self.enabled_tools]
-                if self.enabled_tools
-                else "all",
-                "model": self.model,
-            },
+        request = AgentRequestMessage(
+            api_key=self.api_key,
+            conversation_id=self.conversation_id,
+            query=query,
+            model=self.model,
+            use_internet=self.state.use_internet,
+            use_filesystem=self.state.use_filesystem,
+            use_shell=self.state.use_shell,
+            use_image_generation=self.state.use_image_generation,
+            knowledge=self.state.knowledge,
+            skills=self.state.skills,
         )
-        try:
-            # Send the message
-            await self.send_message(message)
 
-            # Stream events using the event manager
-            async for event in self.event_manager.stream_events():
-                await asyncio.sleep(0.01)
-                yield event
+        try:
+            # Reset token processor for new request
+            self.token_processor.reset()
+
+            # Send streaming request and process tokens
+            token_stream = self.client.send_streaming_request(request)
+
+            # Process tokens through the token processor
+            async for processed_event in self.token_processor.process_token_stream(
+                token_stream
+            ):
+                # Convert processed token events to BaseStreamEvent format
+                # For now, we'll yield the processed events directly
+                # In the future, this can be enhanced to create proper BaseStreamEvent objects
+                yield processed_event
 
         except Exception as e:
-            logger.error(f"Error in run: {e}")
+            logger.error(f"Error in run_stream: {e}")
             raise e
 
         finally:
-            await self.disconnect()
+            await self.client.disconnect()
 
     def change_working_directory(self, path: str):
         """
@@ -293,29 +211,10 @@ class Agent:
         Returns:
             Dictionary representing the file system structure
         """
-        file_system = await file_explore_directory(
+        file_system_info = await file_explore_directory(
             self.environment, path="/", max_depth=2
         )
-        return {
-            "directory": file_system.get("directory", {}),
-            "structure": file_system.get("structure", {}),
-        }
-
-    @asynccontextmanager
-    async def connection(self):
-        """Context manager for automatic connection/disconnection"""
-        await self.connect()
-        try:
-            yield self
-        finally:
-            await self.disconnect()
-
-    async def __aenter__(self):
-        await self.connect()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.disconnect()
+        return file_system_info
 
     async def run(
         self,
@@ -344,20 +243,21 @@ class Agent:
 
         # Run and collect all events
         async for event in self.run_stream(query):
-            # Process the event with the appropriate handlers
-            active_handlers = event_handlers or self.event_handlers
-            processed_event = (
-                self._process_event_with_handlers(event, active_handlers)
-                if active_handlers
-                else event
-            )
+            # Process the event with the appropriate handlers if they exist
+            if event_handlers:
+                processed_event = self._process_event_with_handlers(
+                    event, event_handlers
+                )
 
-            # Skip events that couldn't be processed
-            if processed_event is None:
-                continue
+                # Skip events that couldn't be processed
+                if processed_event is None:
+                    continue
 
-            # Add the processed event to the response
-            response.add_event(processed_event)
+                # Add the processed event to the response
+                response.add_event(processed_event)
+            else:
+                # No handlers, add event directly
+                response.add_event(event)
 
         return response
 

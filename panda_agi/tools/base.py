@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from ..client.agent import Agent
 
 from ..client.event_manager import EventManager
-from ..client.models import EventType, MessageType, WebSocketMessage
+from ..client.models import EventType, MessageType
 from ..envs import BaseEnv
 
 logger = logging.getLogger("AgentClient")
@@ -77,21 +77,19 @@ class ToolHandler(ABC):
     async def send_response(self, msg_id: str, result: ToolResult) -> None:
         """Send standardized response message"""
 
-        if not self.agent or not self.agent.is_connected:
+        if not self.agent or not self.agent.client or not self.agent.client.is_connected:
             self.logger.warning("Cannot send response: agent not connected")
             return
 
-        response_message = WebSocketMessage(
-            id=msg_id,
-            type=MessageType.TOOL_RESULT.value,
-            payload=result.data,
-        )
-
+        # For HTTP-based communication, we'll handle responses differently
+        # This method is kept for backward compatibility but may need to be updated
+        # based on the new HTTP streaming architecture
+        
         try:
-            await self.agent.send_message(response_message)
-            self.logger.info(f"Sent response for {self.__class__.__name__}: {result}")
+            # Log the result for now - in HTTP streaming, tool results are handled differently
+            self.logger.info(f"Tool result for {self.__class__.__name__}: {result}")
         except Exception as e:
-            self.logger.error(f"Failed to send response: {e}")
+            self.logger.error(f"Failed to process response: {e}")
 
     async def handle(self, msg_id: str, params: Dict[str, Any]) -> None:
         """Main handle method with standardized error handling and response"""
