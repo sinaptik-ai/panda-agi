@@ -1,10 +1,9 @@
 import logging
-import uuid
 from typing import AsyncGenerator, Dict, Optional, Union
 
 import httpx
 
-from .models import AgentRequestMessage
+from .models import AgentRequestModel
 from .state import AgentState
 
 logger = logging.getLogger("AgentClient")
@@ -24,7 +23,7 @@ class PandaAgiClient:
     ):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
-        self.conversation_id = conversation_id or str(uuid.uuid4())
+        self.conversation_id = conversation_id
         self.timeout = timeout
 
         self.state = state or AgentState()
@@ -45,29 +44,31 @@ class PandaAgiClient:
         }
 
         if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+            headers["X-API-Key"] = f"{self.api_key}"
 
         return headers
 
     async def send_streaming_request(
-        self, request: Union[AgentRequestMessage, dict]
+        self, request: Union[AgentRequestModel, dict]
     ) -> AsyncGenerator[str, None]:
         """Send a streaming HTTP request and yield tokens"""
+        print(f"Sending agent request: {request}")
         try:
             # Convert request to dict if it's an AgentRequestMessage
-            if isinstance(request, AgentRequestMessage):
+            if isinstance(request, AgentRequestModel):
                 request_data = request.model_dump()
             else:
                 request_data = request
 
             # Send streaming POST request
-            endpoint = "/v2/chat/completions"
+            endpoint = "/v2/agent/stream"
             logger.info(f"[HTTP] Sending streaming request to: {endpoint}")
 
             async with self._client.stream(
                 "POST",
                 endpoint,
                 json=request_data,
+                headers=self._headers(),
             ) as response:
                 response.raise_for_status()
 
@@ -76,14 +77,25 @@ class PandaAgiClient:
                     if line.strip():
                         # Handle Server-Sent Events format
                         if line.startswith("data: "):
-                            data = line[6:]  # Remove "data: " prefix
+                            data = line.replace("data: ", "").strip()
                             if data.strip() == "[DONE]":
                                 logger.info("Stream completed")
                                 break
                             yield data
+                        elif line.startswith("conversation_id: "):
+                            self.conversation_id = line.replace(
+                                "conversation_id: ", ""
+                            ).strip()
+                            logger.info(
+                                f"[HTTP] Received conversation_id: {self.conversation_id}"
+                            )
+                            yield {
+                                "type": "conversation_id",
+                                "conversation_id": self.conversation_id,
+                            }
                         else:
                             # Handle plain text streaming
-                            yield line
+                            yield line + "\n"
 
         except httpx.HTTPStatusError as e:
             logger.error(f"❌ HTTP error: {e.response.status_code} - {e.response.text}")
@@ -91,3 +103,7 @@ class PandaAgiClient:
         except Exception as e:
             logger.error(f"❌ Error in streaming request: {e}")
             raise
+
+    async def close(self):
+        """Close the HTTP client"""
+        await self._client.aclose()

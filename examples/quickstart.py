@@ -1,18 +1,31 @@
 import argparse
 import asyncio
 
-from panda_agi import Agent, Knowledge, skill
+from panda_agi import Agent, Knowledge, tool
 from panda_agi.envs import LocalEnv
 from panda_agi.handlers import LogsHandler
 
 
-@skill
-def example_skill(query: str) -> str:
-    """Example skill"""
+@tool
+def write_joke(topic: str) -> str:
+    """Write a joke about the given topic
+
+    Args:
+        topic: The topic of the joke
+
+    Returns:
+        A joke about the given topic
+    """
 
     # Do something
 
-    return f"Result of the example skill: {query}"  # The result of the skill is returned to the agent
+    return f"You know what's the best about being a {topic}? Because I get to {topic} all day!"
+
+
+def print_event(input_paras, output_params):
+    """Prints the event data"""
+    print(f"Event: {input_paras}")
+    print(f"Output: {output_params}")
 
 
 async def main():
@@ -40,17 +53,21 @@ When a user asks you to analyze data, you must follow these steps:
 """)
     ]
 
-    skills = [example_skill]
+    tools = [write_joke]
 
     # Create the agent
     agent = Agent(
+        system_prompt="When creating a website, always use HTML, CSS, and JavaScript.",
+        base_url="http://localhost:8000",
+        model="annie-lite",
         environment=agent_env,
-        event_handlers=handlers,
-        model="annie-pro",
-        host="ws://localhost:8000",
+        api_key="pk_f9858cf569b619bb2a3bfe26ad47426a561d09e94bc11ad0ebb21f03f10c4906",
+        # event_handlers=handlers,
         # knowledge=knowledge,
-        # skills=skills,
+        tools=tools,
     )
+
+    agent.on("user_send_message", print_event, when="end")
 
     # First request - will automatically connect
     # The run method accepts a list of handlers
@@ -58,7 +75,8 @@ When a user asks you to analyze data, you must follow these steps:
         args.query,
         # event_handlers=handlers # Overrides the event_handlers passed to the Agent constructor
     )
-    print(response.output)
+    print("Response:")
+    print(response)
 
 
 if __name__ == "__main__":

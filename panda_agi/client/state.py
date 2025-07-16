@@ -1,6 +1,6 @@
-from typing import Dict, List
+from typing import Dict
 
-from panda_agi.client.models import Knowledge, Skill
+from panda_agi.client.models import ToolsConfig
 
 
 class AgentState:
@@ -9,14 +9,9 @@ class AgentState:
     def __init__(self):
         # agent state
         self.conversation_id: str = ""
-        self.knowledge: List[Knowledge] = []
-        self.skills: List[Skill] = []
 
         # tools
-        self.use_internet: bool = True
-        self.use_filesystem: bool = True
-        self.use_shell: bool = True
-        self.use_image_generation: bool = True
+        self.tools_config: ToolsConfig = ToolsConfig()
 
         # environment
         self.filesystem: Dict = {}
