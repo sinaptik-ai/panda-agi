@@ -344,6 +344,10 @@ class Knowledge(BaseModel):
     """Knowledge object"""
 
     content: str = Field(description="The knowledge content as a string")
+    always_use: bool = Field(
+        default=False,
+        description="Whether to always use this knowledge, even if it's not relevant to the current task",
+    )
 
     def __init__(self, content: str = None, **kwargs):
         """Initialize Knowledge with string content"""

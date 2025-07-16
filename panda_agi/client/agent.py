@@ -3,7 +3,17 @@ import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Callable, Dict, List, Literal, Optional, Union
+from enum import Enum
+from typing import (
+    Any,
+    AsyncGenerator,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Union,
+)
 
 from dotenv import load_dotenv
 
@@ -37,6 +47,16 @@ MAX_KNOWLEDGE_LENGTH = 10
 MAX_SKILLS_LENGTH = 10
 
 
+class Tools(Enum):
+    """Tools that the agent can use"""
+
+    FILE_MANAGEMENT = "file_management"
+    SHELL_EXECUTION = "shell_execution"
+    MESSAGING = "messaging"
+    WEB_SEARCH = "web_search"
+    IMAGE_GENERATION = "image_generation"
+
+
 class Agent:
     """Agent class for managing WebSocket connections and tool"""
 
@@ -59,6 +79,7 @@ class Agent:
         ] = None,
         knowledge: Optional[List[Knowledge]] = None,
         skills: Optional[List[Callable]] = None,
+        enabled_tools: Optional[List[Tools]] = None,
     ):
         load_dotenv()
         self.api_key = api_key or os.getenv("PANDA_AGI_KEY")
@@ -117,6 +138,9 @@ class Agent:
             handler.set_agent(self)
             handler.set_event_manager(self.event_manager)
             handler.set_environment(self.environment)
+
+        # Enable or disable tools
+        self.enabled_tools = enabled_tools
 
     def _create_handlers(self) -> Dict[str, ToolHandler]:
         """Create handlers using the new unified tool system"""
@@ -216,8 +240,11 @@ class Agent:
             type=MessageType.REQUEST.value,
             payload={
                 "query": query,
-                "knowledge": [k.content for k in self.state.knowledge],
+                "knowledge": [k.model_dump() for k in self.state.knowledge],
                 "skills": [s.to_string() for s in self.state.skills],
+                "enabled_tools": [t.value for t in self.enabled_tools]
+                if self.enabled_tools
+                else "all",
                 "model": self.model,
             },
         )
