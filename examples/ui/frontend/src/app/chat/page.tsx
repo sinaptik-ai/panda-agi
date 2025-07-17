@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Send,
   Plus,
@@ -20,6 +21,7 @@ import { UploadedFile, FileUploadResult } from "@/lib/types/file";
 
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
+import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
 
 interface RequestBody {
   query: string;
@@ -27,6 +29,8 @@ interface RequestBody {
 }
 
 function App() {
+  const router = useRouter();
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isConnected, setIsConnected] = useState(false);
@@ -542,6 +546,41 @@ function App() {
     }
     return <File className={`${iconClass} text-gray-500`} />;
   };
+
+  // Authentication check - placed after all hooks to follow Rules of Hooks
+  useEffect(() => {
+    // Check if authentication is required
+    if (isAuthRequired()) {
+      // Check if user is authenticated
+      const token = getAccessToken();
+      
+      if (!token) {
+        // User is not authenticated, redirect to login
+        router.push("/login");
+        return;
+      }
+    }
+    
+    // User is authenticated or auth is not required
+    setIsAuthenticating(false);
+  }, [router]);
+
+  // Don't render the chat if still checking authentication
+  if (isAuthenticating) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 relative mb-4 mx-auto">
+            <span className="text-4xl select-none absolute inset-0 flex items-center justify-center">
+              🐼
+            </span>
+          </div>
+          <h1 className="text-2xl font-semibold mb-2">Loading...</h1>
+          <p className="text-muted-foreground">Checking authentication status</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-blue-50 to-indigo-100">

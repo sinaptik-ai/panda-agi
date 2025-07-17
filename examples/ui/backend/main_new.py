@@ -1,6 +1,7 @@
 """
 Main entry point for the PandaAGI SDK API.
 """
+
 import logging
 import os
 import sys
@@ -17,7 +18,7 @@ load_dotenv()
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 # Import routes
-from routes import agent, conversation, files, health
+from routes import agent, auth, conversation, files, health
 
 # Configure logging with more explicit settings
 logging.basicConfig(
@@ -45,6 +46,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(agent.router)
+app.include_router(auth.router)
 app.include_router(conversation.router)
 app.include_router(files.router)
 app.include_router(health.router)
