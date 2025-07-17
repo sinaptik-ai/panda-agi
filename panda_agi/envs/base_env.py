@@ -194,6 +194,6 @@ class BaseEnv(ABC):
                 - message: Error message if any
         """
         pass
-    
+
     async def get_hosted_url(self, port) -> str:
         return f"http://localhost:{port}"

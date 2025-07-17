@@ -20,7 +20,7 @@ dependencies = [
     "beautifulsoup4",
     "requests",
     "markdownify",
-    "websockets",
+    "httpx",
     "tavily-python",
     "e2b-code-interpreter",
 ]
