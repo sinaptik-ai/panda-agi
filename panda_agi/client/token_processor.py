@@ -4,7 +4,7 @@ import re
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 logger = logging.getLogger("TokenProcessor")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class TokenProcessor:
@@ -17,9 +17,8 @@ class TokenProcessor:
         self.tool_registry = tool_registry
         self.completed_tools: List[Dict[str, Any]] = []  # Store completed tool calls
         self.tool_call_id_counter = 0
-        self.collect_mode = (
-            collect_mode  # If True, collect tools instead of yielding execution events
-        )
+        self.collect_mode = collect_mode  # If True, collect tools for later execution
+        self.immediate_execution_mode = False  # If True, collect tools AND yield events for immediate execution
 
     def reset(self):
         """Reset the processor state"""
@@ -70,6 +69,7 @@ class TokenProcessor:
                             async for (
                                 tool_event
                             ) in self._process_xml_tools_and_yield_events(content):
+                                logger.info(f"Yielding XML tool call: {tool_event}")
                                 yield tool_event
 
                         # Yield structured event
@@ -89,6 +89,7 @@ class TokenProcessor:
                         async for (
                             tool_event
                         ) in self._process_xml_tools_and_yield_events(str(token_data)):
+                            logger.info(f"Yielding XML tool call: {tool_event}")
                             yield tool_event
 
                         yield {
@@ -108,6 +109,7 @@ class TokenProcessor:
                     async for tool_event in self._process_xml_tools_and_yield_events(
                         token
                     ):
+                        logger.info(f"Yielding XML tool call: {tool_event}")
                         yield tool_event
 
                     yield {
@@ -143,22 +145,20 @@ class TokenProcessor:
             # Parse the XML tool call
             tool_call = self._parse_xml_tool_call(chunk)
             if tool_call:
-                # Store the completed tool call
+                # Always store the completed tool call
                 self.completed_tools.append(tool_call)
 
                 logger.info(f"Detected XML tool call: {tool_call['function_name']}")
 
-                if not self.collect_mode:
-                    # Create and yield tool execution event immediately
-                    yield {
-                        "type": "tool_detected",
-                        "function_name": tool_call["function_name"],
-                        "arguments": tool_call["arguments"],
-                        "tool_call_id": tool_call["id"],
-                        "xml_tag_name": tool_call.get("xml_tag_name"),
-                        "raw_xml": tool_call.get("raw_xml"),
-                    }
-                # If in collect_mode, we just store the tool and don't yield events
+                # Yield tool_detected event
+                yield {
+                    "type": "tool_detected",
+                    "function_name": tool_call["function_name"],
+                    "arguments": tool_call["arguments"],
+                    "tool_call_id": tool_call["id"],
+                    "xml_tag_name": tool_call.get("xml_tag_name"),
+                    "raw_xml": tool_call.get("raw_xml"),
+                }
 
     async def _process_xml_tools(self, new_content: str):
         """Process XML tool calls from the buffer (legacy method for backward compatibility)"""
@@ -357,6 +357,31 @@ class TokenProcessor:
         """Check if any tools have been completed"""
         return len(self.completed_tools) > 0
 
+    def create_tool_execution_event(
+        self,
+        tool_call: Dict[str, Any],
+        status: str = "started",
+        result: Any = None,
+        error: str = None,
+    ) -> Dict[str, Any]:
+        """Create a tool execution event with the given status and optional result/error"""
+        event = {
+            "type": "tool_execution",
+            "tool_call_id": tool_call["id"],
+            "function_name": tool_call["function_name"],
+            "xml_tag_name": tool_call.get("xml_tag_name"),
+            "arguments": tool_call["arguments"],
+            "status": status,  # started, completed, failed
+        }
+
+        if result is not None:
+            event["result"] = result
+
+        if error is not None:
+            event["error"] = error
+
+        return event
+
     def create_tool_event(
         self,
         tool_call: Dict[str, Any],
@@ -383,8 +408,17 @@ class TokenProcessor:
         return event
 
     def set_collect_mode(self, collect_mode: bool):
-        """Set whether to collect tools or yield execution events immediately"""
+        """Set whether to collect tools for end-of-stream execution"""
         self.collect_mode = collect_mode
+
+    def set_immediate_execution_mode(self, immediate_execution_mode: bool):
+        """Set whether to execute tools immediately while also collecting them"""
+        self.immediate_execution_mode = immediate_execution_mode
+
+    def set_execution_modes(self, collect_mode: bool = False, immediate_execution_mode: bool = False):
+        """Set both execution modes at once for convenience"""
+        self.collect_mode = collect_mode
+        self.immediate_execution_mode = immediate_execution_mode
 
     def get_collected_tools(self) -> List[Dict[str, Any]]:
         """Get all collected tool calls"""

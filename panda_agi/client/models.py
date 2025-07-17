@@ -635,20 +635,20 @@ class AgentResponse:
 
         elif isinstance(event, dict):
             event_type = event.get("type")
-            
+
             # Handle token events that may contain cost data
             if event_type == "token":
                 self._process_token_event(event)
-            
+
             # Handle tool execution events
             elif event_type == "tool_execution":
                 self._process_tool_execution_event(event)
-            
+
             # Handle tools_executed events (summary of tool execution)
             elif event_type == "tools_executed":
                 # This indicates tools were executed, we can extract info if needed
                 pass
-            
+
             # Check for cost data directly in the event
             if "cost" in event or "input_tokens" in event or "output_tokens" in event:
                 self._update_usage(event)
@@ -658,14 +658,14 @@ class AgentResponse:
             self._update_usage(event.usage)
         elif isinstance(event, dict) and "usage" in event:
             self._update_usage(event["usage"])
-    
+
     def _process_token_event(self, event):
         """Process token events to extract cost data and user messages"""
         import re
-        
+
         raw_token = event.get("raw_token", "")
         content = event.get("content", "")
-        
+
         # Check for cost data in the raw token (format: '...{"cost": 0.009702, "input_tokens": 4803, "output_tokens": 12}')
         cost_pattern = r'\{"cost":\s*([0-9.]+),\s*"input_tokens":\s*(\d+),\s*"output_tokens":\s*(\d+)\}'
         cost_match = re.search(cost_pattern, raw_token)
@@ -674,36 +674,38 @@ class AgentResponse:
                 cost_data = {
                     "cost": float(cost_match.group(1)),
                     "input_tokens": int(cost_match.group(2)),
-                    "output_tokens": int(cost_match.group(3))
+                    "output_tokens": int(cost_match.group(3)),
                 }
                 self._update_usage(cost_data)
             except (ValueError, IndexError):
                 pass
-        
+
         # Check for user_send_message content to add to chat history
-        user_msg_pattern = r'<user_send_message>(.*?)</user_send_message>'
+        user_msg_pattern = r"<user_send_message>(.*?)</user_send_message>"
         user_msg_match = re.search(user_msg_pattern, content, re.DOTALL)
         if user_msg_match:
             message_text = user_msg_match.group(1).strip()
             if message_text:  # Only add non-empty messages
-                self._chat_history.append({
-                    "role": "assistant",
-                    "content": message_text,
-                    "timestamp": event.get("timestamp"),
-                    "attachments": None
-                })
-        
+                self._chat_history.append(
+                    {
+                        "role": "assistant",
+                        "content": message_text,
+                        "timestamp": event.get("timestamp"),
+                        "attachments": None,
+                    }
+                )
+
         # Check for tool calls in the content (e.g., <write_joke topic="Python"></write_joke>)
-        tool_call_pattern = r'<(\w+)([^>]*)></\1>'
+        tool_call_pattern = r"<(\w+)([^>]*)></\1>"
         tool_call_matches = re.finditer(tool_call_pattern, content)
         for match in tool_call_matches:
             tool_name = match.group(1)
             attributes_str = match.group(2)
-            
+
             # Skip system tools like user_send_message and completed_task
-            if tool_name in ['user_send_message', 'completed_task']:
+            if tool_name in ["user_send_message", "completed_task"]:
                 continue
-            
+
             # Parse attributes
             arguments = {}
             attr_pattern = r'(\w+)="([^"]*?)"'
@@ -711,7 +713,7 @@ class AgentResponse:
                 attr_name = attr_match.group(1)
                 attr_value = attr_match.group(2)
                 arguments[attr_name] = attr_value
-            
+
             # Create a tool call entry
             tool_call_id = f"tool_call_{len(self._tool_calls) + 1}"
             tool_call = {
@@ -723,16 +725,19 @@ class AgentResponse:
                 "start_time": event.get("timestamp"),
                 "end_time": event.get("timestamp"),
                 "result": None,  # Will be filled when we see the result
-                "error": None
+                "error": None,
             }
-            
+
             # Check if this tool call already exists
             existing_call = None
             for call in self._tool_calls:
-                if call["function_name"] == tool_name and call["arguments"] == arguments:
+                if (
+                    call["function_name"] == tool_name
+                    and call["arguments"] == arguments
+                ):
                     existing_call = call
                     break
-            
+
             if existing_call is None:
                 self._tool_calls.append(tool_call)
 

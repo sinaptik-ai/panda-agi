@@ -1,6 +1,5 @@
 from typing import Any, Dict
 
-from ..client.models import EventType
 from .base import ToolHandler, ToolResult
 from .registry import ToolRegistry
 
@@ -17,14 +16,30 @@ class UserNotificationHandler(ToolHandler):
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         # Add event to event manager
-        await self.event_manager.add_event(
-            EventType.USER_NOTIFICATION,
-            data=params,
-        )
+        # await self.event_manager.add_event(
+        #     EventType.USER_NOTIFICATION,
+        #     data=params,
+        # )
 
         return ToolResult(
             success=True,
             data="Message received successfully, continue with your task or complete the task.",
+        )
+
+
+@ToolRegistry.register(
+    "planning",
+    xml_tag="planning",
+    content_param="content",
+    is_breaking=False,
+)
+class PlanningHandler(ToolHandler):
+    """Handler for planning messages"""
+
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        return ToolResult(
+            success=True,
+            data="Planning received, thanks for keeping me informed.",
         )
 
 
@@ -33,10 +48,10 @@ class ErrorHandler(ToolHandler):
     """Handler for error messages"""
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        await self.event_manager.add_event(
-            EventType.ERROR,
-            data=params,
-        )
+        # await self.event_manager.add_event(
+        #     EventType.ERROR,
+        #     data=params,
+        # )
         return ToolResult(success=True, data={"error": params.get("error")})
 
 
@@ -53,8 +68,8 @@ class CompletedTaskHandler(ToolHandler):
     """Handler for completed task messages"""
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        await self.event_manager.add_event(
-            EventType.COMPLETED_TASK,
-            data=params,
-        )
+        # await self.event_manager.add_event(
+        #     EventType.COMPLETED_TASK,
+        #     data=params,
+        # )
         return ToolResult(success=True, data={})

@@ -57,13 +57,11 @@ When a user asks you to analyze data, you must follow these steps:
 
     # Create the agent
     agent = Agent(
-        system_prompt="When creating a website, always use HTML, CSS, and JavaScript.",
+        system_prompt="Be helpful, honest, and concise.",
         base_url="http://localhost:8000",
         model="annie-lite",
         environment=agent_env,
         api_key="pk_f9858cf569b619bb2a3bfe26ad47426a561d09e94bc11ad0ebb21f03f10c4906",
-        # event_handlers=handlers,
-        # knowledge=knowledge,
         tools=tools,
     )
 
@@ -71,12 +69,11 @@ When a user asks you to analyze data, you must follow these steps:
 
     # First request - will automatically connect
     # The run method accepts a list of handlers
-    response = await agent.run(
+    async for events in agent.run_stream(
         args.query,
         # event_handlers=handlers # Overrides the event_handlers passed to the Agent constructor
-    )
-    print("Response:")
-    print(response)
+    ):
+        print(events)
 
 
 if __name__ == "__main__":
