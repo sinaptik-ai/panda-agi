@@ -8,7 +8,12 @@ from .registry import ToolRegistry
     "user_send_message",
     xml_tag="user_send_message",
     required_params=["text"],
+    optional_params=["attachments"],
     content_param="text",
+    attribute_mappings={
+        "text": "text",
+        "attachments": "attachments",
+    },
     is_breaking=False,
 )
 class UserNotificationHandler(ToolHandler):

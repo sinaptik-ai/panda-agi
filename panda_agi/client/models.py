@@ -1,14 +1,18 @@
 import inspect
 import json
 import logging
+import os
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Literal, Optional, Union
 
+import requests
 from pydantic import BaseModel, Field
 
+from panda_agi.train import TrainingModel
+
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 
 
 class MessageType(Enum):
@@ -608,6 +612,7 @@ class AgentResponse:
     """Container for agent responses with all events, chat history, tool calls, and cost information"""
 
     def __init__(self):
+        self.conversation_id = None
         self.events = []
         self._chat_history = []
         self._tool_calls = []
@@ -616,6 +621,9 @@ class AgentResponse:
         self._output_tokens = 0
         self._total_cost = 0.0
         self._initial_query = None
+
+    def set_conversation_id(self, conversation_id: str):
+        self.conversation_id = conversation_id
 
     def add_event(self, event):
         """Add an event to the response and process it for chat history, tool calls, and usage"""
@@ -880,3 +888,82 @@ class AgentResponse:
             "cost": self.cost,
             "initial_query": self._initial_query,
         }
+
+    def _retrieve_conversation_messages(self, conversation_id: str):
+        """Send LLM trace data to the backend server.
+
+        Args:
+            traces: A single Conversation or a list of Conversation objects
+
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        # Get API key from environment variable
+        api_key = os.environ.get("PANDA_AGI_KEY")
+        if not api_key:
+            logger.warning(
+                "Warning: PANDA_AGI_KEY environment variable not set. Cannot send traces to backend."
+            )
+            return False
+
+        # Get server URL from environment variable or use default
+        server_url = os.environ.get("PANDA_AGI_SERVER", "https://agi-api.pandas-ai.com")
+        backend_url = f"{server_url}/conversations/{conversation_id}/messages"
+
+        logger.info(f"Retrieving conversation messages from {backend_url}")
+        logger.info(f"API Key: {api_key}")
+
+        try:
+            # Set up headers with API key
+            headers = {"X-API-Key": api_key, "Content-Type": "application/json"}
+
+            # Send data to backend
+            response = requests.get(
+                backend_url,
+                headers=headers,
+            )
+
+            # Check if request was successful
+            if response.status_code == 200 or response.status_code == 201:
+                logger.info("Trace sent successfully!")
+                return response.json()
+            else:
+                logger.error(
+                    f"Error retrieving conversation messages from backend: {response.status_code} - {response.text}"
+                )
+                return False
+
+        except Exception as e:
+            logger.error(
+                f"Error retrieving conversation messages from backend: {str(e)}"
+            )
+            return False
+
+    def collect(
+        self,
+        model: TrainingModel,
+        tags: Optional[List[str]] = None,
+        meta: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Collect the conversation data and send it to the backend server for training.
+
+        Args:
+            model: The TrainingModel instance to use for collecting the conversation data
+            tags (Optional[List[str]]): List of tags to categorize the conversation
+        """
+
+        conversation_messages = self._retrieve_conversation_messages(
+            self.conversation_id
+        )
+
+        if conversation_messages:
+            conversation_messages = [
+                message.get("content") for message in conversation_messages
+            ]
+
+            model.collect(
+                conversation_messages=conversation_messages,
+                tags=tags or [],
+                meta=meta or {},
+            )

@@ -1083,6 +1083,7 @@ class Agent:
                 # No handlers, add event directly
                 response.add_event(event)
 
+        response.set_conversation_id(self.conversation_id)
         return response
 
     def _process_event_with_handlers(
