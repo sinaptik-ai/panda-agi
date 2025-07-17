@@ -13,6 +13,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./ui/markdown-renderer";
 import { getBackendServerURL } from "@/lib/server";
+import { getApiHeaders } from "@/lib/api/common";
 
 export interface PreviewData {
   title?: string;
@@ -194,7 +195,10 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         `/${conversationId}/files/${encodeURIComponent(filename)}`
       );
 
-      const response = await fetch(fileUrl);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const apiHeaders: any = getApiHeaders();
+
+      const response = await fetch(fileUrl, { headers: apiHeaders });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch file: ${response.status}`);

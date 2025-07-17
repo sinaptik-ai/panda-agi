@@ -19,6 +19,7 @@ import { Message } from "@/lib/types/event-message";
 import { UploadedFile, FileUploadResult } from "@/lib/types/file";
 
 import { getBackendServerURL } from "@/lib/server";
+import { getApiHeaders } from "@/lib/api/common";
 
 interface RequestBody {
   query: string;
@@ -80,8 +81,12 @@ function App() {
 
           const apiUrl = getBackendServerURL("/files/upload");
 
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const apiHeaders: any = getApiHeaders();
+
           const response = await fetch(apiUrl, {
             method: "POST",
+            headers: apiHeaders,
             body: formData,
           });
 
@@ -318,11 +323,12 @@ function App() {
         requestBody.conversation_id = conversationId;
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const apiHeaders: any = getApiHeaders();
+
       const response = await fetch(apiUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: apiHeaders,
         body: JSON.stringify(requestBody),
       });
 

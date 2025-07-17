@@ -69,10 +69,10 @@ const EVENT_COMPONENTS: Record<string, EventComponentConfig> = {
     component: FileReadEvent,
     props: ["payload", "onPreviewClick"],
   },
-  web_search: {
-    component: WebSearchEvent,
-    props: ["payload", "onPreviewClick"],
-  },
+  // web_search: {
+  //   component: WebSearchEvent,
+  //   props: ["payload", "onPreviewClick"],
+  // },
   image_generation: {
     component: ImageGenerationEvent,
     props: ["payload", "onPreviewClick"],
@@ -89,7 +89,7 @@ const EVENT_COMPONENTS: Record<string, EventComponentConfig> = {
     component: FileUploadEvent,
     props: ["payload", "onPreviewClick"],
   },
-  web_search_result: {
+  web_search: {
     component: WebSearchResultEvent,
     props: ["payload"],
   },

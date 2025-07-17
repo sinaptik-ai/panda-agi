@@ -1,6 +1,7 @@
 import React from "react";
 import { Activity } from "lucide-react";
 import MessageCard from "@/components/ui/message-card";
+import WebSearchEvent from "./web-search-query";
 
 interface WebSearchResult {
   url: string;
@@ -10,6 +11,7 @@ interface WebSearchResult {
 interface WebSearchResultEventProps {
   payload?: {
     results: WebSearchResult[];
+    query: string;
   };
 }
 
@@ -20,6 +22,9 @@ const WebSearchResultEvent: React.FC<WebSearchResultEventProps> = ({ payload }) 
   const title = `Found ${resultCount} result${resultCount !== 1 ? "s" : ""}`;
 
   return (
+    <div className="flex flex-col gap-2">
+    <WebSearchEvent payload={{ query: payload.query }} />
+
     <MessageCard
       content={
         <div>
@@ -53,6 +58,7 @@ const WebSearchResultEvent: React.FC<WebSearchResultEventProps> = ({ payload }) 
       }
       color="bg-orange-50 border-orange-300"
     />
+    </div>
   );
 };
 
