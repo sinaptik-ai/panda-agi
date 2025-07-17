@@ -62,14 +62,14 @@ def _read_non_blocking(pipe) -> str:
 class LocalEnv(BaseEnv):
     """Local file system environment implementation."""
 
-    def __init__(self, base_path: Union[str, Path]):
+    def __init__(self, base_path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None):
         """
         Initialize the local environment.
 
         Args:
             base_path: The base directory for this environment
         """
-        super().__init__(base_path)
+        super().__init__(base_path, metadata)
         # Create base directory if it doesn't exist
         self.base_path.mkdir(parents=True, exist_ok=True)
 

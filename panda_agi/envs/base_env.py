@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional, Union
 class BaseEnv(ABC):
     """Abstract base class for environment management."""
 
-    def __init__(self, base_path: Union[str, Path]):
+    def __init__(self, base_path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None):
         """
         Initialize the environment with a base path.
 
@@ -22,6 +22,7 @@ class BaseEnv(ABC):
         """
         self.base_path = Path(base_path).resolve()
         self.working_directory = self.base_path
+        self.metadata = metadata
 
     @property
     def current_directory(self) -> Path:

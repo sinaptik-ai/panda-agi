@@ -14,14 +14,14 @@ import time
 class E2BEnv(BaseEnv):
     """Environment backed by an E2B sandbox via `e2b-code-interpreter` SDK."""
 
-    def __init__(self, base_path: Union[str, Path], timeout: Optional[float] = 3600):
+    def __init__(self, base_path: Union[str, Path], metadata: Dict[str, Any] = None, timeout: Optional[float] = 3600):
         if Sandbox is None:
             raise ImportError(
                 "e2b_code_interpreter is not installed. "
                 "Please install it with `pip install panda-agi[e2b]`"
             )
-        super().__init__(base_path)
-        sbx = Sandbox(timeout=timeout)
+        super().__init__(base_path, metadata)
+        sbx = Sandbox(metadata=metadata, timeout=timeout)
         # Ensure base directory exists within sandbox
         sbx.files.make_dir(str(base_path))
         self.sandbox = sbx
