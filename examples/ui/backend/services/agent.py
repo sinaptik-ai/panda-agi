@@ -7,7 +7,7 @@ import logging
 import uuid
 from typing import AsyncGenerator, Dict, Optional, Tuple
 
-from panda_agi import Agent, skill
+from panda_agi import Agent, tool
 from panda_agi.envs import E2BEnv
 from .chat_env import get_env
 
@@ -29,37 +29,12 @@ def get_or_create_agent(conversation_id: Optional[str] = None) -> Tuple[Agent, s
     Returns:
         Tuple[Agent, str]: The agent and conversation ID
     """
-    if conversation_id and conversation_id in active_conversations:
-        return active_conversations[conversation_id], conversation_id
-    
-    local_env: E2BEnv = get_env()
-
-    @skill
-    async def deploy_python_server(port) -> str:
-        """
-        Deploys a simple Python HTTP server on the specified port and return new url
-
-        This function:
-        - Kills any process currently running on the given port.
-        - Starts a new Python HTTP server on that port.
-
-        Args:
-            port (int): The port number on which to start the server.
-
-        Returns:
-            str: URL of the running server (e.g., http://localhost:8000).
-        """
-        kill_cmd = f"fuser -k {port}/tcp || true"
-        start_cmd = f"nohup python -m http.server {port} > /dev/null 2>&1 &"
-        logger.debug(f"Executing deploy skill to start server at port: {port}")
-        await local_env.exec_shell(kill_cmd)
-        await local_env.exec_shell(start_cmd)
-        return await local_env.get_hosted_url(port)
-
-    agent = Agent(model="annie-pro", environment=local_env, skills=[deploy_python_server])
+    # if conversation_id and conversation_id in active_conversations:
+    #     return active_conversations[conversation_id], conversation_id
     new_conversation_id = conversation_id or str(uuid.uuid4())
+    local_env: E2BEnv = get_env({"conversation_id": new_conversation_id})
+    agent = Agent(model="annie-pro", environment=local_env, base_url="http://localhost:8000")
     active_conversations[new_conversation_id] = agent
-
     return agent, new_conversation_id
 
 
@@ -80,7 +55,6 @@ async def event_stream(
     actual_conversation_id = None
 
     try:
-        print("Conversation ID*****: ")
         # Get or create agent for this conversation
         agent, actual_conversation_id = get_or_create_agent(conversation_id)
 
@@ -93,26 +67,31 @@ async def event_stream(
                 "id": None,
             }
         }
-        yield f"data: {json.dumps(conversation_event)}\n\n"
+        yield f"<event>{json.dumps(conversation_event)}</event>"
         await asyncio.sleep(0.01)
 
         # Stream events
         async for event in agent.run_stream(query):
             # Apply filtering first
+
             if not should_render_event(event):
                 continue
 
             # Process event with type safety while maintaining frontend structure
-            event_dict = process_event_for_frontend(event)
+            # event_dict = process_event_for_frontend(event)
 
-            if event_dict is None:
+            if event is None:
                 # Skip events that couldn't be processed
                 continue
 
             # Format as SSE
-            yield f"data: {json.dumps(event_dict)}\n\n"
+            yield f"<event>{json.dumps(event)}</event>"
+
+        print("DONE!!!")
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         # Send error event
         error_data = {
             "data": {
@@ -122,7 +101,7 @@ async def event_stream(
                 "id": None,
             },
         }
-        yield f"data: {json.dumps(error_data)}\n\n"
+        yield f"<event>{json.dumps(error_data)}</event>"
 
         # Clean up failed conversation
         if actual_conversation_id and actual_conversation_id in active_conversations:

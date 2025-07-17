@@ -15,11 +15,12 @@ import {
 import EventList from "@/components/event-list";
 import MessageCard from "@/components/message-card";
 import ContentSidebar from "@/components/content-sidebar";
+import { Message } from "@/lib/types/event-message";
 
 import { getBackendServerURL } from "@/lib/server";
 
 function App() {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -248,7 +249,7 @@ function App() {
       ? `${inputValue.trim()} ${fileReferences}`
       : inputValue;
 
-    const userMessage = {
+    const userMessage: Message = {
       id: Date.now(),
       type: "user",
       content: inputValue.trim(),
@@ -309,73 +310,121 @@ function App() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const reader = response.body.getReader();
+      const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       setIsConnected(true);
 
+      // Buffer to collect partial event data
+      let eventBuffer = "";
+      let isCollectingEvent = false;
+
+      if (!reader) {
+        throw new Error("Reader is not available");
+      }
+      
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          console.log("Line:", line);
-          if (line.startsWith("data: ")) {
-            try {
-              const eventData = JSON.parse(line.slice(6));
-
-              // Validate that eventData has the expected structure
-              if (eventData && typeof eventData === "object") {
-                // Handle conversation_started event
-                if (
-                  eventData.data &&
-                  eventData.data.type === "conversation_started" &&
-                  eventData.data.payload &&
-                  eventData.data.payload.conversation_id
-                ) {
-                  setConversationId(eventData.data.payload.conversation_id);
-                  continue; // Don't add this as a visible message
-                }
-
-                // Check for any errors in user_notification or error events
-                if (
-                  (eventData.data &&
-                    eventData.data.type === "user_notification" &&
+        console.log("Received chunk:", chunk);
+        
+        // Process the chunk to find and collect events
+        let currentPosition = 0;
+        
+        while (currentPosition < chunk.length) {
+          // Look for event start if not already collecting
+          if (!isCollectingEvent) {
+            const startTag = "<event>";
+            const startPos = chunk.indexOf(startTag, currentPosition);
+            
+            if (startPos !== -1) {
+              // Found the start of an event
+              isCollectingEvent = true;
+              currentPosition = startPos + startTag.length;
+              eventBuffer = ""; // Reset buffer for new event
+            } else {
+              // No event start found in this chunk
+              break;
+            }
+          } else {
+            // Already collecting an event, look for the end tag
+            const endTag = "</event>";
+            const endPos = chunk.indexOf(endTag, currentPosition);
+            
+            if (endPos !== -1) {
+              // Found the end of the event
+              eventBuffer += chunk.substring(currentPosition, endPos);
+              currentPosition = endPos + endTag.length;
+              isCollectingEvent = false;
+              
+              // Process the complete event
+              try {
+                console.log("Complete event data:", eventBuffer);
+                const eventData = JSON.parse(eventBuffer);
+                
+                // Validate that eventData has the expected structure
+                if (eventData && typeof eventData === "object") {
+                  // Handle conversation_started event
+                  if (
+                    eventData.data &&
+                    eventData.data.type === "conversation_started" &&
                     eventData.data.payload &&
-                    eventData.data.payload.error) ||
-                  (eventData.data && eventData.data.type === "error")
-                ) {
-                  // Set loading to false for any error event
-                  setIsLoading(false);
-                }
+                    eventData.data.payload.conversation_id
+                  ) {
+                    setConversationId(eventData.data.payload.conversation_id);
+                    continue; // Don't add this as a visible message
+                  }
 
-                const eventMessage = {
-                  id: Date.now() + Math.random(),
-                  type: "event",
-                  event: eventData,
-                  timestamp: new Date().toISOString(),
-                };
-                console.log("Event Message:", eventMessage);
-                setMessages((prev) => [...prev, eventMessage]);
-              } else {
-                console.warn("Received malformed event data:", eventData);
+                  // Check for any errors in user_notification or error events
+                  if (
+                    (eventData.data &&
+                      eventData.data.type === "user_notification" &&
+                      eventData.data.payload &&
+                      eventData.data.payload.error) ||
+                    (eventData.data && eventData.data.type === "error")
+                  ) {
+                    // Set loading to false for any error event
+                    setIsLoading(false);
+                  }
+
+                  const message: Message = {
+                    id: Date.now() + Math.random(),
+                    type: "event",
+                    event: eventData,
+                    timestamp: new Date().toISOString(),
+                  };
+                  console.log("Event Message:", message);
+                  setMessages((prev) => [...prev, message]);
+
+                } else {
+                  console.warn("Received malformed event data:", eventData);
+                }
+              } catch (e) {
+                console.error("Error parsing event data:", e, "Data:", eventBuffer);
               }
-            } catch (e) {
-              console.error("Error parsing event data:", e, "Line:", line);
+            } else {
+              // Event continues beyond this chunk
+              eventBuffer += chunk.substring(currentPosition);
+              break;
             }
           }
         }
       }
     } catch (error) {
       console.error("Error:", error);
-      const errorMessage = {
+      let errorText: string = "Unable to process request try again!"
+      
+      if (error instanceof Error) {
+        errorText = error.message
+      }
+      const errorMessage: Message = {
         id: Date.now(),
         type: "error",
-        content: `Connection error: ${error.message}`,
+        content: `Connection error: ${errorText}`,
         timestamp: new Date().toISOString(),
       };
+      
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
@@ -634,7 +683,7 @@ function App() {
               </div>
             )}
 
-            {messages.map((message) => (
+            {messages.map((message: Message) => (
               <div key={message.id} className="animate-slide-up">
                 {(message.type === "user" || message.type === "error") && (
                   <MessageCard message={message} />

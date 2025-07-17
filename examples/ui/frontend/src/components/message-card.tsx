@@ -1,17 +1,14 @@
 import React from "react";
 import { AlertCircle } from "lucide-react";
 import { formatTimestamp } from "@/lib/date";
+import { Message } from "@/lib/types/event-message";
 
-interface MessageProps {
-  message: {
-    type?: string;
-    content: React.ReactNode;
-    timestamp?: string;
-    color?: string;
-  };
+
+interface MessageCardProps {
+  message: Message;
 }
 
-const MessageCard: React.FC<MessageProps> = ({ message }) => {
+const MessageCard: React.FC<MessageCardProps> = ({ message }) => {
   if (message.type === "user") {
     return (
       <div className="flex justify-end">

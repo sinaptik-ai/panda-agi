@@ -267,13 +267,15 @@ class DeployServerHandler(ToolHandler):
             elif app_type == "nodejs":
                 await self._deploy_nodejs_app(deployment_id, source_path, port, params)
 
+            hosted_url = await self.environment.get_hosted_url(port)
+
             return ToolResult(
                 success=True,
                 data={
                     "status": "success",
                     "deployment_id": deployment_id,
                     "message": f"Server deployed successfully on port {port}",
-                    "url": f"http://localhost:{port}",
+                    "url": hosted_url,
                     "app_type": app_type,
                     "source_path": source_path,
                 },
@@ -290,7 +292,9 @@ class DeployServerHandler(ToolHandler):
     ):
         """Deploy a static website using Python's built-in HTTP server"""
         # Use Python's built-in HTTP server for static files
-        command = f"python3 -m http.server {port} --directory {source_path}"
+        # command = f"python3 -m http.server {port} --directory {source_path}"
+
+        command = f"nohup python3 -m http.server {port} --directory {source_path} > /dev/null 2>&1 &"
 
         shell_params = {
             "id": deployment_id,

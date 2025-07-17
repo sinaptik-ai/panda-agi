@@ -73,7 +73,6 @@ class Agent:
         self.model = model
         self.environment = environment
         self.base_url = base_url
-        self.api_key = api_key
 
         # Initialize tools list
         self.tools = []

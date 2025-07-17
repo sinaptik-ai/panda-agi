@@ -11,11 +11,7 @@ WORKSPACE_PATH = os.getenv(
 def get_env(metadata: Dict[str, Any] = None):
     env = os.getenv("ENV", "local")
     if env == "e2b":
-        # fetching existing for the conversation....
-        return E2BEnv("/workspace", metadata=metadata, timeout=1800)
-
+        return E2BEnv("/workspace", metadata=metadata, timeout=300)
 
     print("Local environment", WORKSPACE_PATH)
     return LocalEnv(WORKSPACE_PATH, metadata)
-
-    

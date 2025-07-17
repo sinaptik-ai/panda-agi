@@ -21,11 +21,31 @@ class E2BEnv(BaseEnv):
                 "Please install it with `pip install panda-agi[e2b]`"
             )
         super().__init__(base_path, metadata)
+        
+        self.working_directory = self.base_path
+        self.sandbox = self._connect(metadata, timeout)
+
+    def _connect(self, metadata: Dict[str, Any] = None, timeout: Optional[float] = 3600):
+        sbx = self._get_active_sandbox(metadata)
+        if sbx:
+            return sbx
+        
         sbx = Sandbox(metadata=metadata, timeout=timeout)
         # Ensure base directory exists within sandbox
-        sbx.files.make_dir(str(base_path))
-        self.sandbox = sbx
-        self.working_directory = self.base_path
+        sbx.files.make_dir(str(self.base_path))
+        return sbx
+    
+    def _get_active_sandbox(self, metadata: Dict[str, Any] = None):
+        if metadata and "conversation_id" in metadata:
+            matches = Sandbox.list(query={'metadata': {'name': 'my-unique-sandbox-123'}})
+            if not matches:
+                raise Exception('Session destroyed please restart the conversation')
+            sbx_info = matches[0]
+            sbx = Sandbox.connect(sbx_info.sandbox_id)
+            sbx.set_timeout(1800) # 30 minutes to keep instance alive after last request
+            return sbx
+            
+        return None
 
     def change_directory(self, path: Union[str, Path]) -> Path:
         """

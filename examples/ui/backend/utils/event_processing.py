@@ -19,28 +19,16 @@ def should_render_event(event: Union[BaseStreamEvent, str]) -> bool:
     Returns:
         bool: True if the event should be rendered, False otherwise
     """
-    # Handle both BaseStreamEvent objects and string event types
-    if isinstance(event, BaseStreamEvent):
-        event_type = (
-            event.type.value if hasattr(event.type, "value") else str(event.type)
-        )
-    else:
-        event_type = event
 
-    # Skip redundant events
-    if event_type == EventType.WEB_NAVIGATION.value:
-        # Skip WEB_NAVIGATION since WEB_NAVIGATION_RESULT provides the same info + content
+    if not isinstance(event, dict):
         return False
 
-    # Skip task completion events - not needed in UI
-    if event_type == EventType.COMPLETED_TASK.value:
-        return False
+    event_type = event.get("event_type", None)
+    
+    if event_type == "tool_end":
+        return True
 
-    # Skip agent connection success - not needed in UI
-    if event_type == EventType.AGENT_CONNECTION_SUCCESS.value:
-        return False
-
-    return True
+    return False
 
 
 def truncate_long_content(data, max_length: int = 5000):
