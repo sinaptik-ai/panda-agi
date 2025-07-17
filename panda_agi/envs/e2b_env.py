@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Union
 
 try:
     from e2b_code_interpreter import Sandbox
+    from e2b.sandbox_sync.sandbox_api import SandboxQuery
 except ImportError:
     Sandbox = None
 
@@ -37,12 +38,13 @@ class E2BEnv(BaseEnv):
     
     def _get_active_sandbox(self, metadata: Dict[str, Any] = None):
         if metadata and "conversation_id" in metadata:
-            matches = Sandbox.list(query={'metadata': {'name': 'my-unique-sandbox-123'}})
+            query = SandboxQuery(metadata=metadata)
+            matches = Sandbox.list(query=query)
             if not matches:
                 raise Exception('Session destroyed please restart the conversation')
             sbx_info = matches[0]
             sbx = Sandbox.connect(sbx_info.sandbox_id)
-            sbx.set_timeout(1800) # 30 minutes to keep instance alive after last request
+            sbx.set_timeout(300) # 30 minutes to keep instance alive after last request
             return sbx
             
         return None

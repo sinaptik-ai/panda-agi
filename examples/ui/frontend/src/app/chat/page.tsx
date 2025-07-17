@@ -27,7 +27,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(900); // Default sidebar width (match initial in ContentSidebar)
   const [previewData, setPreviewData] = useState(null);
-  const [conversationId, setConversationId] = useState(null);
+  const [conversationId, setConversationId] = useState<string | undefined>();
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [pendingFiles, setPendingFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -424,7 +424,7 @@ function App() {
         content: `Connection error: ${errorText}`,
         timestamp: new Date().toISOString(),
       };
-      
+
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);

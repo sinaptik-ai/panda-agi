@@ -1,15 +1,16 @@
 import React from "react";
 import { Globe } from "lucide-react";
-import { EventData } from "@/lib/types/event-message";
 
 interface WebNavigationResultEventProps {
-  event: EventData;
+  payload?: {
+    url?: string;
+  };
 }
 
-const WebNavigationResultEvent: React.FC<WebNavigationResultEventProps> = ({ event }) => {
-  if (!event) return null;
+const WebNavigationResultEvent: React.FC<WebNavigationResultEventProps> = ({ payload }) => {
+  if (!payload) return null;
 
-  const url = event.url || "Unknown URL";
+  const url = payload.url || "Unknown URL";
 
   const getDomain = (url: string): string => {
     try {

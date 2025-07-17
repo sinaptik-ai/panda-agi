@@ -15,6 +15,7 @@ import ShellViewEvent from "./events/shell-view";
 import ShellWriteEvent from "./events/shell-write";
 import SkillUseEvent from "./events/use-skill";
 import { Message } from "@/lib/types/event-message";
+import { generatePayload } from "@/lib/utils";
 
 // Define interfaces for the component props
 interface PreviewData {
@@ -33,7 +34,8 @@ interface EventListProps {
 }
 
 interface EventComponentConfig {
-  component: React.FC<unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component: React.FC<any>;
   props: string[];
 }
 
@@ -51,7 +53,7 @@ const EVENT_COMPONENTS: Record<string, EventComponentConfig> = {
     component: FileReplaceEvent,
     props: ["payload", "onPreviewClick"],
   },
-  shell_exec: {
+  shell_exec_command: {
     component: ShellExecEvent,
     props: ["payload"],
   },
@@ -102,6 +104,7 @@ const SPECIAL_EVENT_HANDLERS: Record<string, React.FC<UserMessageEventProps>> = 
   user_send_message: UserMessageEvent,
   user_question: UserMessageEvent,
   error: UserMessageEvent,
+  planning: UserMessageEvent
 };
 
 const EventList: React.FC<EventListProps> = ({
@@ -115,11 +118,11 @@ const EventList: React.FC<EventListProps> = ({
 
   const eventData = message.event.data;
   const eventType = eventData.tool_name || "unknown";
-  const payload = eventData;
+  const payload = generatePayload(eventType, eventData);
 
   // Handle special cases first
   if (eventType in SPECIAL_EVENT_HANDLERS) {
-    const userMessagePayload = payload as UserMessagePayload;
+    const userMessagePayload = payload as unknown as UserMessagePayload;
     const SpecialComponent = SPECIAL_EVENT_HANDLERS[eventType as keyof typeof SPECIAL_EVENT_HANDLERS];
     return (
       <SpecialComponent

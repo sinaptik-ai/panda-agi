@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  AlertCircle,
   Eye,
   Download,
   FileText,
@@ -19,15 +18,20 @@ interface PreviewData {
   title: string;
   type: string;
 }
+
+export interface UserMessageParams {
+  attachments: string[];
+  text: string;
+}
+
 export interface UserMessagePayload {
-    text?: string;
-    message?: string;
-    error?: string;
-    attachments?: string[];
+    tool_name: string;
+    input_params: UserMessageParams;
+    output_params: string;
 }
 
 export interface UserMessageEventProps {
-  payload?: UserMessagePayload;
+  payload: UserMessagePayload;
   onPreviewClick?: (previewData: PreviewData) => void;
   conversationId?: string;
   onFileClick?: (filename: string) => void;
@@ -41,9 +45,8 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
   onFileClick,
   timestamp,
 }) => {
-  if (!payload) return null;
 
-  const isError = !!payload.error;
+  if (!payload) return null;
 
   const handleFileClick = (filename: string) => {
     if (onFileClick) {
@@ -141,17 +144,18 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
     });
 
     if (typeof text === "string") {
-      // Replace in HTML href/src attributes
-      text = text.replace(
-        /(href|src)=("|')(.*?)(\2)/gi,
-        (match: string, attr: string, quote: string, url: string) => {
-          const replacedUrl = url.replace(
-            /(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)/gi,
-            (m, proto = "", _host, port) => safeReplace(proto, _host, port)
-          );
-          return `${attr}=${quote}${replacedUrl}${quote}`;
-        }
-      );
+
+       // Replace in HTML href/src attributes
+    text = text.replace(
+      /(href|src)=("|')(.*?)(\2)/gi,
+      (match: string, attr: string, quote: string, url: string) => {
+        const replacedUrl = url.replace(
+          /(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)/gi,
+          (m, proto = "", _host, port) => safeReplace(proto, _host, port)
+        );
+        return `${attr}=${quote}${replacedUrl}${quote}`;
+      }
+    );
     }
 
     // Replace raw URLs in plain text (not part of markdown or HTML)
@@ -166,7 +170,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
         }
       );
     }
-
+    
     return text;
   };
 
@@ -222,31 +226,8 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
     return <File className="w-4 h-4 text-gray-500" />;
   };
 
-  const renderErrorContent = () => {
-    return (
-      <div>
-        <div className="flex items-start">
-          <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
-          <div className="flex-1">
-            <h4 className="font-semibold text-gray-900 text-sm">Error</h4>
-            <div className="text-sm text-gray-700 mt-1 leading-relaxed">
-              <MarkdownRenderer onPreviewClick={onPreviewClick}>
-                {payload.error || "An error occurred"}
-              </MarkdownRenderer>
-            </div>
-          </div>
-        </div>
-        {timestamp && (
-          <p className="text-xs text-gray-400 mt-3 text-right font-medium">
-            {formatTimestamp(timestamp)}
-          </p>
-        )}
-      </div>
-    );
-  };
-
   const renderStandardContent = () => {
-    const replacedContent = replaceLocalhostInLinks(payload.text || "");
+    const replacedContent = replaceLocalhostInLinks(payload.input_params.text || "");
     return (
       <div>
         <MarkdownRenderer onPreviewClick={onPreviewClick}>
@@ -262,20 +243,17 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
     );
   };
 
-  const cardColor = isError
-    ? "bg-red-50 border-red-200/60"
-    : "bg-white border-gray-200";
-  const content = isError ? renderErrorContent() : renderStandardContent();
+  const content = renderStandardContent();
 
   // Detect localhost URLs in the notification text
-  const notificationText = payload.text || payload.message || "";
+  const notificationText = payload.input_params.text || "";
   const localhostUrls = detectLocalhostUrls(notificationText);
 
   return (
     <>
       {/* Main Card */}
       <div className="flex justify-start">
-        <div className={`event-card min-w-80 max-w-2xl ${cardColor} relative`}>
+        <div className={`event-card min-w-80 max-w-2xl bg-white border-gray-200 relative`}>
           {replaceLocalhostInLinks(content)}
         </div>
       </div>
@@ -327,12 +305,12 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
       )}
 
       {/* Attachments outside the card - only show if no localhost URLs to preview */}
-      {payload.attachments &&
-        payload.attachments.length > 0 &&
+      {payload.input_params.attachments &&
+        payload.input_params.attachments.length > 0 &&
         localhostUrls.length === 0 && (
           <div className="mt-3 space-y-3">
             <div className="space-y-2">
-              {payload.attachments.map((attachment, index) => {
+              {payload.input_params.attachments.map((attachment, index) => {
                 const filename = attachment.split("/").pop() || "";
                 const extension = filename.split(".").pop()?.toLowerCase();
 
