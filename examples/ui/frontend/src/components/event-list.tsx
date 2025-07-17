@@ -103,8 +103,7 @@ const EVENT_COMPONENTS: Record<string, EventComponentConfig> = {
 const SPECIAL_EVENT_HANDLERS: Record<string, React.FC<UserMessageEventProps>> = {
   user_send_message: UserMessageEvent,
   user_question: UserMessageEvent,
-  error: UserMessageEvent,
-  planning: UserMessageEvent
+  error: UserMessageEvent
 };
 
 const EventList: React.FC<EventListProps> = ({
@@ -117,7 +116,9 @@ const EventList: React.FC<EventListProps> = ({
   if (!message.event || !message.event.data) return null;
 
   const eventData = message.event.data;
-  const eventType = eventData.tool_name || "unknown";
+  const eventType = eventData.tool_name || eventData.event_type || "unknown";
+
+
   const payload = generatePayload(eventType, eventData);
 
   // Handle special cases first

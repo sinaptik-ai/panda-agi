@@ -32,7 +32,7 @@ def get_or_create_agent(conversation_id: Optional[str] = None) -> Tuple[Agent, s
     # if conversation_id and conversation_id in active_conversations:
     #     return active_conversations[conversation_id], conversation_id
     new_conversation_id = conversation_id or str(uuid.uuid4())
-    local_env: E2BEnv = get_env({"conversation_id": new_conversation_id} if conversation_id else None)
+    local_env: E2BEnv = get_env({"conversation_id": new_conversation_id}, force_new=conversation_id is None)
     agent = Agent(model="annie-pro", environment=local_env, base_url="http://localhost:8000")
     active_conversations[new_conversation_id] = agent
     return agent, new_conversation_id
@@ -95,10 +95,8 @@ async def event_stream(
         # Send error event
         error_data = {
             "data": {
-                "type": "error",
-                "payload": {"error": str(e)},
-                "timestamp": "",
-                "id": None,
+                "event_type": "error",
+                "error":  str(e),
             },
         }
         yield f"<event>{json.dumps(error_data)}</event>"

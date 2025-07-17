@@ -1,3 +1,4 @@
+from e2b.api.client.models import sandbox
 from panda_agi.envs import E2BEnv
 from panda_agi.envs.local_env import LocalEnv
 import os
@@ -8,10 +9,15 @@ WORKSPACE_PATH = os.getenv(
 )
 
 
-def get_env(metadata: Dict[str, Any] = None):
+def get_env(metadata: Dict[str, Any] = None, force_new: bool = False):
     env = os.getenv("ENV", "local")
     if env == "e2b":
-        return E2BEnv("/workspace", metadata=metadata, timeout=300)
-
+        sandbox = None
+        if not force_new:
+            sandbox = E2BEnv.get_active_sandbox(metadata)
+        
+        if not sandbox:
+            return E2BEnv("/workspace", metadata=metadata, timeout=300)
+    
     print("Local environment", WORKSPACE_PATH)
     return LocalEnv(WORKSPACE_PATH, metadata)

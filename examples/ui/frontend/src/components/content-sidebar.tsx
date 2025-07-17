@@ -14,7 +14,7 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./ui/markdown-renderer";
 import { getBackendServerURL } from "@/lib/server";
 
-interface PreviewData {
+export interface PreviewData {
   title?: string;
   filename?: string;
   url?: string;
@@ -258,14 +258,14 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   };
 
   // Common line number styling
-  const getLineNumberStyle = () => ({
+  const getLineNumberStyle = (): React.CSSProperties => ({
     minWidth: "3em",
     paddingRight: "1em",
     paddingLeft: "0.5em",
     color: "#9ca3af !important",
     backgroundColor: "#1f2937 !important",
     borderRight: "1px solid #374151",
-    userSelect: "none",
+    userSelect: "none" as const,
     display: "inline-block",
     textAlign: "right",
   });
@@ -302,7 +302,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     const lines = csvText.trim().split("\n");
     const result: string[][] = [];
 
-    for (let line of lines) {
+    for (const line of lines) {
       const row: string[] = [];
       let current = "";
       let inQuotes = false;
@@ -695,6 +695,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       className="fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-lg z-50 flex flex-col"
       style={{
         width: `${sidebarWidth}px`,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ["--sidebar-width" as any]: `${sidebarWidth}px`,
       }}
     >

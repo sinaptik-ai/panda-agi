@@ -27,16 +27,13 @@ class E2BEnv(BaseEnv):
         self.sandbox = self._connect(metadata, timeout)
 
     def _connect(self, metadata: Dict[str, Any] = None, timeout: Optional[float] = 3600):
-        sbx = self._get_active_sandbox(metadata)
-        if sbx:
-            return sbx
-        
         sbx = Sandbox(metadata=metadata, timeout=timeout)
         # Ensure base directory exists within sandbox
         sbx.files.make_dir(str(self.base_path))
         return sbx
     
-    def _get_active_sandbox(self, metadata: Dict[str, Any] = None):
+    @staticmethod
+    def get_active_sandbox(metadata: Dict[str, Any] = None):
         if metadata and "conversation_id" in metadata:
             query = SandboxQuery(metadata=metadata)
             matches = Sandbox.list(query=query)

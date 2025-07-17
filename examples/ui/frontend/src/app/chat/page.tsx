@@ -14,10 +14,16 @@ import {
 } from "lucide-react";
 import EventList from "@/components/event-list";
 import MessageCard from "@/components/message-card";
-import ContentSidebar from "@/components/content-sidebar";
+import ContentSidebar, { PreviewData } from "@/components/content-sidebar";
 import { Message } from "@/lib/types/event-message";
+import { UploadedFile, FileUploadResult } from "@/lib/types/file";
 
 import { getBackendServerURL } from "@/lib/server";
+
+interface RequestBody {
+  query: string;
+  conversation_id?: string;
+}
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -26,15 +32,15 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(900); // Default sidebar width (match initial in ContentSidebar)
-  const [previewData, setPreviewData] = useState(null);
+  const [previewData, setPreviewData] = useState<PreviewData>();
   const [conversationId, setConversationId] = useState<string | undefined>();
   const [uploadingFiles, setUploadingFiles] = useState(false);
-  const [pendingFiles, setPendingFiles] = useState([]);
+  const [pendingFiles, setPendingFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef(null);
-  const dropZoneRef = useRef(null);
-  const textareaRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -58,7 +64,7 @@ function App() {
 
   // Handle multiple file uploads
   const handleFilesUpload = useCallback(
-    async (files) => {
+    async (files: File[]) => {
       if (files.length === 0) return;
 
       setUploadingFiles(true);
@@ -83,10 +89,10 @@ function App() {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
 
-          const result = await response.json();
+          const result: FileUploadResult = await response.json();
 
           // Add file to pending files instead of immediately showing as event
-          const uploadedFile = {
+          const uploadedFile: UploadedFile = {
             id: Date.now() + Math.random(),
             filename: result.filename,
             original_filename: result.original_filename,
@@ -98,14 +104,19 @@ function App() {
         }
       } catch (error) {
         console.error("Upload error:", error);
-        // Show error notification
-        const errorMessage = {
-          id: Date.now() + Math.random(),
-          type: "message",
-          role: "system",
-          content: `Error uploading file: ${error.message}`,
+
+        let errorText = "Unable to upload file";
+
+        if (error instanceof Error) {
+          errorText = error.message;
+        }
+        const errorMessage: Message = {
+          id: Date.now(),
+          type: "error",
+          content: `Error uploading file: ${errorText}`,
           timestamp: new Date().toISOString(),
         };
+
         setMessages((prev) => [...prev, errorMessage]);
       } finally {
         setUploadingFiles(false);
@@ -124,19 +135,19 @@ function App() {
 
   // Drag and drop handlers
   useEffect(() => {
-    const handleDragOver = (e) => {
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
       setIsDragging(true);
     };
 
-    const handleDragEnter = (e) => {
+    const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
       setIsDragging(true);
     };
 
-    const handleDragLeave = (e) => {
+    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -147,7 +158,7 @@ function App() {
       }
     };
 
-    const handleDrop = async (e) => {
+    const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       e.stopPropagation();
       setIsDragging(false);
@@ -161,37 +172,46 @@ function App() {
     // Add event listeners to the drop zone
     const dropZone = dropZoneRef.current;
     if (dropZone) {
-      dropZone.addEventListener("dragover", handleDragOver);
-      dropZone.addEventListener("dragenter", handleDragEnter);
-      dropZone.addEventListener("dragleave", handleDragLeave);
-      dropZone.addEventListener("drop", handleDrop);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      dropZone.addEventListener("dragover", handleDragOver as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      dropZone.addEventListener("dragenter", handleDragEnter as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      dropZone.addEventListener("dragleave", handleDragLeave as any);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      dropZone.addEventListener("drop", handleDrop as any);
     }
 
     // Cleanup
     return () => {
       if (dropZone) {
-        dropZone.removeEventListener("dragover", handleDragOver);
-        dropZone.removeEventListener("dragenter", handleDragEnter);
-        dropZone.removeEventListener("dragleave", handleDragLeave);
-        dropZone.removeEventListener("drop", handleDrop);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        dropZone.removeEventListener("dragover", handleDragOver as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        dropZone.removeEventListener("dragenter", handleDragEnter as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        dropZone.removeEventListener("dragleave", handleDragLeave as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        dropZone.removeEventListener("drop", handleDrop as any);
       }
     };
   }, [handleFilesUpload]);
 
-  const handlePreviewClick = (data) => {
+  const handlePreviewClick = (data: PreviewData) => {
     setPreviewData(data);
     setSidebarOpen(true);
   };
 
   const closeSidebar = () => {
     setSidebarOpen(false);
-    setPreviewData(null);
+    setPreviewData(undefined);
   };
 
   // Helper function to determine file type based on extension
   const getFileType = (filename: string) => {
     if (!filename) return "text";
-    const extension = filename.split(".").pop().toLowerCase();
+
+    const extension = filename.split(".").pop()?.toLowerCase() || "";
 
     if (["csv", "xls", "xlsx"].includes(extension)) return "table";
     if (["md", "markdown", "txt"].includes(extension)) return "markdown";
@@ -225,7 +245,7 @@ function App() {
   };
 
   // Function to open file in sidebar - content fetching is handled by ContentSidebar
-  const handleFileClick = (filename) => {
+  const handleFileClick = (filename: string) => {
     const fileType = getFileType(filename);
 
     setPreviewData({
@@ -261,20 +281,20 @@ function App() {
 
     // Add upload events for pending files
     pendingFiles.forEach((file) => {
-      const uploadMessage = {
+      const uploadMessage: Message = {
         id: Date.now() + Math.random(),
         type: "event",
         event: {
           data: {
-            type: "file_upload",
-            payload: {
+            outputParams: {
               filename: file.filename,
               original_filename: file.original_filename,
               size: file.size,
               path: file.path,
             },
-            timestamp: new Date().toISOString(),
           },
+          event_type: "file_upload",
+          timestamp: new Date().toISOString(),
         },
         timestamp: new Date().toISOString(),
       };
@@ -288,8 +308,8 @@ function App() {
 
     try {
       const apiUrl = getBackendServerURL("/agent/run");
-
-      const requestBody = {
+      
+      const requestBody: RequestBody = {
         query: messageContent,
       };
 
@@ -432,7 +452,7 @@ function App() {
     }
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -441,9 +461,9 @@ function App() {
 
   const startNewConversation = () => {
     setMessages([]);
-    setConversationId(null);
+    setConversationId(undefined);
     setSidebarOpen(false);
-    setPreviewData(null);
+    setPreviewData(undefined);
   };
 
   // Trigger file input click
@@ -452,19 +472,19 @@ function App() {
   };
 
   // Handle file input change
-  const handleFileChange = (event) => {
-    const files = Array.from(event.target.files);
-    if (files.length > 0) {
-      handleFilesUpload(files);
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      handleFilesUpload(Array.from(files));
     }
   };
 
-  const removePendingFile = (fileId) => {
+  const removePendingFile = (fileId: number) => {
     setPendingFiles((prev) => prev.filter((file) => file.id !== fileId));
   };
 
   // ...
-  const formatFileSize = (bytes) => {
+  const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];
@@ -472,9 +492,13 @@ function App() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const getFileIcon = (filename) => {
+  const getFileIcon = (filename: string) => {
     const extension = filename.split(".").pop()?.toLowerCase();
     const iconClass = "w-4 h-4";
+
+    if (!extension) {
+      return <File className={`${iconClass} text-gray-500`} />;
+    }
 
     if (
       ["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(extension)
@@ -622,8 +646,8 @@ function App() {
                       Data Analysis
                     </h4>
                     <p className="text-sm text-gray-600">
-                      "Analyze this CSV data and create a visualization of the
-                      monthly sales trends"
+                      Analyze this CSV data and create a visualization of the
+                      monthly sales trends
                     </p>
                   </button>
 
@@ -640,8 +664,8 @@ function App() {
                       Landing Page
                     </h4>
                     <p className="text-sm text-gray-600">
-                      "Help me generate a modern landing page for my SaaS
-                      product that focuses on AI workflow automation"
+                      Help me generate a modern landing page for my SaaS
+                      product that focuses on AI workflow automation
                     </p>
                   </button>
 
@@ -658,8 +682,8 @@ function App() {
                       Research Reports
                     </h4>
                     <p className="text-sm text-gray-600">
-                      "Create a comprehensive report on the latest trends in
-                      renewable energy based on online research"
+                      Create a comprehensive report on the latest trends in
+                      renewable energy based on online research
                     </p>
                   </button>
 
@@ -809,7 +833,7 @@ function App() {
                     onKeyPress={handleKeyPress}
                     placeholder="Ask the panda anything..."
                     className="w-full bg-transparent text-gray-900 placeholder-gray-500 resize-none border-none outline-none text-md leading-relaxed"
-                    rows="1"
+                    rows={1}
                     disabled={isLoading}
                     style={{ minHeight: "24px", maxHeight: "120px" }}
                   />
