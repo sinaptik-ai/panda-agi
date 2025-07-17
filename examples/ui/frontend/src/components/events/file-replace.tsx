@@ -7,7 +7,7 @@ interface FileReplaceEventProps {
     path?: string;
     content?: string;
   };
-  onPreviewClick?: (previewData: any) => void;
+  onPreviewClick?: (previewData: unknown) => void;
 }
 
 const FileReplaceEvent: React.FC<FileReplaceEventProps> = ({ payload, onPreviewClick }) => {

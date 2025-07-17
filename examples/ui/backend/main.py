@@ -238,8 +238,6 @@ async def event_stream(
                 # Skip events that couldn't be processed
                 continue
 
-            print(event_dict)
-
             # Format as SSE
             yield f"data: {json.dumps(event_dict)}\n\n"
 

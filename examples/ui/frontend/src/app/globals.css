@@ -153,3 +153,32 @@
     background: rgba(255, 255, 255, 0.8);
   }
 }
+
+@layer base {
+  body {
+    @apply bg-gray-50 font-sans;
+  }
+}
+
+@layer components {
+  .chat-message {
+    @apply p-4 rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md;
+  }
+
+  .event-card {
+    @apply bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all duration-200;
+  }
+
+  .event-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}

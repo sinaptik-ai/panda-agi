@@ -1,6 +1,6 @@
 import React from "react";
 import { Activity } from "lucide-react";
-import MessageCard from "../ui/message-card";
+import MessageCard from "@/components/ui/message-card";
 
 interface WebSearchResult {
   url: string;

@@ -1,7 +1,7 @@
 import React from "react";
 import { Globe, Search } from "lucide-react";
 import MarkdownRenderer from "../ui/markdown-renderer";
-import MessageCard from "../ui/message-card";
+import MessageCard from "@/components/ui/message-card";
 
 interface WebSearchEventProps {
   payload?: {

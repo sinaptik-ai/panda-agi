@@ -13,7 +13,7 @@ import {
   FileCode,
 } from "lucide-react";
 import EventList from "@/components/event-list";
-import MessageCard from "@/components/ui/message-card";
+import MessageCard from "@/components/message-card";
 import ContentSidebar from "@/components/content-sidebar";
 
 import { getBackendServerURL } from "@/lib/server";
@@ -321,6 +321,7 @@ function App() {
         const lines = chunk.split("\n");
 
         for (const line of lines) {
+          console.log("Line:", line);
           if (line.startsWith("data: ")) {
             try {
               const eventData = JSON.parse(line.slice(6));

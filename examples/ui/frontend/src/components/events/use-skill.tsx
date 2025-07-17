@@ -42,9 +42,15 @@ const SkillUseEvent: React.FC<SkillUseEventProps> = ({ payload }) => {
           <span className="text-sm font-mono text-blue-700">Skill used</span>
         </div>
         <div className="p-3 font-mono text-sm space-y-2">
-          {result && (
+          {result && result.data && (
             <div>
-              {result["data"]}
+              {typeof result.data === 'string' ? (
+                result.data
+              ) : (
+                <pre className="whitespace-pre-wrap overflow-auto">
+                  {JSON.stringify(result.data, null, 2)}
+                </pre>
+              )}
             </div>
           )}
         </div>
