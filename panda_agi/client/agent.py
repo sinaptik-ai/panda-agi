@@ -73,7 +73,6 @@ class Agent:
         self.model = model
         self.environment = environment
         self.base_url = base_url
-        self.api_key = api_key
 
         # Initialize tools list
         self.tools = []
@@ -1084,6 +1083,7 @@ class Agent:
                 # No handlers, add event directly
                 response.add_event(event)
 
+        response.set_conversation_id(self.conversation_id)
         return response
 
     def _process_event_with_handlers(
