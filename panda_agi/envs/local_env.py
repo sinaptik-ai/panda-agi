@@ -62,7 +62,9 @@ def _read_non_blocking(pipe) -> str:
 class LocalEnv(BaseEnv):
     """Local file system environment implementation."""
 
-    def __init__(self, base_path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, base_path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None
+    ):
         """
         Initialize the local environment.
 
@@ -578,11 +580,14 @@ class LocalEnv(BaseEnv):
             return resolved_path.exists()
         except (OSError, ValueError, TypeError) as e:
             import traceback
+
             error_trace = traceback.format_exc()
             print(f"Error in path_exists: {e}\n{error_trace}")
             return False
 
-    async def mkdir(self, path: Union[str, Path], parents: bool = False, exist_ok: bool = False) -> Dict[str, Any]:
+    async def mkdir(
+        self, path: Union[str, Path], parents: bool = False, exist_ok: bool = False
+    ) -> Dict[str, Any]:
         """
         Create a directory in the local environment.
 
@@ -595,18 +600,28 @@ class LocalEnv(BaseEnv):
             Dict[str, Any]: Result of the mkdir operation
         """
         try:
-            print("Creating directory: ", path)
             resolved_path = self._resolve_path(path)
-            print("Resolved path: ", resolved_path)
             resolved_path.mkdir(parents=parents, exist_ok=exist_ok)
             return {"status": "success", "path": str(resolved_path)}
         except FileExistsError:
             if exist_ok:
-                return {"status": "success", "path": str(resolved_path), "message": "Directory already exists"}
-            return {"status": "error", "message": f"Directory already exists: {resolved_path}", "path": str(resolved_path)}
+                return {
+                    "status": "success",
+                    "path": str(resolved_path),
+                    "message": "Directory already exists",
+                }
+            return {
+                "status": "error",
+                "message": f"Directory already exists: {resolved_path}",
+                "path": str(resolved_path),
+            }
         except Exception as e:
-            return {"status": "error", "message": f"Failed to create directory: {str(e)}", "path": str(resolved_path)}
-            
+            return {
+                "status": "error",
+                "message": f"Failed to create directory: {str(e)}",
+                "path": str(resolved_path),
+            }
+
     async def list_files(
         self,
         path: Optional[Union[str, Path]] = None,

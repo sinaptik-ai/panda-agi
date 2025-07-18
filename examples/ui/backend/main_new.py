@@ -20,6 +20,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Import routes
 from routes import agent, auth, conversation, files, health
 
+# Import middleware
+from middleware.auth import AuthMiddleware
+
 # Configure logging with more explicit settings
 logging.basicConfig(
     level=logging.DEBUG,
@@ -43,6 +46,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add Authentication middleware
+app.add_middleware(AuthMiddleware)
 
 # Include routers
 app.include_router(agent.router)

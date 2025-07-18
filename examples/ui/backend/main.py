@@ -195,7 +195,9 @@ def get_or_create_agent(conversation_id: Optional[str] = None) -> tuple[Agent, s
     if conversation_id and conversation_id in active_conversations:
         return active_conversations[conversation_id], conversation_id
 
-    agent = Agent(model="annie-pro", environment=local_env, skills=[deploy_python_server])
+    agent = Agent(
+        model="annie-pro", environment=local_env, skills=[deploy_python_server]
+    )
     new_conversation_id = conversation_id or str(uuid.uuid4())
     active_conversations[new_conversation_id] = agent
 
@@ -607,40 +609,6 @@ async def root():
             "GET /": "This endpoint",
         },
     }
-
-@app.get("/auth/github")
-async def github_auth(redirect_uri: Optional[str] = Query(None)):
-    """GitHub auth endpoint with optional redirect_uri"""
-    async with aiohttp.ClientSession() as session:
-        payload = {}
-        # if redirect_uri:
-        payload["redirect_uri"] = redirect_uri or "http://localhost:3001/authenticate"
-            
-        async with session.post(
-            "http://localhost:8000/public/auth/github",
-            json=payload
-        ) as resp:
-            response = await resp.json()
-            return response
-
-@app.get("/auth/validate")
-async def validate_auth(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Validate authentication token by forwarding to backend service"""
-    token = credentials.credentials  # Extract the token from the bearer header
-    
-    async with aiohttp.ClientSession() as session:
-        # Pass the token in the Authorization header to the backend service
-        headers = {"X-Authorization": f"Bearer {token}"}
-        
-        async with session.get("http://localhost:8000/auth/validate", headers=headers) as resp:
-            if resp.status != 200:
-                raise HTTPException(
-                    status_code=resp.status,
-                    detail="Token validation failed"
-                )
-            
-            response = await resp.json()
-            return response
 
 
 @app.get("/debug-workspace")

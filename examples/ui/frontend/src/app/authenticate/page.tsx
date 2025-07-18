@@ -53,7 +53,7 @@ export default function Authenticate() {
           
           // Validate the token with our backend
           try {
-            const response = await fetch(`${getServerURL()}/auth/validate`, {
+            const response = await fetch(`${getServerURL()}/public/auth/validate`, {
               headers: {
                 Authorization: `Bearer ${params.access_token}`,
               },

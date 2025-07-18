@@ -97,6 +97,10 @@ const EVENT_COMPONENTS: Record<string, EventComponentConfig> = {
     component: SkillUseEvent,
     props: ["payload"],
   },
+  deploy_server: {
+    component: SkillUseEvent,
+    props: ["payload"],
+  }
 };
 
 // Special cases for event types that need custom handling

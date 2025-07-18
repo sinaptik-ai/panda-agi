@@ -1,6 +1,7 @@
 """
 File routes for the PandaAGI SDK API.
 """
+
 import logging
 import mimetypes
 import os
@@ -27,23 +28,29 @@ async def upload_files(
 ):
     """
     Upload a file to the workspace using E2BEnv.
-    
+
     Args:
         file: The file to upload
         conversation_id: Optional ID of the conversation
-        
+
     Returns:
         dict: Upload status and file information
     """
     try:
         local_env = get_or_create_agent(conversation_id)[0].environment
-        # Use the environment's workspace path
+
+        if not local_env:
+            raise HTTPException(
+                status_code=500,
+                detail="Something went wrong, unable to create environment!",
+            )
+
         workspace_path = Path(WORKSPACE_PATH)
 
         if not local_env.path_exists(workspace_path):
             # Ensure workspace directory exists using environment abstraction
             await local_env.mkdir(workspace_path, parents=True, exist_ok=True)
-        
+
         # Sanitize filename to prevent directory traversal
         safe_filename = (
             file.filename.replace("..", "").replace("/", "_").replace("\\", "_")
@@ -66,12 +73,20 @@ async def upload_files(
 
         # Read the uploaded file content
         content = await file.read()
-        
+
+        print("file_path::: -> ", file_path)
+        print("safe_filename::: -> ", safe_filename)
+        print("content::: -> ", content)
+
         # Write the file using E2BEnv
-        result = await local_env.write_file(safe_filename, content, mode="wb", encoding=None)
-        
+        result = await local_env.write_file(
+            safe_filename, content, mode="wb", encoding=None
+        )
+
         if result["status"] != "success":
-            raise Exception(f"Failed to write file: {result.get('message', 'Unknown error')}")
+            raise Exception(
+                f"Failed to write file: {result.get('message', 'Unknown error')}"
+            )
 
         # Return success response
         return {
@@ -80,12 +95,14 @@ async def upload_files(
             "original_filename": file.filename,
             "size": len(content),
             "path": str(file_path).replace(WORKSPACE_PATH, ""),
-            "conversation_id": conversation_id,
+            "conversation_id": conversation_id
+            or local_env.metadata.get("conversation_id", None),
             "event_type": "file_upload",
         }
 
     except Exception as e:
         import traceback
+
         error_trace = traceback.format_exc()
         logger.error(f"Error in upload_files: {e}\n{error_trace}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
@@ -98,11 +115,11 @@ async def download_file(
 ):
     """
     Download a file from the workspace.
-    
+
     Args:
         conversation_id: ID of the conversation
         file_path: Path to the file to download
-        
+
     Returns:
         FileResponse: The file to download
     """
@@ -133,7 +150,7 @@ async def download_file(
         if not path_exists:
             logger.debug("File not found, raising 404")
             raise HTTPException(status_code=404, detail="File not found")
-            
+
         # Get file info to check if it's a directory
         file_info = await local_env.list_files(resolved_path.parent)
         if file_info["status"] == "success":
@@ -141,7 +158,11 @@ async def download_file(
             for file in file_info["files"]:
                 logger.debug(f"Checking file: {file}")
                 # Check if this is the file we're looking for and if it's a directory
-                if isinstance(file, dict) and file.get("name") == resolved_path.name and file.get("type") == "directory":
+                if (
+                    isinstance(file, dict)
+                    and file.get("name") == resolved_path.name
+                    and file.get("type") == "directory"
+                ):
                     logger.debug("Path is not a file, raising 400")
                     raise HTTPException(status_code=400, detail="Path is not a file")
 
@@ -159,10 +180,14 @@ async def download_file(
                 logger.debug("Successfully imported markdown and weasyprint")
 
                 # Read markdown content using E2BEnv
-                file_result = await local_env.read_file(resolved_path, mode="r", encoding="utf-8")
+                file_result = await local_env.read_file(
+                    resolved_path, mode="r", encoding="utf-8"
+                )
                 if file_result["status"] != "success":
-                    raise Exception(f"Failed to read file: {file_result.get('message', 'Unknown error')}")
-                
+                    raise Exception(
+                        f"Failed to read file: {file_result.get('message', 'Unknown error')}"
+                    )
+
                 md_content = file_result["content"]
                 logger.debug(f"Read markdown content, length: {len(md_content)}")
 
@@ -254,21 +279,23 @@ async def download_file(
         logger.debug(f"Serving regular file download: {resolved_path.name}")
         # Read file content using E2BEnv and return it as a download
         filename = resolved_path.name
-        
+
         # Read file content using E2BEnv
         file_result = await local_env.read_file(resolved_path, mode="rb", encoding=None)
         if file_result["status"] != "success":
-            raise Exception(f"Failed to read file: {file_result.get('message', 'Unknown error')}")
-        
+            raise Exception(
+                f"Failed to read file: {file_result.get('message', 'Unknown error')}"
+            )
+
         # Create a temporary file to serve
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             # Ensure content is bytes
             content = file_result["content"]
             if isinstance(content, str):
-                content = content.encode('utf-8')
+                content = content.encode("utf-8")
             temp_file.write(content)
             temp_file_path = temp_file.name
-            
+
         # Return file for download
         return FileResponse(
             path=temp_file_path,
@@ -277,6 +304,7 @@ async def download_file(
         )
     except Exception as e:
         import traceback
+
         error_trace = traceback.format_exc()
         logger.error(f"Error in download_file: {e}\n{error_trace}")
         raise HTTPException(status_code=500, detail=f"Error downloading file: {str(e)}")
@@ -286,11 +314,11 @@ async def download_file(
 async def read_file(conversation_id: str, file_path: str):
     """
     Read a file from the E2B sandbox workspace and serve it directly.
-    
+
     Args:
         conversation_id: ID of the conversation
         file_path: Path to the file to read
-        
+
     Returns:
         Response: The file content
     """
@@ -304,7 +332,9 @@ async def read_file(conversation_id: str, file_path: str):
         try:
             resolved.resolve().relative_to(base)
         except Exception:
-            raise HTTPException(status_code=403, detail="Access denied: outside workspace")
+            raise HTTPException(
+                status_code=403, detail="Access denied: outside workspace"
+            )
 
         # Check existence via sandbox API
         exists_res = await local_env.path_exists(file_path)
@@ -331,12 +361,13 @@ async def read_file(conversation_id: str, file_path: str):
             mime_type = "application/octet-stream"
 
         return Response(content=content_bytes, media_type=mime_type)
-        
+
     except HTTPException:
         # Re-raise HTTP exceptions without modification
         raise
     except Exception as e:
         import traceback
+
         error_trace = traceback.format_exc()
         logger.error(f"Error in read_file: {e}\n{error_trace}")
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
@@ -348,10 +379,10 @@ async def test_download_file(
 ):
     """
     Test download endpoint.
-    
+
     Args:
         file_path: Path to the file to download
-        
+
     Returns:
         FileResponse or dict: The file to download or error message
     """

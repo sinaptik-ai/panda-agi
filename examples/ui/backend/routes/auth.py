@@ -6,9 +6,13 @@ import aiohttp
 from typing import Optional
 from fastapi import APIRouter, Query, Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import os
+
+
+PANDA_AGI_SERVER_URL = os.environ.get("PANDA_AGI_URL") or "http://localhost:8000"
 
 # Create router
-router = APIRouter(prefix="/auth", tags=["authentication"])
+router = APIRouter(prefix="/public/auth", tags=["authentication"])
 
 # Security scheme for bearer token
 security = HTTPBearer()
@@ -19,11 +23,13 @@ async def github_auth(redirect_uri: Optional[str] = Query(None)):
     """GitHub auth endpoint with optional redirect_uri"""
     async with aiohttp.ClientSession() as session:
         payload = {}
-        # if redirect_uri:
-        payload["redirect_uri"] = redirect_uri or "http://localhost:3001/authenticate"
+        # Use the provided redirect_uri or fall back to production URL
+        payload["redirect_uri"] = (
+            redirect_uri or "https://agi.panda-agi.com/authenticate"
+        )
 
         async with session.post(
-            "http://localhost:8000/public/auth/github", json=payload
+            f"{PANDA_AGI_SERVER_URL}/public/auth/github", json=payload
         ) as resp:
             response = await resp.json()
             return response
@@ -39,7 +45,7 @@ async def validate_auth(credentials: HTTPAuthorizationCredentials = Depends(secu
         headers = {"X-Authorization": f"Bearer {token}"}
 
         async with session.get(
-            "http://localhost:8000/auth/validate", headers=headers
+            f"{PANDA_AGI_SERVER_URL}/auth/validate", headers=headers
         ) as resp:
             if resp.status != 200:
                 raise HTTPException(

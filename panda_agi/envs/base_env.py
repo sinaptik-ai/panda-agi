@@ -13,7 +13,9 @@ from typing import Any, Dict, Optional, Union
 class BaseEnv(ABC):
     """Abstract base class for environment management."""
 
-    def __init__(self, base_path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, base_path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None
+    ):
         """
         Initialize the environment with a base path.
 
@@ -177,6 +179,7 @@ class BaseEnv(ABC):
         path: Optional[Union[str, Path]] = None,
         recursive: bool = False,
         include_hidden: bool = False,
+        max_depth: int = 5,
     ) -> Dict[str, Any]:
         """
         List files in a directory.
@@ -197,3 +200,7 @@ class BaseEnv(ABC):
 
     async def get_hosted_url(self, port) -> str:
         return f"http://localhost:{port}"
+
+    @abstractmethod
+    async def path_exists(self, path: Union[str, Path]) -> bool:
+        pass

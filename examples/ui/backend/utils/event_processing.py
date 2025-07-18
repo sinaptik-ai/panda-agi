@@ -1,6 +1,7 @@
 """
 Event processing utilities for the PandaAGI SDK API.
 """
+
 import logging
 from typing import Dict, Optional, Union
 
@@ -9,13 +10,13 @@ from panda_agi.client.models import BaseStreamEvent, EventType
 logger = logging.getLogger("panda_agi_api")
 
 
-def should_render_event(event: Union[BaseStreamEvent, str]) -> bool:
+def should_render_event(event: dict) -> bool:
     """
     Check if event should be rendered - same logic as CLI.
-    
+
     Args:
         event: The event to check, either a BaseStreamEvent or string event type
-        
+
     Returns:
         bool: True if the event should be rendered, False otherwise
     """
@@ -24,7 +25,7 @@ def should_render_event(event: Union[BaseStreamEvent, str]) -> bool:
         return False
 
     event_type = event.get("event_type", None)
-    
+
     if event_type == "tool_end":
         return True
 
@@ -57,10 +58,10 @@ def truncate_long_content(data, max_length: int = 5000):
 def process_event_for_frontend(event) -> Optional[Dict]:
     """
     Process an event for frontend consumption with type safety.
-    
+
     Args:
         event: The event to process
-        
+
     Returns:
         Optional[Dict]: Processed event data or None if processing failed
     """

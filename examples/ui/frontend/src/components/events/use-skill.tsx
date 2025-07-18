@@ -15,6 +15,8 @@ interface SkillUseEventProps {
 const SkillUseEvent: React.FC<SkillUseEventProps> = ({ payload }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  console.log("payload skill!!!", payload);
+
   if (!payload) return null;
 
   const toggleExpanded = () => {

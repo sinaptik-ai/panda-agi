@@ -86,7 +86,7 @@ function App() {
           const apiUrl = getBackendServerURL("/files/upload");
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const apiHeaders: any = getApiHeaders();
+          const apiHeaders: any = getApiHeaders(false);
 
           const response = await fetch(apiUrl, {
             method: "POST",
@@ -99,7 +99,6 @@ function App() {
           }
 
           const result: FileUploadResult = await response.json();
-
           // Add file to pending files instead of immediately showing as event
           const uploadedFile: UploadedFile = {
             id: Date.now() + Math.random(),
@@ -108,6 +107,10 @@ function App() {
             size: result.size,
             path: result.path,
           };
+          
+          if (result.conversation_id) {
+            setConversationId(result.conversation_id);
+          }
 
           setPendingFiles((prev) => [...prev, uploadedFile]);
         }
@@ -295,18 +298,20 @@ function App() {
         type: "event",
         event: {
           data: {
-            outputParams: {
+            output_params: {
               filename: file.filename,
               original_filename: file.original_filename,
               size: file.size,
               path: file.path,
             },
+            tool_name: "file_upload",
           },
           event_type: "file_upload",
           timestamp: new Date().toISOString(),
         },
         timestamp: new Date().toISOString(),
       };
+      console.log("uploadMessage::: -> ", uploadMessage);
       newMessages.push(uploadMessage);
     });
 
@@ -335,6 +340,7 @@ function App() {
         headers: apiHeaders,
         body: JSON.stringify(requestBody),
       });
+      console.log("response::: -> ", response);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -442,7 +448,6 @@ function App() {
         }
       }
     } catch (error) {
-      console.error("Error:", error);
       let errorText: string = "Unable to process request try again!"
       
       if (error instanceof Error) {
