@@ -45,6 +45,10 @@ const EVENT_COMPONENTS: Record<string, EventComponentConfig> = {
     component: WebNavigationResultEvent,
     props: ["payload"],
   },
+  web_visit_page: {
+    component: WebNavigationResultEvent,
+    props: ["payload"],
+  },
   file_write: {
     component: FileWriteEvent,
     props: ["payload", "onPreviewClick"],
@@ -69,10 +73,7 @@ const EVENT_COMPONENTS: Record<string, EventComponentConfig> = {
     component: FileReadEvent,
     props: ["payload", "onPreviewClick"],
   },
-  // web_search: {
-  //   component: WebSearchEvent,
-  //   props: ["payload", "onPreviewClick"],
-  // },
+  
   image_generation: {
     component: ImageGenerationEvent,
     props: ["payload", "onPreviewClick"],

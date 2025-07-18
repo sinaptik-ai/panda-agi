@@ -430,10 +430,18 @@ class LocalEnv(BaseEnv):
                 else:
                     file_path.write_text(content, encoding=encoding)
 
+            # Get the filename before converting to string
+            filename = file_path.name
+
+            if str(file_path).startswith(str(self.base_path)):
+                file_path = "/" + str(file_path)[len(str(self.base_path)) :].lstrip("/")
+            else:
+                file_path = str(file_path)
+
             return {
                 "status": "success",
-                "path": str(file_path),
-                "size": file_path.stat().st_size,
+                "path": file_path,
+                "file": filename,
             }
 
         except Exception as e:

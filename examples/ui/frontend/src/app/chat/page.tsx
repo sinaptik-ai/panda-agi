@@ -312,7 +312,6 @@ function App() {
         },
         timestamp: new Date().toISOString(),
       };
-      console.log("uploadMessage::: -> ", uploadMessage);
       newMessages.push(uploadMessage);
     });
 
@@ -341,7 +340,6 @@ function App() {
         headers: apiHeaders,
         body: JSON.stringify(requestBody),
       });
-      console.log("response::: -> ", response);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -396,7 +394,6 @@ function App() {
               
               // Process the complete event
               try {
-                console.log("Complete event data:", eventBuffer);
                 const eventData = JSON.parse(eventBuffer);
                 
                 // Validate that eventData has the expected structure
@@ -430,7 +427,6 @@ function App() {
                     event: eventData,
                     timestamp: new Date().toISOString(),
                   };
-                  console.log("Event Message:", message);
                   setMessages((prev) => [...prev, message]);
 
                 } else {

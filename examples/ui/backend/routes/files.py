@@ -74,10 +74,6 @@ async def upload_files(
         # Read the uploaded file content
         content = await file.read()
 
-        print("file_path::: -> ", file_path)
-        print("safe_filename::: -> ", safe_filename)
-        print("content::: -> ", content)
-
         # Write the file using E2BEnv
         result = await local_env.write_file(
             safe_filename, content, mode="wb", encoding=None

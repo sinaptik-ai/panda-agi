@@ -128,7 +128,6 @@ class E2BEnv(BaseEnv):
         """
         resolved = self._resolve_path(path)
         entry = self.sandbox.files.write(str(resolved), content)
-        print("entry::: -> ", entry)
 
         # Replace base path prefix with "/" if it exists
         if entry.path.startswith(str(self.base_path)):

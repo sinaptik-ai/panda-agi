@@ -82,7 +82,6 @@ async def event_stream(
         }
         yield f"<event>{json.dumps(conversation_event)}</event>"
         await asyncio.sleep(0.01)
-        print("agent::: -> ", agent.conversation_id)
 
         # Stream events
         async for event in agent.run_stream(query):

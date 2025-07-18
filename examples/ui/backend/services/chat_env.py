@@ -28,5 +28,4 @@ def get_env(metadata: Optional[Dict[str, Any]] = None, force_new: bool = False):
 
         return sandbox
 
-    print("Local environment", WORKSPACE_PATH)
     return LocalEnv(WORKSPACE_PATH, metadata)
