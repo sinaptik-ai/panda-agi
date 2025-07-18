@@ -12,6 +12,7 @@ import {
   Code,
   Archive,
   FileCode,
+  LogOut,
 } from "lucide-react";
 import EventList from "@/components/event-list";
 import MessageCard from "@/components/message-card";
@@ -21,7 +22,7 @@ import { UploadedFile, FileUploadResult } from "@/lib/types/file";
 
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
-import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
+import { getAccessToken, isAuthRequired, logout } from "@/lib/api/auth";
 
 interface RequestBody {
   query: string;
@@ -86,7 +87,7 @@ function App() {
           const apiUrl = getBackendServerURL("/files/upload");
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const apiHeaders: any = getApiHeaders(false);
+          const apiHeaders: any = await getApiHeaders(false);
 
           const response = await fetch(apiUrl, {
             method: "POST",
@@ -333,7 +334,7 @@ function App() {
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const apiHeaders: any = getApiHeaders();
+      const apiHeaders: any = await getApiHeaders();
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -363,7 +364,6 @@ function App() {
         if (done) break;
 
         const chunk = decoder.decode(value);
-        console.log("Received chunk:", chunk);
         
         // Process the chunk to find and collect events
         let currentPosition = 0;
@@ -625,17 +625,31 @@ function App() {
               </div>
             </div>
 
-            {/* New Conversation Button */}
-            {messages.length > 0 && (
-              <button
-                onClick={startNewConversation}
-                disabled={isLoading}
-                className="flex items-center space-x-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
-              >
-                <Plus className="w-4 h-4" />
-                <span>New Chat</span>
-              </button>
-            )}
+            <div className="flex items-center space-x-3">
+              {/* New Conversation Button */}
+              {messages.length > 0 && (
+                <button
+                  onClick={startNewConversation}
+                  disabled={isLoading}
+                  className="flex items-center space-x-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>New Chat</span>
+                </button>
+              )}
+
+              {/* Logout Button - only show if authentication is required */}
+              {isAuthRequired() && (
+                <button
+                  onClick={logout}
+                  className="flex items-center space-x-2 px-4 py-2 text-sm bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                  title="Logout"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

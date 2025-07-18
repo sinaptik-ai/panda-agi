@@ -50,15 +50,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if request.url.path.startswith("/public/"):
             return await call_next(request)
 
-        # Skip authentication for health endpoints and file upload
-        if request.url.path in [
-            "/health",
-            "/",
-            "/docs",
-            "/redoc",
-            "/openapi.json",
-            "/files/upload",
-        ]:
+        # Skip authentication for health endpoints
+        if request.url.path in ["/health", "/", "/docs", "/redoc", "/openapi.json"]:
             return await call_next(request)
 
         # Check for X-Authorization header

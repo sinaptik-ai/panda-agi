@@ -270,6 +270,12 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
   // Detect localhost URLs in the notification text
   const notificationText = payload.text || payload.message || "";
   const localhostUrls = detectLocalhostUrls(notificationText);
+  // TODO - Temporary fix for attachments
+  let attachments: string[] = [];
+  if (payload.attachments && typeof payload.attachments === "string") {
+    const attachmentsString = payload.attachments as string;
+    attachments = attachmentsString.split(",");
+  }
 
   return (
     <>
@@ -327,12 +333,12 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
       )}
 
       {/* Attachments outside the card - only show if no localhost URLs to preview */}
-      {payload.attachments &&
-        payload.attachments.length > 0 &&
+      {attachments &&
+        attachments.length > 0 &&
         localhostUrls.length === 0 && (
           <div className="mt-3 space-y-3">
             <div className="space-y-2">
-              {payload.attachments.map((attachment, index) => {
+              {attachments.map((attachment, index) => {
                 const filename = attachment.split("/").pop() || "";
                 const extension = filename.split(".").pop()?.toLowerCase();
 

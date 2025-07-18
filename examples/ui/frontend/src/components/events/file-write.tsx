@@ -14,6 +14,7 @@ const FileWriteEvent: React.FC<FileWriteEventProps> = ({ payload, onPreviewClick
   if (!payload) return null;
 
   const filename = payload.file || payload.path;
+  const filePath = payload.path || payload.file;
 
   const truncateFilename = (filename: string | undefined, maxLength = 50): string => {
     if (!filename) return "Unknown file";
@@ -65,7 +66,7 @@ const FileWriteEvent: React.FC<FileWriteEventProps> = ({ payload, onPreviewClick
       };
 
       onPreviewClick({
-        filename: filename,
+        filename: filePath,
         title: `Created file: ${filename.split("/").pop()}`,
         type: getFileType(filename),
       });

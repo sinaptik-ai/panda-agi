@@ -196,7 +196,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const apiHeaders: any = getApiHeaders();
+      const apiHeaders: any = await getApiHeaders();
 
       const response = await fetch(fileUrl, { headers: apiHeaders });
 

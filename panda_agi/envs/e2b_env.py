@@ -127,9 +127,14 @@ class E2BEnv(BaseEnv):
         Writes a file into the sandbox filesystem.
         """
         resolved = self._resolve_path(path)
-        self.sandbox.files.write(str(resolved), content)
+        entry = self.sandbox.files.write(str(resolved), content)
+        print("entry::: -> ", entry)
 
-        return {"status": "success", "path": str(resolved)}
+        # Replace base path prefix with "/" if it exists
+        if entry.path.startswith(str(self.base_path)):
+            entry.path = "/" + entry.path[len(str(self.base_path)) :].lstrip("/")
+
+        return {"status": "success", "path": entry.path, "file": entry.name}
 
     async def read_file(
         self,

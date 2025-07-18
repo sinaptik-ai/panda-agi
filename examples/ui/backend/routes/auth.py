@@ -54,3 +54,19 @@ async def validate_auth(credentials: HTTPAuthorizationCredentials = Depends(secu
 
             response = await resp.json()
             return response
+
+
+@router.post("/refresh-token")
+async def refresh_token(refresh_token_data: dict):
+    """Refresh authentication token by forwarding to backend service"""
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            f"{PANDA_AGI_SERVER_URL}/public/auth/refresh-token", json=refresh_token_data
+        ) as resp:
+            if resp.status != 200:
+                raise HTTPException(
+                    status_code=resp.status, detail="Token refresh failed"
+                )
+
+            response = await resp.json()
+            return response
