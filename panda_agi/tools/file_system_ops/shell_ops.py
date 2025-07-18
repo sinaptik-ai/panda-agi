@@ -72,7 +72,6 @@ async def shell_exec_command(
             result["stderr"] = _limit_output(result["stderr"])
 
         # Update session info
-        session["last_command"] = command
         session["last_updated"] = time.time()
 
         # Store session_id for non-blocking commands
@@ -88,7 +87,6 @@ async def shell_exec_command(
         return {
             "status": "error",
             "message": str(e),
-            "command": command,
             "shell_session_id": id,
         }
     finally:

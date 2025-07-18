@@ -17,6 +17,7 @@ from .shell import (
     ShellWriteToProcessHandler,
 )
 from .skills import UseSkillHandler
+from .custom_tools import UseCustomToolHandler
 from .web import WebNavigationHandler, WebSearchHandler
 
 __all__ = [
@@ -35,6 +36,7 @@ __all__ = [
     "ShellViewOutputHandler",
     "ShellWriteToProcessHandler",
     "UseSkillHandler",
+    "UseCustomToolHandler",
     "UserNotificationHandler",
     "WebNavigationHandler",
     "WebSearchHandler",

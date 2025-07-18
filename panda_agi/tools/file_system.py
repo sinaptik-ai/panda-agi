@@ -13,7 +13,17 @@ from .file_system_ops.file_ops import (
 from .registry import ToolRegistry
 
 
-@ToolRegistry.register("file_read")
+@ToolRegistry.register(
+    "file_read",
+    xml_tag="file_read",
+    required_params=["file"],
+    optional_params=["start_line", "end_line"],
+    attribute_mappings={
+        "file": "file",
+        "start_line": "start_line",
+        "end_line": "end_line",
+    },
+)
 class FileReadHandler(ToolHandler):
     """Handler for file read operations"""
 
@@ -23,7 +33,9 @@ class FileReadHandler(ToolHandler):
         return None
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        await self.add_event(EventType.FILE_READ, params)
+        # await self.add_event(EventType.FILE_READ, params)
+        params["start_line"] = int(params.get("start_line", 1))
+        params["end_line"] = int(params.get("end_line", 1))
         result = await file_read(self.environment, **params)
         return ToolResult(
             success=result.get("status") == "success",
@@ -32,7 +44,14 @@ class FileReadHandler(ToolHandler):
         )
 
 
-@ToolRegistry.register("file_write")
+@ToolRegistry.register(
+    "file_write",
+    xml_tag="file_write",
+    required_params=["file", "content"],
+    optional_params=["append"],
+    content_param="content",
+    attribute_mappings={"file": "file", "append": "append"},
+)
 class FileWriteHandler(ToolHandler):
     """Handler for file write operations"""
 
@@ -44,6 +63,7 @@ class FileWriteHandler(ToolHandler):
         return None
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        # await self.add_event(EventType.FILE_WRITE, params)
         result = await file_write(self.environment, **params)
         await self.add_event(EventType.FILE_WRITE, params)
 
@@ -54,19 +74,35 @@ class FileWriteHandler(ToolHandler):
         )
 
 
-@ToolRegistry.register("file_replace")
+@ToolRegistry.register(
+    "file_replace",
+    xml_tag="file_replace",
+    required_params=["file", "find_str", "replace_str"],
+    attribute_mappings={
+        "file": "file",
+        "find_str": "find_str",
+        "replace_str": "replace_str",
+    }
+)
 class FileReplaceHandler(ToolHandler):
     """Handler for file string replacement operations"""
 
     def validate_input(self, params: Dict[str, Any]) -> Optional[str]:
-        required_params = ["file", "old_str", "new_str"]
+        required_params = ["file", "find_str", "replace_str"]
         missing = [param for param in required_params if param not in params]
         if missing:
             return f"Missing required parameters: {', '.join(missing)}"
         return None
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        result = await file_str_replace(self.environment, **params)
+        # await self.add_event(EventType.FILE_REPLACE, params)
+        # Map the XML parameter names to the function parameter names
+        mapped_params = {
+            "file": params["file"],
+            "old_str": params["find_str"],
+            "new_str": params["replace_str"],
+        }
+        result = await file_str_replace(self.environment, **mapped_params)
         await self.add_event(EventType.FILE_REPLACE, params)
 
         return ToolResult(
@@ -76,7 +112,15 @@ class FileReplaceHandler(ToolHandler):
         )
 
 
-@ToolRegistry.register("file_find_in_content")
+@ToolRegistry.register(
+    "file_find_in_content",
+    xml_tag="file_find_in_content",
+    required_params=["file", "regex"],
+    attribute_mappings={
+        "file": "file",
+        "regex": "regex",
+    },
+)
 class FileFindInContentHandler(ToolHandler):
     """Handler for finding content in files"""
 
@@ -97,7 +141,15 @@ class FileFindInContentHandler(ToolHandler):
         )
 
 
-@ToolRegistry.register("file_search_by_name")
+@ToolRegistry.register(
+    "file_search_by_name",
+    xml_tag="file_search_by_name",
+    required_params=["path", "glob_pattern"],
+    attribute_mappings={
+        "path": "path",
+        "glob_pattern": "glob_pattern",
+    },
+)
 class FileSearchByNameHandler(ToolHandler):
     """Handler for searching files by name"""
 
@@ -118,12 +170,21 @@ class FileSearchByNameHandler(ToolHandler):
         )
 
 
-@ToolRegistry.register("explore_directory")
+@ToolRegistry.register(
+    "explore_directory",
+    xml_tag="explore_directory",
+    required_params=["path"],
+    optional_params=["max_depth"],
+    attribute_mappings={"path": "path", "max_depth": "max_depth"},
+)
 class ExploreDirectoryHandler(ToolHandler):
     """Handler for exploring directory structure"""
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         await self.add_event(EventType.FILE_EXPLORE, params)
+        params["max_depth"] = int(
+            params.get("max_depth", 2)
+        )  # transform max_depth to int
         result = await file_explore_directory(self.environment, **params)
         return ToolResult(
             success=result.get("status") == "success",

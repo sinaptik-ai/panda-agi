@@ -11,7 +11,19 @@ from .file_system_ops.shell_ops import (
 from .registry import ToolRegistry
 
 
-@ToolRegistry.register("shell_exec_command")
+@ToolRegistry.register(
+    "shell_exec_command",
+    xml_tag="shell_exec_command",
+    required_params=["command"],
+    optional_params=["id", "exec_dir", "blocking"],
+    content_param=None,  # Don't use content as command when attributes are present
+    attribute_mappings={
+        "command": "command",
+        "id": "id",
+        "exec_dir": "exec_dir",
+        "blocking": "blocking",
+    },
+)
 class ShellExecCommandHandler(ToolHandler):
     """Handler for shell command execution"""
 
@@ -45,7 +57,17 @@ class ShellExecCommandHandler(ToolHandler):
         )
 
 
-@ToolRegistry.register("shell_view_output")
+@ToolRegistry.register(
+    "shell_view_output",
+    xml_tag="shell_view_output",
+    required_params=["id"],
+    optional_params=["kill_process", "wait_seconds"],
+    attribute_mappings={
+        "id": "id",
+        "kill_process": "kill_process",
+        "wait_seconds": "wait_seconds",
+    },
+)
 class ShellViewOutputHandler(ToolHandler):
     """Handler for viewing shell command output"""
 
@@ -80,7 +102,17 @@ class ShellViewOutputHandler(ToolHandler):
         )
 
 
-@ToolRegistry.register("shell_write_to_process")
+@ToolRegistry.register(
+    "shell_write_to_process",
+    xml_tag="shell_write_to_process",
+    required_params=["id", "input"],
+    optional_params=["press_enter"],
+    content_param="input",
+    attribute_mappings={
+        "id": "id",
+        "press_enter": "press_enter",
+    },
+)
 class ShellWriteToProcessHandler(ToolHandler):
     """Handler for writing to shell processes"""
 
@@ -113,7 +145,15 @@ class ShellWriteToProcessHandler(ToolHandler):
         )
 
 
-@ToolRegistry.register("execute_script")
+@ToolRegistry.register(
+    "execute_script",
+    xml_tag="execute_script",
+    required_params=["language", "code"],
+    content_param="code",
+    attribute_mappings={
+        "language": "language",
+    },
+)
 class ExecuteScriptHandler(ToolHandler):
     """Handler for executing code directly without writing to a file"""
 
@@ -153,16 +193,7 @@ class ExecuteScriptHandler(ToolHandler):
         exec_dir = params.get("exec_dir", ".")
         execution_id = f"script_{uuid.uuid4().hex[:8]}"
 
-        # Create parameters for shell execution
-        shell_params = {
-            "id": execution_id,
-            "exec_dir": exec_dir,
-            "command": command,
-            "blocking": True,  # Execute scripts synchronously by default
-        }
-
-        await self.add_event(EventType.SHELL_EXEC, shell_params)
-
+        print("Executing script: ", execution_id)
         result = await shell_exec_command(
             environment=self.environment,
             id=execution_id,
@@ -171,14 +202,30 @@ class ExecuteScriptHandler(ToolHandler):
             blocking=True,
         )
 
-        return ToolResult(
+        tool_result = ToolResult(
             success=result.get("status") == "success",
             data=result,
-            error=result.get("message") if result.get("status") != "success" else None,
+            error=result.get("stderr"),
         )
+        print("Script executed: ", tool_result)
+
+        return tool_result
 
 
-@ToolRegistry.register("deploy_server")
+@ToolRegistry.register(
+    "deploy_server",
+    xml_tag="deploy_server",
+    required_params=["port", "app_type", "source_path"],
+    optional_params=["start_command", "build_command", "env_vars"],
+    attribute_mappings={
+        "port": "port",
+        "app_type": "app_type",
+        "source_path": "source_path",
+        "start_command": "start_command",
+        "build_command": "build_command",
+        "env_vars": "env_vars",
+    },
+)
 class DeployServerHandler(ToolHandler):
     """Handler for deploying website or server applications"""
 

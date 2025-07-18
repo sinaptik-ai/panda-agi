@@ -6,7 +6,13 @@ from .registry import ToolRegistry
 from .skills_ops import SkillRegistry, execute_skill
 
 
-@ToolRegistry.register("use_skill")
+@ToolRegistry.register(
+    "use_skill",
+    xml_tag="use_skill",
+    required_params=["skill_name"],
+    optional_params=["parameters"],
+    attribute_mappings={"skill_name": "skill_name"},
+)
 class UseSkillHandler(ToolHandler):
     """Handler for using custom skills"""
 
