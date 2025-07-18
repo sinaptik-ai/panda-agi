@@ -11,6 +11,8 @@ services:
       - PYTHONPATH=/app
       - WORKSPACE_PATH=./workspace
       - FASTAPI_RELOAD=false
+      - ENV=${ENV:-local}
+      - PANDA_AGI_URL=https://agi-api.pandas-ai.com
     volumes:
       - ./workspace:/app/workspace
     networks:
