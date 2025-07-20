@@ -334,7 +334,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
                 </button>
 
                 <button
-                  onClick={() => handleLocalhostPreview(localhostUrls[0])}
+                  onClick={() => window.open(localhostUrls[0], '_blank')}
                   className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-orange-200 hover:border-orange-300 text-orange-600 hover:text-orange-700 transition-all duration-200 hover:shadow-sm"
                   title="Open in sidebar"
                 >
