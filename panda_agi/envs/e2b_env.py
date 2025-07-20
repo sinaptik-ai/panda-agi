@@ -35,6 +35,8 @@ class E2BEnv(BaseEnv):
         else:
             self.sandbox = self._connect(timeout, metadata)
 
+        self.timeout = timeout
+
     def _connect(self, timeout: int, metadata: Optional[Dict[str, Any]] = None):
         if Sandbox is None:
             raise ImportError(
@@ -60,7 +62,9 @@ class E2BEnv(BaseEnv):
                 raise Exception("Session destroyed please restart the conversation")
             sbx_info = matches[0]
             sbx = Sandbox.connect(sbx_info.sandbox_id)
-            sbx.set_timeout(300)  # 30 minutes to keep instance alive after last request
+            sbx.set_timeout(
+                1800
+            )  # 30 minutes to keep instance alive after last request
             return sbx
 
         return None
