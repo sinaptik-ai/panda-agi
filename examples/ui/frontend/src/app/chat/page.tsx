@@ -616,7 +616,7 @@ function App() {
       >
         {/* Header - positioned absolutely over content */}
         <div
-          className="glass-header p-4 fixed top-0 left-0 right-0 z-10"
+          className="glass-header p-4 fixed top-0 left-0 right-0 z-10 backdrop-blur-xl bg-white/80"
           style={{
             width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw",
           }}
@@ -835,7 +835,7 @@ function App() {
           }}
         >
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white/70 backdrop-blur-xl border border-black/20 rounded-2xl p-3 shadow-2xl">
+            <div className="bg-white/90 backdrop-blur-2xl border border-white/30 rounded-2xl p-3 shadow-2xl">
               {/* Pending Files Display - Integrated inside input container */}
               {pendingFiles.length > 0 && (
                 <div className="mb-3 p-2 bg-gray-50/50 rounded-xl border border-gray-200/30">
