@@ -96,7 +96,8 @@ function App() {
           });
 
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(errorData?.detail || `HTTP error! status: ${response.status}`);
           }
 
           const result: FileUploadResult = await response.json();
@@ -118,7 +119,7 @@ function App() {
       } catch (error) {
         console.error("Upload error:", error);
 
-        let errorText = "Unable to upload file";
+        let errorText = "Error: Unable to upload file";
 
         if (error instanceof Error) {
           errorText = error.message;
@@ -126,7 +127,7 @@ function App() {
         const errorMessage: Message = {
           id: Date.now(),
           type: "error",
-          content: `Error uploading file: ${errorText}`,
+          content: `${errorText}`,
           timestamp: new Date().toISOString(),
         };
 

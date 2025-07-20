@@ -277,7 +277,7 @@ async def download_file(
         filename = resolved_path.name
 
         # Read file content using E2BEnv
-        file_result = await local_env.read_file(resolved_path, mode="rb", encoding=None)
+        file_result = await local_env.read_file(file_path_str, mode="rb", encoding=None)
         if file_result["status"] != "success":
             raise Exception(
                 f"Failed to read file: {file_result.get('message', 'Unknown error')}"
