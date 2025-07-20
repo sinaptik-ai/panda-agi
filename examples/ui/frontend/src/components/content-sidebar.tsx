@@ -14,6 +14,7 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./ui/markdown-renderer";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
+import { toast } from "react-hot-toast";
 
 export interface PreviewData {
   title?: string;
@@ -201,7 +202,8 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       const response = await fetch(fileUrl, { headers: apiHeaders });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch file: ${response.status}`);
+        const errorMessage = await response.json();
+        throw new Error(errorMessage?.detail || `Failed to fetch file: ${response.status}`);
       }
 
       const content = await response.text();
@@ -676,22 +678,55 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   };
 
   // Handle file download
-  const handleFileDownload = () => {
-    if (!normalizedFilename || !conversationId) return;
+  const handleFileDownload = async () => {
+    if (!normalizedFilename || !conversationId) {
+      toast.error("Missing file information");
+      return;
+    }
     
-    const downloadUrl = getBackendServerURL(
-      `/${conversationId}/files/download?file_path=${encodeURIComponent(
-        normalizedFilename
-      )}`
-    );
+    try {
+      const downloadUrl = getBackendServerURL(
+        `/${conversationId}/files/download?file_path=${encodeURIComponent(
+          normalizedFilename
+        )}`
+      );
 
-    // Create a temporary link and trigger download
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = normalizedFilename.split("/").pop() || "download"; // Get just the filename
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      // Test the download URL first
+      const response = await fetch(downloadUrl, {
+        method: 'HEAD', // Use HEAD to check if file exists without downloading
+        headers: await getApiHeaders(),
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast.error("File not found");
+        } else if (response.status === 403) {
+          toast.error("Access denied to file");
+        } else if (response.status === 401) {
+          toast.error("Authentication required");
+        } else {
+          toast.error(`Download failed: Session expired try again`);
+        }
+        return;
+      }
+
+      // If the file exists, proceed with download
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = normalizedFilename.split("/").pop() || "download"; // Get just the filename
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success("Download started");
+    } catch (error) {
+      console.error("Download error:", error);
+      if (error instanceof Error) {
+        toast.error(`Download failed: ${error.message}`);
+      } else {
+        toast.error("Download failed: Unknown error");
+      }
+    }
   };
 
   return (

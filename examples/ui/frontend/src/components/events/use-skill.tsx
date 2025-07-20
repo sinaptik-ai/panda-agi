@@ -15,8 +15,6 @@ interface SkillUseEventProps {
 const SkillUseEvent: React.FC<SkillUseEventProps> = ({ payload }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  console.log("payload skill!!!", payload);
-
   if (!payload) return null;
 
   const toggleExpanded = () => {
@@ -29,7 +27,7 @@ const SkillUseEvent: React.FC<SkillUseEventProps> = ({ payload }) => {
     const paramsString = Object.entries(params)
       .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
       .join(", ");
-    return `Using skill: ${skillName}${
+    return `Using Tool: ${skillName}${
       paramsString ? ` with ${paramsString}` : ""
     }`;
   };
@@ -41,7 +39,7 @@ const SkillUseEvent: React.FC<SkillUseEventProps> = ({ payload }) => {
       <div className="mx-3 mb-4 bg-blue-50 border border-blue-200 rounded-md overflow-hidden">
         <div className="flex items-center px-3 py-2 bg-blue-100 border-b border-blue-200">
           <Zap className="w-4 h-4 mr-2 text-blue-600" />
-          <span className="text-sm font-mono text-blue-700">Skill used</span>
+          <span className="text-sm font-mono text-blue-700">Tool Used</span>
         </div>
         <div className="p-3 font-mono text-sm space-y-2">
           {result && result.data && (

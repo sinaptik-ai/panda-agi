@@ -13,6 +13,8 @@ import {
 import MarkdownRenderer from "../ui/markdown-renderer";
 import { formatTimestamp } from "@/lib/date";
 import { getServerHost, getBackendServerURL } from "@/lib/server";
+import { getApiHeaders } from "@/lib/api/common";
+import { toast } from "react-hot-toast";
 
 interface PreviewData {
   url: string;
@@ -51,28 +53,55 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
     }
   };
 
-  const handleFileDownload = (filename: string) => {
-    console.log("DEBUG: handleFileDownload called with filename:", filename);
+  const handleFileDownload = async (filename: string) => {
+    if (!filename || !conversationId) {
+      toast.error("Missing file information");
+      return;
+    }
 
-    const downloadUrl = getBackendServerURL(
-      `/${conversationId}/files/download?file_path=${encodeURIComponent(
-        filename
-      )}`
-    );
+    try {
+      const downloadUrl = getBackendServerURL(
+        `/${conversationId}/files/download?file_path=${encodeURIComponent(
+          filename
+        )}`
+      );
 
-    console.log("DEBUG: Download URL:", downloadUrl);
+      // Test the download URL first
+      const response = await fetch(downloadUrl, {
+        method: 'HEAD', // Use HEAD to check if file exists without downloading
+        headers: await getApiHeaders(),
+      });
 
-    // Create a temporary link and trigger download
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = filename.split("/").pop() || filename; // Get just the filename
-    document.body.appendChild(link);
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast.error("File not found");
+        } else if (response.status === 403) {
+          toast.error("Access denied to file");
+        } else if (response.status === 401) {
+          toast.error("Authentication required");
+        } else {
+          toast.error(`Download failed: Session expired try again`);
+        }
+        return;
+      }
 
-    console.log("DEBUG: About to click download link");
-    link.click();
-
-    document.body.removeChild(link);
-    console.log("DEBUG: Download link clicked and removed");
+      // If the file exists, proceed with download
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = filename.split("/").pop() || filename; // Get just the filename
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success("Download started");
+    } catch (error) {
+      console.error("Download error:", error);
+      if (error instanceof Error) {
+        toast.error(`Download failed: ${error.message}`);
+      } else {
+        toast.error("Download failed: Unknown error");
+      }
+    }
   };
 
   const handleLocalhostPreview = (url: string) => {
