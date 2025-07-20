@@ -256,7 +256,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
         {timestamp && (
           <p className="text-xs text-gray-400 mt-3 text-right font-medium">
             {formatTimestamp(timestamp)}
-          </p>
+          </p> 
         )}
       </div>
     );

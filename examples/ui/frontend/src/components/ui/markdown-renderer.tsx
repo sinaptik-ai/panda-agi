@@ -1,6 +1,7 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from 'remark-breaks'
 
 interface MarkdownRendererProps {
   children: string;
@@ -114,22 +115,24 @@ const processChildren = (children: React.ReactNode, onPreviewClick?: MarkdownRen
   return children;
 };
 
+
 // Reusable markdown renderer component
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ 
   children, 
   className = "", 
-  onPreviewClick 
+  onPreviewClick
 }) => {
+
   return (
     <div
       className={`text-sm rounded prose prose-sm prose-gray max-w-none ${className}`}
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkBreaks]}
         components={{
           // Add manual URL detection for text nodes
           text: ({ children }) => {
-            return linkifyText(children as string, onPreviewClick);
+            return linkifyText(children, onPreviewClick);
           },
           p: ({ children }) => (
             <p className="mb-2 last:mb-0">
