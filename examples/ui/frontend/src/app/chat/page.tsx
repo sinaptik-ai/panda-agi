@@ -342,7 +342,10 @@ function App() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        console.log("Response:: ", response);
+        const errorData = await response.json();
+        console.log("Error data:: ", errorData);
+        throw new Error(errorData?.detail || errorData?.error || `HTTP error! status: ${response.status}`);
       }
 
       const reader = response.body?.getReader();
@@ -452,7 +455,7 @@ function App() {
       const errorMessage: Message = {
         id: Date.now(),
         type: "error",
-        content: `Connection error: ${errorText}`,
+        content: `Error: ${errorText}`,
         timestamp: new Date().toISOString(),
       };
 
