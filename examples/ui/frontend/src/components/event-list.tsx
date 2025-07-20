@@ -13,7 +13,7 @@ import FileExploreEvent from "./events/file-explore";
 import ShellExecEvent from "./events/shell-exec";
 import ShellViewEvent from "./events/shell-view";
 import ShellWriteEvent from "./events/shell-write";
-import SkillUseEvent from "./events/use-skill";
+import ToolUseEvent from "./events/use-skill";
 import { Message } from "@/lib/types/event-message";
 import { generatePayload } from "@/lib/utils";
 
@@ -95,11 +95,11 @@ const EVENT_COMPONENTS: Record<string, EventComponentConfig> = {
     props: ["payload"],
   },
   use_skill_result: {
-    component: SkillUseEvent,
+    component: ToolUseEvent,
     props: ["payload"],
   },
   deploy_server: {
-    component: SkillUseEvent,
+    component: ToolUseEvent,
     props: ["payload"],
   }
 };
@@ -143,17 +143,29 @@ const EventList: React.FC<EventListProps> = ({
 
   // Handle regular event types
   const eventConfig = EVENT_COMPONENTS[eventType];
-  if (!eventConfig) {
-    return null;
+  
+  if (eventConfig) {
+    // Use specific component if found
+    const { component: Component } = eventConfig;
+    const componentProps = {
+      payload,
+      onPreviewClick,
+    };
+    return <Component {...componentProps} />;
+  } else if (eventType !== "completed_task") {
+    // Use ToolUseEvent as fallback for any unknown tool
+    const toolPayload = {
+      tool_name: eventType,
+      parameters: (eventData.input_params as Record<string, unknown>) || {},
+      result: {
+        data: typeof eventData.output_params === 'string' 
+          ? eventData.output_params 
+          : JSON.stringify(eventData.output_params || "Tool executed successfully")
+      }
+    };
+    
+    return <ToolUseEvent payload={toolPayload} />;
   }
-
-  const { component: Component } = eventConfig;
-  const componentProps = {
-    payload,
-    onPreviewClick,
-  };
-
-  return <Component {...componentProps} />;
 };
 
 export default EventList;

@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { ChevronRight, Zap } from "lucide-react";
 
-interface SkillUseEventProps {
+interface ToolUseEventProps {
   payload?: {
-    skill_name?: string;
+    tool_name?: string;
     parameters?: Record<string, unknown>;
     result?: {
       data?: string;
@@ -12,7 +12,7 @@ interface SkillUseEventProps {
   };
 }
 
-const SkillUseEvent: React.FC<SkillUseEventProps> = ({ payload }) => {
+const ToolUseEvent: React.FC<ToolUseEventProps> = ({ payload }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!payload) return null;
@@ -22,12 +22,12 @@ const SkillUseEvent: React.FC<SkillUseEventProps> = ({ payload }) => {
   };
 
   const getDisplayContent = () => {
-    const skillName = payload.skill_name || "Unknown Skill";
+    const toolName = payload.tool_name || "Unknown Tool";
     const params = payload.parameters || {};
     const paramsString = Object.entries(params)
       .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
       .join(", ");
-    return `Using Tool: ${skillName}${
+    return `Using Tool: ${toolName}${
       paramsString ? ` with ${paramsString}` : ""
     }`;
   };
@@ -95,4 +95,4 @@ const SkillUseEvent: React.FC<SkillUseEventProps> = ({ payload }) => {
   );
 };
 
-export default SkillUseEvent;
+export default ToolUseEvent;
