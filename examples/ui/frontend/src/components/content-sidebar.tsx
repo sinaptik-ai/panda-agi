@@ -691,34 +691,20 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         )}`
       );
 
-      // Test the download URL first
-      const response = await fetch(downloadUrl, {
-        method: 'HEAD', // Use HEAD to check if file exists without downloading
-        headers: await getApiHeaders(),
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          toast.error("File not found");
-        } else if (response.status === 403) {
-          toast.error("Access denied to file");
-        } else if (response.status === 401) {
-          toast.error("Authentication required");
-        } else {
-          toast.error(`Download failed: Session expired try again`);
-        }
-        return;
-      }
-
-      // If the file exists, proceed with download
+      // Create download link and trigger download directly
+      // We'll handle errors in the download process itself
       const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = normalizedFilename.split("/").pop() || "download"; // Get just the filename
+      
+      // Add error handling for the download
+      link.addEventListener('error', () => {
+        toast.error("Download failed: File not found or access denied");
+      });
+      
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      toast.success("Download started");
     } catch (error) {
       console.error("Download error:", error);
       if (error instanceof Error) {

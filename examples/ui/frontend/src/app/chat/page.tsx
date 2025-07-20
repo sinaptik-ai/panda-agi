@@ -569,6 +569,25 @@ function App() {
     setIsAuthenticating(false);
   }, [router]);
 
+  // Listen for messages from iframe content to open URLs in sidebar
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'OPEN_IN_SIDEBAR') {
+        const { url, title } = event.data;
+        setPreviewData({
+          url: url,
+          content: "",
+          title: title || `External: ${url}`,
+          type: "iframe",
+        });
+        setSidebarOpen(true);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
   // Don't render the chat if still checking authentication
   if (isAuthenticating) {
     return (

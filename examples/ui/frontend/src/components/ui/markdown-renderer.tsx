@@ -180,37 +180,56 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               {processChildren(children, onPreviewClick)}
             </blockquote>
           ),
-          // Style all links consistently, with special handling for localhost URLs
+          // Style all links consistently, opening all links in content sidebar
           a: ({ href, children }) => {
-            if (href && isLocalhost(href) && onPreviewClick) {
-              return (
-                <button
-                  onClick={() =>
-                    onPreviewClick({
-                      url: href,
-                      content: "", // Will be loaded via iframe
-                      title: `Preview: ${new URL(href).hostname}${
-                        new URL(href).port ? ":" + new URL(href).port : ""
-                      }`,
-                      type: "iframe",
-                    })
-                  }
-                  className="text-blue-600 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline"
-                >
-                  {children}
-                </button>
-              );
+            if (href) {
+              const isLocal = isLocalhost(href);
+              
+              if (onPreviewClick) {
+                return (
+                  <button
+                    onClick={() =>
+                      onPreviewClick({
+                        url: href,
+                        content: "", // Will be loaded via iframe
+                        title: isLocal 
+                          ? `Preview: ${new URL(href).hostname}${new URL(href).port ? ":" + new URL(href).port : ""}`
+                          : `External: ${href}`,
+                        type: "iframe",
+                      })
+                    }
+                    className="text-blue-600 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline"
+                  >
+                    {children}
+                  </button>
+                );
+              } else {
+                // If no onPreviewClick, still try to use window.parent to open in sidebar
+                return (
+                  <button
+                    onClick={() => {
+                      // Try to communicate with parent window to open in sidebar
+                      if (window.parent && window.parent !== window) {
+                        window.parent.postMessage({
+                          type: 'OPEN_IN_SIDEBAR',
+                          url: href,
+                          title: isLocal 
+                            ? `Preview: ${new URL(href).hostname}${new URL(href).port ? ":" + new URL(href).port : ""}`
+                            : `External: ${href}`
+                        }, '*');
+                      } else {
+                        // Last resort - open in same window
+                        window.location.href = href;
+                      }
+                    }}
+                    className="text-blue-600 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline"
+                  >
+                    {children}
+                  </button>
+                );
+              }
             }
-            return (
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline"
-              >
-                {children}
-              </a>
-            );
+            return <span>{children}</span>;
           },
         }}
       >
