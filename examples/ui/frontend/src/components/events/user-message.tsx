@@ -15,6 +15,7 @@ import { formatTimestamp } from "@/lib/date";
 import { getServerHost, getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { toast } from "react-hot-toast";
+import { downloadWithCheck } from "@/lib/utils";
 
 interface PreviewData {
   url: string;
@@ -66,20 +67,12 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
         )}`
       );
 
-      // Create download link and trigger download directly
-      // We'll handle errors in the download process itself
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = filename.split("/").pop() || filename; // Get just the filename
-      
-      // Add error handling for the download
-      link.addEventListener('error', () => {
-        toast.error("Download failed: File not found or access denied");
-      });
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      try {
+        await downloadWithCheck(downloadUrl, filename.split("/").pop() || "download");
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Download failed: File not found or access denied";
+        toast.error(errorMessage);
+      }
       
     } catch (error) {
       console.error("Download error:", error);

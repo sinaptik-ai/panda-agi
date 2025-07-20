@@ -15,6 +15,7 @@ import MarkdownRenderer from "./ui/markdown-renderer";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { toast } from "react-hot-toast";
+import { downloadWithCheck } from "@/lib/utils";
 
 export interface PreviewData {
   title?: string;
@@ -690,21 +691,13 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           normalizedFilename
         )}`
       );
+      try {
+        await downloadWithCheck(downloadUrl, normalizedFilename.split("/").pop() || "download");
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Download failed: File not found or access denied";
+        toast.error(errorMessage);
+      }
 
-      // Create download link and trigger download directly
-      // We'll handle errors in the download process itself
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = normalizedFilename.split("/").pop() || "download"; // Get just the filename
-      
-      // Add error handling for the download
-      link.addEventListener('error', () => {
-        toast.error("Download failed: File not found or access denied");
-      });
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
     } catch (error) {
       console.error("Download error:", error);
       if (error instanceof Error) {

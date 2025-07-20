@@ -120,6 +120,7 @@ async def download_file(
         FileResponse: The file to download
     """
     try:
+
         local_env = get_or_create_agent(conversation_id)[0].environment
         logger.debug(f"Download request for file_path: '{file_path}'")
         logger.debug(f"Current working directory: {os.getcwd()}")

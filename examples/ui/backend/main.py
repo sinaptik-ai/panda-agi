@@ -5,8 +5,6 @@ Main entry point for the PandaAGI SDK API.
 import logging
 import os
 import sys
-from pathlib import Path
-
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
