@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from ..client.agent import Agent
 
 from ..client.event_manager import EventManager
-from ..client.models import EventType, MessageType
+from ..client.models import EventType
 from ..envs import BaseEnv
 
 logger = logging.getLogger("AgentClient")
@@ -77,14 +77,18 @@ class ToolHandler(ABC):
     async def send_response(self, msg_id: str, result: ToolResult) -> None:
         """Send standardized response message"""
 
-        if not self.agent or not self.agent.client or not self.agent.client.is_connected:
+        if (
+            not self.agent
+            or not self.agent.client
+            or not self.agent.client.is_connected
+        ):
             self.logger.warning("Cannot send response: agent not connected")
             return
 
         # For HTTP-based communication, we'll handle responses differently
         # This method is kept for backward compatibility but may need to be updated
         # based on the new HTTP streaming architecture
-        
+
         try:
             # Log the result for now - in HTTP streaming, tool results are handled differently
             self.logger.info(f"Tool result for {self.__class__.__name__}: {result}")

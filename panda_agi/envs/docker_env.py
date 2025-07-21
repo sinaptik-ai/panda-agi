@@ -520,7 +520,6 @@ class DockerEnv(BaseEnv):
             return {
                 "status": "error",
                 "message": "Container is not running",
-                "command": command,
                 "working_directory": str(self.working_directory),
             }
 
@@ -572,7 +571,6 @@ class DockerEnv(BaseEnv):
                         "return_code": process.returncode,
                         "execution_time": execution_time,
                         "working_directory": str(self.working_directory),
-                        "command": command,
                     }
                 except asyncio.TimeoutError:
                     try:
@@ -583,7 +581,6 @@ class DockerEnv(BaseEnv):
                     return {
                         "status": "timeout",
                         "message": f"Command timed out after {timeout} seconds",
-                        "command": command,
                         "working_directory": str(self.working_directory),
                     }
 
@@ -676,7 +673,6 @@ class DockerEnv(BaseEnv):
                                 "return_code": None,
                                 "execution_time": execution_time,
                                 "working_directory": str(self.working_directory),
-                                "command": command,
                                 "warning": "Command appears to be stuck - no output change detected for 30 seconds",
                                 "stuck_detection": True,
                                 "process_running": True,
@@ -699,7 +695,6 @@ class DockerEnv(BaseEnv):
                             return {
                                 "status": "timeout",
                                 "message": f"Command timed out after {timeout} seconds",
-                                "command": command,
                                 "working_directory": str(self.working_directory),
                                 "stdout": stdout_content,
                                 "stderr": stderr_content,
@@ -746,13 +741,11 @@ class DockerEnv(BaseEnv):
                 "return_code": process.returncode,
                 "execution_time": execution_time,
                 "working_directory": str(self.working_directory),
-                "command": command,
             }
         except Exception as e:
             return {
                 "status": "error",
                 "message": str(e),
-                "command": command,
                 "working_directory": str(self.working_directory),
             }
 
@@ -792,13 +785,11 @@ class DockerEnv(BaseEnv):
                 return {
                     "status": "error",
                     "message": f"Failed to start non-blocking process: {stderr.decode().strip()}",
-                    "command": command,
                     "working_directory": str(self.working_directory),
                 }
 
             # Store process information for tracking
             _docker_processes[session_id] = {
-                "command": command,
                 "container_name": self.container_name,
                 "working_directory": str(self.working_directory),
                 "start_time": time.time(),
@@ -808,7 +799,6 @@ class DockerEnv(BaseEnv):
                 "status": "success",
                 "message": "Process started in non-blocking mode in Docker container",
                 "session_id": session_id,
-                "command": command,
                 "working_directory": str(self.working_directory),
                 "container": self.container_name,
                 "note": "Non-blocking Docker processes run detached - use shell_view_output to check status",
@@ -818,7 +808,6 @@ class DockerEnv(BaseEnv):
             return {
                 "status": "error",
                 "message": str(e),
-                "command": command,
                 "working_directory": str(self.working_directory),
             }
 

@@ -118,7 +118,6 @@ class LocalEnv(BaseEnv):
                     "return_code": return_code,
                     "execution_time": execution_time,
                     "working_directory": str(self.working_directory),
-                    "command": command,
                 }
 
             # For captured output, implement stuck detection
@@ -167,7 +166,6 @@ class LocalEnv(BaseEnv):
                             "return_code": None,
                             "execution_time": execution_time,
                             "working_directory": str(self.working_directory),
-                            "command": command,
                             "warning": "Command appears to be stuck - no output change detected for 30 seconds",
                             "stuck_detection": True,
                             "process_running": True,
@@ -186,7 +184,6 @@ class LocalEnv(BaseEnv):
                         return {
                             "status": "timeout",
                             "message": f"Command timed out after {timeout} seconds",
-                            "command": command,
                             "working_directory": str(self.working_directory),
                             "stdout": stdout_content,
                             "stderr": stderr_content,
@@ -215,21 +212,18 @@ class LocalEnv(BaseEnv):
                 "return_code": process.returncode,
                 "execution_time": execution_time,
                 "working_directory": str(self.working_directory),
-                "command": command,
             }
 
         except subprocess.TimeoutExpired:
             return {
                 "status": "timeout",
                 "message": f"Command timed out after {timeout} seconds",
-                "command": command,
                 "working_directory": str(self.working_directory),
             }
         except Exception as e:
             return {
                 "status": "error",
                 "message": str(e),
-                "command": command,
                 "working_directory": str(self.working_directory),
             }
 
@@ -268,7 +262,6 @@ class LocalEnv(BaseEnv):
                 "message": "Process started in non-blocking mode",
                 "session_id": session_id,
                 "pid": process.pid,
-                "command": command,
                 "working_directory": str(self.working_directory),
             }
 
@@ -276,7 +269,6 @@ class LocalEnv(BaseEnv):
             return {
                 "status": "error",
                 "message": str(e),
-                "command": command,
                 "working_directory": str(self.working_directory),
             }
 

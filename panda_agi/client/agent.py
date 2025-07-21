@@ -470,7 +470,7 @@ class Agent:
 
         except Exception as e:
             logger.error(f"Error in run_stream: {e}")
-            # Don't yield error events, just log them
+            raise e
 
     async def _handle_tool_execution(
         self, tool_event: Dict[str, Any]

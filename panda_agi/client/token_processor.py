@@ -18,7 +18,9 @@ class TokenProcessor:
         self.completed_tools: List[Dict[str, Any]] = []  # Store completed tool calls
         self.tool_call_id_counter = 0
         self.collect_mode = collect_mode  # If True, collect tools for later execution
-        self.immediate_execution_mode = False  # If True, collect tools AND yield events for immediate execution
+        self.immediate_execution_mode = (
+            False  # If True, collect tools AND yield events for immediate execution
+        )
 
     def reset(self):
         """Reset the processor state"""
@@ -53,6 +55,11 @@ class TokenProcessor:
                 logger.debug(f"Processing token: {token}")
                 # Collect the raw token
                 self.collected_tokens.append(token)
+
+                if "error" in token:
+                    logger.error(f"Raising error: {token}")
+                    error_message = json.loads(token)
+                    raise Exception(error_message["error"])
 
                 # Try to parse JSON if the token looks like JSON
                 try:
@@ -122,11 +129,7 @@ class TokenProcessor:
 
         except Exception as e:
             logger.error(f"Error processing token stream: {e}")
-            yield {
-                "type": "error",
-                "error": str(e),
-                "accumulated_content": self.accumulated_content,
-            }
+            raise e
 
     async def _process_xml_tools_and_yield_events(
         self, new_content: str
@@ -415,7 +418,9 @@ class TokenProcessor:
         """Set whether to execute tools immediately while also collecting them"""
         self.immediate_execution_mode = immediate_execution_mode
 
-    def set_execution_modes(self, collect_mode: bool = False, immediate_execution_mode: bool = False):
+    def set_execution_modes(
+        self, collect_mode: bool = False, immediate_execution_mode: bool = False
+    ):
         """Set both execution modes at once for convenience"""
         self.collect_mode = collect_mode
         self.immediate_execution_mode = immediate_execution_mode
