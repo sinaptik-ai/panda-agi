@@ -23,6 +23,7 @@ import { UploadedFile, FileUploadResult } from "@/lib/types/file";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { getAccessToken, isAuthRequired, logout } from "@/lib/api/auth";
+import { GridView } from "@/components/ui/grid-view";
 
 interface RequestBody {
   query: string;
@@ -123,6 +124,9 @@ function App() {
 
         if (error instanceof Error) {
           errorText = error.message;
+          if (errorText === "Failed to fetch") {
+            errorText = "Server is not responding, Please try again in a few minutes.";
+          }
         }
         const errorMessage: Message = {
           id: Date.now(),
@@ -452,6 +456,9 @@ function App() {
       
       if (error instanceof Error) {
         errorText = error.message
+        if (errorText === "Failed to fetch") {
+          errorText = "Server is not responding, try again later";
+        }
       }
       const errorMessage: Message = {
         id: Date.now(),
@@ -714,79 +721,55 @@ function App() {
                   would you like to work on today?
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                  {/* Suggestion cards with example prompts */}
-                  <button
-                    onClick={() =>
-                      setInputValue(
-                        "Analyze this CSV data and create a visualization of the monthly sales trends"
-                      )
-                    }
-                    className="bg-white/70 backdrop-blur-sm hover:bg-white/90 border border-gray-200 rounded-xl p-4 text-left transition-all hover:shadow-md"
-                  >
-                    <h4 className="font-medium text-blue-600 mb-2 flex items-center">
-                      <FileText className="w-5 h-5 mr-2" />
-                      Data Analysis
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      Analyze this CSV data and create a visualization of the
-                      monthly sales trends
-                    </p>
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      setInputValue(
-                        "Help me generate a modern landing page for my SaaS product that focuses on AI workflow automation"
-                      )
-                    }
-                    className="bg-white/70 backdrop-blur-sm hover:bg-white/90 border border-gray-200 rounded-xl p-4 text-left transition-all hover:shadow-md"
-                  >
-                    <h4 className="font-medium text-green-600 mb-2 flex items-center">
-                      <Code className="w-5 h-5 mr-2" />
-                      Landing Page
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      Help me generate a modern landing page for my SaaS
-                      product that focuses on AI workflow automation
-                    </p>
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      setInputValue(
-                        "Create a comprehensive report on the latest trends in renewable energy based on online research"
-                      )
-                    }
-                    className="bg-white/70 backdrop-blur-sm hover:bg-white/90 border border-gray-200 rounded-xl p-4 text-left transition-all hover:shadow-md"
-                  >
-                    <h4 className="font-medium text-orange-600 mb-2 flex items-center">
-                      <FileCode className="w-5 h-5 mr-2" />
-                      Research Reports
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      Create a comprehensive report on the latest trends in
-                      renewable energy based on online research
-                    </p>
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      setInputValue(
-                        "Build a dashboard that visualizes market data for my product's performance across different regions"
-                      )
-                    }
-                    className="bg-white/70 backdrop-blur-sm hover:bg-white/90 border border-gray-200 rounded-xl p-4 text-left transition-all hover:shadow-md"
-                  >
-                    <h4 className="font-medium text-purple-600 mb-2 flex items-center">
-                      <Image className="w-5 h-5 mr-2" />
-                      Dashboard Design
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      Build a dashboard that visualizes market data for my product&apos;s performance across different regions
-                    </p>
-                  </button>
-                </div>
+                {/* Suggestion cards with example prompts */}
+                <GridView
+                  items={[
+                    {
+                      icon: <FileText className="w-5 h-5 mr-2" />,
+                      title: "Data Analysis",
+                      description:
+                        "Analyze this CSV data and create a visualization of the monthly sales trends",
+                      onClick: () =>
+                        setInputValue(
+                          "Analyze this CSV data and create a visualization of the monthly sales trends"
+                        ),
+                      titleClassName: "font-medium text-blue-600 mb-2 flex items-center",
+                    },
+                    {
+                      icon: <Code className="w-5 h-5 mr-2" />,
+                      title: "Landing Page",
+                      description:
+                        "Help me generate a modern landing page for my SaaS product that focuses on AI workflow automation",
+                      onClick: () =>
+                        setInputValue(
+                          "Help me generate a modern landing page for my SaaS product that focuses on AI workflow automation"
+                        ),
+                      titleClassName: "font-medium text-green-600 mb-2 flex items-center",
+                    },
+                    {
+                      icon: <FileCode className="w-5 h-5 mr-2" />,
+                      title: "Research Reports",
+                      description:
+                        "Create a comprehensive report on the latest trends in renewable energy based on online research",
+                      onClick: () =>
+                        setInputValue(
+                          "Create a comprehensive report on the latest trends in renewable energy based on online research"
+                        ),
+                      titleClassName: "font-medium text-orange-600 mb-2 flex items-center",
+                    },
+                    {
+                      icon: <Image className="w-5 h-5 mr-2" />,
+                      title: "Dashboard Design",
+                      description:
+                        "Build a dashboard that visualizes market data for my product's performance across different regions",
+                      onClick: () =>
+                        setInputValue(
+                          "Build a dashboard that visualizes market data for my product's performance across different regions"
+                        ),
+                      titleClassName: "font-medium text-purple-600 mb-2 flex items-center",
+                    },
+                  ]}
+                />
               </div>
             )}
 

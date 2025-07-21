@@ -19,7 +19,7 @@ export default function Authenticate() {
         const hash = window.location.hash.substring(1);
         
         if (!hash) {
-          setError("No authentication data found in URL");
+          setError("Unable to authenticate, try again!");
           setStatus("Authentication failed");
           return;
         }

@@ -5,7 +5,6 @@ import FileReadEvent from "./events/file-read";
 import UserMessageEvent, { UserMessageEventProps, UserMessagePayload } from "./events/user-message";
 import FileUploadEvent from "./events/file-upload";
 import ImageGenerationEvent from "./events/image-generation";
-import WebSearchEvent from "./events/web-search-query";
 import WebSearchResultEvent from "./events/web-search-results";
 import WebNavigationResultEvent from "./events/web-navigation-results";
 import FileFindEvent from "./events/file-find";
@@ -158,9 +157,9 @@ const EventList: React.FC<EventListProps> = ({
       tool_name: eventType,
       parameters: (eventData.input_params as Record<string, unknown>) || {},
       result: {
-        data: typeof eventData.output_params === 'string' 
-          ? eventData.output_params 
-          : JSON.stringify(eventData.output_params || "Tool executed successfully")
+        data: typeof eventData.input_params === 'string' 
+          ? eventData.input_params 
+          : JSON.stringify(eventData.input_params || "Tool executed successfully")
       }
     };
     

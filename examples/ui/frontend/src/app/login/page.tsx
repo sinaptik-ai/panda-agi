@@ -7,6 +7,7 @@ import {
   getAccessToken, 
   isAuthRequired 
 } from "@/lib/api/auth";
+import toast from "react-hot-toast";
 
 export default function Login() {
   const router = useRouter();
@@ -36,9 +37,17 @@ export default function Login() {
   }, [router]);
 
   const handleGitHubLogin = async () => {
-    const authUrl = await getGitHubAuthUrl();
-    if (authUrl) {
-      window.location.href = authUrl;
+    try {
+      const authUrl = await getGitHubAuthUrl();
+      if (authUrl) {
+        window.location.href = authUrl;
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Failed to fetch GitHub authentication URL, try again later");
+      }
     }
   };
 
@@ -63,7 +72,7 @@ export default function Login() {
 
           <button
             onClick={handleGitHubLogin}
-            className="w-full flex items-center justify-center px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-700 transition-colors"
+            className="w-full flex items-center justify-center px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-700 hover:cursor-pointer transition-colors"
           >
             <svg
               className="w-5 h-5 mr-2"

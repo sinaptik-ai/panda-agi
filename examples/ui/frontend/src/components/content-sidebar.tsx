@@ -204,7 +204,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
       if (!response.ok) {
         const errorMessage = await response.json();
-        throw new Error(errorMessage?.detail || `Failed to fetch file: ${response.status}`);
+        throw new Error(errorMessage?.detail || `Failed to fetch file: ${response.status}!`);
       }
 
       const content = await response.text();
