@@ -1,13 +1,48 @@
 import logging
-from typing import AsyncGenerator, Dict, Optional, Union
+from typing import AsyncGenerator, Dict, List, Optional, Union
 
 import httpx
+from pydantic import BaseModel, Field
 
 from .models import AgentRequestModel
 from .state import AgentState
 
 logger = logging.getLogger("AgentClient")
 logger.setLevel(logging.INFO)
+
+
+class ImageGenerationRequest(BaseModel):
+    """Request model for image generation."""
+
+    prompt: str = Field(
+        ..., description="The text description of the image to generate"
+    )
+    size: str = Field(
+        "1024x1024",
+        description="Image size. Options: '1024x1024', '1792x1024', or '1024x1792'",
+    )
+    quality: str = Field(
+        "standard", description="Image quality. Options: 'standard' or 'hd'"
+    )
+    n: int = Field(1, description="Number of images to generate (1-4)", ge=1, le=4)
+    filename: Optional[str] = Field(
+        None, description="Optional filename for the image (without extension)"
+    )
+
+
+class ImageResult(BaseModel):
+    """Result model for a single generated image."""
+
+    url: str
+    filename: str
+
+
+class ImageGenerationResponse(BaseModel):
+    """Response model for image generation."""
+
+    success: bool
+    images: List[ImageResult]
+    message: str
 
 
 class PandaAgiClient:
@@ -54,7 +89,7 @@ class PandaAgiClient:
         """Send a streaming HTTP request and yield tokens"""
         print(f"Sending agent request: {request}")
         try:
-            # Convert request to dict if it's an AgentRequestMessage
+            # Convert request to dict if it's an AgentRequestModel
             if isinstance(request, AgentRequestModel):
                 request_data = request.model_dump()
             else:
@@ -102,6 +137,62 @@ class PandaAgiClient:
             raise
         except Exception as e:
             logger.error(f"❌ Error in streaming request: {e}")
+            raise
+
+    async def generate_image(
+        self,
+        prompt: str,
+        size: str = "1024x1024",
+        quality: str = "standard",
+        n: int = 1,
+        filename: Optional[str] = None,
+    ) -> ImageGenerationResponse:
+        """Generate an image using the image generation API.
+        
+        Args:
+            prompt: The text description of the image to generate
+            size: Image size. Options: '1024x1024', '1792x1024', or '1024x1792'
+            quality: Image quality. Options: 'standard' or 'hd'
+            n: Number of images to generate (1-4)
+            filename: Optional filename for the image (without extension)
+            
+        Returns:
+            ImageGenerationResponse containing image URLs and metadata
+            
+        Raises:
+            httpx.HTTPStatusError: If the API request fails
+            Exception: For other errors during the request
+        """
+        try:
+            # Create the request model
+            request = ImageGenerationRequest(
+                prompt=prompt,
+                size=size,
+                quality=quality,
+                n=n,
+                filename=filename,
+            )
+            
+            # Send POST request to image generation endpoint
+            endpoint = "/image/generate"
+            logger.info(f"[HTTP] Sending image generation request to: {endpoint}")
+            
+            response = await self._client.post(
+                endpoint,
+                json=request.model_dump(),
+                headers=self._headers(),
+            )
+            response.raise_for_status()
+            
+            # Parse the response
+            response_data = response.json()
+            return ImageGenerationResponse(**response_data)
+            
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ HTTP error in image generation: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Error in image generation request: {e}")
             raise
 
     async def close(self):

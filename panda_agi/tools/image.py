@@ -2,7 +2,6 @@ from typing import Any, Dict, Tuple
 
 import requests
 
-from ..client.models import EventType
 from .base import ToolHandler, ToolResult
 from .registry import ToolRegistry
 
@@ -35,27 +34,64 @@ async def download_file(url: str, timeout: int = 30) -> Tuple[bool, bytes, str]:
         return False, b"", f"Unexpected error: {str(e)}"
 
 
-@ToolRegistry.register("generate_image")
+@ToolRegistry.register(
+    "generate_image",
+    xml_tag="generate_image",
+    required_params=["prompt"],
+    optional_params=["filename"],
+    content_param="prompt",
+    attribute_mappings={
+        "prompt": "prompt",
+        "filename": "filename",
+    },
+    is_breaking=False,
+)
 class ImageGenerationHandler(ToolHandler):
     """Handler for image generation results"""
 
     OUTPUT_DIR = "images"
 
     async def execute(self, tool_call: Dict[str, Any]) -> ToolResult:
-        if not tool_call.get("success", False):
-            error_msg = tool_call.get("message", "Unknown error")
-            self.logger.error(f"Image generation failed: {error_msg}")
-            await self.add_event(EventType.IMAGE_GENERATION, tool_call)
+        # Extract parameters from tool_call
+        prompt = tool_call.get("prompt")
+        if not prompt:
             return ToolResult(
-                success=False, error=f"Image generation failed: {error_msg}"
+                success=False, error="No prompt provided for image generation"
             )
+
+        # Optional parameters
+        filename = tool_call.get("filename")
+        size = tool_call.get("size", "1024x1024")
+        quality = tool_call.get("quality", "standard")
+        n = tool_call.get("n", 1)
 
         if not self.environment:
             return ToolResult(
                 success=False, error="No environment available to save images"
             )
 
+        if not self.agent or not self.agent.client:
+            return ToolResult(
+                success=False, error="No client available for image generation API call"
+            )
+
         try:
+            # Call the image generation API
+            self.logger.info(f"Generating image with prompt: {prompt}")
+            api_response = await self.agent.client.generate_image(
+                prompt=prompt,
+                size=size,
+                quality=quality,
+                n=n,
+                filename=filename,
+            )
+
+            if not api_response.success:
+                return ToolResult(
+                    success=False,
+                    error=f"Image generation API failed: {api_response.message}",
+                )
+
             # Create the output directory if it doesn't exist
             output_path = self.environment._resolve_path(self.OUTPUT_DIR)
             if not output_path.exists():
@@ -63,11 +99,10 @@ class ImageGenerationHandler(ToolHandler):
 
             saved_files = []
             images = []
-            images = []
-            for image_data in tool_call.get("images", []):
-                # Extract data
-                image_url = image_data.get("url")
-                filename = image_data.get("filename")
+            for image_data in api_response.images:
+                # Extract data from ImageResult object
+                image_url = image_data.url
+                filename = image_data.filename
 
                 if not image_url or not filename:
                     self.logger.warning("Missing URL or filename in image result")
@@ -90,7 +125,6 @@ class ImageGenerationHandler(ToolHandler):
                             self.logger.info(f"Saved image to {result.get('path')}")
                             saved_files.append(result.get("path"))
                             images.append(filepath)
-                            images.append(filepath)
                         else:
                             self.logger.error(
                                 f"Failed to save image: {result.get('message')}"
@@ -104,11 +138,9 @@ class ImageGenerationHandler(ToolHandler):
 
             result = {
                 "saved_files": saved_files,
-                "images": images,
-                "images": images,
             }
 
-            await self.add_event(EventType.IMAGE_GENERATION, result)
+            # await self.add_event(EventType.IMAGE_GENERATION, result)
             return ToolResult(
                 success=True,
                 data=result,
