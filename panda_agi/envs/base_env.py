@@ -7,7 +7,7 @@ and shell commands are executed.
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 
 class BaseEnv(ABC):
@@ -203,4 +203,12 @@ class BaseEnv(ABC):
 
     @abstractmethod
     async def path_exists(self, path: Union[str, Path]) -> bool:
+        pass
+
+    @abstractmethod
+    async def get_available_ports(self) -> List[int]:
+        pass
+
+    @abstractmethod
+    async def is_port_available(self, port: int) -> bool:
         pass

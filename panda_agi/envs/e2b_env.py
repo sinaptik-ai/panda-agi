@@ -1,15 +1,16 @@
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 try:
-    from e2b_code_interpreter import Sandbox
     from e2b.sandbox_sync.sandbox_api import SandboxQuery
+    from e2b_code_interpreter import Sandbox
 except ImportError:
     Sandbox = None
 
-from .base_env import BaseEnv
 import time
+
+from .base_env import BaseEnv
 
 
 class E2BEnv(BaseEnv):
@@ -20,6 +21,7 @@ class E2BEnv(BaseEnv):
         base_path: Union[str, Path],
         metadata: Optional[Dict[str, Any]] = None,
         timeout: int = 3600,
+        ports: Optional[List[int]] = [8080, 2664],
         sandbox: Optional["Sandbox"] = None,
     ):
         if Sandbox is None:
@@ -36,6 +38,7 @@ class E2BEnv(BaseEnv):
             self.sandbox = self._connect(timeout, metadata)
 
         self.timeout = timeout
+        self.ports = ports
 
     def _connect(self, timeout: int, metadata: Optional[Dict[str, Any]] = None):
         if Sandbox is None:
@@ -360,3 +363,6 @@ class E2BEnv(BaseEnv):
         Destructor: schedule sandbox.close() if possible.
         """
         self.sandbox.kill()
+
+    async def is_port_available(self, port: int) -> bool:
+        pass

@@ -1033,6 +1033,9 @@ class Agent:
         file_system_info = await file_explore_directory(
             self.environment, path="/", max_depth=max_depth
         )
+
+        available_ports = await self.environment.get_available_ports()
+        file_system_info["available_ports_for_deployments"] = available_ports
         return file_system_info
 
     async def run(

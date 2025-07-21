@@ -14,7 +14,7 @@ import subprocess
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from .base_env import BaseEnv
 
@@ -63,7 +63,10 @@ class LocalEnv(BaseEnv):
     """Local file system environment implementation."""
 
     def __init__(
-        self, base_path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None
+        self,
+        base_path: Union[str, Path],
+        metadata: Optional[Dict[str, Any]] = None,
+        ports: Optional[List[int]] = [8080, 2664],
     ):
         """
         Initialize the local environment.
@@ -74,6 +77,7 @@ class LocalEnv(BaseEnv):
         super().__init__(base_path, metadata)
         # Create base directory if it doesn't exist
         self.base_path.mkdir(parents=True, exist_ok=True)
+        self.ports = ports
 
     async def exec_shell(
         self,
@@ -627,6 +631,7 @@ class LocalEnv(BaseEnv):
         path: Optional[Union[str, Path]] = None,
         recursive: bool = False,
         include_hidden: bool = False,
+        max_depth: int = None,
     ) -> Dict[str, Any]:
         """List files in a directory."""
         try:
@@ -705,3 +710,35 @@ class LocalEnv(BaseEnv):
                 "message": str(e),
                 "path": str(target_path if "target_path" in locals() else path),
             }
+
+    async def get_available_ports(self) -> List[int]:
+        try:
+            return self.ports
+        except Exception as e:
+            logger.warning(f"Error getting available ports: {str(e)}")
+            return []
+
+    async def is_port_available(self, port: int) -> bool:
+        if port in self.ports:
+            return False
+
+        try:
+            check_cmd = [
+                "lsof",
+                "-i",
+                f":{port}",
+            ]
+            check_process = await asyncio.create_subprocess_exec(
+                *check_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, _ = await check_process.communicate()
+
+            if stdout.decode().strip() == "":
+                return True
+            else:
+                return False
+        except Exception as e:
+            logger.warning(f"Error checking port availability: {str(e)}")
+            return False
