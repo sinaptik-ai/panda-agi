@@ -151,7 +151,7 @@ const EventList: React.FC<EventListProps> = ({
       onPreviewClick,
     };
     return <Component {...componentProps} />;
-  } else if (eventType !== "completed_task") {
+  } else if (!["completed_task", "planning"].includes(eventType)) {
     // Use ToolUseEvent as fallback for any unknown tool
     const toolPayload = {
       tool_name: eventType,

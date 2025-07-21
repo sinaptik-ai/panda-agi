@@ -13,7 +13,7 @@ from panda_agi.envs import E2BEnv
 from panda_agi.envs.local_env import LocalEnv
 from .chat_env import get_env
 
-from utils.event_processing import process_event_for_frontend, should_render_event
+from utils.event_processing import should_render_event
 
 logger = logging.getLogger("panda_agi_api")
 
@@ -89,9 +89,6 @@ async def event_stream(
 
             if not should_render_event(event):
                 continue
-
-            # Process event with type safety while maintaining frontend structure
-            # event_dict = process_event_for_frontend(event)
 
             if event is None:
                 # Skip events that couldn't be processed
