@@ -344,7 +344,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     if (isLoading) {
       return (
         <div className="flex items-center justify-center h-full">
-          <div className="text-center">
+          <div className="flex flex-col text-center items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
             <p className="text-gray-600">Loading file content...</p>
           </div>

@@ -15,19 +15,27 @@ interface MarkdownRendererProps {
 }
 
 // Helper function to check if URL is localhost or 127.0.0.1
-const isLocalhost = (url: string): boolean => {
+const isHostedUrl = (url: string): boolean => {
   try {
     const urlObj = new URL(url);
     return (
       urlObj.hostname === "localhost" ||
       urlObj.hostname === "127.0.0.1" ||
       urlObj.hostname.startsWith("127.") ||
-      urlObj.hostname.endsWith(".localhost")
+      urlObj.hostname.endsWith(".localhost") ||
+      urlObj.hostname.endsWith(".e2b.app") // TODO - HARDCODED - Add E2B app URLs because they are hosted
     );
   } catch {
     return false;
   }
 };
+
+// Helper to truncate text from the middle
+function truncateMiddle(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  const half = Math.floor((maxLength - 3) / 2);
+  return text.slice(0, half) + '...' + text.slice(text.length - half);
+}
 
 // Function to manually detect and convert plain URLs to links as a fallback
 const linkifyText = (text: string | React.ReactNode, onPreviewClick?: MarkdownRendererProps["onPreviewClick"]): string | React.ReactNode => {
@@ -49,9 +57,10 @@ const linkifyText = (text: string | React.ReactNode, onPreviewClick?: MarkdownRe
 
     // Add the URL as a clickable link
     const url = match[0];
+    const displayUrl = truncateMiddle(url, 80);
 
     // Check if URL is localhost/127.0.0.1 for special handling
-    if (isLocalhost(url) && onPreviewClick) {
+    if (isHostedUrl(url) && onPreviewClick) {
       parts.push(
         <button
           key={match.index}
@@ -65,9 +74,9 @@ const linkifyText = (text: string | React.ReactNode, onPreviewClick?: MarkdownRe
               type: "iframe",
             })
           }
-          className="text-blue-600 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline"
+          className="text-blue-600 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline break-all whitespace-pre-wrap"
         >
-          {url}
+          {displayUrl}
         </button>
       );
     } else {
@@ -77,9 +86,9 @@ const linkifyText = (text: string | React.ReactNode, onPreviewClick?: MarkdownRe
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-600 hover:underline"
+          className="text-blue-600 hover:underline break-all whitespace-pre-wrap"
         >
-          {url}
+          {displayUrl}
         </a>
       );
     }
@@ -183,12 +192,16 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           // Style all links consistently, opening all links in content sidebar
           a: ({ href, children }) => {
             if (href) {
-              const isLocal = isLocalhost(href);
+              const isLocal = isHostedUrl(href);
+              const displayHref = typeof children === 'string' ? truncateMiddle(children, 80) : children;
               
               if (onPreviewClick) {
                 return (
                   <button
-                    onClick={() =>
+                    onClick={() => {
+                      if (href?.toString().endsWith(".pdf") || !isLocal) {
+                        window.open(href, '_blank');
+                      } else {
                       onPreviewClick({
                         url: href,
                         content: "", // Will be loaded via iframe
@@ -197,10 +210,11 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                           : `External: ${href}`,
                         type: "iframe",
                       })
-                    }
-                    className="text-blue-600 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline"
+                      }
+                    }}
+                    className="text-blue-600 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline break-all whitespace-pre-wrap"
                   >
-                    {children}
+                    {displayHref}
                   </button>
                 );
               } else {
@@ -219,12 +233,12 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                         }, '*');
                       } else {
                         // Last resort - open in same window
-                        window.location.href = href;
+                        window.open(href, '_blank');
                       }
                     }}
-                    className="text-blue-600 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline"
+                    className="text-blue-600 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline break-all whitespace-pre-wrap"
                   >
-                    {children}
+                    {displayHref}
                   </button>
                 );
               }

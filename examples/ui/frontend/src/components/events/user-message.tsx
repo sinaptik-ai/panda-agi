@@ -94,31 +94,34 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
     }
   };
 
-  // Detect localhost URLs in the notification text
-  const detectLocalhostUrls = (text: string | undefined): string[] => {
+  // Rename and update the function to detect hosted URLs, including .e2b.app
+  const detectHostedUrls = (text: string | undefined): string[] => {
     if (!text) return [];
 
-    const localhostPatterns = [
-      // Full URLs: http://localhost:3000/docs
-      /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)([^\s]*)?/gi,
-      // Bare host:port, like localhost:3000
-      /\b(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)\b/gi,
-    ];
-
+    // Match all URLs (http/https)
+    const urlPattern = /https?:\/\/[\w.-]+(:\d+)?[^\s)\]]*/gi;
     const urls = new Set<string>();
-    const serverHost = getServerHost();
 
-    localhostPatterns.forEach((pattern) => {
-      let match;
-      while ((match = pattern.exec(text)) !== null) {
-        const [, , portWithColon, rawPath = ""] = match;
-
-        // Clean up any trailing markdown/punctuation artifacts
-        const cleanPath = rawPath.replace(/[`*)\]\s.,;!?]+$/, "");
-
-        urls.add(`${serverHost}${portWithColon}${cleanPath}`);
+    let match;
+    while ((match = urlPattern.exec(text)) !== null) {
+      // match[0] is the full URL
+      // Clean up any trailing markdown/punctuation artifacts
+      const cleanUrl = match[0].replace(/[\`*)\]\s.,;!?]+$/, "");
+      try {
+        const urlObj = new URL(cleanUrl);
+        const host = urlObj.hostname;
+        if (
+          host === "localhost" ||
+          host === "127.0.0.1" ||
+          host === "0.0.0.0" ||
+          host.endsWith(".e2b.app")
+        ) {
+          urls.add(cleanUrl);
+        }
+      } catch {
+        // Ignore invalid URLs
       }
-    });
+    }
 
     return Array.from(urls);
   };
@@ -128,7 +131,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
    * @param {string | React.ReactNode} text
    * @returns {string | React.ReactNode}
    */
-  const replaceLocalhostInLinks = (text: string | React.ReactNode): string | React.ReactNode => {
+  const replaceLocalhostInLinks = (text: string): string => {
     if (typeof text !== "string") return text || "";
     const serverHost = getServerHost();
 
@@ -276,9 +279,10 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
     : "bg-white border-gray-200";
   const content = isError ? renderErrorContent() : renderStandardContent();
 
-  // Detect localhost URLs in the notification text
+  // Detect hosted URLs in the notification text
   const notificationText = payload.text || payload.message || "";
-  const localhostUrls = detectLocalhostUrls(notificationText);
+  const hostedUrls = detectHostedUrls(replaceLocalhostInLinks(payload.text || ""));
+
   // TODO - Temporary fix for attachments
   let attachments: string[] = [];
   if (payload.attachments && typeof payload.attachments === "string") {
@@ -291,12 +295,12 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
       {/* Main Card */}
       <div className="flex justify-start">
         <div className={`event-card min-w-80 max-w-2xl ${cardColor} relative`}>
-          {replaceLocalhostInLinks(content)}
+          {content}
         </div>
       </div>
 
       {/* Localhost Servers Preview */}
-      {localhostUrls.length > 0 && (
+      {hostedUrls.length > 0 && (
         <div className="mt-3 space-y-3">
           <div className="flex justify-start">
             <div className="group flex items-center justify-between p-3 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg hover:from-orange-100 hover:to-amber-100 transition-all duration-200 hover:shadow-md min-w-80 max-w-2xl">
@@ -307,7 +311,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
 
                 <div className="flex-1 min-w-0">
                   <button
-                    onClick={() => handleLocalhostPreview(localhostUrls[0])}
+                    onClick={() => handleLocalhostPreview(hostedUrls[0])}
                     className="text-left w-full group-hover:text-orange-800 transition-colors"
                   >
                     <p className="text-sm font-medium text-gray-900 truncate group-hover:text-orange-900">
@@ -319,7 +323,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
 
               <div className="flex items-center space-x-2 flex-shrink-0">
                 <button
-                  onClick={() => handleLocalhostPreview(localhostUrls[0])}
+                  onClick={() => handleLocalhostPreview(hostedUrls[0])}
                   className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-orange-200 hover:border-orange-300 text-orange-600 hover:text-orange-700 transition-all duration-200 hover:shadow-sm"
                   title="Preview in sidebar"
                 >
@@ -327,7 +331,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
                 </button>
 
                 <button
-                  onClick={() => window.open(localhostUrls[0], '_blank')}
+                  onClick={() => window.open(hostedUrls[0], '_blank')}
                   className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-orange-200 hover:border-orange-300 text-orange-600 hover:text-orange-700 transition-all duration-200 hover:shadow-sm"
                   title="Open in sidebar"
                 >
@@ -339,10 +343,10 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
         </div>
       )}
 
-      {/* Attachments outside the card - only show if no localhost URLs to preview */}
+      {/* Attachments outside the card - only show if no hosted URLs to preview */}
       {attachments &&
         attachments.length > 0 &&
-        localhostUrls.length === 0 && (
+        hostedUrls.length === 0 && (
           <div className="mt-3 space-y-3">
             <div className="space-y-2">
               {attachments.map((attachment, index) => {

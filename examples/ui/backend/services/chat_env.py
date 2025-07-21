@@ -19,12 +19,12 @@ def get_env(metadata: Optional[Dict[str, Any]] = None, force_new: bool = False):
                 return E2BEnv(
                     "/workspace",
                     metadata=metadata,
-                    timeout=300,
+                    timeout=1800,
                     sandbox=sandbox,
                 )
 
         if not sandbox:
-            sandbox = E2BEnv("/workspace", metadata=metadata, timeout=300)
+            sandbox = E2BEnv("/workspace", metadata=metadata, timeout=1800)
 
         return sandbox
 

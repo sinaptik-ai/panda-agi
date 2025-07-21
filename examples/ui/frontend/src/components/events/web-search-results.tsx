@@ -16,7 +16,7 @@ interface WebSearchResultEventProps {
 }
 
 const WebSearchResultEvent: React.FC<WebSearchResultEventProps> = ({ payload }) => {
-  if (!payload) return null;
+  if (!payload ||  !payload.results) return null;
 
   const resultCount = payload.results.length;
   const title = `Found ${resultCount} result${resultCount !== 1 ? "s" : ""}`;

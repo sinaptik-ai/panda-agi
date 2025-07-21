@@ -37,6 +37,14 @@ class WebSearchHandler(ToolHandler):
                 error=f"Error in web search: {str(e)}. Do not visit any websites. Complete the task.",
             )
 
+        filtered_results = [
+            result
+            for result in results.get("results", [])
+            if not result.get("url", "").lower().endswith(".pdf")
+        ]
+
+        results["results"] = filtered_results
+
         await self.add_event(EventType.WEB_SEARCH_RESULT, results)
 
         # Check if the result indicates success

@@ -6,7 +6,7 @@ interface ToolUseEventProps {
     tool_name?: string;
     parameters?: Record<string, unknown>;
     result?: {
-      data?: string;
+      data?: string | Record<string, unknown>;
     };
     timestamp?: string | number;
   };

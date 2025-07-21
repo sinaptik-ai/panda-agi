@@ -159,7 +159,7 @@ const EventList: React.FC<EventListProps> = ({
       result: {
         data: typeof eventData.input_params === 'string' 
           ? eventData.input_params 
-          : JSON.stringify(eventData.input_params || "Tool executed successfully")
+          : eventData.input_params as Record<string, unknown> || "Tool executed successfully"
       }
     };
     
