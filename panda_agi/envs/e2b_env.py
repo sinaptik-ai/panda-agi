@@ -366,3 +366,6 @@ class E2BEnv(BaseEnv):
 
     async def is_port_available(self, port: int) -> bool:
         pass
+
+    async def get_available_ports(self) -> List[int]:
+        return self.ports
