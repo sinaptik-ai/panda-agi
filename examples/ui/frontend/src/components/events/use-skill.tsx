@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { JSX, useState } from "react";
 import { ChevronRight, Zap } from "lucide-react";
 
 interface ToolUseEventProps {
@@ -32,14 +32,14 @@ const ToolUseEvent: React.FC<ToolUseEventProps> = ({ payload }) => {
     }`;
   };
 
-  const renderExpandedContent = () => {
+  const renderExpandedContent = (): JSX.Element => {
     const { result } = payload;
 
     return (
       <div className="mx-3 mb-4 bg-blue-50 border border-blue-200 rounded-md overflow-hidden">
         <div className="flex items-center px-3 py-2 bg-blue-100 border-b border-blue-200">
           <Zap className="w-4 h-4 mr-2 text-blue-600" />
-          <span className="text-sm font-mono text-blue-700">Tool Used</span>
+          <span className="text-sm font-mono text-blue-700">Tool Used:  {payload.tool_name}</span>
         </div>
         <div className="p-3 font-mono text-sm space-y-2">
           {result && result.data && (
