@@ -22,9 +22,9 @@ def write_joke(topic: str) -> str:
     return f"You know what's the best about being a {topic}? Because I get to {topic} all day!"
 
 
-def print_event(input_paras, output_params):
+def print_event(input_params, output_params):
     """Prints the event data"""
-    print(f"Event: {input_paras}")
+    print(f"Event: {input_params}")
     print(f"Output: {output_params}")
 
 
@@ -59,7 +59,7 @@ When a user asks you to analyze data, you must follow these steps:
     agent = Agent(
         system_prompt="Be helpful, honest, and concise.",
         base_url="http://localhost:8000",
-        model="annie-lite",
+        model="annie-pro",
         environment=agent_env,
         api_key="pk_f9858cf569b619bb2a3bfe26ad47426a561d09e94bc11ad0ebb21f03f10c4906",
         tools=tools,
@@ -69,11 +69,15 @@ When a user asks you to analyze data, you must follow these steps:
 
     # First request - will automatically connect
     # The run method accepts a list of handlers
-    async for events in agent.run_stream(
-        args.query,
-        # event_handlers=handlers # Overrides the event_handlers passed to the Agent constructor
-    ):
-        print(events)
+    try:
+        async for events in agent.run_stream(
+            args.query,
+            # event_handlers=handlers # Overrides the event_handlers passed to the Agent constructor
+        ):
+            print(events)
+    except Exception as e:
+        print("RECEIVED ERROR")
+        print(e)
 
 
 if __name__ == "__main__":

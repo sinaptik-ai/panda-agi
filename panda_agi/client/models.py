@@ -910,9 +910,6 @@ class AgentResponse:
         server_url = os.environ.get("PANDA_AGI_SERVER", "https://agi-api.pandas-ai.com")
         backend_url = f"{server_url}/conversations/{conversation_id}/messages"
 
-        logger.info(f"Retrieving conversation messages from {backend_url}")
-        logger.info(f"API Key: {api_key}")
-
         try:
             # Set up headers with API key
             headers = {"X-API-Key": api_key, "Content-Type": "application/json"}
@@ -925,7 +922,6 @@ class AgentResponse:
 
             # Check if request was successful
             if response.status_code == 200 or response.status_code == 201:
-                logger.info("Trace sent successfully!")
                 return response.json()
             else:
                 logger.error(
