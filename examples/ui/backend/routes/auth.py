@@ -9,7 +9,9 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import os
 
 
-PANDA_AGI_SERVER_URL = os.environ.get("PANDA_AGI_URL") or "http://localhost:8000"
+PANDA_AGI_SERVER_URL = (
+    os.environ.get("PANDA_AGI_URL") or "https://agi-api.pandas-ai.com"
+)
 
 # Create router
 router = APIRouter(prefix="/public/auth", tags=["authentication"])
