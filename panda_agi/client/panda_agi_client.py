@@ -87,7 +87,7 @@ class PandaAgiClient:
         self, request: Union[AgentRequestModel, dict]
     ) -> AsyncGenerator[str, None]:
         """Send a streaming HTTP request and yield tokens"""
-        print(f"Sending agent request: {request}")
+        logger.info(f"Sending agent request: {request}")
         try:
             # Convert request to dict if it's an AgentRequestModel
             if isinstance(request, AgentRequestModel):

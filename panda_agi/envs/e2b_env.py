@@ -63,7 +63,7 @@ class E2BEnv(BaseEnv):
             query = SandboxQuery(metadata=metadata)
             matches = Sandbox.list(query=query)
             if not matches:
-                raise Exception("Session destroyed please restart the conversation")
+                raise Exception("Session destroyed, please restart the conversation")
             sbx_info = matches[0]
             sbx = Sandbox.connect(sbx_info.sandbox_id)
             sbx.set_timeout(

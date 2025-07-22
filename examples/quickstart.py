@@ -44,13 +44,15 @@ async def main():
     handlers = [LogsHandler(compact_mode=True, use_colors=True, show_timestamps=True)]
 
     knowledge = [
-        Knowledge("""
+        Knowledge(
+            """
 When a user asks you to analyze data, you must follow these steps:
 1. Analyze the data
 2. Provide a summary of the data
 3. Provide a list of insights
 4. Provide a list of recommendations
-""")
+"""
+        )
     ]
 
     tools = [write_joke]
@@ -61,7 +63,7 @@ When a user asks you to analyze data, you must follow these steps:
         base_url="http://localhost:8000",
         model="annie-pro",
         environment=agent_env,
-        api_key="pk_f9858cf569b619bb2a3bfe26ad47426a561d09e94bc11ad0ebb21f03f10c4906",
+        api_key="pk_f*********",
         tools=tools,
     )
 

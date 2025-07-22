@@ -125,7 +125,7 @@ function App() {
         if (error instanceof Error) {
           errorText = error.message;
           if (errorText === "Failed to fetch") {
-            errorText = "Server is not responding, Please try again in a few minutes.";
+            errorText = "Server is not responding. Please try again in a few minutes.";
           }
         }
         const errorMessage: Message = {
@@ -452,7 +452,7 @@ function App() {
         }
       }
     } catch (error) {
-      let errorText: string = "Unable to process request try again!"
+      let errorText: string = "Unable to process request, try again!"
       
       if (error instanceof Error) {
         errorText = error.message
