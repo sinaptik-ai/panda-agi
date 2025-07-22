@@ -12,8 +12,7 @@ import {
 } from "lucide-react";
 import MarkdownRenderer from "../ui/markdown-renderer";
 import { formatTimestamp } from "@/lib/date";
-import { getServerHost, getBackendServerURL } from "@/lib/server";
-import { getApiHeaders } from "@/lib/api/common";
+import { getBackendServerURL } from "@/lib/server";
 import { toast } from "react-hot-toast";
 import { downloadWithCheck } from "@/lib/utils";
 
@@ -126,62 +125,6 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
     return Array.from(urls);
   };
 
-  /**
-   * Replace all localhost:port/127.0.0.1:port/0.0.0.0:port in any URL (markdown, HTML href/src, or plain text) with serverHost:port.
-   * @param {string | React.ReactNode} text
-   * @returns {string | React.ReactNode}
-   */
-  const replaceLocalhostInLinks = (text: string): string => {
-    if (typeof text !== "string") return text || "";
-    const serverHost = getServerHost();
-
-    // Helper to ensure protocol is not duplicated
-    function safeReplace(proto: string, host: string, port: string): string {
-      let cleanHost = serverHost;
-      // Always strip any protocol if proto is present
-      if (proto) cleanHost = cleanHost.replace(/^https?:\/\//, "");
-      return `${proto || ""}${cleanHost}${port}`;
-    }
-
-    // Replace in markdown links: [text](url)
-    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
-      const replacedUrl = url.replace(
-        /(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)/gi,
-        (m: string, proto = "", _host: string, port: string) => safeReplace(proto, _host, port)
-      );
-      return `[${linkText}](${replacedUrl})`;
-    });
-
-    if (typeof text === "string") {
-      // Replace in HTML href/src attributes
-      text = text.replace(
-        /(href|src)=("|')(.*?)(\2)/gi,
-        (match: string, attr: string, quote: string, url: string) => {
-          const replacedUrl = url.replace(
-            /(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)/gi,
-            (m, proto = "", _host, port) => safeReplace(proto, _host, port)
-          );
-          return `${attr}=${quote}${replacedUrl}${quote}`;
-        }
-      );
-    }
-
-    // Replace raw URLs in plain text (not part of markdown or HTML)
-    if (text && typeof text === "string") {
-      text = text.replace(
-        /(https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)([^\s)\]"']*)?)/gi,
-        (url: string, ...args: string[]) => {
-          return url.replace(
-            /(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)/i,
-            (m, proto = "", _host, port) => safeReplace(proto, _host, port)
-          );
-        }
-      );
-    }
-
-    return text;
-  };
-
   // Get file icon based on extension
   const getFileIcon = (filename: string | undefined) => {
     if (!filename) return <File className="w-4 h-4 text-gray-500" />;
@@ -258,7 +201,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
   };
 
   const renderStandardContent = () => {
-    const replacedContent = replaceLocalhostInLinks(payload.text || "");
+    const replacedContent = payload.text || "";
     return (
       <div>
         <MarkdownRenderer onPreviewClick={onPreviewClick}>
@@ -280,8 +223,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
   const content = isError ? renderErrorContent() : renderStandardContent();
 
   // Detect hosted URLs in the notification text
-  const notificationText = payload.text || payload.message || "";
-  const hostedUrls = detectHostedUrls(replaceLocalhostInLinks(payload.text || ""));
+  const hostedUrls = detectHostedUrls(payload.text || "");
 
   // TODO - Temporary fix for attachments
   let attachments: string[] = [];
