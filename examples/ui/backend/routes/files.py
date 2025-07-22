@@ -48,7 +48,7 @@ async def upload_files(
 
         workspace_path = Path(WORKSPACE_PATH)
 
-        if not local_env.path_exists(workspace_path):
+        if not await local_env.path_exists(workspace_path):
             # Ensure workspace directory exists using environment abstraction
             await local_env.mkdir(workspace_path, parents=True, exist_ok=True)
 
