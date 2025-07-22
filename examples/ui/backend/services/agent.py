@@ -40,7 +40,6 @@ def get_or_create_agent(
     agent_kwargs = {
         "model": MODEL,
         "environment": local_env,
-        "base_url": "http://localhost:8000",
         "conversation_id": new_conversation_id,
     }
 
