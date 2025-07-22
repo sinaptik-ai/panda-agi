@@ -110,7 +110,6 @@ class PandaAgiClient:
                 # Process the streaming response events
                 buffer = ""
                 async for chunk in response.aiter_text():
-                    print("chunk:: -> ", chunk)
                     buffer += chunk
 
                     # check if chunk is conversation_id
@@ -125,7 +124,6 @@ class PandaAgiClient:
                         }
 
                     elif self.is_chunk_data(chunk):
-                        print("data chunk:: -> ", chunk)
                         yield self._extract_data(chunk)
 
         except httpx.HTTPStatusError as e:

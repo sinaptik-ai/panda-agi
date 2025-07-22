@@ -17,6 +17,8 @@ from utils.event_processing import should_render_event
 
 logger = logging.getLogger("panda_agi_api")
 
+MODEL = "annie-pro"
+
 
 def get_or_create_agent(
     conversation_id: Optional[str] = None, api_key: str | None = None
@@ -36,7 +38,7 @@ def get_or_create_agent(
     )
     # Create agent with conditional API key
     agent_kwargs = {
-        "model": "annie-pro",
+        "model": MODEL,
         "environment": local_env,
         "base_url": "http://localhost:8000",
         "conversation_id": new_conversation_id,

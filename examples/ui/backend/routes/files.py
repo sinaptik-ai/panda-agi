@@ -120,7 +120,7 @@ async def validate_and_correct_file_path(
         if not workspace_path:
             return None
 
-        files = await local_env.list_files(workspace_path, recursive=True)
+        files = await local_env.list_files(recursive=True)
 
         if files["status"] == "success":
             exist_file_path = None
