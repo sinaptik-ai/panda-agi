@@ -1,18 +1,17 @@
-import asyncio
-from typing import List
+from typing import Dict
 
-from panda_agi.client.models import Knowledge, Skill
+from panda_agi.client.models import ToolsConfig
 
 
 class AgentState:
     """Agent state (it is accessible by all tools)"""
 
     def __init__(self):
-        self.initialization_complete = asyncio.Event()
-        self.knowledge: List[Knowledge] = []
-        self.skills: List[Skill] = []
+        # agent state
+        self.conversation_id: str = ""
 
-        # Connection state properties
-        self.is_connected = False
-        self.is_running = False
-        self.connection_id = None
+        # tools
+        self.tools_config: ToolsConfig = ToolsConfig()
+
+        # environment
+        self.filesystem: Dict = {}

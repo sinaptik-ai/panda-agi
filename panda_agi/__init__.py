@@ -28,6 +28,7 @@ from .client.models import (
 from .client.state import AgentState
 from .handlers import BaseHandler, LogsHandler
 from .tools.skills_ops import Skill, SkillRegistry, skill
+from .tools.custom_tools_ops import CustomTool, CustomToolRegistry, tool
 
 __all__ = [
     # Core classes
@@ -63,4 +64,8 @@ __all__ = [
     "Skill",
     "SkillRegistry",
     "skill",
+    # Custom Tools
+    "CustomTool",
+    "CustomToolRegistry",
+    "tool",
 ]

@@ -7,7 +7,14 @@ from .base import ToolHandler, ToolResult
 from .registry import ToolRegistry
 
 
-@ToolRegistry.register("web_search")
+@ToolRegistry.register(
+    "web_search",
+    xml_tag="web_search",
+    required_params=["query"],
+    optional_params=["max_results"],
+    content_param="query",
+    attribute_mappings={"query": "query", "max_results": "max_results"},
+)
 class WebSearchHandler(ToolHandler):
     """Handler for web search messages"""
 
@@ -45,7 +52,13 @@ class WebSearchHandler(ToolHandler):
         )
 
 
-@ToolRegistry.register("web_visit_page")
+@ToolRegistry.register(
+    "web_visit_page",
+    xml_tag="web_visit_page",
+    required_params=["url"],
+    content_param="url",
+    attribute_mappings={"url": "url"},
+)
 class WebNavigationHandler(ToolHandler):
     """Handler for web navigation messages"""
 
