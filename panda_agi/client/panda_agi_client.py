@@ -142,7 +142,6 @@ class PandaAgiClient:
         filename: Optional[str] = None,
     ) -> ImageGenerationResponse:
         """Generate an image using the image generation API.
-
         Args:
             prompt: The text description of the image to generate
             size: Image size. Options: '1024x1024', '1792x1024', or '1024x1792'
