@@ -430,7 +430,7 @@ class LocalEnv(BaseEnv):
             filename = file_path.name
 
             if str(file_path).startswith(str(self.base_path)):
-                file_path = "/" + str(file_path)[len(str(self.base_path)) :].lstrip("/")
+                file_path = "/" + str(file_path.relative_to(self.base_path))
             else:
                 file_path = str(file_path)
 

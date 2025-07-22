@@ -82,7 +82,7 @@ class FileWriteHandler(ToolHandler):
         "file": "file",
         "find_str": "find_str",
         "replace_str": "replace_str",
-    }
+    },
 )
 class FileReplaceHandler(ToolHandler):
     """Handler for file string replacement operations"""
@@ -182,9 +182,12 @@ class ExploreDirectoryHandler(ToolHandler):
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         await self.add_event(EventType.FILE_EXPLORE, params)
-        params["max_depth"] = int(
-            params.get("max_depth", 2)
-        )  # transform max_depth to int
+        try:
+            max_depth = params.get("max_depth", 2)
+            params["max_depth"] = int(max_depth) if max_depth not in (None, "") else 2
+        except (ValueError, TypeError):
+            params["max_depth"] = 2
+
         result = await file_explore_directory(self.environment, **params)
         return ToolResult(
             success=result.get("status") == "success",
