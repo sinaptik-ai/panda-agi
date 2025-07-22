@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 
 try:
     from e2b.sandbox_sync.sandbox_api import SandboxQuery
+    from e2b.sandbox.filesystem.filesystem import FileType
     from e2b_code_interpreter import Sandbox
 except ImportError:
     Sandbox = None
@@ -147,18 +148,17 @@ class E2BEnv(BaseEnv):
         path: Union[str, Path],
         mode: str = "r",
         encoding: Optional[str] = "utf-8",
-        start_line: Optional[int] = None,
-        end_line: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Reads a file from the sandbox, optionally slicing lines.
         """
         resolved = self._resolve_path(path)
-        data = self.sandbox.files.read(str(resolved))
-        content = data if isinstance(data, bytes) else data
-        if mode == "r" and isinstance(content, str):
-            lines = content.splitlines(keepends=True)
-            content = "".join(lines[start_line:end_line])
+        format = "bytes" if "rb" in mode else "text"
+        content = self.sandbox.files.read(str(resolved), format=format)
+
+        if format == "bytes" and isinstance(content, bytearray):
+            content = bytes(content)
+
         size = len(content) if isinstance(content, (bytes, str)) else 0
         return {
             "status": "success",
@@ -235,13 +235,7 @@ class E2BEnv(BaseEnv):
                     "name": Path(entry.path).name,
                     "path": entry.path,
                     "relative_path": str(rel_path),
-                    "type": "directory" if entry.is_dir else "file",
-                    "size": entry.size if not entry.is_dir else 0,
-                    "modified": (
-                        entry.modified.isoformat()
-                        if hasattr(entry, "modified")
-                        else None
-                    ),
+                    "type": "directory" if entry.type == FileType.DIR else "file",
                 }
                 files.append(file_info)
 

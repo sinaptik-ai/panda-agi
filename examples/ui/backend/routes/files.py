@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
 
+from panda_agi.envs.base_env import BaseEnv
 from services.agent import get_or_create_agent
 
 logger = logging.getLogger("panda_agi_api")
@@ -91,8 +92,11 @@ async def upload_files(
             "original_filename": file.filename,
             "size": len(content),
             "path": str(file_path).replace(WORKSPACE_PATH, ""),
-            "conversation_id": conversation_id
-            or local_env.metadata.get("conversation_id", None),
+            "conversation_id": (
+                conversation_id or local_env.metadata.get("conversation_id", None)
+                if local_env.metadata
+                else None
+            ),
             "event_type": "file_upload",
         }
 
@@ -102,6 +106,34 @@ async def upload_files(
         error_trace = traceback.format_exc()
         logger.error(f"Error in upload_files: {e}\n{error_trace}")
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+
+async def validate_and_correct_file_path(
+    local_env: BaseEnv, file_path: str, workspace_path: str | None = None
+):
+    """
+    Read the content of a file.
+    """
+    if await local_env.path_exists(file_path):
+        return file_path
+    else:
+        if not workspace_path:
+            return None
+
+        files = await local_env.list_files(workspace_path, recursive=True)
+
+        if files["status"] == "success":
+            exist_file_path = None
+            count_of_files = 0
+            for file in files["files"]:
+                if file["name"] == file_path and file["type"] == "file":
+                    exist_file_path = file
+                    count_of_files += 1
+
+            if exist_file_path and count_of_files == 1:
+                return exist_file_path["relative_path"]
+
+        return None
 
 
 @router.get("/{conversation_id}/files/download")
@@ -122,19 +154,33 @@ async def download_file(
     try:
 
         local_env = get_or_create_agent(conversation_id)[0].environment
+        if not local_env:
+            raise HTTPException(
+                status_code=500,
+                detail="Something went wrong, unable to fetch environment!",
+            )
+
         logger.debug(f"Download request for file_path: '{file_path}'")
         logger.debug(f"Current working directory: {os.getcwd()}")
         logger.debug(f"WORKSPACE_PATH: {WORKSPACE_PATH}")
 
         # Resolve the file path within environment
         workspace_path = Path(WORKSPACE_PATH)
+
+        # Check if file exists using E2BEnv
+        file_path: str | None = await validate_and_correct_file_path(
+            local_env, file_path, str(workspace_path)
+        )
+
+        # Check if file exists
+        if not file_path:
+            logger.debug("File not found, raising 404")
+            raise HTTPException(status_code=404, detail="File not found")
+
         file_path_str = str(file_path).lstrip("/")
         resolved_path = workspace_path / file_path_str
         logger.debug(f"Resolved file path: {resolved_path}")
-
-        # Check if file exists using E2BEnv
-        path_exists = await local_env.path_exists(file_path_str)
-        logger.debug(f"Path exists: {path_exists}")
+        logger.debug(f"Path exists: {file_path}")
 
         # Security check: ensure the resolved path is within workspace
         if not str(resolved_path).startswith(str(workspace_path)):
@@ -142,11 +188,6 @@ async def download_file(
             raise HTTPException(
                 status_code=403, detail="Access denied: path outside workspace"
             )
-
-        # Check if file exists
-        if not path_exists:
-            logger.debug("File not found, raising 404")
-            raise HTTPException(status_code=404, detail="File not found")
 
         # Get file info to check if it's a directory
         file_info = await local_env.list_files(resolved_path.parent)
@@ -321,6 +362,12 @@ async def read_file(conversation_id: str, file_path: str):
     """
     try:
         local_env = get_or_create_agent(conversation_id)[0].environment
+        if not local_env:
+            raise HTTPException(
+                status_code=500,
+                detail="Something went wrong, unable to fetch environment!",
+            )
+
         # Resolve and check within workspace via local_env logic
         # local_env._resolve_path handles base_path restrictions
         resolved = local_env._resolve_path(file_path)
@@ -334,13 +381,14 @@ async def read_file(conversation_id: str, file_path: str):
             )
 
         # Check existence via sandbox API
-        exists_res = await local_env.path_exists(file_path)
-        if not exists_res:
+        file_path: str | None = await validate_and_correct_file_path(
+            local_env, file_path, str(base)
+        )
+        if not file_path:
             raise HTTPException(status_code=404, detail="File not found")
 
         # Read file as binary to preserve any type
         read_res = await local_env.read_file(file_path, mode="rb")
-        print("Read file result: ", read_res)
         if read_res.get("status") != "success":
             detail = read_res.get("message", "Unknown error")
             raise HTTPException(status_code=500, detail=f"Error reading file: {detail}")
