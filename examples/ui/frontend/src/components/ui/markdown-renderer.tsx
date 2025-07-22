@@ -14,7 +14,7 @@ interface MarkdownRendererProps {
   }) => void;
 }
 
-// Helper function to check if URL is localhost or 127.0.0.1
+// Helper function to check if URL is localhost, 127.0.0.1, .localhost, or ends with .e2b.app
 const isHostedUrl = (url: string): boolean => {
   try {
     const urlObj = new URL(url);
