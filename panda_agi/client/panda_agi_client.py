@@ -107,30 +107,26 @@ class PandaAgiClient:
             ) as response:
                 response.raise_for_status()
 
-                # Process the streaming response
-                async for line in response.aiter_lines():
-                    if line.strip():
-                        # Handle Server-Sent Events format
-                        if line.startswith("data: "):
-                            data = line.replace("data: ", "").strip()
-                            if data.strip() == "[DONE]":
-                                logger.info("Stream completed")
-                                break
-                            yield data
-                        elif line.startswith("conversation_id: "):
-                            self.conversation_id = line.replace(
-                                "conversation_id: ", ""
-                            ).strip()
-                            logger.info(
-                                f"[HTTP] Received conversation_id: {self.conversation_id}"
-                            )
-                            yield {
-                                "type": "conversation_id",
-                                "conversation_id": self.conversation_id,
-                            }
-                        else:
-                            # Handle plain text streaming
-                            yield line + "\n"
+                # Process the streaming response events
+                buffer = ""
+                async for chunk in response.aiter_text():
+                    print("chunk:: -> ", chunk)
+                    buffer += chunk
+
+                    # check if chunk is conversation_id
+                    if self.is_chunk_conversation_id(chunk):
+                        self.conversation_id = self._extract_conversation_id(chunk)
+                        logger.info(
+                            f"[HTTP] Received conversation_id: {self.conversation_id}"
+                        )
+                        yield {
+                            "type": "conversation_id",
+                            "conversation_id": self.conversation_id,
+                        }
+
+                    elif self.is_chunk_data(chunk):
+                        print("data chunk:: -> ", chunk)
+                        yield self._extract_data(chunk)
 
         except httpx.HTTPStatusError as e:
             logger.error(f"❌ HTTP error: {e.response.status_code} - {e.response.text}")
@@ -148,17 +144,17 @@ class PandaAgiClient:
         filename: Optional[str] = None,
     ) -> ImageGenerationResponse:
         """Generate an image using the image generation API.
-        
+
         Args:
             prompt: The text description of the image to generate
             size: Image size. Options: '1024x1024', '1792x1024', or '1024x1792'
             quality: Image quality. Options: 'standard' or 'hd'
             n: Number of images to generate (1-4)
             filename: Optional filename for the image (without extension)
-            
+
         Returns:
             ImageGenerationResponse containing image URLs and metadata
-            
+
         Raises:
             httpx.HTTPStatusError: If the API request fails
             Exception: For other errors during the request
@@ -172,24 +168,26 @@ class PandaAgiClient:
                 n=n,
                 filename=filename,
             )
-            
+
             # Send POST request to image generation endpoint
             endpoint = "/image/generate"
             logger.info(f"[HTTP] Sending image generation request to: {endpoint}")
-            
+
             response = await self._client.post(
                 endpoint,
                 json=request.model_dump(),
                 headers=self._headers(),
             )
             response.raise_for_status()
-            
+
             # Parse the response
             response_data = response.json()
             return ImageGenerationResponse(**response_data)
-            
+
         except httpx.HTTPStatusError as e:
-            logger.error(f"❌ HTTP error in image generation: {e.response.status_code} - {e.response.text}")
+            logger.error(
+                f"❌ HTTP error in image generation: {e.response.status_code} - {e.response.text}"
+            )
             raise
         except Exception as e:
             logger.error(f"❌ Error in image generation request: {e}")
@@ -198,3 +196,21 @@ class PandaAgiClient:
     async def close(self):
         """Close the HTTP client"""
         await self._client.aclose()
+
+    def is_chunk_conversation_id(self, chunk: str) -> bool:
+        """Check if the chunk is a conversation ID"""
+        return chunk.startswith("<conversation_id>") and chunk.endswith(
+            "</conversation_id>"
+        )
+
+    def is_chunk_data(self, chunk: str) -> bool:
+        """Check if the chunk is a data chunk"""
+        return chunk.startswith("<data>") and chunk.endswith("</data>")
+
+    def _extract_conversation_id(self, chunk: str) -> str:
+        """Extract the conversation ID from a chunk"""
+        return chunk.split("<conversation_id>")[1].split("</conversation_id>")[0]
+
+    def _extract_data(self, chunk: str) -> str:
+        """Extract the data from a chunk"""
+        return chunk.split("<data>")[1].split("</data>")[0]

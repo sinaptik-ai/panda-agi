@@ -1,7 +1,6 @@
 import fnmatch
 import logging
 import re
-from pathlib import Path
 from typing import Any, Dict, Optional
 
 # Import the BaseEnv base class
@@ -308,7 +307,7 @@ async def file_explore_directory(
         # Resolve path using environment
         target_path = environment._resolve_path(path)
 
-        if not environment.path_exists(str(target_path)):
+        if not await environment.path_exists(str(target_path)):
             return {
                 "status": "error",
                 "message": f"Directory not found: {target_path}",
