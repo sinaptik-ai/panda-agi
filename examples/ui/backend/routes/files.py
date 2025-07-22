@@ -152,7 +152,6 @@ async def download_file(
         FileResponse: The file to download
     """
     try:
-
         local_env = get_or_create_agent(conversation_id)[0].environment
         if not local_env:
             raise HTTPException(
