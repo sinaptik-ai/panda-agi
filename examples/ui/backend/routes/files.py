@@ -18,7 +18,7 @@ from services.agent import get_or_create_agent
 logger = logging.getLogger("panda_agi_api")
 
 # Get workspace path from environment variable with fallback
-WORKSPACE_PATH = "/workspace"
+WORKSPACE_PATH = os.getenv("WORKSPACE_PATH", "./workspace")
 
 router = APIRouter(tags=["files"])
 

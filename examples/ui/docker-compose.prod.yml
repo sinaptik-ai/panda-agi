@@ -24,6 +24,9 @@ services:
   frontend:
     image: ghcr.io/sinaptik-ai/panda-agi/panda-agi-ui:main-frontend
     container_name: panda-agi-frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8001}
+      - NEXT_PUBLIC_USE_AUTH=${NEXT_PUBLIC_USE_AUTH:-false}
     ports:
       - "3000:80"
     depends_on:

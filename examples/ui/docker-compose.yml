@@ -28,6 +28,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: panda-agi-frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8001}
+      - NEXT_PUBLIC_USE_AUTH=${NEXT_PUBLIC_USE_AUTH:-false}
     ports:
       - "3000:3000"
     depends_on:

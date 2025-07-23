@@ -4,9 +4,7 @@ from panda_agi.envs.local_env import LocalEnv
 import os
 from typing import Dict, Any, Optional
 
-WORKSPACE_PATH = os.getenv(
-    "WORKSPACE_PATH", os.path.join(os.path.dirname(__file__), "workspace")
-)
+WORKSPACE_PATH = os.getenv("WORKSPACE_PATH", "./workspace")
 
 
 def get_env(metadata: Optional[Dict[str, Any]] = None, force_new: bool = False):
