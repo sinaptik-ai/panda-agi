@@ -1178,6 +1178,7 @@ class DockerEnv(BaseEnv):
         path: Optional[Union[str, Path]] = None,
         recursive: bool = False,
         include_hidden: bool = False,
+        max_depth: int = None,
     ) -> Dict[str, Any]:
         """List files in a directory in the Docker container."""
         if path is None:
@@ -1362,3 +1363,35 @@ class DockerEnv(BaseEnv):
                     )
         except Exception as e:
             logger.warning(f"Error cleaning up existing container: {str(e)}")
+
+    async def get_available_ports(self) -> List[int]:
+        try:
+            return list(self.ports.keys())
+        except Exception as e:
+            logger.warning(f"Error getting available ports: {str(e)}")
+            return []
+
+    async def is_port_available(self, port: int) -> bool:
+        try:
+            # Check if port is available
+            check_cmd = [
+                "docker",
+                "port",
+                self.container_name,
+                "-p",
+                str(port),
+            ]
+            check_process = await asyncio.create_subprocess_exec(
+                *check_cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, _ = await check_process.communicate()
+
+            if stdout.decode().strip() == self.container_name:
+                return False
+            else:
+                return True
+        except Exception as e:
+            logger.warning(f"Error checking port availability: {str(e)}")
+            return False

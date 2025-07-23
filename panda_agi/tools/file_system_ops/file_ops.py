@@ -1,7 +1,6 @@
 import fnmatch
 import logging
 import re
-from pathlib import Path
 from typing import Any, Dict, Optional
 
 # Import the BaseEnv base class
@@ -256,7 +255,7 @@ async def file_find_by_name(
 
 
 async def file_explore_directory(
-    environment: BaseEnv, path: str, max_depth: Optional[int] = 2
+    environment: BaseEnv, path: str, max_depth: int = 2
 ) -> Dict[str, Any]:
     """
     Explore a directory structure with limited depth to help the agent understand the filesystem.
@@ -308,86 +307,21 @@ async def file_explore_directory(
         # Resolve path using environment
         target_path = environment._resolve_path(path)
 
-        # Ensure the directory exists
-        if not target_path.exists():
-            return {"status": "error", "message": f"Directory not found: {target_path}"}
-
-        if not target_path.is_dir():
+        if not await environment.path_exists(str(target_path)):
             return {
                 "status": "error",
-                "message": f"Path is not a directory: {target_path}",
+                "message": f"Directory not found: {target_path}",
             }
 
-        # Function to recursively explore directory with depth limit
-        def explore_dir(dir_path: Path, current_depth=0):
-            if current_depth > max_depth:
-                return "..."
+        result = await environment.list_files(
+            str(target_path), recursive=True, max_depth=max_depth
+        )
 
-            result = {}
-            try:
-                # Get directory contents
-                items = list(dir_path.iterdir())
+        if result["status"] == "success":
+            return result
 
-                # Sort items: directories first, then files
-                dirs = []
-                files = []
+        else:
+            raise Exception("Failed to list files")
 
-                for item in items:
-                    # Skip excluded directories
-                    if item.is_dir() and item.name in EXCLUDED_DIRS:
-                        continue
-
-                    if item.is_dir():
-                        dirs.append(item)
-                    else:
-                        files.append(item)
-
-                # Sort alphabetically within each group
-                dirs.sort(key=lambda x: x.name)
-                files.sort(key=lambda x: x.name)
-
-                # Process directories
-                for dir_path in dirs:
-                    if current_depth < max_depth:
-                        result[dir_path.name + "/"] = explore_dir(
-                            dir_path, current_depth + 1
-                        )
-                    else:
-                        result[dir_path.name + "/"] = "..."
-
-                # Process files
-                for file_path in files:
-                    try:
-                        size = file_path.stat().st_size
-                        # Format size in human-readable format
-                        if size < 1024:
-                            size_str = f"{size} B"
-                        elif size < 1024 * 1024:
-                            size_str = f"{size / 1024:.1f} KB"
-                        elif size < 1024 * 1024 * 1024:
-                            size_str = f"{size / (1024 * 1024):.1f} MB"
-                        else:
-                            size_str = f"{size / (1024 * 1024 * 1024):.1f} GB"
-
-                        result[file_path.name] = size_str
-                    except Exception:
-                        result[file_path.name] = "error"
-
-                return result
-            except PermissionError:
-                return "<permission denied>"
-            except Exception as e:
-                return f"<error: {str(e)}>"
-
-        # Start exploration from the target path
-        structure = {target_path.name + "/": explore_dir(target_path)}
-
-        return {
-            "status": "success",
-            "directory": str(target_path),
-            "structure": structure,
-            "max_depth": max_depth,
-            # "excluded_dirs": list(EXCLUDED_DIRS),
-        }
     except Exception as e:
         return {"status": "error", "message": str(e)}

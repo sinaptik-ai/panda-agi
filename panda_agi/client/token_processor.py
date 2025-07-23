@@ -56,10 +56,15 @@ class TokenProcessor:
                 # Collect the raw token
                 self.collected_tokens.append(token)
 
-                if "error" in token:
+                if '{"error_panda_server"' in token:
                     logger.error(f"Raising error: {token}")
                     error_message = json.loads(token)
-                    raise Exception(error_message["error"])
+                    raise Exception(
+                        error_message.get(
+                            "error_panda_server",
+                            "Something went wrong, try again in a few minutes",
+                        )
+                    )
 
                 # Try to parse JSON if the token looks like JSON
                 try:

@@ -1,8 +1,11 @@
 import asyncio
+import logging
 from typing import Any, Dict, List, Optional, Union
 
 from .conversation import Conversation, ConversationMessage
 from .utils import send_traces
+
+logger = logging.getLogger("TrainingModel")
 
 
 class TrainingModel:
@@ -69,7 +72,7 @@ class TrainingModel:
             meta=meta,
         )
 
-        print(f"Conversation: {conversation}")
+        logger.info(f"Conversation: {conversation}")
 
         try:
             loop = asyncio.get_running_loop()

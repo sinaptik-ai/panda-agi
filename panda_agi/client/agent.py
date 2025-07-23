@@ -957,9 +957,9 @@ class Agent:
                 messages=[Message(role="user", content="Continue processing.")],
                 model=self.model,
                 tools_config=self.state.tools_config,
-                tools=[tool.to_tool_info() for tool in self.tools]
-                if self.tools
-                else None,
+                tools=(
+                    [tool.to_tool_info() for tool in self.tools] if self.tools else None
+                ),
             )
 
         # Format tool results as a message
@@ -1033,6 +1033,9 @@ class Agent:
         file_system_info = await file_explore_directory(
             self.environment, path="/", max_depth=max_depth
         )
+
+        available_ports = await self.environment.get_available_ports()
+        file_system_info["available_ports_for_deployments"] = available_ports
         return file_system_info
 
     async def run(

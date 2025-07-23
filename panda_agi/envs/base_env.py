@@ -7,13 +7,15 @@ and shell commands are executed.
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 
 class BaseEnv(ABC):
     """Abstract base class for environment management."""
 
-    def __init__(self, base_path: Union[str, Path]):
+    def __init__(
+        self, base_path: Union[str, Path], metadata: Optional[Dict[str, Any]] = None
+    ):
         """
         Initialize the environment with a base path.
 
@@ -22,6 +24,7 @@ class BaseEnv(ABC):
         """
         self.base_path = Path(base_path).resolve()
         self.working_directory = self.base_path
+        self.metadata = metadata
 
     @property
     def current_directory(self) -> Path:
@@ -176,6 +179,7 @@ class BaseEnv(ABC):
         path: Optional[Union[str, Path]] = None,
         recursive: bool = False,
         include_hidden: bool = False,
+        max_depth: int = 5,
     ) -> Dict[str, Any]:
         """
         List files in a directory.
@@ -196,3 +200,15 @@ class BaseEnv(ABC):
 
     async def get_hosted_url(self, port) -> str:
         return f"http://localhost:{port}"
+
+    @abstractmethod
+    async def path_exists(self, path: Union[str, Path]) -> bool:
+        pass
+
+    @abstractmethod
+    async def get_available_ports(self) -> List[int]:
+        pass
+
+    @abstractmethod
+    async def is_port_available(self, port: int) -> bool:
+        pass

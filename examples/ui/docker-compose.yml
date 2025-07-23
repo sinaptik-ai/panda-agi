@@ -13,6 +13,8 @@ services:
       - PYTHONPATH=/app
       - WORKSPACE_PATH=./workspace
       - FASTAPI_RELOAD=false
+      - ENV=${ENV:-local}
+      - PANDA_AGI_URL=https://agi-api.pandas-ai.com
     volumes:
       - ./backend/workspace:/app/workspace
     networks:
@@ -26,8 +28,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: panda-agi-frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8001}
+      - NEXT_PUBLIC_USE_AUTH=${NEXT_PUBLIC_USE_AUTH:-false}
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
       - backend
     networks:

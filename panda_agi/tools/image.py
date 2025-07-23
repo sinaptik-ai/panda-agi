@@ -95,7 +95,7 @@ class ImageGenerationHandler(ToolHandler):
             # Create the output directory if it doesn't exist
             output_path = self.environment._resolve_path(self.OUTPUT_DIR)
             if not output_path.exists():
-                output_path.mkdir(parents=True, exist_ok=True)
+                await self.environment.mkdir(output_path, parents=True, exist_ok=True)
 
             saved_files = []
             images = []

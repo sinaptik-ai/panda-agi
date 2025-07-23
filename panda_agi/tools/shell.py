@@ -1,6 +1,8 @@
 import uuid
 from typing import Any, Dict, Optional
 
+from panda_agi.envs.local_env import LocalEnv
+
 from ..client.models import EventType
 from .base import ToolHandler, ToolResult
 from .file_system_ops.shell_ops import (
@@ -9,6 +11,9 @@ from .file_system_ops.shell_ops import (
     shell_write_to_process,
 )
 from .registry import ToolRegistry
+import logging
+
+logger = logging.getLogger("ShellTools")
 
 
 @ToolRegistry.register(
@@ -193,7 +198,7 @@ class ExecuteScriptHandler(ToolHandler):
         exec_dir = params.get("exec_dir", ".")
         execution_id = f"script_{uuid.uuid4().hex[:8]}"
 
-        print("Executing script: ", execution_id)
+        logger.info(f"Executing script: {execution_id}")
         result = await shell_exec_command(
             environment=self.environment,
             id=execution_id,
@@ -207,7 +212,6 @@ class ExecuteScriptHandler(ToolHandler):
             data=result,
             error=result.get("stderr"),
         )
-        print("Script executed: ", tool_result)
 
         return tool_result
 
@@ -267,13 +271,15 @@ class DeployServerHandler(ToolHandler):
             elif app_type == "nodejs":
                 await self._deploy_nodejs_app(deployment_id, source_path, port, params)
 
+            hosted_url = await self.environment.get_hosted_url(port)
+
             return ToolResult(
                 success=True,
                 data={
                     "status": "success",
                     "deployment_id": deployment_id,
                     "message": f"Server deployed successfully on port {port}",
-                    "url": f"http://localhost:{port}",
+                    "url": hosted_url,
                     "app_type": app_type,
                     "source_path": source_path,
                 },
@@ -290,7 +296,12 @@ class DeployServerHandler(ToolHandler):
     ):
         """Deploy a static website using Python's built-in HTTP server"""
         # Use Python's built-in HTTP server for static files
-        command = f"python3 -m http.server {port} --directory {source_path}"
+        # TODO: This is a temporary solution to deploy a static site to make it work on Windows and E2B.
+        # TODO: We need to use a more robust solution for deploying a static site
+        if isinstance(self.environment, LocalEnv):
+            command = f"python3 -m http.server {port} --directory {source_path}"
+        else:
+            command = f"nohup python3 -m http.server {port} --directory {source_path} > /dev/null 2>&1 &"
 
         shell_params = {
             "id": deployment_id,

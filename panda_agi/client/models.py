@@ -457,7 +457,9 @@ class Skill(BaseModel):
                 # Skip parameters not provided (they might be optional)
                 continue
 
-            print(f"converting {param.name} to {param.type}: {kwargs[param.name]}")
+            logger.info(
+                f"Converting {param.name} to {param.type}: {kwargs[param.name]}"
+            )
 
             # Skip conversion if value is already the correct type
             param_value = kwargs[param.name]
@@ -548,7 +550,9 @@ class CustomTool(BaseModel):
                 # Skip parameters not provided (they might be optional)
                 continue
 
-            print(f"converting {param.name} to {param.type}: {kwargs[param.name]}")
+            logger.info(
+                f"Converting {param.name} to {param.type}: {kwargs[param.name]}"
+            )
 
             # Skip conversion if value is already the correct type
             param_value = kwargs[param.name]
@@ -893,7 +897,7 @@ class AgentResponse:
         """Send LLM trace data to the backend server.
 
         Args:
-            traces: A single Conversation or a list of Conversation objects
+            conversation_id: The ID of the conversation whose messages are to be retrieved
 
         Returns:
             bool: True if successful, False otherwise
