@@ -164,35 +164,87 @@ class ExecuteScriptHandler(ToolHandler):
 
         return None
 
+    def _needs_eof_syntax(self, code: str) -> bool:
+        """Determine if code should use EOF syntax instead of -c flag"""
+        # Use EOF for multi-line code or code with complex quoting
+        return (
+            "\n" in code.strip()  # Multi-line code
+            or code.count('"') > 2  # Many double quotes
+            or code.count("'") > 2  # Many single quotes
+            or len(code) > 200  # Long code
+            or "${" in code  # Shell variable expansion
+            or "`" in code  # Backticks
+        )
+
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         # Language command mapping
         language_commands = {
-            "python": "python3 -c",
-            "bash": "bash -c",
-            "javascript": "node -e",
-            "powershell": "powershell -Command",
+            "python": "python3",
+            "bash": "bash",
+            "javascript": "node",
+            "powershell": "powershell",
+        }
+
+        # EOF delimiters for different languages
+        eof_delimiters = {
+            "python": "PYTHON_EOF",
+            "bash": "BASH_EOF",
+            "javascript": "JS_EOF",
+            "powershell": "PS_EOF",
         }
 
         language = params["language"]
         code = params["code"]
 
-        # Construct the command
-        base_command = language_commands[language]
-        # Escape quotes in the code for shell execution
-        escaped_code = code.replace('"', '\\"')
-        command = f'{base_command} "{escaped_code}"'
+        # Get the base command
+        base_cmd = language_commands[language]
+        eof_delimiter = eof_delimiters[language]
+
+        # Decide whether to use EOF syntax or -c flag
+        if self._needs_eof_syntax(code):
+            # Use EOF syntax for complex code
+            if language == "python":
+                full_command = (
+                    f"{base_cmd} << '{eof_delimiter}'\n{code}\n{eof_delimiter}"
+                )
+            elif language == "bash":
+                full_command = (
+                    f"{base_cmd} << '{eof_delimiter}'\n{code}\n{eof_delimiter}"
+                )
+            elif language == "javascript":
+                full_command = (
+                    f"{base_cmd} << '{eof_delimiter}'\n{code}\n{eof_delimiter}"
+                )
+            elif language == "powershell":
+                # PowerShell doesn't support heredoc, fall back to -Command with escaping
+                escaped_code = code.replace('"', '""').replace("'", "''")
+                full_command = f'{base_cmd} -Command "{escaped_code}"'
+        else:
+            # Use -c flag for simple code
+            if language == "python":
+                escaped_code = code.replace('"', '\\"').replace("'", "\\'")
+                full_command = f'{base_cmd} -c "{escaped_code}"'
+            elif language == "bash":
+                escaped_code = code.replace('"', '\\"')
+                full_command = f'{base_cmd} -c "{escaped_code}"'
+            elif language == "javascript":
+                escaped_code = code.replace('"', '\\"').replace("'", "\\'")
+                full_command = f'{base_cmd} -e "{escaped_code}"'
+            elif language == "powershell":
+                escaped_code = code.replace('"', '""').replace("'", "''")
+                full_command = f'{base_cmd} -Command "{escaped_code}"'
 
         # Get execution directory, default to current directory
         exec_dir = params.get("exec_dir", ".")
         execution_id = f"script_{uuid.uuid4().hex[:8]}"
 
-        logger.info(f"Executing script: {execution_id}")
+        logger.info(f"Executing script: {full_command}")
 
         result: ShellOutput = await shell_exec_command(
             environment=self.environment,
             id=execution_id,
             exec_dir=exec_dir,
-            command=command,
+            command=full_command,
             blocking=True,
         )
         logger.info(f"Script result: {result}")
