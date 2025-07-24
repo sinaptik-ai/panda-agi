@@ -3,8 +3,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 try:
-    from e2b.sandbox_sync.sandbox_api import SandboxQuery
     from e2b.sandbox.filesystem.filesystem import FileType
+    from e2b.sandbox_sync.sandbox_api import SandboxQuery
     from e2b_code_interpreter import Sandbox
 except ImportError:
     Sandbox = None

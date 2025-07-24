@@ -8,9 +8,12 @@ environment classes themselves.
 
 import asyncio
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
+
+from pydantic import BaseModel
 
 from panda_agi.envs import BaseEnv
+from panda_agi.tools import ToolResult
 
 # Dictionary to store shell sessions
 _shell_sessions: Dict[str, Dict[str, Any]] = {}
@@ -25,9 +28,22 @@ def _limit_output(output: str, limit: int = 10) -> str:
     )
 
 
+class ShellOutput(BaseModel):
+    status: Literal["success", "error"]
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+    def to_tool_result(self) -> ToolResult:
+        return ToolResult(
+            success=self.status == "success",
+            data=self.result,
+            error=self.error,
+        )
+
+
 async def shell_exec_command(
     environment: BaseEnv, id: str, exec_dir: str, command: str, blocking: bool = True
-) -> Dict[str, Any]:
+) -> ShellOutput:
     """
     Execute a command in a shell session.
 
@@ -71,9 +87,6 @@ async def shell_exec_command(
         if result.get("stderr"):
             result["stderr"] = _limit_output(result["stderr"])
 
-        # Update session info
-        session["last_updated"] = time.time()
-
         # Store session_id for non-blocking commands
         if not blocking and "session_id" in result:
             session["last_session_id"] = result["session_id"]
@@ -81,14 +94,15 @@ async def shell_exec_command(
         # Add session info to result
         result["shell_session_id"] = id
 
-        return result
+        return ShellOutput(
+            status="success",
+            result=result,
+        )
 
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e),
-            "shell_session_id": id,
-        }
+        return ShellOutput(
+            status="error", result={"shell_session_id": id}, error=str(e)
+        )
     finally:
         # Restore original working directory
         if exec_dir:
@@ -100,7 +114,7 @@ async def shell_view_output(
     id: str,
     kill_process: bool = False,
     wait_seconds: Optional[float] = None,
-) -> Dict[str, Any]:
+) -> ShellOutput:
     """
     View the output of a shell session.
 
@@ -114,7 +128,9 @@ async def shell_view_output(
         Dict containing the shell session output
     """
     if id not in _shell_sessions:
-        return {"status": "error", "message": f"Shell session {id} not found"}
+        return ShellOutput(
+            status="error", result=None, error=f"Shell session {id} not found"
+        )
 
     session = _shell_sessions[id]
 
@@ -125,22 +141,24 @@ async def shell_view_output(
     # Get the last session_id from non-blocking execution
     last_session_id = session.get("last_session_id")
     if not last_session_id:
-        return {
-            "status": "error",
-            "message": f"No active non-blocking process in shell session {id}",
-            "shell_session_id": id,
-        }
+        return ShellOutput(
+            status="error",
+            result={
+                "message": f"No active non-blocking process in shell session {id}",
+                "shell_session_id": id,
+            },
+            error=f"No active non-blocking process in shell session {id}",
+        )
 
     try:
         # Get process output using environment-specific method
         if hasattr(environment, "get_process_output"):
             result = await environment.get_process_output(last_session_id)
         else:
-            return {
-                "status": "error",
-                "message": "Environment does not support process output viewing",
-                "shell_session_id": id,
-            }
+            return ShellOutput(
+                status="error",
+                error="Environment does not support process output viewing",
+            )
 
         # Handle kill_process request
         if kill_process and hasattr(environment, "terminate_process"):
@@ -154,19 +172,24 @@ async def shell_view_output(
                 )
 
         result["shell_session_id"] = id
-        return result
+        return ShellOutput(
+            status="success",
+            result=result,
+        )
 
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e),
-            "shell_session_id": id,
-        }
+        return ShellOutput(
+            status="error",
+            result={
+                "shell_session_id": id,
+            },
+            error=str(e),
+        )
 
 
 async def shell_write_to_process(
     environment: BaseEnv, id: str, input: str, press_enter: bool = True
-) -> Dict[str, Any]:
+) -> ShellOutput:
     """
     Write input to a running process.
 
@@ -180,44 +203,45 @@ async def shell_write_to_process(
         Dict containing the operation status
     """
     if id not in _shell_sessions:
-        return {"status": "error", "message": f"Shell session {id} not found"}
+        return ShellOutput(
+            status="error",
+            error=f"Shell session {id} not found",
+        )
 
     session = _shell_sessions[id]
 
     # Get the last session_id from non-blocking execution
     last_session_id = session.get("last_session_id")
     if not last_session_id:
-        return {
-            "status": "error",
-            "message": f"No active non-blocking process in shell session {id}",
-            "shell_session_id": id,
-        }
+        return ShellOutput(
+            status="error",
+            result={"shell_session_id": id},
+            error=f"No active non-blocking process in shell session {id}",
+        )
 
     try:
         # Write to process using environment-specific method
         if hasattr(environment, "write_to_process"):
             result = environment.write_to_process(last_session_id, input, press_enter)
         else:
-            return {
-                "status": "error",
-                "message": "Environment does not support writing to processes",
-                "shell_session_id": id,
-            }
+            return ShellOutput(
+                status="error",
+                result={"shell_session_id": id},
+                error="Environment does not support writing to processes",
+            )
 
         result["shell_session_id"] = id
-        return result
+        return ShellOutput(status="success", result=result)
 
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e),
-            "shell_session_id": id,
-        }
+        return ShellOutput(
+            status="error", result={"shell_session_id": id}, error=str(e)
+        )
 
 
 async def shell_exec_background(
     environment: BaseEnv, command: str, id: str
-) -> Dict[str, Any]:
+) -> ShellOutput:
     """
     Execute a command in the background (non-blocking).
 
@@ -238,7 +262,7 @@ async def shell_exec_background(
     )
 
 
-async def shell_get_session_output(id: str) -> Dict[str, Any]:
+async def shell_get_session_output(id: str) -> ShellOutput:
     """
     Get the output from a shell session.
 
@@ -249,23 +273,28 @@ async def shell_get_session_output(id: str) -> Dict[str, Any]:
         Dict containing the session output
     """
     if id not in _shell_sessions:
-        return {"status": "error", "message": f"Shell session {id} not found"}
+        return ShellOutput(
+            status="error",
+            error=f"Shell session {id} not found",
+        )
 
     session = _shell_sessions[id]
     environment = session["environment"]
 
-    return {
-        "status": "success",
-        "shell_session_id": id,
-        "working_directory": str(environment.current_directory),
-        "last_command": session.get("last_command"),
-        "created_at": session.get("created_at"),
-        "last_updated": session.get("last_updated"),
-        "has_active_process": session.get("last_session_id") is not None,
-    }
+    return ShellOutput(
+        status="success",
+        result={
+            "shell_session_id": id,
+            "working_directory": str(environment.current_directory),
+            "last_command": session.get("last_command"),
+            "created_at": session.get("created_at"),
+            "last_updated": session.get("last_updated"),
+            "has_active_process": session.get("last_session_id") is not None,
+        },
+    )
 
 
-async def shell_clear_session_output(id: str) -> Dict[str, Any]:
+async def shell_clear_session_output(id: str) -> ShellOutput:
     """
     Clear the output from a shell session.
 
@@ -276,7 +305,10 @@ async def shell_clear_session_output(id: str) -> Dict[str, Any]:
         Dict containing the operation status
     """
     if id not in _shell_sessions:
-        return {"status": "error", "message": f"Shell session {id} not found"}
+        return ShellOutput(
+            status="error",
+            error=f"Shell session {id} not found",
+        )
 
     session = _shell_sessions[id]
 
@@ -284,14 +316,16 @@ async def shell_clear_session_output(id: str) -> Dict[str, Any]:
     session["last_session_id"] = None
     session["last_updated"] = time.time()
 
-    return {
-        "status": "success",
-        "shell_session_id": id,
-        "message": "Session output cleared",
-    }
+    return ShellOutput(
+        status="success",
+        result={
+            "shell_session_id": id,
+            "message": "Session output cleared",
+        },
+    )
 
 
-async def shell_terminate_session(id: str) -> Dict[str, Any]:
+async def shell_terminate_session(id: str) -> ShellOutput:
     """
     Terminate a shell session and clean up resources.
 
@@ -302,7 +336,10 @@ async def shell_terminate_session(id: str) -> Dict[str, Any]:
         Dict containing the operation status
     """
     if id not in _shell_sessions:
-        return {"status": "error", "message": f"Shell session {id} not found"}
+        return ShellOutput(
+            status="error",
+            error=f"Shell session {id} not found",
+        )
 
     session = _shell_sessions[id]
     environment = session["environment"]
@@ -319,14 +356,16 @@ async def shell_terminate_session(id: str) -> Dict[str, Any]:
     # Remove the session
     del _shell_sessions[id]
 
-    return {
-        "status": "success",
-        "shell_session_id": id,
-        "message": "Shell session terminated",
-    }
+    return ShellOutput(
+        status="success",
+        result={
+            "shell_session_id": id,
+            "message": "Shell session terminated",
+        },
+    )
 
 
-async def shell_list_sessions() -> Dict[str, Any]:
+async def shell_list_sessions() -> ShellOutput:
     """
     List all active shell sessions.
 
@@ -350,16 +389,18 @@ async def shell_list_sessions() -> Dict[str, Any]:
             }
         )
 
-    return {
-        "status": "success",
-        "sessions": sessions_info,
-        "total_sessions": len(sessions_info),
-    }
+    return ShellOutput(
+        status="success",
+        result={
+            "sessions": sessions_info,
+            "total_sessions": len(sessions_info),
+        },
+    )
 
 
 async def shell_change_directory(
     environment: BaseEnv, path: str, id: Optional[str] = None
-) -> Dict[str, Any]:
+) -> ShellOutput:
     """
     Change the working directory for shell operations.
 
@@ -379,15 +420,19 @@ async def shell_change_directory(
         if id and id in _shell_sessions:
             _shell_sessions[id]["last_updated"] = time.time()
 
-        return {
-            "status": "success",
-            "working_directory": str(new_path),
-            "shell_session_id": id if id else None,
-        }
+        return ShellOutput(
+            status="success",
+            result={
+                "working_directory": str(new_path),
+                "shell_session_id": id if id else None,
+            },
+        )
     except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e),
-            "path": path,
-            "shell_session_id": id if id else None,
-        }
+        return ShellOutput(
+            status="error",
+            result={
+                "path": path,
+                "shell_session_id": id if id else None,
+            },
+            error=str(e),
+        )

@@ -1,17 +1,17 @@
+import logging
 import uuid
 from typing import Any, Dict, Optional
 
 from panda_agi.envs.local_env import LocalEnv
 
-from ..client.models import EventType
 from .base import ToolHandler, ToolResult
 from .file_system_ops.shell_ops import (
+    ShellOutput,
     shell_exec_command,
     shell_view_output,
     shell_write_to_process,
 )
 from .registry import ToolRegistry
-import logging
 
 logger = logging.getLogger("ShellTools")
 
@@ -45,9 +45,9 @@ class ShellExecCommandHandler(ToolHandler):
         if isinstance(blocking, str):
             blocking = blocking.lower() == "true"
 
-        await self.add_event(EventType.SHELL_EXEC, params)
+        # await self.add_event(EventType.SHELL_EXEC, params)
 
-        result = await shell_exec_command(
+        result: ShellOutput = await shell_exec_command(
             environment=self.environment,
             id=params["id"],
             exec_dir=params["exec_dir"],
@@ -55,11 +55,7 @@ class ShellExecCommandHandler(ToolHandler):
             blocking=blocking,
         )
 
-        return ToolResult(
-            success=result.get("status") == "success",
-            data=result,
-            error=result.get("message") if result.get("status") != "success" else None,
-        )
+        return result.to_tool_result()
 
 
 @ToolRegistry.register(
@@ -91,20 +87,16 @@ class ShellViewOutputHandler(ToolHandler):
         if wait_seconds is not None and isinstance(wait_seconds, str):
             wait_seconds = float(wait_seconds)
 
-        await self.add_event(EventType.SHELL_VIEW, params)
+        # await self.add_event(EventType.SHELL_VIEW, params)
 
-        result = await shell_view_output(
+        result: ShellOutput = await shell_view_output(
             environment=self.environment,
             id=params["id"],
             kill_process=kill_process,
             wait_seconds=wait_seconds,
         )
 
-        return ToolResult(
-            success=result.get("status") == "success",
-            data=result,
-            error=result.get("message") if result.get("status") != "success" else None,
-        )
+        return result.to_tool_result()
 
 
 @ToolRegistry.register(
@@ -134,20 +126,16 @@ class ShellWriteToProcessHandler(ToolHandler):
         if isinstance(press_enter, str):
             press_enter = press_enter.lower() == "true"
 
-        await self.add_event(EventType.SHELL_WRITE, params)
+        # await self.add_event(EventType.SHELL_WRITE, params)
 
-        result = await shell_write_to_process(
+        result: ShellOutput = await shell_write_to_process(
             environment=self.environment,
             id=params["id"],
             input=params["input"],
             press_enter=press_enter,
         )
 
-        return ToolResult(
-            success=result.get("status") == "success",
-            data=result,
-            error=result.get("message") if result.get("status") != "success" else None,
-        )
+        return result.to_tool_result()
 
 
 @ToolRegistry.register(
@@ -176,44 +164,92 @@ class ExecuteScriptHandler(ToolHandler):
 
         return None
 
+    def _needs_eof_syntax(self, code: str) -> bool:
+        """Determine if code should use EOF syntax instead of -c flag"""
+        # Use EOF for multi-line code or code with complex quoting
+        return (
+            "\n" in code.strip()  # Multi-line code
+            or code.count('"') > 2  # Many double quotes
+            or code.count("'") > 2  # Many single quotes
+            or len(code) > 200  # Long code
+            or "${" in code  # Shell variable expansion
+            or "`" in code  # Backticks
+        )
+
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         # Language command mapping
         language_commands = {
-            "python": "python3 -c",
-            "bash": "bash -c",
-            "javascript": "node -e",
-            "powershell": "powershell -Command",
+            "python": "python3",
+            "bash": "bash",
+            "javascript": "node",
+            "powershell": "powershell",
+        }
+
+        # EOF delimiters for different languages
+        eof_delimiters = {
+            "python": "PYTHON_EOF",
+            "bash": "BASH_EOF",
+            "javascript": "JS_EOF",
+            "powershell": "PS_EOF",
         }
 
         language = params["language"]
         code = params["code"]
 
-        # Construct the command
-        base_command = language_commands[language]
-        # Escape quotes in the code for shell execution
-        escaped_code = code.replace('"', '\\"')
-        command = f'{base_command} "{escaped_code}"'
+        # Get the base command
+        base_cmd = language_commands[language]
+        eof_delimiter = eof_delimiters[language]
+
+        # Decide whether to use EOF syntax or -c flag
+        if self._needs_eof_syntax(code):
+            # Use EOF syntax for complex code
+            if language == "python":
+                full_command = (
+                    f"{base_cmd} << '{eof_delimiter}'\n{code}\n{eof_delimiter}"
+                )
+            elif language == "bash":
+                full_command = (
+                    f"{base_cmd} << '{eof_delimiter}'\n{code}\n{eof_delimiter}"
+                )
+            elif language == "javascript":
+                full_command = (
+                    f"{base_cmd} << '{eof_delimiter}'\n{code}\n{eof_delimiter}"
+                )
+            elif language == "powershell":
+                # PowerShell doesn't support heredoc, fall back to -Command with escaping
+                escaped_code = code.replace('"', '""').replace("'", "''")
+                full_command = f'{base_cmd} -Command "{escaped_code}"'
+        else:
+            # Use -c flag for simple code
+            if language == "python":
+                escaped_code = code.replace('"', '\\"').replace("'", "\\'")
+                full_command = f'{base_cmd} -c "{escaped_code}"'
+            elif language == "bash":
+                escaped_code = code.replace('"', '\\"')
+                full_command = f'{base_cmd} -c "{escaped_code}"'
+            elif language == "javascript":
+                escaped_code = code.replace('"', '\\"').replace("'", "\\'")
+                full_command = f'{base_cmd} -e "{escaped_code}"'
+            elif language == "powershell":
+                escaped_code = code.replace('"', '""').replace("'", "''")
+                full_command = f'{base_cmd} -Command "{escaped_code}"'
 
         # Get execution directory, default to current directory
         exec_dir = params.get("exec_dir", ".")
         execution_id = f"script_{uuid.uuid4().hex[:8]}"
 
-        logger.info(f"Executing script: {execution_id}")
-        result = await shell_exec_command(
+        logger.info(f"Executing script: {full_command}")
+
+        result: ShellOutput = await shell_exec_command(
             environment=self.environment,
             id=execution_id,
             exec_dir=exec_dir,
-            command=command,
+            command=full_command,
             blocking=True,
         )
+        logger.info(f"Script result: {result}")
 
-        tool_result = ToolResult(
-            success=result.get("status") == "success",
-            data=result,
-            error=result.get("stderr"),
-        )
-
-        return tool_result
+        return result.to_tool_result()
 
 
 @ToolRegistry.register(
@@ -303,16 +339,7 @@ class DeployServerHandler(ToolHandler):
         else:
             command = f"nohup python3 -m http.server {port} --directory {source_path} > /dev/null 2>&1 &"
 
-        shell_params = {
-            "id": deployment_id,
-            "exec_dir": ".",
-            "command": command,
-            "blocking": False,  # Run in background
-        }
-
-        await self.add_event(EventType.SHELL_EXEC, shell_params)
-
-        result = await shell_exec_command(
+        result: ShellOutput = await shell_exec_command(
             environment=self.environment,
             id=deployment_id,
             exec_dir=".",
@@ -331,7 +358,7 @@ class DeployServerHandler(ToolHandler):
         """Deploy a Node.js application"""
         # Check if package.json exists
         package_json_check = f"test -f {source_path}/package.json"
-        check_result = await shell_exec_command(
+        check_result: ShellOutput = await shell_exec_command(
             environment=self.environment,
             id=f"{deployment_id}_check",
             exec_dir=".",
@@ -344,7 +371,7 @@ class DeployServerHandler(ToolHandler):
 
         # Install dependencies if node_modules doesn't exist
         node_modules_check = f"test -d {source_path}/node_modules"
-        modules_result = await shell_exec_command(
+        modules_result: ShellOutput = await shell_exec_command(
             environment=self.environment,
             id=f"{deployment_id}_modules_check",
             exec_dir=".",
@@ -355,16 +382,16 @@ class DeployServerHandler(ToolHandler):
         if modules_result.get("status") != "success":
             # Install dependencies
             install_command = f"cd {source_path} && npm install"
-            await self.add_event(
-                EventType.SHELL_EXEC,
-                {
-                    "id": f"{deployment_id}_install",
-                    "exec_dir": source_path,
-                    "command": f"{install_command}",
-                },
-            )
+            # await self.add_event(
+            #     EventType.SHELL_EXEC,
+            #     {
+            #         "id": f"{deployment_id}_install",
+            #         "exec_dir": source_path,
+            #         "command": f"{install_command}",
+            #     },
+            # )
 
-            install_result = await shell_exec_command(
+            install_result: ShellOutput = await shell_exec_command(
                 environment=self.environment,
                 id=f"{deployment_id}_install",
                 exec_dir=source_path,
@@ -380,16 +407,16 @@ class DeployServerHandler(ToolHandler):
         # Run build command if specified
         build_command = params.get("build_command")
         if build_command:
-            await self.add_event(
-                EventType.SHELL_EXEC,
-                {
-                    "id": f"{deployment_id}_build",
-                    "exec_dir": source_path,
-                    "command": build_command,
-                },
-            )
+            # await self.add_event(
+            #     EventType.SHELL_EXEC,
+            #     {
+            #         "id": f"{deployment_id}_build",
+            #         "exec_dir": source_path,
+            #         "command": build_command,
+            #     },
+            # )
 
-            build_result = await shell_exec_command(
+            build_result: ShellOutput = await shell_exec_command(
                 environment=self.environment,
                 id=f"{deployment_id}_build",
                 exec_dir=source_path,
@@ -421,16 +448,9 @@ class DeployServerHandler(ToolHandler):
         # Start the application
         full_command = f"{env_prefix}{start_command}"
 
-        shell_params = {
-            "id": deployment_id,
-            "exec_dir": source_path,
-            "command": full_command,
-            "blocking": False,  # Run in background
-        }
+        # await self.add_event(EventType.SHELL_EXEC, shell_params)
 
-        await self.add_event(EventType.SHELL_EXEC, shell_params)
-
-        result = await shell_exec_command(
+        result: ShellOutput = await shell_exec_command(
             environment=self.environment,
             id=deployment_id,
             exec_dir=source_path,

@@ -1,8 +1,8 @@
-from e2b.api.client.models import sandbox
+import os
+from typing import Any, Dict, Optional
+
 from panda_agi.envs import E2BEnv
 from panda_agi.envs.local_env import LocalEnv
-import os
-from typing import Dict, Any, Optional
 
 WORKSPACE_PATH = os.getenv("WORKSPACE_PATH", "./workspace")
 

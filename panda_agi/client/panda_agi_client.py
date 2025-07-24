@@ -115,7 +115,7 @@ class PandaAgiClient:
                     # check if chunk is conversation_id
                     if self.is_chunk_conversation_id(chunk):
                         self.conversation_id = self._extract_conversation_id(chunk)
-                        logger.info(
+                        logger.debug(
                             f"[HTTP] Received conversation_id: {self.conversation_id}"
                         )
                         yield {
