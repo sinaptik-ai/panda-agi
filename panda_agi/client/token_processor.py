@@ -66,54 +66,7 @@ class TokenProcessor:
                         )
                     )
 
-                # Try to parse JSON if the token looks like JSON
                 try:
-                    token_data = json.loads(token)
-
-                    # Extract content if it's a structured response
-                    if isinstance(token_data, dict):
-                        content = self._extract_content(token_data)
-                        if content:
-                            self.accumulated_content += content
-                            self.xml_buffer += content
-
-                            # Check for XML tool calls in the buffer and yield tool events
-                            async for (
-                                tool_event
-                            ) in self._process_xml_tools_and_yield_events(content):
-                                logger.info(f"Yielding XML tool call: {tool_event}")
-                                yield tool_event
-
-                        # Yield structured event
-                        yield {
-                            "type": "token",
-                            "raw_token": token,
-                            "parsed_data": token_data,
-                            "content": content,
-                            "accumulated_content": self.accumulated_content,
-                        }
-                    else:
-                        # Handle non-dict JSON data
-                        self.accumulated_content += str(token_data)
-                        self.xml_buffer += str(token_data)
-
-                        # Check for XML tool calls and yield tool events
-                        async for (
-                            tool_event
-                        ) in self._process_xml_tools_and_yield_events(str(token_data)):
-                            logger.info(f"Yielding XML tool call: {tool_event}")
-                            yield tool_event
-
-                        yield {
-                            "type": "token",
-                            "raw_token": token,
-                            "parsed_data": token_data,
-                            "content": str(token_data),
-                            "accumulated_content": self.accumulated_content,
-                        }
-
-                except json.JSONDecodeError:
-                    # Handle plain text tokens
                     self.accumulated_content += token
                     self.xml_buffer += token
 
@@ -121,7 +74,7 @@ class TokenProcessor:
                     async for tool_event in self._process_xml_tools_and_yield_events(
                         token
                     ):
-                        logger.info(f"Yielding XML tool call: {tool_event}")
+                        logger.debug(f"Yielding XML tool call: {tool_event}")
                         yield tool_event
 
                     yield {
@@ -131,6 +84,11 @@ class TokenProcessor:
                         "content": token,
                         "accumulated_content": self.accumulated_content,
                     }
+
+                except json.JSONDecodeError:
+                    # Handle plain text tokens
+                    self.accumulated_content += token
+                    self.xml_buffer += token
 
         except Exception as e:
             logger.error(f"Error processing token stream: {e}")
