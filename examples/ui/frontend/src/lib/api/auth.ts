@@ -44,7 +44,7 @@ export async function getGitHubAuthUrl(): Promise<string | null> {
     console.error("Failed to fetch GitHub authentication URL:", error);
     if (error instanceof Error) {
       if (error.message.includes("Failed to fetch")) {
-        throw new Error("Server is not responding, Please try again in a few minutes.");
+        throw new Error("Server is not responding. Please try again in a few minutes.");
       }
       throw new Error(error.message);
     }
