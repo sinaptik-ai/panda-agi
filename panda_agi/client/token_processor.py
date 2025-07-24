@@ -85,10 +85,8 @@ class TokenProcessor:
                         "accumulated_content": self.accumulated_content,
                     }
 
-                except json.JSONDecodeError:
-                    # Handle plain text tokens
-                    self.accumulated_content += token
-                    self.xml_buffer += token
+                except Exception as e:
+                    logger.error(f"Error processing token: {e}")
 
         except Exception as e:
             logger.error(f"Error processing token stream: {e}")
