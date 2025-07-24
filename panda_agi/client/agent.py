@@ -519,7 +519,7 @@ class Agent:
             result = await handler.execute(arguments)
 
             # Generate timestamp for tool end
-            end_timestamp = datetime.now().isoformat() + "Z"
+            end_timestamp = datetime.now().isoformat()
 
             # Yield tool end event or error event
             if result.success:
