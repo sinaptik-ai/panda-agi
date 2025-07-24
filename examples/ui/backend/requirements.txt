@@ -9,5 +9,5 @@ matplotlib>=3.7.0
 numpy>=1.24.0
 plotly>=5.15.0
 kaleido>=0.2.1
-panda-agi
+panda-agi>=0.6.0
 aiohttp
