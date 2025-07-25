@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="panda_agi",
-    version="0.6.1",
+    version="0.6.2",
     description="PandaAGI SDK - API for AGI",
     author="PandaAGI Team",
     packages=find_packages(),
