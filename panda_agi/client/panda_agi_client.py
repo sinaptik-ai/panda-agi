@@ -45,6 +45,15 @@ class ImageGenerationResponse(BaseModel):
     message: str
 
 
+# Custom exception for connection errors
+class PandaAgiConnectionError(Exception):
+    """Exception raised when connection to the server fails."""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+
 class PandaAgiClient:
     """HTTP client for managing streaming requests and message handling"""
 

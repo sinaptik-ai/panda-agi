@@ -347,9 +347,9 @@ class DeployServerHandler(ToolHandler):
             blocking=False,
         )
 
-        if result.get("status") != "success":
+        if result.status != "success":
             raise Exception(
-                f"Failed to start static server: {result.get('message', 'Unknown error')}"
+                f"Failed to start static server: {result.error or 'Unknown error'}"
             )
 
     async def _deploy_nodejs_app(
@@ -366,7 +366,7 @@ class DeployServerHandler(ToolHandler):
             blocking=True,
         )
 
-        if check_result.get("status") != "success":
+        if check_result.status != "success":
             raise Exception(f"No package.json found in {source_path}")
 
         # Install dependencies if node_modules doesn't exist
@@ -379,7 +379,7 @@ class DeployServerHandler(ToolHandler):
             blocking=True,
         )
 
-        if modules_result.get("status") != "success":
+        if modules_result.status != "success":
             # Install dependencies
             install_command = f"cd {source_path} && npm install"
             # await self.add_event(
@@ -399,9 +399,9 @@ class DeployServerHandler(ToolHandler):
                 blocking=True,
             )
 
-            if install_result.get("status") != "success":
+            if install_result.status != "success":
                 raise Exception(
-                    f"Failed to install dependencies: {install_result.get('message', 'Unknown error')}"
+                    f"Failed to install dependencies: {install_result.error or 'Unknown error'}"
                 )
 
         # Run build command if specified
@@ -424,9 +424,9 @@ class DeployServerHandler(ToolHandler):
                 blocking=True,
             )
 
-            if build_result.get("status") != "success":
+            if build_result.status != "success":
                 raise Exception(
-                    f"Build failed: {build_result.get('message', 'Unknown error')}"
+                    f"Build failed: {build_result.error or 'Unknown error'}"
                 )
 
         # Determine start command
@@ -458,7 +458,7 @@ class DeployServerHandler(ToolHandler):
             blocking=False,
         )
 
-        if result.get("status") != "success":
+        if result.status != "success":
             raise Exception(
-                f"Failed to start Node.js application: {result.get('message', 'Unknown error')}"
+                f"Failed to start Node.js application: {result.error or 'Unknown error'}"
             )

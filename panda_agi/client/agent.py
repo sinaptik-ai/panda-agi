@@ -12,6 +12,7 @@ from typing import (
     Union,
 )
 
+import httpx
 from dotenv import load_dotenv
 
 from ..envs import BaseEnv
@@ -27,7 +28,7 @@ from .models import (
     Skill,
     ToolsConfig,
 )
-from .panda_agi_client import PandaAgiClient
+from .panda_agi_client import PandaAgiClient, PandaAgiConnectionError
 from .state import AgentState
 from .token_processor import TokenProcessor
 
@@ -464,6 +465,11 @@ class Agent:
                     # Neither execute_tools_at_end nor execute_tools_immediately
                     # This is the legacy immediate mode - tools were already executed in the stream
                     breaking_tool_executed = True
+
+        # if All connection attempts failed (httpx.ConnectError)
+        except httpx.ConnectError as e:
+            logger.error(f"All connection attempts failed: {e}")
+            raise PandaAgiConnectionError("PandaAGI Server connection error")
 
         except Exception as e:
             logger.error(f"Error in run_stream: {e}")

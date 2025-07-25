@@ -59,11 +59,13 @@ async def shell_exec_command(
     """
     # Store original working directory
     original_dir = environment.current_directory
+    directory_changed = False
 
     try:
         # Change to exec_dir if specified
         if exec_dir:
             environment.change_directory(exec_dir)
+            directory_changed = True
 
         # Create or update session info
         if id not in _shell_sessions:
@@ -104,9 +106,16 @@ async def shell_exec_command(
             status="error", result={"shell_session_id": id}, error=str(e)
         )
     finally:
-        # Restore original working directory
-        if exec_dir:
-            environment.change_directory(original_dir)
+        # Restore original working directory, but only for blocking commands
+        # or if the command failed. For non-blocking commands that succeeded,
+        # avoid directory restoration to prevent hanging on busy E2B sandboxes
+        if directory_changed and blocking:
+            try:
+                environment.change_directory(original_dir)
+            except Exception as e:
+                # Log the error but don't fail the entire operation
+                # This prevents hanging on directory restoration issues
+                print(f"Warning: Failed to restore original directory {original_dir}: {e}")
 
 
 async def shell_view_output(
