@@ -73,8 +73,10 @@ class Agent:
         self.conversation_id = conversation_id
         self.model = model
         self.environment = environment
-        self.base_url = base_url
-
+        self.base_url = base_url or os.getenv(
+            "PANDA_AGI_BASE_URL",
+            "https://agi-api.pandas-ai.com",
+        )
         # Initialize tools list
         self.tools = []
 
@@ -84,11 +86,6 @@ class Agent:
             use_filesystem=use_filesystem,
             use_shell=use_shell,
             use_image_generation=use_image_generation,
-        )
-
-        self.base_url = base_url or os.getenv(
-            "PANDA_AGI_BASE_URL",
-            "http://localhost:8000",
         )
 
         # self.event_manager = EventManager()
