@@ -41,7 +41,14 @@ logging.basicConfig(
 logger = logging.getLogger("AgentClient")
 logger.setLevel(logging.INFO)
 
+
+# Constants
 MAX_TOOLS_LENGTH = 10
+
+AVAILABLE_MODELS = [
+    "annie-pro",
+    "annie-lite",
+]
 
 
 class Agent:
@@ -72,6 +79,10 @@ class Agent:
         self.messages = messages
         self.conversation_id = conversation_id
         self.model = model
+        if model not in AVAILABLE_MODELS:
+            raise ValueError(
+                f"Model {model} is not available. Available models: {AVAILABLE_MODELS}"
+            )
         self.environment = environment
         self.base_url = base_url or os.getenv(
             "PANDA_AGI_BASE_URL",
