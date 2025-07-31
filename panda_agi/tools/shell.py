@@ -2,18 +2,14 @@ import logging
 import uuid
 from typing import Any, Dict, Optional
 
-from panda_agi.envs.local_env import LocalEnv
-
 from .base import ToolHandler, ToolResult
 from .file_system_ops.shell_ops import (
     ShellOutput,
-    shell_exec_command,
-    shell_view_output,
-    shell_write_to_process,
 )
 from .registry import ToolRegistry
 
 logger = logging.getLogger("ShellTools")
+logger.setLevel(logging.INFO)
 
 
 @ToolRegistry.register(
@@ -21,7 +17,7 @@ logger = logging.getLogger("ShellTools")
     xml_tag="shell_exec_command",
     required_params=["command"],
     optional_params=["id", "exec_dir", "blocking"],
-    content_param=None,  # Don't use content as command when attributes are present
+    content_param=None,
     attribute_mappings={
         "command": "command",
         "id": "id",
@@ -45,13 +41,10 @@ class ShellExecCommandHandler(ToolHandler):
         if isinstance(blocking, str):
             blocking = blocking.lower() == "true"
 
-        # await self.add_event(EventType.SHELL_EXEC, params)
-
-        result: ShellOutput = await shell_exec_command(
-            environment=self.environment,
-            id=params["id"],
-            exec_dir=params["exec_dir"],
+        result: ShellOutput = await self.environment.exec_shell(
             command=params["command"],
+            exec_dir=params["exec_dir"],
+            session_id=params["id"],
             blocking=blocking,
         )
 
@@ -87,13 +80,10 @@ class ShellViewOutputHandler(ToolHandler):
         if wait_seconds is not None and isinstance(wait_seconds, str):
             wait_seconds = float(wait_seconds)
 
-        # await self.add_event(EventType.SHELL_VIEW, params)
-
-        result: ShellOutput = await shell_view_output(
-            environment=self.environment,
-            id=params["id"],
-            kill_process=kill_process,
+        result: ShellOutput = await self.environment.get_process_output(
+            session_id=params["id"],
             wait_seconds=wait_seconds,
+            kill_process=kill_process,
         )
 
         return result.to_tool_result()
@@ -126,12 +116,9 @@ class ShellWriteToProcessHandler(ToolHandler):
         if isinstance(press_enter, str):
             press_enter = press_enter.lower() == "true"
 
-        # await self.add_event(EventType.SHELL_WRITE, params)
-
-        result: ShellOutput = await shell_write_to_process(
-            environment=self.environment,
-            id=params["id"],
-            input=params["input"],
+        result: ShellOutput = await self.environment.write_to_process(
+            session_id=params["id"],
+            input_text=params["input"],
             press_enter=press_enter,
         )
 
@@ -240,11 +227,10 @@ class ExecuteScriptHandler(ToolHandler):
 
         logger.info(f"Executing script: {full_command}")
 
-        result: ShellOutput = await shell_exec_command(
-            environment=self.environment,
-            id=execution_id,
-            exec_dir=exec_dir,
+        result: ShellOutput = await self.environment.exec_shell(
             command=full_command,
+            exec_dir=exec_dir,
+            session_id=execution_id,
             blocking=True,
         )
         logger.info(f"Script result: {result}")
@@ -256,14 +242,10 @@ class ExecuteScriptHandler(ToolHandler):
     "deploy_server",
     xml_tag="deploy_server",
     required_params=["port", "app_type", "source_path"],
-    optional_params=["start_command", "build_command", "env_vars"],
     attribute_mappings={
         "port": "port",
         "app_type": "app_type",
         "source_path": "source_path",
-        "start_command": "start_command",
-        "build_command": "build_command",
-        "env_vars": "env_vars",
     },
 )
 class DeployServerHandler(ToolHandler):
@@ -303,11 +285,13 @@ class DeployServerHandler(ToolHandler):
 
         try:
             if app_type == "static":
+                logger.info(f"Deploying static site: {source_path}")
                 await self._deploy_static_site(deployment_id, source_path, port)
             elif app_type == "nodejs":
+                logger.info(f"Deploying Node.js app: {source_path}")
                 await self._deploy_nodejs_app(deployment_id, source_path, port, params)
 
-            hosted_url = await self.environment.get_hosted_url(port)
+            hosted_url = self.environment.get_hosted_url(port)
 
             return ToolResult(
                 success=True,
@@ -334,20 +318,16 @@ class DeployServerHandler(ToolHandler):
         # Use Python's built-in HTTP server for static files
         # TODO: This is a temporary solution to deploy a static site to make it work on Windows and E2B.
         # TODO: We need to use a more robust solution for deploying a static site
-        if isinstance(self.environment, LocalEnv):
-            command = f"python3 -m http.server {port} --directory {source_path}"
-        else:
-            command = f"nohup python3 -m http.server {port} --directory {source_path} > /dev/null 2>&1 &"
 
-        result: ShellOutput = await shell_exec_command(
-            environment=self.environment,
-            id=deployment_id,
-            exec_dir=".",
+        command = f"python3 -m http.server {port} --directory {source_path}"
+
+        result: ShellOutput = await self.environment.exec_shell(
             command=command,
+            session_id=deployment_id,
             blocking=False,
         )
 
-        if result.status != "success":
+        if result.status == "error":
             raise Exception(
                 f"Failed to start static server: {result.error or 'Unknown error'}"
             )
@@ -358,107 +338,61 @@ class DeployServerHandler(ToolHandler):
         """Deploy a Node.js application"""
         # Check if package.json exists
         package_json_check = f"test -f {source_path}/package.json"
-        check_result: ShellOutput = await shell_exec_command(
-            environment=self.environment,
-            id=f"{deployment_id}_check",
-            exec_dir=".",
+        logger.info(f"Checking for package.json: {package_json_check}")
+        check_result: ShellOutput = await self.environment.exec_shell(
             command=package_json_check,
+            session_id=f"{deployment_id}_check",
             blocking=True,
         )
+        logger.info(f"Check result: {check_result}")
 
         if check_result.status != "success":
             raise Exception(f"No package.json found in {source_path}")
 
         # Install dependencies if node_modules doesn't exist
         node_modules_check = f"test -d {source_path}/node_modules"
-        modules_result: ShellOutput = await shell_exec_command(
-            environment=self.environment,
-            id=f"{deployment_id}_modules_check",
-            exec_dir=".",
+        logger.info(f"Checking for node_modules: {node_modules_check}")
+        modules_result: ShellOutput = await self.environment.exec_shell(
             command=node_modules_check,
+            session_id=f"{deployment_id}_modules_check",
             blocking=True,
         )
+        logger.info(f"Modules result: {modules_result}")
 
         if modules_result.status != "success":
             # Install dependencies
             install_command = f"cd {source_path} && npm install"
-            # await self.add_event(
-            #     EventType.SHELL_EXEC,
-            #     {
-            #         "id": f"{deployment_id}_install",
-            #         "exec_dir": source_path,
-            #         "command": f"{install_command}",
-            #     },
-            # )
-
-            install_result: ShellOutput = await shell_exec_command(
-                environment=self.environment,
-                id=f"{deployment_id}_install",
+            logger.info(f"Installing dependencies: {install_command}")
+            install_result: ShellOutput = await self.environment.exec_shell(
+                command=install_command,
                 exec_dir=source_path,
-                command=f"{install_command}",
+                session_id=f"{deployment_id}_install",
                 blocking=True,
             )
+            logger.info(f"Install result: {install_result}")
 
             if install_result.status != "success":
                 raise Exception(
                     f"Failed to install dependencies: {install_result.error or 'Unknown error'}"
                 )
 
-        # Run build command if specified
-        build_command = params.get("build_command")
-        if build_command:
-            # await self.add_event(
-            #     EventType.SHELL_EXEC,
-            #     {
-            #         "id": f"{deployment_id}_build",
-            #         "exec_dir": source_path,
-            #         "command": build_command,
-            #     },
-            # )
-
-            build_result: ShellOutput = await shell_exec_command(
-                environment=self.environment,
-                id=f"{deployment_id}_build",
-                exec_dir=source_path,
-                command=build_command,
-                blocking=True,
-            )
-
-            if build_result.status != "success":
-                raise Exception(
-                    f"Build failed: {build_result.error or 'Unknown error'}"
-                )
-
-        # Determine start command
-        start_command = params.get("start_command")
-        if not start_command:
-            # Try conventional defaults
-            start_command = "npm start"
-
-        # Set environment variables
-        env_vars = params.get("env_vars", {})
-        env_prefix = ""
-        if env_vars:
-            env_list = [f"{key}={value}" for key, value in env_vars.items()]
-            env_prefix = " ".join(env_list) + " "
+        start_command = "npm start"
 
         # Add PORT environment variable
-        env_prefix += f"PORT={port} "
+        env_prefix = f"PORT={port} "
 
         # Start the application
         full_command = f"{env_prefix}{start_command}"
-
-        # await self.add_event(EventType.SHELL_EXEC, shell_params)
-
-        result: ShellOutput = await shell_exec_command(
-            environment=self.environment,
-            id=deployment_id,
-            exec_dir=source_path,
+        logger.info(f"Starting application: {full_command}")
+        result: ShellOutput = await self.environment.exec_shell(
             command=full_command,
+            exec_dir=source_path,
+            session_id=deployment_id,
             blocking=False,
         )
+        logger.info(f"Start result: {result}")
 
-        if result.status != "success":
+        if result.status == "error":
             raise Exception(
                 f"Failed to start Node.js application: {result.error or 'Unknown error'}"
             )

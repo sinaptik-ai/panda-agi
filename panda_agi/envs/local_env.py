@@ -6,17 +6,14 @@ and shell commands are executed.
 """
 
 import asyncio
-import fcntl
 import logging
-import os
 import shutil
 import subprocess
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from .base_env import BaseEnv
+from .base_env import BaseEnv, ExecutionResult
 
 # PDF processing import with fallback
 try:
@@ -34,30 +31,6 @@ except ImportError:
 logger = logging.getLogger("LocalEnv")
 logger.setLevel(logging.WARNING)
 
-# Store active non-blocking processes
-_active_processes: Dict[str, subprocess.Popen] = {}
-
-
-def _read_non_blocking(pipe) -> str:
-    """Read from a pipe without blocking."""
-    if not pipe:
-        return ""
-
-    try:
-        # Make pipe non-blocking
-        fd = pipe.fileno()
-        fl = fcntl.fcntl(fd, fcntl.F_GETFL)
-        fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-
-        # Try to read available data
-        return pipe.read() or ""
-    except BlockingIOError:
-        # No data available to read right now
-        return ""
-    except Exception:
-        # Handle any other errors (like closed pipe)
-        return ""
-
 
 class LocalEnv(BaseEnv):
     """Local file system environment implementation."""
@@ -67,334 +40,88 @@ class LocalEnv(BaseEnv):
         base_path: Union[str, Path],
         metadata: Optional[Dict[str, Any]] = None,
         ports: Optional[List[int]] = [8080, 2664],
+        timeout: Optional[int] = 3600,
     ):
         """
         Initialize the local environment.
 
         Args:
             base_path: The base directory for this environment
+            metadata: Optional metadata dictionary
+            ports: List of ports to use for this environment
+            timeout: Optional timeout in seconds (max timeout when running commands)
         """
-        super().__init__(base_path, metadata)
+        super().__init__(base_path, metadata, timeout)
         # Create base directory if it doesn't exist
         self.base_path.mkdir(parents=True, exist_ok=True)
         self.ports = ports
 
-    async def exec_shell(
-        self,
-        command: str,
-        timeout: Optional[float] = None,
-        capture_output: bool = True,
-        blocking: bool = True,
-    ) -> Dict[str, Any]:
-        """Execute a shell command in the environment."""
-        if blocking:
-            return await self._exec_shell_blocking(command, timeout, capture_output)
-        else:
-            return await self._exec_shell_non_blocking(command, capture_output)
+    async def _run_command(
+        self, command: str, timeout: Optional[int] = None
+    ) -> ExecutionResult:
+        """
+        Execute a command in the local environment.
 
-    async def _exec_shell_blocking(
-        self, command: str, timeout: Optional[float] = None, capture_output: bool = True
-    ) -> Dict[str, Any]:
-        """Execute a shell command in blocking mode with stuck detection."""
+        Args:
+            command: The command to execute
+            timeout: Optional timeout in seconds
+
+        Returns:
+            ExecutionResult: The result of the command execution
+        """
+        if timeout is None:
+            timeout = self.timeout
         try:
-            start_time = datetime.now()
-
-            # Execute command in the current working directory
             process = subprocess.Popen(
                 command,
                 shell=True,
                 cwd=str(self.working_directory),
-                stdout=subprocess.PIPE if capture_output else None,
-                stderr=subprocess.PIPE if capture_output else None,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
             )
 
-            if not capture_output:
-                # If not capturing output, just wait for completion
-                return_code = process.wait(timeout=timeout)
-                end_time = datetime.now()
-                execution_time = (end_time - start_time).total_seconds()
-
-                return {
-                    "status": "success" if return_code == 0 else "error",
-                    "stdout": "",
-                    "stderr": "",
-                    "return_code": return_code,
-                    "execution_time": execution_time,
-                    "working_directory": str(self.working_directory),
-                }
-
-            # For captured output, implement stuck detection
-            stdout_content = ""
-            stderr_content = ""
-            last_output = ""
-            first_check = True
-            stuck_checks = 0
-            max_stuck_checks = 3  # Allow 3 consecutive stuck checks before giving up
-
-            while process.poll() is None:
-                # Wait 5 seconds for first check, then 10 seconds for subsequent checks
-                wait_time = 5.0 if first_check else 10.0
-
-                try:
-                    await asyncio.sleep(wait_time)
-                except:
-                    # Fallback to regular sleep if asyncio is not available
-                    import time
-
-                    time.sleep(wait_time)
-
-                # Read current output
-                current_stdout = _read_non_blocking(process.stdout)
-                current_stderr = _read_non_blocking(process.stderr)
-
-                if current_stdout:
-                    stdout_content += current_stdout
-                if current_stderr:
-                    stderr_content += current_stderr
-
-                current_output = stdout_content + stderr_content
-
-                # Check if output has changed
-                if current_output == last_output and not first_check:
-                    stuck_checks += 1
-                    if stuck_checks >= max_stuck_checks:
-                        # Command appears to be stuck
-                        end_time = datetime.now()
-                        execution_time = (end_time - start_time).total_seconds()
-
-                        return {
-                            "status": "warning",
-                            "stdout": stdout_content,
-                            "stderr": stderr_content,
-                            "return_code": None,
-                            "execution_time": execution_time,
-                            "working_directory": str(self.working_directory),
-                            "warning": "Command appears to be stuck - no output change detected for 30 seconds",
-                            "stuck_detection": True,
-                            "process_running": True,
-                        }
-                else:
-                    stuck_checks = 0  # Reset counter if output changed
-
-                last_output = current_output
-                first_check = False
-
-                # Check timeout
-                if timeout:
-                    elapsed = (datetime.now() - start_time).total_seconds()
-                    if elapsed >= timeout:
-                        process.terminate()
-                        return {
-                            "status": "timeout",
-                            "message": f"Command timed out after {timeout} seconds",
-                            "working_directory": str(self.working_directory),
-                            "stdout": stdout_content,
-                            "stderr": stderr_content,
-                        }
-
-            # Process completed, read any remaining output
             try:
-                remaining_stdout, remaining_stderr = process.communicate(timeout=1)
-                if remaining_stdout:
-                    stdout_content += remaining_stdout
-                if remaining_stderr:
-                    stderr_content += remaining_stderr
+                stdout, stderr = process.communicate(timeout=timeout)
+                exit_code = process.returncode
+                success = exit_code == 0
+
+                return ExecutionResult(
+                    output=stdout.strip() if stdout else "",
+                    error=stderr.strip() if stderr else "",
+                    exit_code=exit_code,
+                    success=success,
+                )
             except subprocess.TimeoutExpired:
-                pass
-
-            end_time = datetime.now()
-            execution_time = (end_time - start_time).total_seconds()
-
-            # Check return code to determine status
-            status = "success" if process.returncode == 0 else "error"
-
-            return {
-                "status": status,
-                "stdout": stdout_content,
-                "stderr": stderr_content,
-                "return_code": process.returncode,
-                "execution_time": execution_time,
-                "working_directory": str(self.working_directory),
-            }
-
-        except subprocess.TimeoutExpired:
-            return {
-                "status": "timeout",
-                "message": f"Command timed out after {timeout} seconds",
-                "working_directory": str(self.working_directory),
-            }
-        except Exception as e:
-            return {
-                "status": "error",
-                "message": str(e),
-                "working_directory": str(self.working_directory),
-            }
-
-    async def _exec_shell_non_blocking(
-        self, command: str, capture_output: bool = True
-    ) -> Dict[str, Any]:
-        """Execute a shell command in non-blocking mode."""
-        try:
-            session_id = str(uuid.uuid4())
-
-            # Start the process
-            if capture_output:
-                process = subprocess.Popen(
-                    command,
-                    shell=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    stdin=subprocess.PIPE,
-                    text=True,
-                    cwd=str(self.working_directory),
+                process.kill()
+                stdout, stderr = process.communicate()
+                return ExecutionResult(
+                    output=stdout.strip() if stdout else "",
+                    error=stderr.strip() if stderr else "",
+                    exit_code=-1,
+                    success=False,
                 )
-            else:
-                process = subprocess.Popen(
-                    command,
-                    shell=True,
-                    stdin=subprocess.PIPE,
-                    text=True,
-                    cwd=str(self.working_directory),
-                )
-
-            # Store the process for later access
-            _active_processes[session_id] = process
-
-            return {
-                "status": "success",
-                "message": "Process started in non-blocking mode",
-                "session_id": session_id,
-                "pid": process.pid,
-                "working_directory": str(self.working_directory),
-            }
-
         except Exception as e:
-            return {
-                "status": "error",
-                "message": str(e),
-                "working_directory": str(self.working_directory),
-            }
+            return ExecutionResult(output="", error=str(e), exit_code=-1, success=False)
 
-    def get_process_status(self, session_id: str) -> Dict[str, Any]:
-        """Get the status of a non-blocking process."""
-        if session_id not in _active_processes:
-            return {"status": "error", "message": f"Session {session_id} not found"}
+    async def _initialize_tmux(self):
+        """
+        Initialize tmux for the local environment.
 
-        process = _active_processes[session_id]
-
-        # Check if process is still running
-        return_code = process.poll()
-        is_running = return_code is None
-
-        result = {
-            "status": "success",
-            "session_id": session_id,
-            "running": is_running,
-            "pid": process.pid,
-        }
-
-        if not is_running:
-            result["return_code"] = return_code
-
-        return result
-
-    async def get_process_output(self, session_id: str) -> Dict[str, Any]:
-        """Get the output of a non-blocking process."""
-        if session_id not in _active_processes:
-            return {"status": "error", "message": f"Session {session_id} not found"}
-
-        process = _active_processes[session_id]
-
+        For local environments, tmux should already be available on the system.
+        This method checks if tmux is available and does minimal setup if needed.
+        """
         try:
-            # Get output without blocking
-            stdout = _read_non_blocking(process.stdout)
-            stderr = _read_non_blocking(process.stderr)
+            # Check if tmux is available
+            result = await self._run_command("which tmux", timeout=10)
+            if not result.success:
+                raise Exception("tmux is not installed on the local system")
 
-            return {
-                "status": "success",
-                "session_id": session_id,
-                "stdout": stdout,
-                "stderr": stderr,
-                "running": process.poll() is None,
-            }
+            # tmux should be available, no additional setup needed for local env
+            logger.info("tmux is available on local system")
+
         except Exception as e:
-            return {
-                "status": "error",
-                "message": str(e),
-                "session_id": session_id,
-            }
-
-    def write_to_process(
-        self, session_id: str, input_text: str, press_enter: bool = True
-    ) -> Dict[str, Any]:
-        """Write input to a non-blocking process."""
-        if session_id not in _active_processes:
-            return {"status": "error", "message": f"Session {session_id} not found"}
-
-        process = _active_processes[session_id]
-
-        if process.poll() is not None:
-            return {"status": "error", "message": "Process is no longer running"}
-
-        try:
-            if process.stdin:
-                text_to_write = input_text
-                if press_enter:
-                    text_to_write += "\n"
-
-                process.stdin.write(text_to_write)
-                process.stdin.flush()
-
-                return {
-                    "status": "success",
-                    "message": "Input written to process",
-                    "session_id": session_id,
-                }
-            else:
-                return {
-                    "status": "error",
-                    "message": "Process stdin not available",
-                    "session_id": session_id,
-                }
-        except Exception as e:
-            return {
-                "status": "error",
-                "message": str(e),
-                "session_id": session_id,
-            }
-
-    def terminate_process(self, session_id: str) -> Dict[str, Any]:
-        """Terminate a non-blocking process."""
-        if session_id not in _active_processes:
-            return {"status": "error", "message": f"Session {session_id} not found"}
-
-        process = _active_processes[session_id]
-
-        try:
-            if process.poll() is None:
-                process.terminate()
-                # Give it a moment to terminate gracefully
-                try:
-                    process.wait(timeout=1)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait()
-
-            # Remove from active processes
-            del _active_processes[session_id]
-
-            return {
-                "status": "success",
-                "message": "Process terminated",
-                "session_id": session_id,
-            }
-        except Exception as e:
-            return {
-                "status": "error",
-                "message": str(e),
-                "session_id": session_id,
-            }
+            raise Exception(f"Failed to initialize tmux: {e}")
 
     async def write_file(
         self,
@@ -405,46 +132,31 @@ class LocalEnv(BaseEnv):
     ) -> Dict[str, Any]:
         """Write content to a file."""
         try:
-            file_path = self._resolve_path(path)
+            target_path = self._resolve_path(path)
 
             # Create parent directories if they don't exist
-            file_path.parent.mkdir(parents=True, exist_ok=True)
+            target_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Write content
-            if "b" in mode:
-                if "a" in mode:
-                    # Append binary mode
-                    with open(file_path, mode) as f:
-                        f.write(content)
-                else:
-                    file_path.write_bytes(content)
+            if isinstance(content, bytes):
+                # Binary mode
+                with open(target_path, "wb") as f:
+                    f.write(content)
             else:
-                if "a" in mode:
-                    # Append text mode
-                    with open(file_path, mode, encoding=encoding) as f:
-                        f.write(content)
-                else:
-                    file_path.write_text(content, encoding=encoding)
-
-            # Get the filename before converting to string
-            filename = file_path.name
-
-            if str(file_path).startswith(str(self.base_path)):
-                file_path = "/" + str(file_path.relative_to(self.base_path))
-            else:
-                file_path = str(file_path)
+                # Text mode
+                with open(target_path, mode, encoding=encoding) as f:
+                    f.write(content)
 
             return {
                 "status": "success",
-                "path": file_path,
-                "file": filename,
+                "message": f"File written successfully: {target_path}",
+                "path": str(target_path),
+                "size": len(content),
             }
-
         except Exception as e:
             return {
                 "status": "error",
                 "message": str(e),
-                "path": str(self._resolve_path(path)),
+                "path": str(path),
             }
 
     async def read_file(
@@ -452,121 +164,111 @@ class LocalEnv(BaseEnv):
     ) -> Dict[str, Any]:
         """Read content from a file. Supports PDF files by converting them to text."""
         try:
-            file_path = self._resolve_path(path)
+            target_path = self._resolve_path(path)
 
-            if not file_path.exists():
+            if not target_path.exists():
                 return {
                     "status": "error",
-                    "message": f"File not found: {file_path}",
-                    "path": str(file_path),
+                    "message": f"File not found: {target_path}",
+                    "path": str(target_path),
                 }
 
-            # Check if it's a PDF file
-            if file_path.suffix.lower() == ".pdf":
-                return await self._read_pdf_file(file_path)
+            # Handle PDF files specially
+            if target_path.suffix.lower() == ".pdf":
+                if not PDF_AVAILABLE:
+                    return {
+                        "status": "error",
+                        "message": "PDF support not available. Install pypdf or PyPDF2.",
+                        "path": str(target_path),
+                    }
+                return await self._read_pdf_file(target_path)
 
-            # Read content for non-PDF files
-            if "b" in mode:
-                content = file_path.read_bytes()
+            # Regular file reading
+            if mode.startswith("r") and "b" not in mode:
+                # Text mode
+                with open(target_path, mode, encoding=encoding) as f:
+                    content = f.read()
             else:
-                content = file_path.read_text(encoding=encoding)
-
-            logger.debug(f"Read content from {file_path}: {content}")
+                # Binary mode
+                with open(target_path, mode) as f:
+                    content = f.read()
 
             return {
                 "status": "success",
                 "content": content,
-                "size": file_path.stat().st_size,
-                "path": str(file_path),
+                "path": str(target_path),
+                "size": len(content),
             }
-
         except Exception as e:
             return {
                 "status": "error",
                 "message": str(e),
-                "path": str(self._resolve_path(path)),
+                "path": str(path),
             }
 
     async def _read_pdf_file(self, file_path: Path) -> Dict[str, Any]:
         """Read and extract text content from a PDF file."""
         try:
-            if not PDF_AVAILABLE:
-                return {
-                    "status": "error",
-                    "message": "PDF reading not available. Please install pypdf or PyPDF2: pip install pypdf",
-                    "path": str(file_path),
-                }
-
             text_content = ""
 
             with open(file_path, "rb") as file:
-                # Handle different PDF library APIs
                 if hasattr(pypdf, "PdfReader"):
-                    # pypdf (newer) API
-                    pdf_reader = pypdf.PdfReader(file)
-                    for page in pdf_reader.pages:
+                    # pypdf (newer)
+                    reader = pypdf.PdfReader(file)
+                    for page in reader.pages:
                         text_content += page.extract_text() + "\n"
-                elif hasattr(pypdf, "PdfFileReader"):
-                    # PyPDF2 (older) API
-                    pdf_reader = pypdf.PdfFileReader(file)
-                    for page_num in range(pdf_reader.numPages):
-                        page = pdf_reader.getPage(page_num)
-                        text_content += page.extractText() + "\n"
                 else:
-                    return {
-                        "status": "error",
-                        "message": "Unsupported PDF library version",
-                        "path": str(file_path),
-                    }
-
-            logger.debug(
-                f"Extracted text from PDF {file_path}: {len(text_content)} characters"
-            )
+                    # PyPDF2 (older)
+                    reader = pypdf.PdfFileReader(file)
+                    for page_num in range(reader.numPages):
+                        page = reader.getPage(page_num)
+                        text_content += page.extractText() + "\n"
 
             return {
                 "status": "success",
                 "content": text_content.strip(),
-                "size": file_path.stat().st_size,
                 "path": str(file_path),
-                "file_type": "pdf",
-                "extracted_text_length": len(text_content.strip()),
+                "size": len(text_content),
+                "type": "pdf",
             }
-
         except Exception as e:
             return {
                 "status": "error",
-                "message": f"Error reading PDF file: {str(e)}",
+                "message": f"Failed to read PDF: {str(e)}",
                 "path": str(file_path),
             }
 
     async def delete_file(self, path: Union[str, Path]) -> Dict[str, Any]:
         """Delete a file or directory."""
         try:
-            file_path = self._resolve_path(path)
+            target_path = self._resolve_path(path)
 
-            if not file_path.exists():
+            if not target_path.exists():
                 return {
                     "status": "error",
-                    "message": f"Path not found: {file_path}",
-                    "path": str(file_path),
+                    "message": f"Path not found: {target_path}",
+                    "path": str(target_path),
                 }
 
-            if file_path.is_file():
-                file_path.unlink()
-            elif file_path.is_dir():
-                shutil.rmtree(file_path)
-
-            return {
-                "status": "success",
-                "path": str(file_path),
-                "message": f"Successfully deleted {file_path}",
-            }
-
+            if target_path.is_dir():
+                shutil.rmtree(target_path)
+                return {
+                    "status": "success",
+                    "message": f"Directory deleted: {target_path}",
+                    "path": str(target_path),
+                }
+            else:
+                target_path.unlink()
+                return {
+                    "status": "success",
+                    "message": f"File deleted: {target_path}",
+                    "path": str(target_path),
+                }
         except Exception as e:
             return {
                 "status": "error",
                 "message": str(e),
-                "path": str(self._resolve_path(path)),
+                "path": str(path),
             }
 
     async def path_exists(self, path: Union[str, Path]) -> bool:
@@ -580,13 +282,9 @@ class LocalEnv(BaseEnv):
             bool: True if the path exists, False otherwise
         """
         try:
-            resolved_path = self._resolve_path(path)
-            return resolved_path.exists()
-        except (OSError, ValueError, TypeError) as e:
-            import traceback
-
-            error_trace = traceback.format_exc()
-            print(f"Error in path_exists: {e}\n{error_trace}")
+            target_path = self._resolve_path(path)
+            return target_path.exists()
+        except Exception:
             return False
 
     async def mkdir(
@@ -604,26 +302,25 @@ class LocalEnv(BaseEnv):
             Dict[str, Any]: Result of the mkdir operation
         """
         try:
-            resolved_path = self._resolve_path(path)
-            resolved_path.mkdir(parents=parents, exist_ok=exist_ok)
-            return {"status": "success", "path": str(resolved_path)}
+            target_path = self._resolve_path(path)
+            target_path.mkdir(parents=parents, exist_ok=exist_ok)
+
+            return {
+                "status": "success",
+                "message": f"Directory created: {target_path}",
+                "path": str(target_path),
+            }
         except FileExistsError:
-            if exist_ok:
-                return {
-                    "status": "success",
-                    "path": str(resolved_path),
-                    "message": "Directory already exists",
-                }
             return {
                 "status": "error",
-                "message": f"Directory already exists: {resolved_path}",
-                "path": str(resolved_path),
+                "message": f"Directory already exists: {path}",
+                "path": str(path),
             }
         except Exception as e:
             return {
                 "status": "error",
-                "message": f"Failed to create directory: {str(e)}",
-                "path": str(resolved_path),
+                "message": str(e),
+                "path": str(path),
             }
 
     async def list_files(
@@ -712,6 +409,7 @@ class LocalEnv(BaseEnv):
             }
 
     async def get_available_ports(self) -> List[int]:
+        """Get list of available ports."""
         try:
             return self.ports
         except Exception as e:
@@ -719,6 +417,7 @@ class LocalEnv(BaseEnv):
             return []
 
     async def is_port_available(self, port: int) -> bool:
+        """Check if a port is available."""
         if port in self.ports:
             return False
 
