@@ -64,37 +64,24 @@ async def shell_exec_command(
     try:
         # Change to exec_dir if specified
         if exec_dir:
-            environment.change_directory(exec_dir)
+            await environment.change_directory(exec_dir)
             directory_changed = True
-
-        # Create or update session info
-        if id not in _shell_sessions:
-            _shell_sessions[id] = {
-                "environment": environment,
-                "created_at": time.time(),
-                "last_command": None,
-                "last_session_id": None,
-            }
-
-        session = _shell_sessions[id]
 
         # Execute the command using the environment's exec_shell method
         result = await environment.exec_shell(
-            command=command, capture_output=True, blocking=blocking
+            session_id=id,
+            command=command,
+            capture_output=True,
+            blocking=blocking,
         )
+
+        logger.debug("Execution result: %s", result)
 
         if result.get("stdout"):
             result["stdout"] = _limit_output(result["stdout"])
 
         if result.get("stderr"):
             result["stderr"] = _limit_output(result["stderr"])
-
-        # Store session_id for non-blocking commands
-        if not blocking and "session_id" in result:
-            session["last_session_id"] = result["session_id"]
-
-        # Add session info to result
-        result["shell_session_id"] = id
 
         return ShellOutput(
             status="success",
@@ -111,11 +98,13 @@ async def shell_exec_command(
         # avoid directory restoration to prevent hanging on busy E2B sandboxes
         if directory_changed and blocking:
             try:
-                environment.change_directory(original_dir)
+                await environment.change_directory(original_dir)
             except Exception as e:
                 # Log the error but don't fail the entire operation
                 # This prevents hanging on directory restoration issues
-                print(f"Warning: Failed to restore original directory {original_dir}: {e}")
+                print(
+                    f"Warning: Failed to restore original directory {original_dir}: {e}"
+                )
 
 
 async def shell_view_output(
@@ -423,7 +412,7 @@ async def shell_change_directory(
     """
     try:
         # Change directory in the environment
-        new_path = environment.change_directory(path)
+        new_path = await environment.change_directory(path)
 
         # Update session if specified
         if id and id in _shell_sessions:

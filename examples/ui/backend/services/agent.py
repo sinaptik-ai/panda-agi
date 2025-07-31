@@ -8,19 +8,20 @@ import logging
 import uuid
 from typing import AsyncGenerator, Optional, Tuple
 
+from utils.event_processing import should_render_event
+
 from panda_agi import Agent
 from panda_agi.envs import E2BEnv
 from panda_agi.envs.local_env import LocalEnv
-from .chat_env import get_env
 
-from utils.event_processing import should_render_event
+from .chat_env import get_env
 
 logger = logging.getLogger("panda_agi_api")
 
 MODEL = "annie-pro"
 
 
-def get_or_create_agent(
+async def get_or_create_agent(
     conversation_id: Optional[str] = None, api_key: str | None = None
 ) -> Tuple[Agent, str]:
     """
@@ -33,9 +34,11 @@ def get_or_create_agent(
         Tuple[Agent, str]: The agent and conversation ID
     """
     new_conversation_id = conversation_id or str(uuid.uuid4())
-    local_env: E2BEnv | LocalEnv = get_env(
+
+    local_env: E2BEnv | LocalEnv = await get_env(
         {"conversation_id": new_conversation_id}, force_new=conversation_id is None
     )
+
     # Create agent with conditional API key
     agent_kwargs = {
         "model": MODEL,
@@ -70,7 +73,9 @@ async def event_stream(
 
     try:
         # Get or create agent for this conversation
-        agent, actual_conversation_id = get_or_create_agent(conversation_id, api_key)
+        agent, actual_conversation_id = await get_or_create_agent(
+            conversation_id, api_key
+        )
 
         # Send conversation ID as first event
         conversation_event = {

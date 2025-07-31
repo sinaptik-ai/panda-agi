@@ -11,9 +11,9 @@ from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
+from services.agent import get_or_create_agent
 
 from panda_agi.envs.base_env import BaseEnv
-from services.agent import get_or_create_agent
 
 logger = logging.getLogger("panda_agi_api")
 
@@ -38,7 +38,8 @@ async def upload_files(
         dict: Upload status and file information
     """
     try:
-        local_env = get_or_create_agent(conversation_id)[0].environment
+        local_agent = await get_or_create_agent(conversation_id)
+        local_env = local_agent[0].environment
 
         if not local_env:
             raise HTTPException(
@@ -48,7 +49,8 @@ async def upload_files(
 
         workspace_path = Path(WORKSPACE_PATH)
 
-        if not await local_env.path_exists(workspace_path):
+        path_exists = await local_env.path_exists(workspace_path)
+        if not path_exists:
             # Ensure workspace directory exists using environment abstraction
             await local_env.mkdir(workspace_path, parents=True, exist_ok=True)
 
@@ -114,7 +116,8 @@ async def validate_and_correct_file_path(
     """
     Read the content of a file.
     """
-    if await local_env.path_exists(file_path):
+    path_exists = await local_env.path_exists(file_path)
+    if path_exists:
         return file_path
     else:
         if not workspace_path:
@@ -152,7 +155,8 @@ async def download_file(
         FileResponse: The file to download
     """
     try:
-        local_env = get_or_create_agent(conversation_id)[0].environment
+        local_agent = await get_or_create_agent(conversation_id)
+        local_env = local_agent[0].environment
         if not local_env:
             raise HTTPException(
                 status_code=500,
@@ -360,7 +364,8 @@ async def read_file(conversation_id: str, file_path: str):
         Response: The file content
     """
     try:
-        local_env = get_or_create_agent(conversation_id)[0].environment
+        local_agent = await get_or_create_agent(conversation_id)
+        local_env = local_agent[0].environment
         if not local_env:
             raise HTTPException(
                 status_code=500,

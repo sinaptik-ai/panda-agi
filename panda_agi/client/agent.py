@@ -39,7 +39,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("AgentClient")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 
 # Constants
@@ -413,7 +413,7 @@ class Agent:
                 if execute_tools_immediately:
                     # Use the immediately executed tool results
                     if immediate_tool_results:
-                        logger.info(
+                        logger.debug(
                             f"Stream ended. Used {len(immediate_tool_results)} immediately executed tool results..."
                         )
 
@@ -441,7 +441,7 @@ class Agent:
                     # Execute all collected tools at the end
                     collected_tools = self.token_processor.get_collected_tools()
                     if collected_tools:
-                        logger.info(
+                        logger.debug(
                             f"Stream ended. Executing {len(collected_tools)} collected tools..."
                         )
 
@@ -1010,20 +1010,20 @@ class Agent:
             tools=[tool.to_tool_info() for tool in self.tools] if self.tools else None,
         )
 
-        logger.info(
+        logger.debug(
             f"Prepared next request for agentic loop with {len(tool_results)} tool results"
         )
 
         return next_request
 
-    def change_working_directory(self, path: str):
+    async def change_working_directory(self, path: str):
         """
         Change the working directory in the current environment.
 
         Args:
             path: New working directory path
         """
-        self.environment.change_directory(path)
+        await self.environment.change_directory(path)
         logger.info(
             f"Changed working directory to: {self.environment.current_directory}"
         )
@@ -1048,7 +1048,7 @@ class Agent:
             self.environment, path="/", max_depth=max_depth
         )
 
-        available_ports = await self.environment.get_available_ports()
+        available_ports = self.environment.get_available_ports()
         file_system_info["available_ports_for_deployments"] = available_ports
         return file_system_info
 

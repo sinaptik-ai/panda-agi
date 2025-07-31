@@ -3,19 +3,22 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 try:
+    from e2b import AsyncSandbox
     from e2b.sandbox.filesystem.filesystem import FileType
     from e2b.sandbox_sync.sandbox_api import SandboxQuery
-    from e2b_code_interpreter import Sandbox
 except ImportError:
-    Sandbox = None
+    AsyncSandbox = None
 
-import time
+import logging
 
-from .base_env import BaseEnv
+from .base_env import BaseEnv, ExecutionResult
+
+logger = logging.getLogger("E2BEnv")
+logger.setLevel(logging.INFO)
 
 
 class E2BEnv(BaseEnv):
-    """Environment backed by an E2B sandbox via `e2b-code-interpreter` SDK."""
+    """Environment backed by an E2B sandbox via `e2b-code-interpreter` SDK with tmux support."""
 
     def __init__(
         self,
@@ -23,57 +26,95 @@ class E2BEnv(BaseEnv):
         metadata: Optional[Dict[str, Any]] = None,
         timeout: int = 3600,
         ports: Optional[List[int]] = [8080, 2664],
-        sandbox: Optional["Sandbox"] = None,
+        sandbox: Optional["AsyncSandbox"] = None,
     ):
-        if Sandbox is None:
+        if AsyncSandbox is None:
             raise ImportError(
                 "e2b_code_interpreter is not installed. "
                 "Please install it with `pip install panda-agi[e2b]`"
             )
-        super().__init__(base_path, metadata)
+        super().__init__(base_path, metadata, timeout)
 
         self.working_directory = self.base_path
-        if sandbox:
-            self.sandbox = sandbox
-        else:
-            self.sandbox = self._connect(timeout, metadata)
-
-        self.timeout = timeout
+        self.sandbox = sandbox  # Will be None if not provided
         self.ports = ports
+        self._metadata = metadata  # Store for deferred connection
 
-    def _connect(self, timeout: int, metadata: Optional[Dict[str, Any]] = None):
-        if Sandbox is None:
+    async def create(self):
+        await self._connect(self.timeout, self._metadata)
+        await self._ensure_tmux_initialized()
+
+    async def _ensure_sandbox_connected(self):
+        """Ensure sandbox is connected, connecting if necessary."""
+        if self.sandbox is None:
+            self.sandbox = await self._connect(self.timeout, self._metadata)
+
+    async def _initialize_tmux(self):
+        """Initialize tmux in the E2B sandbox environment."""
+        try:
+            install_command = self.tmux_executor.generate_tmux_install_command()
+            install_result = await self._run_command(install_command, timeout=120)
+            if not install_result.success:
+                raise Exception("Failed to install tmux")
+
+            tmux_config = self.tmux_executor.generate_tmux_config()
+            try:
+                await self.sandbox.files.write("/tmp/.tmux.conf", tmux_config)
+            except Exception as e:
+                raise Exception(f"Failed to write tmux config: {e}")
+
+        except Exception as e:
+            raise Exception(f"Failed to initialize tmux: {e}")
+
+    async def _run_command(self, command: str, timeout: int = 30) -> ExecutionResult:
+        """Execute a raw command directly in the sandbox."""
+        await self._ensure_sandbox_connected()
+        try:
+            result = await self.sandbox.commands.run(command, timeout=timeout)
+            return ExecutionResult(
+                output=result.stdout or "",
+                error=result.stderr or "",
+                exit_code=result.exit_code,
+                success=result.exit_code == 0,
+            )
+        except Exception as e:
+            return ExecutionResult(output="", error=str(e), exit_code=-1, success=False)
+
+    async def _connect(self, timeout: int, metadata: Optional[Dict[str, Any]] = None):
+        if AsyncSandbox is None:
             raise ImportError(
                 "e2b_code_interpreter is not installed. "
                 "Please install it with `pip install panda-agi[e2b]`"
             )
-        sbx = Sandbox(metadata=metadata, timeout=timeout)
+        sbx = await AsyncSandbox.create(
+            "ytj4es1gv3a3r7gqfyu5", metadata=metadata, timeout=timeout
+        )
         # Ensure base directory exists within sandbox
-        sbx.files.make_dir(str(self.base_path))
+        await sbx.files.make_dir(str(self.base_path))
         return sbx
 
     @staticmethod
-    def get_active_sandbox(metadata: Optional[Dict[str, Any]] = None):
-        if Sandbox is None:
+    async def get_active_sandbox(
+        metadata: Optional[Dict[str, Any]] = None, timeout: int = 1800
+    ):
+        if AsyncSandbox is None:
             raise ImportError(
                 "e2b_code_interpreter is not installed. "
                 "Please install it with `pip install panda-agi[e2b]`"
             )
         if metadata and "conversation_id" in metadata:
             query = SandboxQuery(metadata=metadata)
-            matches = Sandbox.list(query=query)
+            matches = await AsyncSandbox.list(query=query)
             if not matches:
                 raise Exception("Session destroyed, please restart the conversation")
             sbx_info = matches[0]
-            sbx = Sandbox.connect(sbx_info.sandbox_id)
-            sbx.set_timeout(
-                1800
-            )  # 30 minutes to keep instance alive after last request
+            sbx = await AsyncSandbox.connect(sbx_info.sandbox_id)
+            await sbx.set_timeout(timeout)
             return sbx
 
         return None
 
-    def change_directory(self, path: Union[str, Path]) -> Path:
+    async def change_directory(self, path: Union[str, Path]) -> Path:
         """
         Change the current working directory in the sandbox.
 
@@ -84,6 +125,7 @@ class E2BEnv(BaseEnv):
             The new working directory Path object (local abstraction),
             representing the directory in the sandbox.
         """
+        logger.info(f"changing directory to {path}")
         # Resolve relative to current working_directory or absolute within base_path
         new_path = self._resolve_path(path)
 
@@ -94,35 +136,11 @@ class E2BEnv(BaseEnv):
         # In sandbox: ensure directory exists
         # E2B SDK: create directory (and parents) if needed
         # Use string path inside sandbox
-        self.sandbox.files.make_dir(str(new_path))
+        await self.sandbox.files.make_dir(str(new_path))
 
         # Update local working_directory abstraction
         self.working_directory = new_path
         return self.working_directory
-
-    async def exec_shell(
-        self,
-        command: str,
-        timeout: Optional[float] = None,
-        capture_output: bool = True,
-        blocking: bool = True,
-    ) -> Dict[str, Any]:
-        """
-        Runs a shell command inside the sandbox.
-        """
-        start = time.perf_counter()
-        result = self.sandbox.commands.run(
-            command, cwd=str(self.working_directory), timeout=timeout
-        )
-        end = time.perf_counter()
-
-        return {
-            "status": "success" if result.exit_code == 0 else "error",
-            "stdout": result.stdout or "",
-            "stderr": result.stderr or "",
-            "return_code": result.exit_code,
-            "execution_time": end - start,
-        }
 
     async def write_file(
         self,
@@ -134,8 +152,8 @@ class E2BEnv(BaseEnv):
         """
         Writes a file into the sandbox filesystem.
         """
-        resolved = self._resolve_path(path)
-        entry = self.sandbox.files.write(str(resolved), content)
+        resolved_path = self._resolve_path(path)
+        entry = await self.sandbox.files.write(str(resolved_path), content)
 
         # Replace base path prefix with "/" if it exists
         if entry.path.startswith(str(self.base_path)):
@@ -152,9 +170,16 @@ class E2BEnv(BaseEnv):
         """
         Reads a file from the sandbox, optionally slicing lines.
         """
-        resolved = self._resolve_path(path)
+        resolved_path = self._resolve_path(path)
         format = "bytes" if "rb" in mode else "text"
-        content = self.sandbox.files.read(str(resolved), format=format)
+        try:
+            content = await self.sandbox.files.read(str(resolved_path), format=format)
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Failed to read file {str(resolved_path)}: {str(e)}",
+                "path": str(resolved_path),
+            }
 
         if format == "bytes" and isinstance(content, bytearray):
             content = bytes(content)
@@ -162,7 +187,7 @@ class E2BEnv(BaseEnv):
         size = len(content) if isinstance(content, (bytes, str)) else 0
         return {
             "status": "success",
-            "path": str(resolved),
+            "path": str(resolved_path),
             "size": size,
             "content": content,
         }
@@ -171,9 +196,9 @@ class E2BEnv(BaseEnv):
         """
         Removes a file or directory in the sandbox.
         """
-        resolved = self._resolve_path(path)
-        self.sandbox.files.remove(str(resolved))
-        return {"status": "success", "path": str(resolved)}
+        resolved_path = self._resolve_path(path)
+        await self.sandbox.files.remove(str(resolved_path))
+        return {"status": "success", "path": str(resolved_path)}
 
     async def list_files(
         self,
@@ -186,12 +211,12 @@ class E2BEnv(BaseEnv):
         Lists directory contents inside the sandbox.
         """
         try:
-            resolved = self._resolve_path(path or self.current_directory)
-            str_path = str(resolved)
+            resolved_path = self._resolve_path(path or self.current_directory)
+            str_path = str(resolved_path)
 
             # Check if path exists
             try:
-                self.sandbox.files.exists(str_path)
+                await self.sandbox.files.exists(str_path)
             except Exception:
                 return {
                     "status": "error",
@@ -202,7 +227,7 @@ class E2BEnv(BaseEnv):
             # Check if it's a directory by trying to list it
             try:
                 depth = max_depth if recursive else 1  # set depth to 5 if recursive
-                entries = self.sandbox.files.list(str_path, depth=depth)
+                entries = await self.sandbox.files.list(str_path, depth=depth)
             except Exception:
                 # If listing fails, it might not be a directory
                 return {
@@ -250,7 +275,9 @@ class E2BEnv(BaseEnv):
             return {
                 "status": "error",
                 "message": f"Error listing files: {str(e)}",
-                "path": str(resolved) if "resolved" in locals() else str(path),
+                "path": str(resolved_path)
+                if "resolved_path" in locals()
+                else str(path),
             }
 
     async def path_exists(self, path: Union[str, Path]) -> bool:
@@ -263,10 +290,12 @@ class E2BEnv(BaseEnv):
         Returns:
             bool: True if the path exists, False otherwise
         """
-        resolved = self._resolve_path(path)
-        str_path = str(resolved)
+        resolved_path = self._resolve_path(path)
+        str_path = str(resolved_path)
         try:
-            return self.sandbox.files.exists(str_path)
+            file_exists = await self.sandbox.files.exists(str_path)
+            logger.info(f"Path exists: {file_exists}")
+            return file_exists
         except Exception:
             return False
 
@@ -291,7 +320,7 @@ class E2BEnv(BaseEnv):
             # Check if directory already exists
             if exist_ok:
                 try:
-                    if self.sandbox.files.exists(str_path):
+                    if await self.sandbox.files.exists(str_path):
                         return {
                             "status": "success",
                             "path": str_path,
@@ -320,22 +349,22 @@ class E2BEnv(BaseEnv):
                     try:
                         # Try to create each parent directory, ignore if exists
                         try:
-                            if not self.sandbox.files.exists(current_path):
-                                self.sandbox.files.make_dir(current_path)
+                            if not await self.sandbox.files.exists(current_path):
+                                await self.sandbox.files.make_dir(current_path)
                         except Exception:
-                            self.sandbox.files.make_dir(current_path)
+                            await self.sandbox.files.make_dir(current_path)
                     except Exception:
                         # Continue if parent creation fails, the final mkdir will fail appropriately
                         pass
 
             # Create the actual directory
-            self.sandbox.files.make_dir(str_path)
+            await self.sandbox.files.make_dir(str_path)
             return {"status": "success", "path": str_path}
         except Exception as e:
             if exist_ok:
                 # Check if directory exists after failed creation attempt
                 try:
-                    if self.sandbox.files.exists(str_path):
+                    if await self.sandbox.files.exists(str_path):
                         return {
                             "status": "success",
                             "path": str_path,
@@ -349,17 +378,11 @@ class E2BEnv(BaseEnv):
                 "message": f"Failed to create directory: {str_path}. Error: {str(e)}",
             }
 
-    async def get_hosted_url(self, port) -> str:
+    def get_hosted_url(self, port) -> str:
         return self.sandbox.get_host(port)
 
-    def kill(self):
-        """
-        Destructor: schedule sandbox.close() if possible.
-        """
-        self.sandbox.kill()
-
-    async def is_port_available(self, port: int) -> bool:
+    def is_port_available(self, port: int) -> bool:
         pass
 
-    async def get_available_ports(self) -> List[int]:
+    def get_available_ports(self) -> List[int]:
         return self.ports

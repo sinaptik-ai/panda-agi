@@ -8,31 +8,10 @@ if TYPE_CHECKING:
 from ..client.event_manager import EventManager
 from ..client.models import EventType
 from ..envs import BaseEnv
+from .models import ToolResult
 
-logger = logging.getLogger("AgentClient")
-
-
-class ToolResult:
-    """Standardized result type for handler operations"""
-
-    def __init__(
-        self,
-        success: bool,
-        data: Optional[Dict[str, Any]] = None,
-        error: Optional[str] = None,
-    ):
-        self.success = success
-        self.data = data or {}
-        self.error = error
-
-    def to_payload(self) -> Dict[str, Any]:
-        """Convert to WebSocket message payload"""
-        payload = {}
-        if self.success:
-            payload.update(self.data)
-        else:
-            payload["message"] = self.error or "Unknown error"
-        return payload
+logger = logging.getLogger("ToolHandler")
+logger.setLevel(logging.WARNING)
 
 
 class ToolHandler(ABC):
