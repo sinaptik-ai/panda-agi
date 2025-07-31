@@ -648,7 +648,7 @@ class BaseEnv(ABC):
     ) -> Dict[str, Any]:
         pass
 
-    def get_hosted_url(self, port) -> str:
+    def get_hosted_url(self, port: int) -> str:
         return f"http://localhost:{port}"
 
     @abstractmethod
