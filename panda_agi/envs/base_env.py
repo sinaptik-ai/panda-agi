@@ -652,7 +652,7 @@ class BaseEnv(ABC):
         return f"http://localhost:{port}"
 
     @abstractmethod
-    def path_exists(self, path: Union[str, Path]) -> bool:
+    async def path_exists(self, path: Union[str, Path]) -> bool:
         pass
 
     @abstractmethod
