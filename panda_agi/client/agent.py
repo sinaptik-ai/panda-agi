@@ -1048,7 +1048,7 @@ class Agent:
             self.environment, path="/", max_depth=max_depth
         )
 
-        available_ports = self.environment.get_available_ports()
+        available_ports = await self.environment.get_available_ports()
         file_system_info["available_ports_for_deployments"] = available_ports
         return file_system_info
 
