@@ -656,9 +656,9 @@ class BaseEnv(ABC):
         pass
 
     @abstractmethod
-    def get_available_ports(self) -> List[int]:
+    async def get_available_ports(self) -> List[int]:
         pass
 
     @abstractmethod
-    def is_port_available(self, port: int) -> bool:
+    async def is_port_available(self, port: int) -> bool:
         pass
