@@ -143,7 +143,7 @@ class PandaAgiClient:
             raise
         except httpx.ReadError as e:
             logger.error(f"❌ Streaming error: {traceback.format_exc()}")
-            raise Exception("Unable to read streaming response, try again!")
+            raise PandaAgiConnectionError("Failed to read streaming response. Please try again.")
         except Exception as e:
             logger.error(f"❌ Error in streaming request: {traceback.format_exc()}")
             raise
