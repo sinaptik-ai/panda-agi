@@ -41,20 +41,13 @@ class FilesService:
         try:
             resolved = env._resolve_path(file_path)
             # Optional: ensure it's within base_path
-            print("file_path", file_path)
-            print("env.base_path", env.base_path)
             base = Path(env.base_path).resolve()
-            print("base::->")
-            print("resolved::<->", base)
             try:
-                print("Base::", base)
                 resolved.resolve().relative_to(base)
-                print("resolved::", resolved)
             except Exception:
                 raise RestrictedAccessError(
                     status_code=403, detail="Access denied: outside workspace"
                 )
-            print("resolved::", resolved)
 
             # Check existence via sandbox API
             file_path: str | None = await FilesService.validate_and_correct_file_path(

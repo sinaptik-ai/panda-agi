@@ -78,7 +78,6 @@ async def save_artifact(
         payload_dict = payload.dict()
         payload_dict["conversation_id"] = conversation_id
         headers = {"X-API-KEY": f"{api_key}"}
-        print(payload_dict)
         async with session.post(
             f"{PANDA_AGI_SERVER_URL}/artifacts", json=payload_dict, headers=headers
         ) as resp:
@@ -86,15 +85,15 @@ async def save_artifact(
 
             if resp.status != 200:
                 logger.error(f"Error saving artifact: {response}")
+                message = (
+                    "Unknown error" if "detail" not in response else response["detail"]
+                )
+
                 raise HTTPException(
                     status_code=resp.status,
                     detail=response.get(
                         "message",
-                        (
-                            "Unknown error"
-                            if "detail" not in response
-                            else response["detail"]
-                        ),
+                        message,
                     ),
                 )
 
