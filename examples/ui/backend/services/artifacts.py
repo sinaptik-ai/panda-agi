@@ -1,5 +1,5 @@
 """
-Interact with environment and return relevan files
+Interact with environment and return relevant files
 """
 
 import re
