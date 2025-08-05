@@ -21,7 +21,6 @@ PANDA_AGI_SERVER_URL = (
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
 
 # Security scheme for bearer token
-security = HTTPBearer()
 
 
 class ArtifactPayload(BaseModel):
