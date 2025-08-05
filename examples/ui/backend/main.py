@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from middleware.auth import AuthMiddleware
-from routes import agent, auth, conversation, files, health, artifacts
+from routes import agent, auth, conversation, files, health
 
 # Load environment variables from .env file
 load_dotenv()
@@ -48,7 +48,6 @@ app.include_router(auth.router)
 app.include_router(conversation.router)
 app.include_router(files.router)
 app.include_router(health.router)
-app.include_router(artifacts.router)
 
 if __name__ == "__main__":
     import uvicorn
