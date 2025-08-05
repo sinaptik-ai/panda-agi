@@ -8,7 +8,6 @@ from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 import os
 import logging
-import requests
 
 from services.artifacts import ArtifactsService
 
@@ -49,13 +48,19 @@ async def upload_file_to_s3(
 
     file_obj = BytesIO(file_bytes)
 
-    files = {"file": (filename, file_obj)}
-
     try:
-        response = requests.post(upload_url, data=fields, files=files)
-        response.raise_for_status()
-        return response
-    except requests.exceptions.RequestException as e:
+        async with aiohttp.ClientSession() as session:
+            data = aiohttp.FormData()
+            # Add fields to form data
+            for key, value in fields.items():
+                data.add_field(key, value)
+            # Add file to form data
+            data.add_field("file", file_obj, filename=filename)
+
+            async with session.post(upload_url, data=data) as response:
+                response.raise_for_status()
+                return response
+    except aiohttp.ClientError as e:
         logger.error(f"Error uploading file to S3: {e}")
         raise HTTPException(
             status_code=500, detail=f"Failed to upload file to S3: {str(e)}"
