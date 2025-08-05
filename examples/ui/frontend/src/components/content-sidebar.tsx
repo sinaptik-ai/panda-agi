@@ -43,6 +43,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   onResize,
   conversationId,
 }) => {
+  console.log("previewData", previewData);
   // State for sidebar width - use props if provided, otherwise default to 900
   const [sidebarWidth, setSidebarWidth] = useState(width || 900);
 
@@ -760,7 +761,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         </div>
         <div className="flex items-center space-x-2">
           {/* Save button - only show for markdown files */}
-          {previewData.type === "markdown" && (
+          {previewData.type === "markdown" || previewData.type === "iframe" && (
             <SaveArtifactButton
               conversationId={conversationId}
               previewData={previewData}
