@@ -12,6 +12,7 @@ import {
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./ui/markdown-renderer";
+import SaveArtifactButton from "./save-artifact-button";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { toast } from "react-hot-toast";
@@ -708,6 +709,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   };
 
+  // Handle artifact save
+
+
   return (
     <div
       className="fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-lg z-50 flex flex-col"
@@ -755,6 +759,13 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           )}
         </div>
         <div className="flex items-center space-x-2">
+          {/* Save button - only show for markdown files */}
+          {previewData.type === "markdown" && (
+            <SaveArtifactButton
+              conversationId={conversationId}
+              previewData={previewData}
+            />
+          )}
           {/* Download button - only show for actual files, not iframes */}
           {(normalizedFilename || previewData.url) &&
             previewData.type !== "iframe" && (
