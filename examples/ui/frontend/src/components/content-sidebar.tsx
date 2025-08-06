@@ -761,7 +761,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         </div>
         <div className="flex items-center space-x-2">
           {/* Save button - only show for markdown files */}
-          {previewData.type === "markdown" || previewData.type === "iframe" && (
+          {(previewData.type === "markdown" || previewData.type === "iframe") && (
             <SaveArtifactButton
               conversationId={conversationId}
               previewData={previewData}
