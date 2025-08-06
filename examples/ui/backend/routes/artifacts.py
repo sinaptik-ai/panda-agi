@@ -8,6 +8,7 @@ from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 import os
 import logging
+import traceback
 
 from services.artifacts import ArtifactsService
 
@@ -78,36 +79,47 @@ async def save_artifact(
     if not api_key:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    async with aiohttp.ClientSession() as session:
-        payload_dict = payload.dict()
-        payload_dict["conversation_id"] = conversation_id
-        headers = {"X-API-KEY": f"{api_key}"}
-        async with session.post(
-            f"{PANDA_AGI_SERVER_URL}/artifacts", json=payload_dict, headers=headers
-        ) as resp:
-            response = await resp.json()
+    try:
+        async with aiohttp.ClientSession() as session:
+            payload_dict = payload.dict()
+            payload_dict["conversation_id"] = conversation_id
+            headers = {"X-API-KEY": f"{api_key}"}
+            async with session.post(
+                f"{PANDA_AGI_SERVER_URL}/artifacts", json=payload_dict, headers=headers
+            ) as resp:
+                response = await resp.json()
 
-            if resp.status != 200:
-                logger.error(f"Error saving artifact: {response}")
-                message = (
-                    "Unknown error" if "detail" not in response else response["detail"]
-                )
+                if resp.status != 200:
+                    logger.error(f"Error saving artifact: {response}")
+                    message = (
+                        "Unknown error"
+                        if "detail" not in response
+                        else response["detail"]
+                    )
 
-                raise HTTPException(
-                    status_code=resp.status,
-                    detail=response.get(
-                        "message",
-                        message,
-                    ),
-                )
+                    raise HTTPException(
+                        status_code=resp.status,
+                        detail=response.get(
+                            "message",
+                            message,
+                        ),
+                    )
 
-    files_generator = ArtifactsService.get_files_for_artifact(
-        payload.type, payload.filepath, conversation_id
-    )
-
-    async for file_bytes, relative_path in files_generator:
-        await upload_file_to_s3(
-            response["upload_credentials"], file_bytes, relative_path
+        files_generator = ArtifactsService.get_files_for_artifact(
+            payload.type, payload.filepath, conversation_id
         )
 
-    return {"detail": "Artifacts saved successfully"}
+        async for file_bytes, relative_path in files_generator:
+            await upload_file_to_s3(
+                response["upload_credentials"], file_bytes, relative_path
+            )
+
+        return {"detail": "Artifacts saved successfully"}
+    except HTTPException as e:
+        raise e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+
+        logger.error(f"Error saving artifacts: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="internal server error")
