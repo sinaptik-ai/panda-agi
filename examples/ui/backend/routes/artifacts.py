@@ -3,14 +3,16 @@ Artifacts routes for the PandaAGI API.
 """
 
 import aiohttp
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.security import HTTPBearer
 from pydantic import BaseModel
+from typing import List
 import os
 import logging
 import traceback
 
 from services.artifacts import ArtifactsService
+from models.agent import ArtifactResponse, ArtifactsListResponse
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +92,7 @@ async def save_artifact(
                 response = await resp.json()
 
                 if resp.status != 200:
-                    logger.error(f"Error saving artifact: {response}")
+                    logger.error(f"Error saving creations: {response}")
                     message = (
                         "Unknown error"
                         if "detail" not in response
@@ -114,12 +116,60 @@ async def save_artifact(
                 response["upload_credentials"], file_bytes, relative_path
             )
 
-        return {"detail": "Artifacts saved successfully"}
+        return {"detail": "Creations saved successfully"}
     except HTTPException as e:
         raise e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
 
-        logger.error(f"Error saving artifacts: {traceback.format_exc()}")
+        logger.error(f"Error saving creations: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="internal server error")
+
+
+@router.get("/", response_model=ArtifactsListResponse)
+async def get_user_artifacts(
+    request: Request,
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+):
+    """Get creations for a conversation"""
+
+    # Get API key from request state (set by AuthMiddleware)
+    api_key = getattr(request.state, "api_key", None)
+
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {"X-API-KEY": f"{api_key}"}
+            params = {"limit": limit, "offset": offset}
+            async with session.get(
+                f"{PANDA_AGI_SERVER_URL}/artifacts", headers=headers, params=params
+            ) as resp:
+                response = await resp.json()
+
+                if resp.status != 200:
+                    logger.error(f"Error getting creations: {response}")
+                    message = (
+                        "Unknown error"
+                        if "detail" not in response
+                        else response["detail"]
+                    )
+
+                    raise HTTPException(
+                        status_code=resp.status,
+                        detail=response.get(
+                            "message",
+                            message,
+                        ),
+                    )
+
+                return response
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error getting creations: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="internal server error")
