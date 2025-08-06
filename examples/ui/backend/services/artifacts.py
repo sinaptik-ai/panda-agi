@@ -133,7 +133,7 @@ class ArtifactsService:
             ) in ArtifactsService.get_files_for_iframe(filepath, env):
                 yield file_bytes, relative_path
         else:
-            raise ValueError(f"Error: Unsupported completion type provided {type}")
+            raise ValueError(f"Error: Unsupported creation type provided {type}")
 
     @staticmethod
     def extract_relative_paths_from_markdown(markdown_text: str) -> List[str]:

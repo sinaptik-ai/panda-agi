@@ -80,16 +80,16 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
           size="sm"
           onClick={handleOpenDialog}
           className="p-1 hover:bg-gray-200 rounded transition-colors"
-          title="Save Completion"
+          title="Save Creation"
         >
           <Save className="w-4 h-4" />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Save Completion</DialogTitle>
+          <DialogTitle>Save Creation</DialogTitle>
           <DialogDescription>
-            Enter a name for this completion. It will be saved to your conversation.
+            Enter a name for this creation. It will be saved to your list of creations.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
