@@ -121,5 +121,5 @@ async def save_artifact(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
 
-        logger.error(f"Error saving artifacts: {traceback.print_exc()}")
+        logger.error(f"Error saving artifacts: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="internal server error")
