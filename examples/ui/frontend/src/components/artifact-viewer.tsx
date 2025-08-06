@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   X,
-  Download,
 } from "lucide-react";
 import MarkdownRenderer from "./ui/markdown-renderer";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
-import { toast } from "react-hot-toast";
-import { downloadWithCheck } from "@/lib/utils";
 
 export interface ArtifactData {
   id: string;
@@ -262,34 +259,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     }
   };
 
-  // Handle file download
-  const handleFileDownload = async () => {
-    if (!artifact) {
-      toast.error("Missing artifact information");
-      return;
-    }
-    
-    try {
-      const downloadUrl = getBackendServerURL(
-        `/artifacts/${artifact.id}/${encodeURIComponent(artifact.filepath)}`
-      );
-      try {
-        await downloadWithCheck(downloadUrl, artifact.filepath.split("/").pop() || "download");
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Download failed: File not found or access denied";
-        toast.error(errorMessage);
-      }
-
-    } catch (error) {
-      console.error("Download error:", error);
-      if (error instanceof Error) {
-        toast.error(`Download failed: ${error.message}`);
-      } else {
-        toast.error("Download failed: Unknown error");
-      }
-    }
-  };
-
   return (
     <div
       className="fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-lg z-50 flex flex-col"
@@ -317,14 +286,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          {/* Download button */}
-          <button
-            onClick={handleFileDownload}
-            className="p-1 hover:bg-gray-200 rounded transition-colors"
-            title={`Download ${artifact.filepath.split("/").pop()}`}
-          >
-            <Download className="w-4 h-4 text-gray-500" />
-          </button>
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-200 rounded transition-colors"
