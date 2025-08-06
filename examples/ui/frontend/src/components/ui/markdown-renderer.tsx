@@ -2,9 +2,11 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from 'remark-breaks'
+import { getServerURL } from "@/lib/server";
 
 interface MarkdownRendererProps {
   children: string;
+  baseUrl?: string | null;
   className?: string;
   onPreviewClick?: (previewData: {
     url: string;
@@ -127,10 +129,28 @@ const processChildren = (children: React.ReactNode, onPreviewClick?: MarkdownRen
 
 // Reusable markdown renderer component
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ 
-  children, 
+  children,
+  baseUrl = null,
   className = "", 
   onPreviewClick
 }) => {
+
+  if (!baseUrl) {
+    baseUrl = getServerURL()
+  }
+
+  const transformUrl = (url: string) => {
+    if (
+      url.startsWith("http") || 
+      url.startsWith("/") || 
+      url.startsWith("#") || 
+      url.startsWith("mailto:")
+    ) {
+      return url;
+    }
+
+    return new URL(url, baseUrl).toString();
+  };
 
   return (
     <div
@@ -189,25 +209,33 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               {processChildren(children, onPreviewClick)}
             </blockquote>
           ),
+          img: ({ node, ...props }) => {
+            return <img {...props} src={transformUrl(props.src?.toString() || "")} />
+          },
           // Style all links consistently, opening all links in content sidebar
           a: ({ href, children }) => {
             if (href) {
               const isLocal = isHostedUrl(href);
               const displayHref = typeof children === 'string' ? truncateMiddle(children, 80) : children;
+
+              const transformedHref = transformUrl(href) as string;
+              if (!transformedHref) {
+                return <span>{children}</span>;
+              }
               
               if (onPreviewClick) {
                 return (
                   <button
                     onClick={() => {
-                      if (href?.toString().endsWith(".pdf") || !isLocal) {
-                        window.open(href, '_blank');
+                      if (transformedHref?.toString().endsWith(".pdf") || !isLocal) {
+                        window.open(transformedHref, '_blank');
                       } else {
                       onPreviewClick({
-                        url: href,
+                        url: transformedHref,
                         content: "", // Will be loaded via iframe
                         title: isLocal 
-                          ? `Preview: ${new URL(href).hostname}${new URL(href).port ? ":" + new URL(href).port : ""}`
-                          : `External: ${href}`,
+                          ? `Preview: ${new URL(transformedHref).hostname}${new URL(transformedHref).port ? ":" + new URL(transformedHref).port : ""}`
+                          : `External: ${transformedHref}`,
                         type: "iframe",
                       })
                       }
@@ -226,14 +254,14 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                       if (window.parent && window.parent !== window) {
                         window.parent.postMessage({
                           type: 'OPEN_IN_SIDEBAR',
-                          url: href,
+                          url: transformedHref,
                           title: isLocal 
-                            ? `Preview: ${new URL(href).hostname}${new URL(href).port ? ":" + new URL(href).port : ""}`
-                            : `External: ${href}`
+                            ? `Preview: ${new URL(transformedHref).hostname}${new URL(transformedHref).port ? ":" + new URL(transformedHref).port : ""}`
+                            : `External: ${transformedHref}`
                         }, '*');
                       } else {
                         // Last resort - open in same window
-                        window.open(href, '_blank');
+                        window.open(transformedHref, '_blank');
                       }
                     }}
                     className="text-blue-600 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit inline break-all whitespace-pre-wrap"

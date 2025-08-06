@@ -14,6 +14,17 @@ from panda_agi.envs.base_env import BaseEnv
 class ArtifactsService:
 
     @staticmethod
+    def get_relative_filepath(type: str, file_path: str) -> str:
+        """
+        Get the file content for an artifact.
+        """
+
+        if type == "iframe":
+            return ArtifactsService.get_main_html_file_from_url(file_path)
+
+        return file_path
+
+    @staticmethod
     def get_main_html_file_from_url(url: str) -> str:
         """
         Extract the HTML file path from a website URL.

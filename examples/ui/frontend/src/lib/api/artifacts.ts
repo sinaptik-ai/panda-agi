@@ -54,4 +54,21 @@ export const getArtifacts = async (limit: number = 100, offset: number = 0): Pro
     }
     
     return response.json();
+};
+
+export const getArtifactFile = async (artifactId: string, filePath: string): Promise<string> => {
+    const url = getBackendServerURL(`/artifacts/${artifactId}/${encodeURIComponent(filePath)}`);
+    const headers = await getApiHeaders();
+    
+    const response = await fetch(url, {
+        method: 'GET',
+        headers,
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData?.detail || `Failed to get artifact file: ${response.status}`);
+    }
+    
+    return response.text();
 }; 

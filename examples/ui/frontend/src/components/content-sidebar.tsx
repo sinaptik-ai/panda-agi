@@ -379,9 +379,13 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           </div>
         );
       case "markdown":
+        const fileAbsUrl = getBackendServerURL(
+          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}`
+        );
         return (
           <div className="prose prose-sm max-w-none">
-            <MarkdownRenderer>{content}</MarkdownRenderer>
+            
+            <MarkdownRenderer baseUrl={fileAbsUrl}>{content}</MarkdownRenderer>
           </div>
         );
       case "table":

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { getArtifacts, ArtifactResponse, ArtifactsListResponse } from "@/lib/api/artifacts";
 import { format } from "date-fns";
 import { ArrowLeft } from "lucide-react";
+import ArtifactViewer from "@/components/artifact-viewer";
 
 export default function CreationsPage() {
   const router = useRouter();
@@ -18,6 +19,10 @@ export default function CreationsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [limit] = useState(10);
+  
+  // Artifact viewer state
+  const [selectedArtifact, setSelectedArtifact] = useState<ArtifactResponse | null>(null);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
 
   useEffect(() => {
     fetchArtifacts();
@@ -47,6 +52,16 @@ export default function CreationsPage() {
     } catch {
       return dateString;
     }
+  };
+
+  const handleViewArtifact = (artifact: ArtifactResponse) => {
+    setSelectedArtifact(artifact);
+    setIsViewerOpen(true);
+  };
+
+  const handleCloseViewer = () => {
+    setIsViewerOpen(false);
+    setSelectedArtifact(null);
   };
 
   if (loading) {
@@ -124,10 +139,7 @@ export default function CreationsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            // Handle download or view action
-                            console.log("View artifact:", artifact.id);
-                          }}
+                          onClick={() => handleViewArtifact(artifact)}
                         >
                           View
                         </Button>
@@ -167,6 +179,13 @@ export default function CreationsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Artifact Viewer */}
+      <ArtifactViewer
+        isOpen={isViewerOpen}
+        onClose={handleCloseViewer}
+        artifact={selectedArtifact || undefined}
+      />
     </div>
   );
 } 

@@ -5,11 +5,13 @@ Artifacts routes for the PandaAGI API.
 import aiohttp
 from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.security import HTTPBearer
+from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import List
 import os
 import logging
 import traceback
+import mimetypes
 
 from services.artifacts import ArtifactsService
 from models.agent import ArtifactResponse, ArtifactsListResponse
@@ -85,6 +87,9 @@ async def save_artifact(
         async with aiohttp.ClientSession() as session:
             payload_dict = payload.dict()
             payload_dict["conversation_id"] = conversation_id
+            payload_dict["filepath"] = ArtifactsService.get_relative_filepath(
+                payload.type, payload.filepath
+            )
             headers = {"X-API-KEY": f"{api_key}"}
             async with session.post(
                 f"{PANDA_AGI_SERVER_URL}/artifacts", json=payload_dict, headers=headers
@@ -172,4 +177,43 @@ async def get_user_artifacts(
         raise e
     except Exception as e:
         logger.error(f"Error getting creations: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="internal server error")
+
+
+@router.get("/{artifact_id}/{file_path:path}")
+async def get_artifact_file(request: Request, artifact_id: str, file_path: str):
+    """Get artifact file content"""
+
+    # Get API key from request state (set by AuthMiddleware)
+    api_key = getattr(request.state, "api_key", None)
+
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {"X-API-KEY": f"{api_key}"}
+            url = f"{PANDA_AGI_SERVER_URL}/artifacts/{artifact_id}/{file_path}"
+            async with session.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    logger.error(f"Error getting artifact file: {resp.status}")
+                    raise HTTPException(
+                        status_code=resp.status,
+                        detail=f"Failed to get artifact file: {resp.status}",
+                    )
+
+                # Get content as bytes
+                content_bytes = await resp.read()
+
+                # Determine MIME type
+                mime_type, _ = mimetypes.guess_type(file_path)
+                if not mime_type:
+                    mime_type = "application/octet-stream"
+
+                return Response(content=content_bytes, media_type=mime_type)
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error getting artifact file: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="internal server error")
