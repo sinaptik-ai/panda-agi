@@ -3,7 +3,7 @@ Agent models for the PandaAGI SDK API.
 """
 
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 
@@ -27,7 +27,7 @@ class ArtifactResponse(BaseModel):
     filepath: str
     conversation_id: str
     created_at: datetime
-    metadata: dict = {}
+    metadata: dict = Field(default_factory=dict)
 
 
 class ArtifactsListResponse(BaseModel):
