@@ -41,7 +41,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
     }
 
     if (!artifactName.trim()) {
-      toast.error("Please enter an artifact name");
+      toast.error("Please enter an creation name");
       return;
     }
 
@@ -52,7 +52,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
         name: artifactName.trim(),
         filepath: previewData?.url || previewData?.filename || ""
       });
-      toast.success("Artifact saved successfully!");
+      toast.success("Creation saved successfully!");
       setIsOpen(false);
       setArtifactName("");
     } catch (error) {
@@ -102,7 +102,7 @@ const SaveArtifactButton: React.FC<SaveArtifactButtonProps> = ({
               value={artifactName}
               onChange={(e) => setArtifactName(e.target.value)}
               className="col-span-3"
-              placeholder="Enter artifact name..."
+              placeholder="Enter creation name..."
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   handleSaveArtifact();
