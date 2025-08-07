@@ -14,7 +14,11 @@ import traceback
 import mimetypes
 
 from services.artifacts import ArtifactsService
-from models.agent import ArtifactResponse, ArtifactsListResponse
+from models.agent import (
+    ArtifactResponse,
+    ArtifactsListResponse,
+    ArtifactNameUpdateRequest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -252,4 +256,78 @@ async def get_artifact_file(request: Request, artifact_id: str, file_path: str):
         raise e
     except Exception as e:
         logger.error(f"Error getting artifact file: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="internal server error")
+
+
+@router.delete("/{artifact_id}")
+async def delete_artifact(request: Request, artifact_id: str):
+    """Delete an artifact by ID"""
+
+    # Get API key from request state (set by AuthMiddleware)
+    api_key = getattr(request.state, "api_key", None)
+
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {"X-API-KEY": f"{api_key}"}
+            async with session.delete(
+                f"{PANDA_AGI_SERVER_URL}/artifacts/{artifact_id}", headers=headers
+            ) as resp:
+                if resp.status != 200:
+                    response = await resp.json()
+                    logger.error(
+                        f"Error deleting artifact: {resp.status} {response.get('detail', 'Unknown error')}"
+                    )
+                    raise HTTPException(
+                        status_code=resp.status,
+                        detail=f"Failed to delete artifact",
+                    )
+
+                return {"detail": "Artifact deleted successfully"}
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error deleting artifact: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="internal server error")
+
+
+@router.patch("/{artifact_id}/name", response_model=ArtifactResponse)
+async def update_artifact_name(
+    request: Request, artifact_id: str, name_update: ArtifactNameUpdateRequest
+) -> ArtifactResponse:
+    """Update an artifact name"""
+
+    # Get API key from request state (set by AuthMiddleware)
+    api_key = getattr(request.state, "api_key", None)
+
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            headers = {"X-API-KEY": f"{api_key}"}
+            async with session.patch(
+                f"{PANDA_AGI_SERVER_URL}/artifacts/{artifact_id}/name",
+                json=name_update.dict(),
+                headers=headers,
+            ) as resp:
+                if resp.status != 200:
+                    response = await resp.json()
+                    logger.error(
+                        f"Error updating artifact name: {resp.status} {response.get('detail', 'Unknown error')}"
+                    )
+                    raise HTTPException(
+                        status_code=resp.status,
+                        detail=f"Failed to update artifact name",
+                    )
+
+                return await resp.json()
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error updating artifact name: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="internal server error")

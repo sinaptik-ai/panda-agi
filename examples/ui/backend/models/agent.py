@@ -37,3 +37,11 @@ class ArtifactsListResponse(BaseModel):
 
     artifacts: List[ArtifactResponse]
     total: int
+
+
+class ArtifactNameUpdateRequest(BaseModel):
+    """
+    Model for updating artifact name.
+    """
+
+    name: str = Field(..., min_length=1, description="New name for the artifact")
