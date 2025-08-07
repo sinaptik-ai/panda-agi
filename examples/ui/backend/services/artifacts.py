@@ -9,9 +9,32 @@ from urllib.parse import urlparse
 from .chat_env import get_env
 from .files import FilesService
 from panda_agi.envs.base_env import BaseEnv
+import logging
+import traceback
+
+logger = logging.getLogger(__name__)
 
 
 class ArtifactsService:
+
+    @staticmethod
+    def replace_window_location_origin(
+        content: str, artifact_id: str, file_path: str
+    ) -> str:
+        """
+        Replace window.location.origin with the dynamic path for HTML and JavaScript content.
+
+        Args:
+            content: The content to process
+            artifact_id: The artifact ID
+            file_path: The file path
+
+        Returns:
+            The content with window.location.origin replaced
+        """
+        # Replace window.location.origin with the dynamic path
+        replacement = f"`${{window.location.origin}}/artifacts/{artifact_id}`"
+        return content.replace("window.location.origin", replacement)
 
     @staticmethod
     def get_relative_filepath(type: str, file_path: str) -> str:
@@ -54,78 +77,9 @@ class ArtifactsService:
         return path
 
     @staticmethod
-    def extract_asset_paths_from_content(content: str) -> Set[str]:
-        """
-        Extract asset paths from HTML and JS content.
-
-        Args:
-            content: HTML or JS content as string
-
-        Returns:
-            Set of relative asset paths
-        """
-        asset_paths = set()
-
-        # Asset file extensions to look for
-        asset_extensions = (
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".svg",
-            ".gif",
-            ".ico",
-            ".woff",
-            ".woff2",
-            ".ttf",
-            ".otf",
-            ".eot",
-            ".json",
-            ".csv",
-        )
-
-        # Patterns to match asset references
-        patterns = [
-            # HTML img src
-            r'src=["\']([^"\']*\.(?:png|jpg|jpeg|svg|gif|ico))["\']',
-            # HTML link href (for fonts, favicons)
-            r'href=["\']([^"\']*\.(?:woff|woff2|ttf|otf|eot|ico))["\']',
-            # CSS background-image
-            r'background-image:\s*url\(["\']?([^"\')\s]*\.(?:png|jpg|jpeg|svg|gif))["\']?\)',
-            # CSS @font-face src
-            r'src:\s*url\(["\']?([^"\')\s]*\.(?:woff|woff2|ttf|otf|eot))["\']?\)',
-            # JavaScript dynamic imports or asset loading
-            r'["\']([^"\']*\.(?:png|jpg|jpeg|svg|gif|ico|woff|woff2|ttf|otf|eot|json|csv))["\']',
-            # Data attributes
-            r'data-[^=]*=["\']([^"\']*\.(?:png|jpg|jpeg|svg|gif|ico|woff|woff2|ttf|otf|eot|json|csv))["\']',
-        ]
-
-        for pattern in patterns:
-            matches = re.findall(pattern, content, re.IGNORECASE)
-            for match in matches:
-                # Clean up the path
-                path = match.strip()
-
-                # Skip absolute URLs and data URIs
-                if path.startswith(
-                    ("http://", "https://", "//", "data:", "blob:")
-                ) or path.startswith("/"):
-                    continue
-
-                # Remove query parameters and fragments
-                path = path.split("?")[0].split("#")[0]
-
-                # Remove ./ prefix if present
-                if path.startswith("./"):
-                    path = path[2:]
-
-                # Only add if it's a valid asset path
-                if path and any(path.lower().endswith(ext) for ext in asset_extensions):
-                    asset_paths.add(path)
-
-        return asset_paths
-
-    @staticmethod
-    async def get_files_for_artifact(type: str, filepath: str, conversation_id: str):
+    async def get_files_for_artifact(
+        type: str, filepath: str, conversation_id: str, artifact_id: str = None
+    ):
 
         env: BaseEnv = await get_env(
             {"conversation_id": conversation_id}, force_new=conversation_id is None
@@ -135,13 +89,13 @@ class ArtifactsService:
             async for (
                 file_bytes,
                 relative_path,
-            ) in ArtifactsService.get_files_for_markdown(filepath, env):
+            ) in ArtifactsService.get_files_for_markdown(filepath, env, artifact_id):
                 yield file_bytes, relative_path
         elif type == "iframe":
             async for (
                 file_bytes,
                 relative_path,
-            ) in ArtifactsService.get_files_for_iframe(filepath, env):
+            ) in ArtifactsService.get_files_for_iframe(filepath, env, artifact_id):
                 yield file_bytes, relative_path
         else:
             raise ValueError(f"Error: Unsupported creation type provided {type}")
@@ -167,7 +121,9 @@ class ArtifactsService:
         return relative_paths
 
     @staticmethod
-    async def get_files_for_markdown(filepath: str, env: BaseEnv):
+    async def get_files_for_markdown(
+        filepath: str, env: BaseEnv, artifact_id: str = None
+    ):
 
         content_bytes, _ = await FilesService.get_file_from_env(filepath, env)
 
@@ -182,42 +138,99 @@ class ArtifactsService:
             yield content_bytes, relative_path
 
     @staticmethod
-    async def get_files_for_iframe(filepath: str, env: BaseEnv):
-
+    async def get_files_for_iframe(
+        filepath: str, env: BaseEnv, artifact_id: str = None
+    ):
+        """
+        Get all relevant files for the index_html_file_path following a simplified approach:
+        1. Get all file names with asset extensions
+        2. Check which files are referenced in the index HTML file
+        3. Recursively check referenced files for further dependencies
+        4. Return all files needed to construct the page
+        5. Replace window.location.origin for .js and .html files
+        """
         index_html_file_path = ArtifactsService.get_main_html_file_from_url(filepath)
-        content_bytes, _ = await FilesService.get_file_from_env(
-            index_html_file_path, env
+
+        # Step 1: Get all files with asset extensions
+        asset_extensions = (
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".svg",
+            ".gif",
+            ".ico",
+            ".woff",
+            ".woff2",
+            ".ttf",
+            ".otf",
+            ".eot",
+            ".json",
+            ".csv",
+            ".js",
+            ".css",
+            ".html",
         )
-        html_content = content_bytes.decode("utf-8")
-        yield content_bytes, index_html_file_path
 
-        # Extract asset paths from the main HTML file
-        asset_paths = ArtifactsService.extract_asset_paths_from_content(html_content)
-
-        # Get all HTML, JS, and CSS files from env
         files = await env.list_files(recursive=True)
-        for file in files["files"]:
-            if file["type"] == "file" and file["name"].endswith(
-                (".html", ".js", ".css")
-            ):
-                content_bytes, _ = await FilesService.get_file_from_env(
-                    file["relative_path"], env
-                )
-                yield content_bytes, file["relative_path"]
+        all_files = {
+            file["relative_path"]: file
+            for file in files["files"]
+            if file["type"] == "file"
+            and any(file["name"].endswith(ext) for ext in asset_extensions)
+        }
 
-                # Extract asset paths from HTML and JS files
-                if file["name"].endswith((".html", ".js")):
-                    file_content = content_bytes.decode("utf-8")
-                    file_asset_paths = (
-                        ArtifactsService.extract_asset_paths_from_content(file_content)
-                    )
-                    asset_paths.update(file_asset_paths)
+        # Step 2 & 3: Find all files referenced in the index HTML and recursively
+        referenced_files = set()
+        files_to_check = [index_html_file_path]
 
-        # Return all discovered assets
-        for asset_path in asset_paths:
+        while files_to_check:
+            current_file = files_to_check.pop(0)
+            if current_file in referenced_files:
+                continue
+
+            referenced_files.add(current_file)
+
             try:
-                content_bytes, _ = await FilesService.get_file_from_env(asset_path, env)
-                yield content_bytes, asset_path
+                file_path = None
+                content_bytes, mime_type = await FilesService.get_file_from_env(
+                    current_file, env
+                )
+                file_content = content_bytes.decode("utf-8")
+
+                # Find all asset references in this file
+                for file_path in all_files.keys():
+                    filename = all_files[file_path]["name"]
+                    if filename in file_content and file_path not in referenced_files:
+                        files_to_check.append(file_path)
+
             except Exception:
-                # Skip assets that don't exist in the environment
+
+                # Skip files that don't exist
+                logger.error(
+                    f"Error getting file {file_path}: {traceback.format_exc()}"
+                )
+                continue
+
+        # Step 4 & 5: Return all referenced files with window.location.origin replacement
+        for file_path in referenced_files:
+            try:
+                content_bytes, mime_type = await FilesService.get_file_from_env(
+                    file_path, env
+                )
+
+                # Replace window.location.origin for HTML and JavaScript files if artifact_id is provided
+                if artifact_id and mime_type in ["text/html", "text/javascript"]:
+                    file_content = content_bytes.decode("utf-8")
+                    file_content = ArtifactsService.replace_window_location_origin(
+                        file_content, artifact_id, file_path
+                    )
+                    content_bytes = file_content.encode("utf-8")
+
+                yield content_bytes, file_path
+
+            except Exception:
+                # Skip files that don't exist in the environment
+                logger.error(
+                    f"Error getting file {file_path}: {traceback.format_exc()}"
+                )
                 continue

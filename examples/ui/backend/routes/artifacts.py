@@ -142,7 +142,7 @@ async def save_artifact(
                 artifact_id = response.get("artifact_id")
 
         files_generator = ArtifactsService.get_files_for_artifact(
-            payload.type, payload.filepath, conversation_id
+            payload.type, payload.filepath, conversation_id, artifact_id
         )
 
         async for file_bytes, relative_path in files_generator:
