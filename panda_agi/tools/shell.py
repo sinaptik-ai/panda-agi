@@ -160,7 +160,7 @@ class ExecuteScriptHandler(ToolHandler):
             or code.count('"') + code.count("'") > 3  # Complex quoting
             or "${" in code  # Shell variable expansion
             or "`" in code  # Backticks
-            or "(" in code
+            or ("(" in code and ")" in code)
             and ")" in code  # Function calls that might confuse shell
         )
 
