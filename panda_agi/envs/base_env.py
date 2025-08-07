@@ -294,19 +294,34 @@ class BaseEnv(ABC):
 
             if parse_result.exit_code == "0":
                 status = "success"
+                return ShellOutput(
+                    status=status,
+                    result={
+                        "shell_session_id": session_id,
+                        "return_code": parse_result.exit_code,
+                        "output": clean_output,
+                    },
+                )
             elif parse_result.exit_code is None:
                 status = "running"
+                return ShellOutput(
+                    status=status,
+                    result={
+                        "shell_session_id": session_id,
+                        "status": "Script is running",
+                        "output": clean_output,
+                    },
+                )
             else:
                 status = "error"
-
-            return ShellOutput(
-                status=status,
-                result={
-                    "shell_session_id": session_id,
-                    "return_code": parse_result.exit_code,
-                    "output": clean_output,
-                },
-            )
+                return ShellOutput(
+                    status=status,
+                    result={
+                        "shell_session_id": session_id,
+                        "status": "Script failed",
+                    },
+                    error=clean_output,
+                )
 
         except Exception as e:
             logger.error(f"Internal error while running command: {e}")
@@ -319,9 +334,9 @@ class BaseEnv(ABC):
                 status="error",
                 result={
                     "shell_session_id": session_id,
-                    "return_code": 1,
-                    "output": f"Internal error while running command. Shell executor failed. Error: {str(e)}",
+                    "status": "Script failed",
                 },
+                error=f"Internal error while running command. Shell executor failed. Error: {str(e)}",
             )
 
     @abstractmethod

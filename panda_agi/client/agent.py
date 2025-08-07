@@ -39,7 +39,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("AgentClient")
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 
 MAX_TOOLS_LENGTH = 10
 
@@ -350,7 +350,9 @@ class Agent:
                         )
                         self.conversation_id = processed_event.get("conversation_id")
                     elif processed_event.get("type") == "tool_detected":
-                        tool_status = processed_event.get("status", "end")  # Default to "end" for backward compatibility
+                        tool_status = processed_event.get(
+                            "status", "end"
+                        )  # Default to "end" for backward compatibility
 
                         if tool_status == "start":
                             # Handle tool start event - just yield the start event and trigger callbacks
@@ -382,10 +384,16 @@ class Agent:
                                 async for tool_event in self._handle_tool_execution(
                                     processed_event, skip_start_event=True
                                 ):
+                                    logger.debug(
+                                        "Yielding tool event: " + str(tool_event)
+                                    )
                                     yield tool_event
 
                                     # Store the result if it's a completion or error event
                                     if tool_event.get("event_type") == "tool_end":
+                                        logger.debug(
+                                            "Storing tool result: " + str(tool_event)
+                                        )
                                         immediate_tool_results.append(
                                             {
                                                 "tool_call_id": processed_event.get(
@@ -410,7 +418,9 @@ class Agent:
                                                     "function_name"
                                                 ),
                                                 "status": "failed",
-                                                "error": tool_event["data"].get("error"),
+                                                "error": tool_event["data"].get(
+                                                    "error"
+                                                ),
                                             }
                                         )
                             elif not execute_tools_at_end:
@@ -425,7 +435,7 @@ class Agent:
                 if execute_tools_immediately:
                     # Use the immediately executed tool results
                     if immediate_tool_results:
-                        logger.debug(
+                        logger.info(
                             f"Stream ended. Used {len(immediate_tool_results)} immediately executed tool results..."
                         )
 
@@ -443,6 +453,7 @@ class Agent:
                             # Clear the immediate results for the next iteration
                             immediate_tool_results = []
                         else:
+                            logger.debug("Breaking tool executed, exiting loop...")
                             # Breaking tool executed, exit loop
                             break
                     else:
@@ -745,29 +756,11 @@ class Agent:
         Returns:
             True if any breaking tool was found, False otherwise
         """
-        # Get collected tools to check their XML tags
-        collected_tools = self.token_processor.get_collected_tools()
+        # Check if any of the tool results correspond to breaking tools
+        list_breaking_tools = self.tool_registry.list_breaking_tools()
+        tool_names = [tool_call.get("function_name") for tool_call in tool_results]
 
-        # Create a mapping of tool_call_id to xml_tag_name
-        tool_id_to_xml_tag = {
-            tool_call.get("id"): tool_call.get("xml_tag_name")
-            for tool_call in collected_tools
-        }
-
-        # Check each result for breaking tools
-        for result in tool_results:
-            tool_call_id = result.get("tool_call_id")
-            xml_tag_name = tool_id_to_xml_tag.get(tool_call_id)
-
-            if xml_tag_name:
-                xml_tool_def = self.tool_registry.get_xml_tool_definition(xml_tag_name)
-                if xml_tool_def and xml_tool_def.is_breaking:
-                    logger.info(
-                        f"Breaking tool detected in results: {result.get('function_name')}"
-                    )
-                    return True
-
-        return False
+        return any(tool_name in list_breaking_tools for tool_name in tool_names)
 
     async def _execute_collected_tools_with_breaking_check(
         self,
