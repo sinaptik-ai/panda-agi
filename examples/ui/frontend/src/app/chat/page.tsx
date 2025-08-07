@@ -437,7 +437,7 @@ function App() {
                     continue;
                   }
 
-                  // Check if tool calling is to start
+                  // Check if tool call has ended
                   if (eventData.data && eventData.event_type === "tool_end") {
                     setAgentMessage("Panda is thinking...");
                   }
