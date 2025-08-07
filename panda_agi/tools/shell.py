@@ -1,4 +1,5 @@
 import logging
+import shlex
 import uuid
 from typing import Any, Dict, Optional
 
@@ -253,19 +254,15 @@ class ExecuteScriptHandler(ToolHandler):
         execution_id = f"script_{uuid.uuid4().hex[:8]}"
 
         if language == "python":
-            # For Python, use single quotes around the command and escape internal single quotes
-            escaped_code = code.replace("'", "'\"'\"'")  # Replace ' with '"'"'
-            command = f"python3 -c '{escaped_code}'"
+            # Use shlex.quote for safe escaping
+            command = f"python3 -c {shlex.quote(code)}"
         elif language == "bash":
-            # For bash, similar escaping
-            escaped_code = code.replace("'", "'\"'\"'")
-            command = f"bash -c '{escaped_code}'"
+            # Use shlex.quote for safe escaping
+            command = f"bash -c {shlex.quote(code)}"
         elif language == "javascript":
             # Node.js uses -e flag
-            escaped_code = code.replace("'", "'\"'\"'")
-            command = f"node -e '{escaped_code}'"
+            command = f"node -e {shlex.quote(code)}"
         elif language == "powershell":
-            # PowerShell uses -Command
             escaped_code = code.replace('"', '""').replace("'", "''")
             command = f'powershell -Command "{escaped_code}"'
 
