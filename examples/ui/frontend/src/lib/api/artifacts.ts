@@ -7,10 +7,13 @@ interface ArtifactPayload {
     filepath: string;
 }
 
-interface ArtifactResponse {
-    success?: boolean;
-    message?: string;
-    [key: string]: any;
+export interface ArtifactResponse {
+    id: string;
+    name: string;
+    filepath: string;
+    conversation_id: string;
+    created_at: string;
+    metadata: Record<string, any>;
 }
 
 export const saveArtifact = async (conversationId: string, payload: ArtifactPayload): Promise<ArtifactResponse> => {
@@ -29,4 +32,43 @@ export const saveArtifact = async (conversationId: string, payload: ArtifactPayl
     }
     
     return response.json();
+};
+
+export interface ArtifactsListResponse {
+    artifacts: ArtifactResponse[];
+    total: number;
+}
+
+export const getArtifacts = async (limit: number = 100, offset: number = 0): Promise<ArtifactsListResponse> => {
+    const url = getBackendServerURL(`/artifacts?limit=${limit}&offset=${offset}`);
+    const headers = await getApiHeaders();
+    
+    const response = await fetch(url, {
+        method: 'GET',
+        headers,
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData?.detail || `Failed to get artifacts: ${response.status}`);
+    }
+    
+    return response.json();
+};
+
+export const getArtifactFile = async (artifactId: string, filePath: string): Promise<string> => {
+    const url = getBackendServerURL(`/artifacts/${artifactId}/${encodeURIComponent(filePath)}`);
+    const headers = await getApiHeaders();
+    
+    const response = await fetch(url, {
+        method: 'GET',
+        headers,
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData?.detail || `Failed to get artifact file: ${response.status}`);
+    }
+    
+    return response.text();
 }; 
