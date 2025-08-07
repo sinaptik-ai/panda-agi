@@ -68,12 +68,16 @@ export default function CreationsPage() {
       await deleteArtifact(artifactToDelete.id);
       
       // Remove the artifact from the local state
-      setArtifacts(prev => prev.filter(artifact => artifact.id !== artifactToDelete.id));
-      
-      // If we're on the last page and it becomes empty, go to the previous page
-      if (artifacts.length === 1 && currentPage > 1) {
-        setCurrentPage(prev => prev - 1);
-      }
+      setArtifacts(prev => {
+        const updatedArtifacts = prev.filter(artifact => artifact.id !== artifactToDelete.id);
+        
+        // If we're on the last page and it becomes empty, go to the previous page
+        if (updatedArtifacts.length === 0 && currentPage > 1) {
+          setCurrentPage(prev => prev - 1);
+        }
+        
+        return updatedArtifacts;
+      });
       
       toast.success("Creation deleted successfully!");
     } catch (err) {

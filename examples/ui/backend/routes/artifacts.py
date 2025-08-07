@@ -282,7 +282,7 @@ async def delete_artifact(request: Request, artifact_id: str):
                     )
                     raise HTTPException(
                         status_code=resp.status,
-                        detail=f"Failed to delete artifact",
+                        detail="Failed to delete artifact",
                     )
 
                 return {"detail": "Artifact deleted successfully"}
