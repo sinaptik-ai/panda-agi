@@ -1,4 +1,5 @@
 import logging
+import traceback
 from typing import AsyncGenerator, Dict, List, Optional, Union
 
 import httpx
@@ -136,10 +137,15 @@ class PandaAgiClient:
                         yield self._extract_data(chunk)
 
         except httpx.HTTPStatusError as e:
-            logger.error(f"❌ HTTP error: {e.response.status_code} - {e.response.text}")
+            logger.error(
+                f"❌ HTTP error: {e.response.status_code} - {traceback.format_exc()}"
+            )
             raise
+        except httpx.ReadError as e:
+            logger.error(f"❌ Streaming error: {traceback.format_exc()}")
+            raise PandaAgiConnectionError("Failed to read streaming response. Please try again.")
         except Exception as e:
-            logger.error(f"❌ Error in streaming request: {e}")
+            logger.error(f"❌ Error in streaming request: {traceback.format_exc()}")
             raise
 
     async def generate_image(

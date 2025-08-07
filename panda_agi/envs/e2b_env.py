@@ -381,8 +381,14 @@ class E2BEnv(BaseEnv):
     def get_hosted_url(self, port) -> str:
         return self.sandbox.get_host(port)
 
-    def is_port_available(self, port: int) -> bool:
-        pass
+    def kill(self):
+        """
+        Destructor: schedule sandbox.close() if possible.
+        """
+        self.sandbox.kill()
+
+    async def is_port_available(self, port: int) -> bool:
+        return port not in self.ports
 
     def get_available_ports(self) -> List[int]:
         return self.ports

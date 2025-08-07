@@ -39,9 +39,16 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("AgentClient")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
+
+# Constants
 MAX_TOOLS_LENGTH = 10
+
+AVAILABLE_MODELS = [
+    "annie-pro",
+    "annie-lite",
+]
 
 
 class Agent:
@@ -72,6 +79,10 @@ class Agent:
         self.messages = messages
         self.conversation_id = conversation_id
         self.model = model
+        if model not in AVAILABLE_MODELS:
+            raise ValueError(
+                f"Model {model} is not available. Available models: {AVAILABLE_MODELS}"
+            )
         self.environment = environment
         self.base_url = base_url or os.getenv(
             "PANDA_AGI_BASE_URL",
@@ -435,7 +446,7 @@ class Agent:
                 if execute_tools_immediately:
                     # Use the immediately executed tool results
                     if immediate_tool_results:
-                        logger.info(
+                        logger.debug(
                             f"Stream ended. Used {len(immediate_tool_results)} immediately executed tool results..."
                         )
 
