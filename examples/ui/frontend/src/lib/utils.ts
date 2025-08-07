@@ -5,6 +5,23 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+
+const toolNameMap: Record<string, string> = {
+  "planning": "Panda is planning...",
+  "file_upload": "Panda is uploading files...",
+  "shell_exec_command": "Panda is executing a command...",
+  "web_search": "Panda is searching the web...",
+  "web_visit_page": "Panda is visiting the web pages...",
+  "file_read": "Panda is reading files...",
+  "file_write": "Panda is writing files...",
+  "deploy_server": "Panda is deploying a server...",
+  "execute_script": "Panda is executing a script..."
+}
+
+export function formatAgentMessage(toolName: string) {
+  return toolNameMap[toolName] ?? 'Panda is thinking...';
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function generatePayload(eventType: string, eventData: any) {
   
