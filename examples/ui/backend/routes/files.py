@@ -11,6 +11,7 @@ from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
+from services.files import FilesService
 from services.agent import get_or_create_agent
 
 from panda_agi.envs.base_env import BaseEnv
@@ -110,35 +111,6 @@ async def upload_files(
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
-async def validate_and_correct_file_path(
-    local_env: BaseEnv, file_path: str, workspace_path: str | None = None
-):
-    """
-    Read the content of a file.
-    """
-    path_exists = await local_env.path_exists(file_path)
-    if path_exists:
-        return file_path
-    else:
-        if not workspace_path:
-            return None
-
-        files = await local_env.list_files(recursive=True)
-
-        if files["status"] == "success":
-            exist_file_path = None
-            count_of_files = 0
-            for file in files["files"]:
-                if file["name"] == file_path and file["type"] == "file":
-                    exist_file_path = file
-                    count_of_files += 1
-
-            if exist_file_path and count_of_files == 1:
-                return exist_file_path["relative_path"]
-
-        return None
-
-
 @router.get("/{conversation_id}/files/download")
 async def download_file(
     conversation_id: str,
@@ -171,10 +143,9 @@ async def download_file(
         workspace_path = Path(WORKSPACE_PATH)
 
         # Check if file exists using E2BEnv
-        file_path: str | None = await validate_and_correct_file_path(
+        file_path: str | None = await FilesService.validate_and_correct_file_path(
             local_env, file_path, str(workspace_path)
         )
-
         # Check if file exists
         if not file_path:
             logger.debug("File not found, raising 404")
@@ -385,7 +356,7 @@ async def read_file(conversation_id: str, file_path: str):
             )
 
         # Check existence via sandbox API
-        file_path: str | None = await validate_and_correct_file_path(
+        file_path: str | None = await FilesService.validate_and_correct_file_path(
             local_env, file_path, str(base)
         )
         if not file_path:

@@ -24,6 +24,7 @@ import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { getAccessToken, isAuthRequired, logout } from "@/lib/api/auth";
 import { GridView } from "@/components/ui/grid-view";
+import { getFileType } from "@/lib/utils";
 
 interface RequestBody {
   query: string;
@@ -225,42 +226,6 @@ function App() {
     setPreviewData(undefined);
   };
 
-  // Helper function to determine file type based on extension
-  const getFileType = (filename: string) => {
-    if (!filename) return "text";
-
-    const extension = filename.split(".").pop()?.toLowerCase() || "";
-
-    if (["csv", "xls", "xlsx"].includes(extension)) return "table";
-    if (["md", "markdown", "txt"].includes(extension)) return "markdown";
-    if (["html", "htm"].includes(extension)) return "html";
-    if (["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(extension))
-      return "image";
-    if (extension === "pdf") return "pdf";
-    if (
-      [
-        "js",
-        "jsx",
-        "ts",
-        "tsx",
-        "py",
-        "java",
-        "c",
-        "cpp",
-        "go",
-        "rb",
-        "php",
-        "css",
-        "scss",
-        "json",
-        "xml",
-        "yaml",
-        "yml",
-      ].includes(extension)
-    )
-      return "code";
-    return "text";
-  };
 
   // Function to open file in sidebar - content fetching is handled by ContentSidebar
   const handleFileClick = (filename: string) => {

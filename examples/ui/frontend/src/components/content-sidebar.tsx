@@ -12,6 +12,8 @@ import {
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./ui/markdown-renderer";
+import SaveArtifactButton from "./save-artifact-button";
+import Papa from "papaparse";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { toast } from "react-hot-toast";
@@ -302,37 +304,25 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   `;
 
-  // CSV Parser function
+  // CSV Parser function using PapaParse
   const parseCSV = (csvText: string): string[][] => {
     if (!csvText) return [];
 
-    const lines = csvText.trim().split("\n");
-    const result: string[][] = [];
+    try {
+      // Use PapaParse with automatic delimiter detection
+      const result = Papa.parse(csvText, {
+        delimiter: "", // Auto-detect delimiter
+        skipEmptyLines: true,
+        transform: (value: string) => value.trim(),
+        complete: () => {},
+      });
 
-    for (const line of lines) {
-      const row: string[] = [];
-      let current = "";
-      let inQuotes = false;
-
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ";" && !inQuotes) {
-          row.push(current.trim());
-          current = "";
-        } else {
-          current += char;
-        }
-      }
-
-      // Add the last field
-      row.push(current.trim());
-      result.push(row);
+      // Return the parsed data as string[][]
+      return result.data as string[][];
+    } catch (error) {
+      console.error("Error parsing CSV:", error);
+      return [];
     }
-
-    return result;
   };
 
   // Render content based on type
@@ -378,16 +368,20 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           </div>
         );
       case "markdown":
+        const fileAbsUrl = getBackendServerURL(
+          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}`
+        );
         return (
           <div className="prose prose-sm max-w-none">
-            <MarkdownRenderer>{content}</MarkdownRenderer>
+            
+            <MarkdownRenderer baseUrl={fileAbsUrl}>{content}</MarkdownRenderer>
           </div>
         );
       case "table":
         const tableFilename = normalizedFilename || previewData.url || "";
         const tableExtension = tableFilename.split(".").pop()?.toLowerCase() || "";
         const tableData = parseCSV(content);
-
+        
         return (
           <div className="h-full flex flex-col">
             {/* Table Header */}
@@ -708,6 +702,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   };
 
+  // Handle artifact save
+
+
   return (
     <div
       className="fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-lg z-50 flex flex-col"
@@ -755,6 +752,13 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           )}
         </div>
         <div className="flex items-center space-x-2">
+          {/* Save button - only show for markdown files */}
+          {(previewData.type === "markdown" || previewData.type === "iframe") && (
+            <SaveArtifactButton
+              conversationId={conversationId}
+              previewData={previewData}
+            />
+          )}
           {/* Download button - only show for actual files, not iframes */}
           {(normalizedFilename || previewData.url) &&
             previewData.type !== "iframe" && (
