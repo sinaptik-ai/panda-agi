@@ -4,7 +4,8 @@ from typing import Dict, List, Optional, Type
 
 from .base import ToolHandler
 
-logger = logging.getLogger("AgentClient")
+logger = logging.getLogger("ToolRegistry")
+logger.setLevel(logging.WARNING)
 
 
 @dataclass
@@ -69,8 +70,10 @@ class ToolRegistry:
                 f"Registered handler {handler_class.__name__} for type '{message_type}'"
             )
             if xml_tag:
-                logger.debug(f"Registered XML tool '{xml_tag}' for function '{message_type}'")
-            
+                logger.debug(
+                    f"Registered XML tool '{xml_tag}' for function '{message_type}'"
+                )
+
             return handler_class
 
         return decorator
@@ -224,6 +227,3 @@ class ToolRegistry:
             xml_tag: definition.function_name
             for xml_tag, definition in cls._xml_tools.items()
         }
-
-
-

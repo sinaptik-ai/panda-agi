@@ -20,12 +20,6 @@ class UserNotificationHandler(ToolHandler):
     """Handler for user notification messages"""
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        # Add event to event manager
-        # await self.event_manager.add_event(
-        #     EventType.USER_NOTIFICATION,
-        #     data=params,
-        # )
-
         return ToolResult(
             success=True,
             data="Message received successfully, continue with your task or complete the task.",
@@ -53,10 +47,6 @@ class ErrorHandler(ToolHandler):
     """Handler for error messages"""
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        # await self.event_manager.add_event(
-        #     EventType.ERROR,
-        #     data=params,
-        # )
         return ToolResult(success=True, data={"error": params.get("error")})
 
 
@@ -73,8 +63,4 @@ class CompletedTaskHandler(ToolHandler):
     """Handler for completed task messages"""
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        # await self.event_manager.add_event(
-        #     EventType.COMPLETED_TASK,
-        #     data=params,
-        # )
         return ToolResult(success=True, data={})

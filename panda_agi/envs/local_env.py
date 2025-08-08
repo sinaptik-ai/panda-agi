@@ -5,7 +5,6 @@ This module provides environment classes that define where file operations
 and shell commands are executed.
 """
 
-import asyncio
 import logging
 import shutil
 import subprocess
@@ -408,7 +407,7 @@ class LocalEnv(BaseEnv):
                 "path": str(target_path if "target_path" in locals() else path),
             }
 
-    async def get_available_ports(self) -> List[int]:
+    def get_available_ports(self) -> List[int]:
         """Get list of available ports."""
         try:
             return self.ports
@@ -416,28 +415,28 @@ class LocalEnv(BaseEnv):
             logger.warning(f"Error getting available ports: {str(e)}")
             return []
 
-    async def is_port_available(self, port: int) -> bool:
+    def is_port_available(self, port: int) -> bool:
         """Check if a port is available."""
         if port in self.ports:
             return False
 
-        try:
-            check_cmd = [
-                "lsof",
-                "-i",
-                f":{port}",
-            ]
-            check_process = await asyncio.create_subprocess_exec(
-                *check_cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, _ = await check_process.communicate()
+        # try:
+        #     check_cmd = [
+        #         "lsof",
+        #         "-i",
+        #         f":{port}",
+        #     ]
+        #     check_process = await asyncio.create_subprocess_exec(
+        #         *check_cmd,
+        #         stdout=asyncio.subprocess.PIPE,
+        #         stderr=asyncio.subprocess.PIPE,
+        #     )
+        #     stdout, _ = await check_process.communicate()
 
-            if stdout.decode().strip() == "":
-                return True
-            else:
-                return False
-        except Exception as e:
-            logger.warning(f"Error checking port availability: {str(e)}")
-            return False
+        #     if stdout.decode().strip() == "":
+        #         return True
+        #     else:
+        #         return False
+        # except Exception as e:
+        #     logger.warning(f"Error checking port availability: {str(e)}")
+        #     return False

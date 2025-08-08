@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
+    ExternalLink,
   X,
 } from "lucide-react";
 import MarkdownRenderer from "./ui/markdown-renderer";
@@ -281,9 +282,21 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
           <h3 className="text-sm font-medium text-gray-900 truncate">
             {artifact.name}
           </h3>
-          <p className="text-xs text-gray-600 mt-1">
-            {artifact.filepath}
-          </p>
+          <a
+              href={
+                getBackendServerURL(
+                    `/artifacts/${artifact.id}/${encodeURIComponent(artifact.filepath)}`
+                  )
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 hover:underline flex items-center space-x-1 mt-1"
+            >
+              <span className="truncate">
+                {artifact.filepath}
+              </span>
+              <ExternalLink className="w-3 h-3 flex-shrink-0" />
+            </a>
         </div>
         <div className="flex items-center space-x-2">
           <button
