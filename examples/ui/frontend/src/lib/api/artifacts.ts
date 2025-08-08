@@ -13,7 +13,7 @@ export interface ArtifactResponse {
     filepath: string;
     conversation_id: string;
     created_at: string;
-    metadata: Record<string, any>;
+    metadata: Record<string, unknown>;
 }
 
 export const saveArtifact = async (conversationId: string, payload: ArtifactPayload): Promise<ArtifactResponse> => {

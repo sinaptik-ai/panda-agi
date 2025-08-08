@@ -41,7 +41,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
             {description}
             {itemName && (
               <span className="block mt-2 font-medium text-gray-900">
-                "{itemName}"
+                &ldquo;{itemName}&rdquo;
               </span>
             )}
           </DialogDescription>

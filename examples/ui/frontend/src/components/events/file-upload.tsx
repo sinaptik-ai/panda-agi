@@ -1,5 +1,6 @@
 import React from "react";
 import { Upload, Eye } from "lucide-react";
+import { getFileType } from "@/lib/utils";
 
 interface FileUploadEventProps {
   payload?: {
@@ -28,10 +29,12 @@ const FileUploadEvent: React.FC<FileUploadEventProps> = ({ payload, onPreviewCli
 
   const handlePreviewClick = () => {
     if (onPreviewClick && filename) {
+      const fileType = getFileType(filename);
+      
       onPreviewClick({
         filename: filename,
         title: `uploaded: ${filename}`,
-        type: "text",
+        type: fileType,
       });
     }
   };

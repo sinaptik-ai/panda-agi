@@ -307,10 +307,14 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   const parseCSV = (csvText: string): string[][] => {
     if (!csvText) return [];
 
-    const lines = csvText.trim().split("\n");
+    // Normalize line endings and trim
+    const normalizedText = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+    const lines = normalizedText.split("\n");
     const result: string[][] = [];
 
     for (const line of lines) {
+      if (!line.trim()) continue; // Skip empty lines
+      
       const row: string[] = [];
       let current = "";
       let inQuotes = false;
@@ -320,7 +324,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
         if (char === '"') {
           inQuotes = !inQuotes;
-        } else if (char === ";" && !inQuotes) {
+        } else if ((char === "," || char === ";") && !inQuotes) {
           row.push(current.trim());
           current = "";
         } else {
@@ -330,7 +334,11 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
       // Add the last field
       row.push(current.trim());
-      result.push(row);
+      
+      // Only add non-empty rows
+      if (row.some(cell => cell.length > 0)) {
+        result.push(row);
+      }
     }
 
     return result;
@@ -392,7 +400,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         const tableFilename = normalizedFilename || previewData.url || "";
         const tableExtension = tableFilename.split(".").pop()?.toLowerCase() || "";
         const tableData = parseCSV(content);
-
+        
         return (
           <div className="h-full flex flex-col">
             {/* Table Header */}
