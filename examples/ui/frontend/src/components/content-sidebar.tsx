@@ -13,6 +13,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./ui/markdown-renderer";
 import SaveArtifactButton from "./save-artifact-button";
+import Papa from "papaparse";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { toast } from "react-hot-toast";
@@ -303,45 +304,25 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   `;
 
-  // CSV Parser function
+  // CSV Parser function using PapaParse
   const parseCSV = (csvText: string): string[][] => {
     if (!csvText) return [];
 
-    // Normalize line endings and trim
-    const normalizedText = csvText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
-    const lines = normalizedText.split("\n");
-    const result: string[][] = [];
+    try {
+      // Use PapaParse with automatic delimiter detection
+      const result = Papa.parse(csvText, {
+        delimiter: "", // Auto-detect delimiter
+        skipEmptyLines: true,
+        transform: (value: string) => value.trim(),
+        complete: () => {},
+      });
 
-    for (const line of lines) {
-      if (!line.trim()) continue; // Skip empty lines
-      
-      const row: string[] = [];
-      let current = "";
-      let inQuotes = false;
-
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if ((char === "," || char === ";") && !inQuotes) {
-          row.push(current.trim());
-          current = "";
-        } else {
-          current += char;
-        }
-      }
-
-      // Add the last field
-      row.push(current.trim());
-      
-      // Only add non-empty rows
-      if (row.some(cell => cell.length > 0)) {
-        result.push(row);
-      }
+      // Return the parsed data as string[][]
+      return result.data as string[][];
+    } catch (error) {
+      console.error("Error parsing CSV:", error);
+      return [];
     }
-
-    return result;
   };
 
   // Render content based on type
