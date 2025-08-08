@@ -12,7 +12,7 @@ export interface ArtifactData {
   filepath: string;
   conversation_id: string;
   created_at: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 interface ArtifactViewerProps {
