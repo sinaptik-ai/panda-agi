@@ -26,7 +26,7 @@ def should_render_event(event: dict) -> bool:
 
     event_type = event.get("event_type", None)
 
-    if event_type == "tool_end":
+    if event_type == "tool_end" or event_type == "tool_start":
         return True
 
     return False

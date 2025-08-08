@@ -5,6 +5,29 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+
+const toolNameMap: Record<string, string> = {
+  "planning": "Panda is planning...",
+  "file_upload": "Panda is uploading files...",
+  "shell_exec_command": "Panda is executing a command...",
+  "web_search": "Panda is searching the web...",
+  "web_visit_page": "Panda is visiting the web pages...",
+  "file_read": "Panda is reading files...",
+  "file_write": "Panda is writing files...",
+  "deploy_server": "Panda is deploying a server...",
+  "execute_script": "Panda is executing a script...",
+  "file_replace": "Panda is modifying files...",
+  "generate_image": "Panda is generating images...",
+  "user_send_message": "Panda is sending message..."
+}
+
+export function formatAgentMessage(toolName: string) {
+  if (!toolName || typeof toolName !== 'string') {
+    return 'Panda is thinking...';
+  }
+  return toolNameMap[toolName] ?? 'Panda is thinking...';
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function generatePayload(eventType: string, eventData: any) {
   
@@ -35,6 +58,12 @@ export function generatePayload(eventType: string, eventData: any) {
     return {
       command: eventData.input_params.command,
       output: eventData.output_params.stdout
+    }
+  } else if (eventType === "execute_script"){
+    return {
+      code: eventData.input_params.code,
+      language: eventData.input_params.language,
+      output: eventData.output_params.output
     }
   } else if (eventType === "error") {
     return {
