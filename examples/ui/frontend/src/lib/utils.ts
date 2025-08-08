@@ -15,7 +15,10 @@ const toolNameMap: Record<string, string> = {
   "file_read": "Panda is reading files...",
   "file_write": "Panda is writing files...",
   "deploy_server": "Panda is deploying a server...",
-  "execute_script": "Panda is executing a script..."
+  "execute_script": "Panda is executing a script...",
+  "file_replace": "Panda is modifying files...",
+  "generate_image": "Panda is generating images...",
+  "user_send_message": "Panda is sending message..."
 }
 
 export function formatAgentMessage(toolName: string) {
