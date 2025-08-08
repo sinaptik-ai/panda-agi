@@ -22,6 +22,9 @@ const toolNameMap: Record<string, string> = {
 }
 
 export function formatAgentMessage(toolName: string) {
+  if (!toolName || typeof toolName !== 'string') {
+    return 'Panda is thinking...';
+  }
   return toolNameMap[toolName] ?? 'Panda is thinking...';
 }
 
@@ -55,6 +58,12 @@ export function generatePayload(eventType: string, eventData: any) {
     return {
       command: eventData.input_params.command,
       output: eventData.output_params.stdout
+    }
+  } else if (eventType === "execute_script"){
+    return {
+      code: eventData.input_params.code,
+      language: eventData.input_params.language,
+      output: eventData.output_params.output
     }
   } else if (eventType === "error") {
     return {
