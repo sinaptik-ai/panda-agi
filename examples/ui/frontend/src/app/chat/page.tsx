@@ -429,7 +429,6 @@ function App() {
                     // Set loading to false for any error event
                     setIsLoading(false);
                   }
-                  console.log("Event data:: ", eventData);
 
                   // Check if tool calling is to start
                   if (eventData.data && eventData.event_type === "tool_start") {
@@ -437,7 +436,7 @@ function App() {
                     continue;
                   }
 
-                  // Check if tool calling is to start
+                  // Check if tool call has ended
                   if (eventData.data && eventData.event_type === "tool_end") {
                     setAgentMessage("Panda is thinking...");
                   }
