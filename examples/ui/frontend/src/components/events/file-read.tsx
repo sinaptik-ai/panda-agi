@@ -70,7 +70,7 @@ const FileReadEvent: React.FC<FileReadEventProps> = ({ payload, onPreviewClick }
   const getDisplayFilename = (): string => {
     if (payload.start_line && payload.end_line) {
       const shortFilename = trimFromCenter(filename?.split("/").pop() || "", 50);
-      return `${shortFilename} (lines ${payload.start_line}-${payload.end_line})`; ;
+      return `${shortFilename} (lines ${payload.start_line}-${payload.end_line})`;
     }
     const shortFilename = filename?.split("/").pop() || "";
     return trimFromCenter(shortFilename, 50);
