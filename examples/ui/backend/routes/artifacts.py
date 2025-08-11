@@ -4,10 +4,8 @@ Artifacts routes for the PandaAGI SDK.
 
 import aiohttp
 from fastapi import APIRouter, HTTPException, Request, Query
-from fastapi.security import HTTPBearer
 from fastapi.responses import Response
 from pydantic import BaseModel
-from typing import List
 import os
 import logging
 import traceback
@@ -55,12 +53,12 @@ async def cleanup_artifact(artifact_id: str, api_key: str):
             ) as cleanup_resp:
                 if cleanup_resp.status != 200:
                     logger.error(
-                        f"Failed to cleanup artifact {artifact_id}: {cleanup_resp.status}"
+                        f"Failed to cleanup creation {artifact_id}: {cleanup_resp.status}"
                     )
                 else:
-                    logger.info(f"Successfully cleaned up artifact {artifact_id}")
+                    logger.info(f"Successfully cleaned up creation {artifact_id}")
     except Exception as cleanup_error:
-        logger.error(f"Error during artifact cleanup: {cleanup_error}")
+        logger.error(f"Error during creation cleanup: {cleanup_error}")
 
 
 async def upload_file_to_s3(
@@ -236,10 +234,10 @@ async def get_artifact_file(request: Request, artifact_id: str, file_path: str):
             url = f"{PANDA_AGI_SERVER_URL}/artifacts/{artifact_id}/{file_path}"
             async with session.get(url, headers=headers) as resp:
                 if resp.status != 200:
-                    logger.error(f"Error getting artifact file: {resp.status}")
+                    logger.error(f"Error getting creation file: {resp.status}")
                     raise HTTPException(
                         status_code=resp.status,
-                        detail=f"Failed to get artifact file: {resp.status}",
+                        detail=f"Failed to get creation file: {resp.status}",
                     )
 
                 # Get content as bytes
@@ -255,7 +253,7 @@ async def get_artifact_file(request: Request, artifact_id: str, file_path: str):
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.error(f"Error getting artifact file: {traceback.format_exc()}")
+        logger.error(f"Error getting creation file: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="internal server error")
 
 
@@ -282,15 +280,15 @@ async def delete_artifact(request: Request, artifact_id: str):
                     )
                     raise HTTPException(
                         status_code=resp.status,
-                        detail="Failed to delete artifact",
+                        detail="Failed to delete creation",
                     )
 
-                return {"detail": "Artifact deleted successfully"}
+                return {"detail": "Creation deleted successfully"}
 
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.error(f"Error deleting artifact: {traceback.format_exc()}")
+        logger.error(f"Error deleting creation: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="internal server error")
 
 
@@ -321,7 +319,7 @@ async def update_artifact_name(
                     )
                     raise HTTPException(
                         status_code=resp.status,
-                        detail=f"Failed to update artifact name",
+                        detail=f"Failed to update creation name",
                     )
 
                 return await resp.json()
