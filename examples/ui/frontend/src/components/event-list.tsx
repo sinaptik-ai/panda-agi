@@ -12,6 +12,7 @@ import FileExploreEvent from "./events/file-explore";
 import ShellExecEvent from "./events/shell-exec";
 import ShellViewEvent from "./events/shell-view";
 import ShellWriteEvent from "./events/shell-write";
+import ExecuteScriptEvent from "./events/execute-script";
 import ToolUseEvent from "./events/use-skill";
 import { Message } from "@/lib/types/event-message";
 import { generatePayload } from "@/lib/utils";
@@ -58,6 +59,10 @@ const EVENT_COMPONENTS: Record<string, EventComponentConfig> = {
   },
   shell_exec_command: {
     component: ShellExecEvent,
+    props: ["payload"],
+  },
+  execute_script: {
+    component: ExecuteScriptEvent,
     props: ["payload"],
   },
   shell_view: {

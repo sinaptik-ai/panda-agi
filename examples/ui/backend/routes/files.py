@@ -11,7 +11,7 @@ from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
-from utils.exceptions import RestrictedAccessError
+from utils.exceptions import RestrictedAccessError, FileNotFoundError
 from services.files import FilesService
 from services.agent import get_or_create_agent
 

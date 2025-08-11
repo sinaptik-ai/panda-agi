@@ -39,7 +39,13 @@ const ShellExecEvent: React.FC<ShellExecEventProps> = ({ payload }) => {
             <span className="text-white">{command}</span>
           </div>
           {payload.output && (
-            <div className="text-gray-300 whitespace-pre-wrap break-words">
+            <div 
+              className="text-gray-300 whitespace-pre-wrap break-words max-h-64 overflow-y-auto"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#4B5563 #1F2937'
+              }}
+            >
               {String(payload.output)}
             </div>
           )}

@@ -275,9 +275,9 @@ class E2BEnv(BaseEnv):
             return {
                 "status": "error",
                 "message": f"Error listing files: {str(e)}",
-                "path": (
-                    str(resolved_path) if "resolved_path" in locals() else str(path)
-                ),
+                "path": str(resolved_path)
+                if "resolved_path" in locals()
+                else str(path),
             }
 
     async def path_exists(self, path: Union[str, Path]) -> bool:
@@ -381,8 +381,14 @@ class E2BEnv(BaseEnv):
     def get_hosted_url(self, port) -> str:
         return self.sandbox.get_host(port)
 
-    async def is_port_available(self, port: int) -> bool:
-        pass
+    def kill(self):
+        """
+        Destructor: schedule sandbox.close() if possible.
+        """
+        self.sandbox.kill()
 
-    async def get_available_ports(self) -> List[int]:
+    async def is_port_available(self, port: int) -> bool:
+        return port not in self.ports
+
+    def get_available_ports(self) -> List[int]:
         return self.ports

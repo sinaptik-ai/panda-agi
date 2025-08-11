@@ -24,6 +24,7 @@ import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { getAccessToken, isAuthRequired, logout } from "@/lib/api/auth";
 import { GridView } from "@/components/ui/grid-view";
+import { formatAgentMessage } from "@/lib/utils";
 import { getFileType } from "@/lib/utils";
 
 interface RequestBody {
@@ -35,6 +36,7 @@ function App() {
   const router = useRouter();
   const [isAuthenticating, setIsAuthenticating] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [agentMessage, setAgentMessage] = useState<string>("Panda is thinking...");
   const [inputValue, setInputValue] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -76,6 +78,7 @@ function App() {
       if (files.length === 0) return;
 
       setUploadingFiles(true);
+      setAgentMessage(formatAgentMessage("file_upload"));
 
       try {
         for (const file of files) {
@@ -312,9 +315,7 @@ function App() {
       });
 
       if (!response.ok) {
-        console.log("Response:: ", response);
         const errorData = await response.json();
-        console.log("Error data:: ", errorData);
         throw new Error(errorData?.detail || errorData?.error || `HTTP error! status: ${response.status}`);
       }
 
@@ -394,12 +395,24 @@ function App() {
                     setIsLoading(false);
                   }
 
+                  // Check if tool calling is to start
+                  if (eventData.data && eventData.event_type === "tool_start") {
+                    setAgentMessage(formatAgentMessage(eventData.data.tool_name));
+                    continue;
+                  }
+
+                  // Check if tool call has ended
+                  if (eventData.data && eventData.event_type === "tool_end") {
+                    setAgentMessage("Panda is thinking...");
+                  }
+
                   const message: Message = {
                     id: Date.now() + Math.random(),
                     type: "event",
                     event: eventData,
                     timestamp: new Date().toISOString(),
                   };
+                  
                   setMessages((prev) => [...prev, message]);
 
                 } else {
@@ -764,9 +777,7 @@ function App() {
                     <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-pulse [animation-delay:0.4s]"></div>
                   </div>
                   <span className="text-xs text-gray-500">
-                    {uploadingFiles
-                      ? "Uploading files..."
-                      : "Panda is thinking"}
+                    {agentMessage}
                   </span>
                 </div>
               </div>

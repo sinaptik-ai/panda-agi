@@ -75,7 +75,7 @@ async def shell_exec_command(
             blocking=blocking,
         )
 
-        logger.debug("Execution result: %s", result)
+        print("Execution result: ", result)
 
         if result.get("stdout"):
             result["stdout"] = _limit_output(result["stdout"])
