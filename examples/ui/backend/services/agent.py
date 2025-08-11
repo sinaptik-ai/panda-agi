@@ -92,7 +92,6 @@ async def event_stream(
         # Stream events
         async for event in agent.run_stream(query):
             # Apply filtering first
-
             if not should_render_event(event):
                 continue
 

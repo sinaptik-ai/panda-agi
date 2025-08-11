@@ -11,10 +11,8 @@ from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
-from services.files import FilesService
 from services.agent import get_or_create_agent
-
-from panda_agi.envs.base_env import BaseEnv
+from services.files import FilesService
 
 logger = logging.getLogger("panda_agi_api")
 

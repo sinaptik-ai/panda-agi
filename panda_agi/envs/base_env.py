@@ -294,19 +294,34 @@ class BaseEnv(ABC):
 
             if parse_result.exit_code == "0":
                 status = "success"
+                return ShellOutput(
+                    status=status,
+                    result={
+                        "shell_session_id": session_id,
+                        "return_code": parse_result.exit_code,
+                        "output": clean_output,
+                    },
+                )
             elif parse_result.exit_code is None:
                 status = "running"
+                return ShellOutput(
+                    status=status,
+                    result={
+                        "shell_session_id": session_id,
+                        "status": "Script is running",
+                        "output": clean_output,
+                    },
+                )
             else:
                 status = "error"
-
-            return ShellOutput(
-                status=status,
-                result={
-                    "shell_session_id": session_id,
-                    "return_code": parse_result.exit_code,
-                    "output": clean_output,
-                },
-            )
+                return ShellOutput(
+                    status=status,
+                    result={
+                        "shell_session_id": session_id,
+                        "status": "Script failed",
+                    },
+                    error=clean_output,
+                )
 
         except Exception as e:
             logger.error(f"Internal error while running command: {e}")
@@ -319,9 +334,9 @@ class BaseEnv(ABC):
                 status="error",
                 result={
                     "shell_session_id": session_id,
-                    "return_code": 1,
-                    "output": f"Internal error while running command. Shell executor failed. Error: {str(e)}",
+                    "status": "Script failed",
                 },
+                error=f"Internal error while running command. Shell executor failed. Error: {str(e)}",
             )
 
     @abstractmethod
@@ -648,17 +663,17 @@ class BaseEnv(ABC):
     ) -> Dict[str, Any]:
         pass
 
-    def get_hosted_url(self, port: int) -> str:
+    def get_hosted_url(self, port) -> str:
         return f"http://localhost:{port}"
 
     @abstractmethod
-    async def path_exists(self, path: Union[str, Path]) -> bool:
+    def path_exists(self, path: Union[str, Path]) -> bool:
         pass
 
     @abstractmethod
-    async def get_available_ports(self) -> List[int]:
+    def get_available_ports(self) -> List[int]:
         pass
 
     @abstractmethod
-    async def is_port_available(self, port: int) -> bool:
+    def is_port_available(self, port: int) -> bool:
         pass
