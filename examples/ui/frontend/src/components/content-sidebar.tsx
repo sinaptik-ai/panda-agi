@@ -174,7 +174,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       // Only fetch content if it's not an image and we don't already have content
       const fileType = previewData.type || "text";
       if (fileType !== "image" && !previewData.content) {
-        fetchFileContent(normalized);
+        fetchFileContent(previewData.filename);
       } else if (previewData.content) {
         // If content was provided directly, use it
         setFileContent(previewData.content);
@@ -680,13 +680,14 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
     
     try {
+      const filename = previewData.filename || normalizedFilename;
       const downloadUrl = getBackendServerURL(
         `/${conversationId}/files/download?file_path=${encodeURIComponent(
-          normalizedFilename
+          filename
         )}`
       );
       try {
-        await downloadWithCheck(downloadUrl, normalizedFilename.split("/").pop() || "download");
+        await downloadWithCheck(downloadUrl, filename.split("/").pop() || "download");
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Download failed: File not found or access denied";
         toast.error(errorMessage);
