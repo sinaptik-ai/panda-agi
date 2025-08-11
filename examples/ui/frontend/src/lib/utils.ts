@@ -117,3 +117,40 @@ export async function downloadWithCheck(url: string, filename: string) {
     link.remove();
     URL.revokeObjectURL(blobUrl);
 }
+
+
+export const getFileType = (filename: string) => {
+  if (!filename) return "text";
+
+  const extension = filename.split(".").pop()?.toLowerCase() || "";
+
+  if (["csv", "xls", "xlsx"].includes(extension)) return "table";
+  if (["md", "markdown", "txt"].includes(extension)) return "markdown";
+  if (["html", "htm"].includes(extension)) return "html";
+  if (["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(extension))
+    return "image";
+  if (extension === "pdf") return "pdf";
+  if (
+    [
+      "js",
+      "jsx",
+      "ts",
+      "tsx",
+      "py",
+      "java",
+      "c",
+      "cpp",
+      "go",
+      "rb",
+      "php",
+      "css",
+      "scss",
+      "json",
+      "xml",
+      "yaml",
+      "yml",
+    ].includes(extension)
+  )
+    return "code";
+  return "text";
+};

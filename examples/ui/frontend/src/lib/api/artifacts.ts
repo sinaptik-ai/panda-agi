@@ -13,7 +13,7 @@ export interface ArtifactResponse {
     filepath: string;
     conversation_id: string;
     created_at: string;
-    metadata: Record<string, any>;
+    metadata: Record<string, unknown>;
 }
 
 export const saveArtifact = async (conversationId: string, payload: ArtifactPayload): Promise<ArtifactResponse> => {
@@ -71,4 +71,37 @@ export const getArtifactFile = async (artifactId: string, filePath: string): Pro
     }
     
     return response.text();
+};
+
+export const deleteArtifact = async (artifactId: string): Promise<void> => {
+    const url = getBackendServerURL(`/artifacts/${artifactId}`);
+    const headers = await getApiHeaders();
+    
+    const response = await fetch(url, {
+        method: 'DELETE',
+        headers,
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData?.detail || `Failed to delete artifact: ${response.status}`);
+    }
+};
+
+export const updateArtifactName = async (artifactId: string, name: string): Promise<ArtifactResponse> => {
+    const url = getBackendServerURL(`/artifacts/${artifactId}/name`);
+    const headers = await getApiHeaders();
+    
+    const response = await fetch(url, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ name }),
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData?.detail || `Failed to update artifact name: ${response.status}`);
+    }
+    
+    return response.json();
 }; 

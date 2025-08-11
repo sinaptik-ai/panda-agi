@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { getArtifacts, ArtifactResponse, ArtifactsListResponse } from "@/lib/api/artifacts";
+import { getArtifacts, deleteArtifact, updateArtifactName, ArtifactResponse, ArtifactsListResponse } from "@/lib/api/artifacts";
 import { format } from "date-fns";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2, Edit } from "lucide-react";
+import { toast } from "react-hot-toast";
 import ArtifactViewer from "@/components/artifact-viewer";
+import DeleteConfirmationDialog from "@/components/delete-confirmation-dialog";
+import EditNameDialog from "@/components/edit-name-dialog";
 
 export default function CreationsPage() {
   const router = useRouter();
@@ -19,6 +22,16 @@ export default function CreationsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [limit] = useState(10);
+  const [deletingArtifact, setDeletingArtifact] = useState<string | null>(null);
+  const [updatingArtifact, setUpdatingArtifact] = useState<string | null>(null);
+  
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [artifactToDelete, setArtifactToDelete] = useState<ArtifactResponse | null>(null);
+  
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [artifactToEdit, setArtifactToEdit] = useState<ArtifactResponse | null>(null);
   
   // Artifact viewer state
   const [selectedArtifact, setSelectedArtifact] = useState<ArtifactResponse | null>(null);
@@ -40,6 +53,83 @@ export default function CreationsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteClick = (artifact: ArtifactResponse) => {
+    setArtifactToDelete(artifact);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!artifactToDelete) return;
+
+    try {
+      setDeletingArtifact(artifactToDelete.id);
+      await deleteArtifact(artifactToDelete.id);
+      
+      // Remove the artifact from the local state
+      setArtifacts(prev => {
+        const updatedArtifacts = prev.filter(artifact => artifact.id !== artifactToDelete.id);
+        
+        // If we're on the last page and it becomes empty, go to the previous page
+        if (updatedArtifacts.length === 0 && currentPage > 1) {
+          setCurrentPage(prev => prev - 1);
+        }
+        
+        return updatedArtifacts;
+      });
+      
+      toast.success("Creation deleted successfully!");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete creation";
+      toast.error(errorMessage);
+    } finally {
+      setDeletingArtifact(null);
+      setDeleteDialogOpen(false);
+      setArtifactToDelete(null);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setArtifactToDelete(null);
+    setDeletingArtifact(null);
+  };
+
+  const handleEditClick = (artifact: ArtifactResponse) => {
+    setArtifactToEdit(artifact);
+    setEditDialogOpen(true);
+  };
+
+  const handleEditConfirm = async (newName: string) => {
+    if (!artifactToEdit) return;
+
+    try {
+      setUpdatingArtifact(artifactToEdit.id);
+      const updatedArtifact = await updateArtifactName(artifactToEdit.id, newName);
+      
+      // Update the artifact in the local state
+      setArtifacts(prev => prev.map(artifact => 
+        artifact.id === artifactToEdit.id 
+          ? { ...artifact, name: updatedArtifact.name }
+          : artifact
+      ));
+      
+      toast.success("Creation name updated successfully!");
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to update creation name";
+      toast.error(errorMessage);
+    } finally {
+      setUpdatingArtifact(null);
+      setEditDialogOpen(false);
+      setArtifactToEdit(null);
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditDialogOpen(false);
+    setArtifactToEdit(null);
+    setUpdatingArtifact(null);
   };
 
   const filteredArtifacts = artifacts.filter((artifact) =>
@@ -136,13 +226,35 @@ export default function CreationsPage() {
                         {formatDate(artifact.created_at)}
                       </td>
                       <td className="py-3 px-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewArtifact(artifact)}
-                        >
-                          View
-                        </Button>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewArtifact(artifact)}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditClick(artifact)}
+                            disabled={updatingArtifact === artifact.id}
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteClick(artifact)}
+                            disabled={deletingArtifact === artifact.id}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -185,6 +297,28 @@ export default function CreationsPage() {
         isOpen={isViewerOpen}
         onClose={handleCloseViewer}
         artifact={selectedArtifact || undefined}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        isOpen={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Creation"
+        description="Are you sure you want to delete this creation? This action cannot be undone."
+        itemName={artifactToDelete?.name}
+        isLoading={deletingArtifact === artifactToDelete?.id}
+      />
+
+      {/* Edit Name Dialog */}
+      <EditNameDialog
+        isOpen={editDialogOpen}
+        onClose={handleEditCancel}
+        onConfirm={handleEditConfirm}
+        title="Edit Creation Name"
+        description="Enter a new name for this creation."
+        currentName={artifactToEdit?.name || ""}
+        isLoading={updatingArtifact === artifactToEdit?.id}
       />
     </div>
   );
