@@ -69,16 +69,14 @@ class FilesService:
             try:
                 resolved.resolve().relative_to(base)
             except Exception:
-                raise RestrictedAccessError(
-                    status_code=403, detail="Access denied: outside workspace"
-                )
+                raise RestrictedAccessError("Access denied: outside workspace")
 
             # Check existence via sandbox API
             file_path: str | None = await FilesService.validate_and_correct_file_path(
                 env, file_path, str(base)
             )
             if not file_path:
-                raise FileNotFoundError(status_code=404, detail="File not found")
+                raise FileNotFoundError("File not found")
 
             # Read file as binary to preserve any type
             read_res = await env.read_file(file_path, mode="rb")
