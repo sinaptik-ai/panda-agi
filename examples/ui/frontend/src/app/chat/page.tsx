@@ -13,6 +13,7 @@ import {
   Archive,
   FileCode,
   LogOut,
+  Crown,
 } from "lucide-react";
 import EventList from "@/components/event-list";
 import MessageCard from "@/components/message-card";
@@ -641,6 +642,16 @@ function App() {
                   <span>New Chat</span>
                 </button>
               )}
+
+              {/* Upgrade Button */}
+              <button
+                onClick={() => router.push("/upgrade")}
+                className="flex items-center space-x-2 px-4 py-2 text-sm bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                title="Upgrade Subscription"
+              >
+                <Crown className="w-4 h-4" />
+                <span>Upgrade</span>
+              </button>
 
               {/* Logout Button - only show if authentication is required */}
               {isAuthRequired() && (
