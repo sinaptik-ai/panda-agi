@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Check, Star, Zap, Crown, X } from "lucide-react";
 import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
-import { createPaymentSession, getUserSubscription, cancelSubscription, createCustomerPortal, updateSubscription } from "@/lib/api/stripe";
+import { createPaymentSession, getUserSubscription, cancelSubscription, updateSubscription } from "@/lib/api/stripe";
 import { toast } from "react-hot-toast";
 
 interface Plan {
