@@ -27,6 +27,8 @@ import { getAccessToken, isAuthRequired, logout } from "@/lib/api/auth";
 import { GridView } from "@/components/ui/grid-view";
 import { formatAgentMessage } from "@/lib/utils";
 import { getFileType } from "@/lib/utils";
+import UpgradeModal from "@/components/upgrade-modal";
+import { useSearchParams } from "next/navigation";
 
 interface RequestBody {
   query: string;
@@ -35,6 +37,7 @@ interface RequestBody {
 
 function App() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isAuthenticating, setIsAuthenticating] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentMessage, setAgentMessage] = useState<string>("Panda is thinking...");
@@ -48,6 +51,7 @@ function App() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -72,6 +76,14 @@ function App() {
   useEffect(() => {
     resizeTextarea();
   }, [inputValue]);
+
+  // Handle URL parameters for upgrade modal
+  useEffect(() => {
+    const upgradeParam = searchParams.get('upgrade');
+    if (upgradeParam === 'open') {
+      setShowUpgradeModal(true);
+    }
+  }, [searchParams]);
 
   // Handle multiple file uploads
   const handleFilesUpload = useCallback(
@@ -645,7 +657,7 @@ function App() {
 
               {/* Upgrade Button */}
               <button
-                onClick={() => router.push("/upgrade")}
+                onClick={() => setShowUpgradeModal(true)}
                 className="flex items-center space-x-2 px-4 py-2 text-sm bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
                 title="Upgrade Subscription"
               >
@@ -915,6 +927,12 @@ function App() {
         conversationId={conversationId}
         width={sidebarWidth}
         onResize={setSidebarWidth}
+      />
+
+      {/* Upgrade Modal */}
+      <UpgradeModal 
+        isOpen={showUpgradeModal} 
+        onClose={() => setShowUpgradeModal(false)} 
       />
     </div>
   );

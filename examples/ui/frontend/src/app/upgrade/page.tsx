@@ -342,7 +342,7 @@ export default function UpgradePage() {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600">
-                  We accept all major credit cards. Enterprise customers can pay via invoice with custom payment terms.
+                  We accept all major credit cards.
                 </p>
               </CardContent>
             </Card>
