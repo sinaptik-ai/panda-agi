@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Star, Zap, Crown } from "lucide-react";
+import { Check, Star, Zap, Crown, ArrowLeft } from "lucide-react";
 import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
-import { createPaymentSession, getUserSubscription, cancelSubscription, createCustomerPortal } from "@/lib/api/stripe";
+import { createPaymentSession, getUserSubscription, cancelSubscription, createCustomerPortal, updateSubscription } from "@/lib/api/stripe";
+import { toast } from "react-hot-toast";
 
 interface Plan {
   id: string;
@@ -31,6 +33,7 @@ interface UserSubscriptionResponse {
 }
 
 export default function UpgradePage() {
+  const router = useRouter();
   const [selectedPlan, setSelectedPlan] = useState<string>("premium");
   const [loading, setLoading] = useState(false);
   const [userSubscription, setUserSubscription] = useState<UserSubscriptionResponse | null>(null);
@@ -117,14 +120,28 @@ export default function UpgradePage() {
 
     setLoading(true);
     try {
-      const response = await createPaymentSession({
-        package_name: planId,
-        success_url: `${window.location.origin}/upgrade/success`
-      });
+      let response;
+      
+      // If user has an existing subscription, use update-subscription
+      if (userSubscription?.has_subscription && userSubscription?.subscription) {
+        response = await updateSubscription({
+          user_id: "user_123", // In real implementation, get from auth
+          package_name: planId,
+          success_url: `${window.location.origin}/upgrade`
+        });
+      } else {
+        // For new subscriptions, use create-payment-session
+        response = await createPaymentSession({
+          package_name: planId,
+          success_url: `${window.location.origin}/upgrade`,
+          cancel_url: `${window.location.origin}/upgrade`
+        });
+      }
+      
       window.location.href = response.checkout_url;
     } catch (error) {
       console.error("Upgrade error:", error);
-      alert("Failed to process upgrade. Please try again.");
+      toast.error("Failed to process upgrade. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -138,13 +155,13 @@ export default function UpgradePage() {
       const success = await cancelSubscription("user_123"); // In real implementation, get from auth
       if (success) {
         await fetchUserSubscription();
-        alert("Subscription canceled successfully");
+        toast.success("Subscription canceled successfully");
       } else {
         throw new Error("Failed to cancel subscription");
       }
     } catch (error) {
       console.error("Cancel error:", error);
-      alert("Failed to cancel subscription. Please try again.");
+      toast.error("Failed to cancel subscription. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -173,6 +190,18 @@ export default function UpgradePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        {/* Back Button */}
+        <div className="flex items-center space-x-4 mb-6">
+          <Button
+            variant="outline"
+            onClick={() => router.push('/chat')}
+            className="flex items-center space-x-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to Chat</span>
+          </Button>
+        </div>
+        
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
@@ -183,61 +212,36 @@ export default function UpgradePage() {
           </p>
         </div>
 
-        {/* Current Subscription Status */}
-        {userSubscription && userSubscription.has_subscription && userSubscription.subscription && (
-          <Card className="mb-8 max-w-2xl mx-auto">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                Current Subscription
-                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                  userSubscription.subscription.status === "active" 
-                    ? "bg-blue-100 text-blue-800" 
-                    : "bg-gray-100 text-gray-800"
-                }`}>
-                  {userSubscription.subscription.status}
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p><strong>Plan:</strong> {userSubscription.subscription.current_package}</p>
-                <p><strong>Next billing:</strong> {new Date(userSubscription.subscription.current_period_end * 1000).toLocaleDateString()}</p>
-                {userSubscription.subscription.cancel_at_period_end && (
-                  <p className="text-orange-600"><strong>Note:</strong> Subscription will cancel at the end of the current period</p>
-                )}
-                {userSubscription.subscription.status === "active" && !userSubscription.subscription.cancel_at_period_end && (
-                  <Button
-                    variant="outline"
-                    onClick={handleCancelSubscription}
-                    disabled={loading}
-                    className="mt-4"
-                  >
-                    {loading ? "Processing..." : "Cancel Subscription"}
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-
-
         {/* Plans Grid */}
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {plans.map((plan) => (
-            <Card
+                        <Card
               key={plan.id}
               className={`relative ${
-                plan.popular
+                plan.popular && userSubscription?.subscription?.current_package !== plan.id
                   ? "ring-2 ring-blue-500 shadow-lg scale-105"
+                  : userSubscription?.subscription?.current_package === plan.id
+                  ? "ring-2 ring-green-500 shadow-lg scale-105"
                   : "hover:shadow-lg transition-shadow"
               }`}
             >
-              {plan.popular && (
+              {plan.popular && userSubscription?.subscription?.current_package !== plan.id && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                                  <span className="inline-flex items-center rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-semibold">
-                  Most Popular
-                </span>
+                  <span className="inline-flex items-center rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-semibold">
+                    Most Popular
+                  </span>
+                </div>
+              )}
+              
+              {userSubscription?.subscription?.current_package === plan.id && (
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                    userSubscription.subscription.status === "active" 
+                      ? "bg-green-600 text-white" 
+                      : "bg-gray-600 text-white"
+                  }`}>
+                    {userSubscription.subscription.status === "active" ? "Current Plan" : "Inactive"}
+                  </span>
                 </div>
               )}
               
@@ -249,6 +253,14 @@ export default function UpgradePage() {
                     {plan.price}
                   </span>
                 </div>
+                {userSubscription?.subscription?.current_package === plan.id && userSubscription.subscription.status === "active" && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    <p>Next billing: {new Date(userSubscription.subscription.current_period_end * 1000).toLocaleDateString()}</p>
+                    {userSubscription.subscription.cancel_at_period_end && (
+                      <p className="text-orange-600">Will cancel at period end</p>
+                    )}
+                  </div>
+                )}
               </CardHeader>
               
               <CardContent>
@@ -261,21 +273,38 @@ export default function UpgradePage() {
                   ))}
                 </ul>
                 
-                <Button
-                  onClick={() => handleUpgrade(plan.id)}
-                  disabled={loading || (userSubscription?.subscription?.current_package === plan.id && userSubscription?.subscription?.status === "active")}
-                  className={`w-full ${
-                    plan.popular
-                      ? "bg-blue-600 hover:bg-blue-700"
-                      : "bg-gray-900 hover:bg-gray-800"
-                  }`}
-                >
-                  {loading ? "Processing..." : 
-                   userSubscription?.subscription?.current_package === plan.id && userSubscription?.subscription?.status === "active"
-                     ? "Current Plan"
-                     : plan.cta
-                  }
-                </Button>
+                {userSubscription?.subscription?.current_package === plan.id && userSubscription?.subscription?.status === "active" ? (
+                  <div className="space-y-2">
+                    <Button
+                      disabled
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                      Current Plan
+                    </Button>
+                    {!userSubscription.subscription.cancel_at_period_end && (
+                      <Button
+                        onClick={handleCancelSubscription}
+                        disabled={loading}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        {loading ? "Processing..." : "Cancel Subscription"}
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => handleUpgrade(plan.id)}
+                    disabled={loading || (userSubscription?.subscription?.current_package === "premium" && plan.id === "standard")}
+                    className={`w-full ${
+                      plan.popular
+                        ? "bg-blue-600 hover:bg-blue-700"
+                        : "bg-gray-900 hover:bg-gray-800"
+                    }`}
+                  >
+                    {loading ? "Processing..." : plan.cta}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -313,7 +342,7 @@ export default function UpgradePage() {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600">
-                  We accept all major credit cards and PayPal. Enterprise customers can pay via invoice with custom payment terms.
+                  We accept all major credit cards. Enterprise customers can pay via invoice with custom payment terms.
                 </p>
               </CardContent>
             </Card>

@@ -184,11 +184,10 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
           <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
           <div className="flex-1">
             <h4 className="font-semibold text-gray-900 text-sm">Error</h4>
-            <div className="text-sm text-gray-700 mt-1 leading-relaxed">
-              <MarkdownRenderer onPreviewClick={onPreviewClick}>
-                {payload.error || "An error occurred"}
-              </MarkdownRenderer>
-            </div>
+            <div 
+              className="text-sm text-gray-700 mt-1 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: payload.error || "An error occurred" }}
+            />
           </div>
         </div>
         {timestamp && (

@@ -9,6 +9,7 @@ interface PortalRequest {
 interface CreatePaymentSessionRequest {
   package_name: string
   success_url?: string
+  cancel_url?: string
 }
 
 interface UpdateSubscriptionRequest {

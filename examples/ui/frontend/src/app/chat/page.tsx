@@ -370,7 +370,7 @@ function App() {
               // Process the complete event
               try {
                 const eventData = JSON.parse(eventBuffer);
-                
+
                 // Validate that eventData has the expected structure
                 if (eventData && typeof eventData === "object") {
                   // Handle conversation_started event
