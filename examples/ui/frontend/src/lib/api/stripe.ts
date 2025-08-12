@@ -99,7 +99,7 @@ export async function getUserSubscription(): Promise<UserSubscriptionResponse> {
 /**
  * Cancels a user's subscription
  */
-export async function cancelSubscription(userId: string): Promise<any> {
+export async function cancelSubscription(userId: string): Promise<boolean> {
   const headers = await getApiHeaders();
   const response = await fetch(`${API_URL}/payment/stripe/cancel-subscription`, {
     method: 'POST',
@@ -112,7 +112,7 @@ export async function cancelSubscription(userId: string): Promise<any> {
     throw new Error(error.detail || 'Failed to cancel subscription')
   }
 
-  return response.json()
+  return true
 }
 
 /**

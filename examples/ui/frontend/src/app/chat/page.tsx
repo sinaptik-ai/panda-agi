@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import {
   Send,
@@ -36,7 +36,7 @@ interface RequestBody {
   conversation_id?: string;
 }
 
-function App() {
+function ChatApp() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isAuthenticating, setIsAuthenticating] = useState(true);
@@ -941,4 +941,22 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 relative mb-4 mx-auto">
+            <span className="text-4xl select-none absolute inset-0 flex items-center justify-center">
+              🐼
+            </span>
+          </div>
+          <h1 className="text-2xl font-semibold mb-2">Loading...</h1>
+          <p className="text-muted-foreground">Loading chat interface</p>
+        </div>
+      </div>
+    }>
+      <ChatApp />
+    </Suspense>
+  );
+}

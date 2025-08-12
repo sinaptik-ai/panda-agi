@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, Star, Zap, Crown, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
 import { createPaymentSession, getUserSubscription, cancelSubscription, updateSubscription } from "@/lib/api/stripe";
 import { toast } from "react-hot-toast";
@@ -37,10 +37,8 @@ interface UpgradeModalProps {
   onClose: () => void;
 }
 
-export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
-  const router = useRouter();
+function UpgradeModalContent({ isOpen, onClose }: UpgradeModalProps) {
   const searchParams = useSearchParams();
-  const [selectedPlan, setSelectedPlan] = useState<string>("premium");
   const [loading, setLoading] = useState(false);
   const [userSubscription, setUserSubscription] = useState<UserSubscriptionResponse | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -387,7 +385,7 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
                     </CardHeader>
                     <CardContent>
                       <p className="text-gray-600">
-                        Click "Contact Sales" on the Enterprise plan to reach our sales team. We'll work with you to create a custom solution.
+                        Click &quot;Contact Sales&quot; on the Enterprise plan to reach our sales team. We&apos;ll work with you to create a custom solution.
                       </p>
                     </CardContent>
                   </Card>
@@ -399,4 +397,12 @@ export default function UpgradeModal({ isOpen, onClose }: UpgradeModalProps) {
       </div>
     </div>
   );
-} 
+}
+
+export default function UpgradeModal(props: UpgradeModalProps) {
+  return (
+    <Suspense fallback={null}>
+      <UpgradeModalContent {...props} />
+    </Suspense>
+  );
+}
