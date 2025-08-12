@@ -135,7 +135,7 @@ async def update_subscription(
 ):
     """Update subscription to a different package"""
 
-    if not all([update_subscription_request.package_name]):
+    if not update_subscription_request.package_name:
         raise HTTPException(status_code=400, detail="Package is required")
 
     # Get API key from request state (set by AuthMiddleware)
