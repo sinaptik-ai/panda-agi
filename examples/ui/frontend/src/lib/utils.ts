@@ -33,11 +33,8 @@ export function formatAgentMessage(toolName: string) {
   return toolNameMap[toolName] ?? 'Panda is thinking...';
 }
 
-export function formatErrorMessage(errorMessage: string): string {
-  if (upgradeRequiredErrors.includes(errorMessage)) {
-    return `<div>${errorMessage}<br/><a href="${window.origin}/upgrade" style="color: #3b82f6; text-decoration: underline; font-weight: 500;">upgrade your plan</a></div>`;
-  }
-  return `<div>${errorMessage}</div>`;
+export function isUpgradeErrorMessage(errorMessage: string): boolean {
+  return upgradeRequiredErrors.includes(errorMessage)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,7 +76,8 @@ export function generatePayload(eventType: string, eventData: any) {
     }
   } else if (eventType === "error") {
     return {
-      error: formatErrorMessage(eventData.error)
+      error: eventData.error,
+      isUpgradeErrorMessage: isUpgradeErrorMessage(eventData.error)
     }
   } else if (eventType === "file_read") { 
     return  {

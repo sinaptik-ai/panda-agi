@@ -29,6 +29,7 @@ import { formatAgentMessage } from "@/lib/utils";
 import { getFileType } from "@/lib/utils";
 import UpgradeModal from "@/components/upgrade-modal";
 import { useSearchParams } from "next/navigation";
+import { PLATFORM_MODE } from "@/lib/config";
 
 interface RequestBody {
   query: string;
@@ -656,14 +657,15 @@ function App() {
               )}
 
               {/* Upgrade Button */}
-              <button
-                onClick={() => setShowUpgradeModal(true)}
-                className="flex items-center space-x-2 px-4 py-2 text-sm bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-                title="Upgrade Subscription"
-              >
-                <Crown className="w-4 h-4" />
-                <span>Upgrade</span>
-              </button>
+              { PLATFORM_MODE && <button
+                  onClick={() => setShowUpgradeModal(true)}
+                  className="flex items-center space-x-2 px-4 py-2 text-sm bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                  title="Upgrade Subscription"
+                >
+                  <Crown className="w-4 h-4" />
+                  <span>Upgrade</span>
+                </button>
+               }
 
               {/* Logout Button - only show if authentication is required */}
               {isAuthRequired() && (
@@ -786,6 +788,7 @@ function App() {
                     conversationId={conversationId}
                     onPreviewClick={handlePreviewClick}
                     onFileClick={handleFileClick}
+                    openUpgradeModal={() => setShowUpgradeModal(true)}
                   />
                 )}
               </div>
@@ -932,7 +935,7 @@ function App() {
       {/* Upgrade Modal */}
       <UpgradeModal 
         isOpen={showUpgradeModal} 
-        onClose={() => setShowUpgradeModal(false)} 
+        onClose={() => setShowUpgradeModal(false)}
       />
     </div>
   );
