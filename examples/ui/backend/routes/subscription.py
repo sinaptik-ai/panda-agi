@@ -78,7 +78,7 @@ async def create_payment_session(
 
     if not all([portal_request.package_name, portal_request.success_url]):
         raise HTTPException(
-            status_code=400, detail="Package name and success url are required"
+            status_code=400, detail="Package name and success URL are required"
         )
 
     async with aiohttp.ClientSession() as session:
