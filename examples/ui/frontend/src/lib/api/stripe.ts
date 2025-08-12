@@ -13,7 +13,6 @@ interface CreatePaymentSessionRequest {
 }
 
 interface UpdateSubscriptionRequest {
-  user_id: string
   package_name: string
   success_url?: string
 }

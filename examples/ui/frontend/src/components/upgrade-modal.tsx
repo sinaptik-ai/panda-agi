@@ -152,7 +152,6 @@ function UpgradeModalContent({ isOpen, onClose }: UpgradeModalProps) {
       
       if (userSubscription?.has_subscription && userSubscription?.subscription) {
         response = await updateSubscription({
-          user_id: "user_123",
           package_name: planId,
           success_url: successUrl
         });
