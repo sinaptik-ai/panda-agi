@@ -200,7 +200,7 @@ function UpgradeModalContent({ isOpen, onClose }: UpgradeModalProps) {
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50">
       <div className="w-full h-full bg-gradient-to-br from-blue-50 to-indigo-100 overflow-y-auto">
         {/* Close Button */}
-        <button
+        <button aria-label="Close"
           onClick={() => {
             // Clear URL parameters when closing
             const url = new URL(window.location.href);

@@ -78,7 +78,7 @@ async def create_payment_session(
 
     if not all([portal_request.package_name, portal_request.success_url]):
         raise HTTPException(
-            status_code=400, detail="Package name and success url are required"
+            status_code=400, detail="Package name and success URL are required"
         )
 
     async with aiohttp.ClientSession() as session:
@@ -135,7 +135,7 @@ async def update_subscription(
 ):
     """Update subscription to a different package"""
 
-    if not all([update_subscription_request.package_name]):
+    if not update_subscription_request.package_name:
         raise HTTPException(status_code=400, detail="Package is required")
 
     # Get API key from request state (set by AuthMiddleware)
