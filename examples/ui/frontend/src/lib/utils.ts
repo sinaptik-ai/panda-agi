@@ -21,11 +21,20 @@ const toolNameMap: Record<string, string> = {
   "user_send_message": "Panda is sending message..."
 }
 
+const upgradeRequiredErrors = [
+  "Insufficient credits to process request",
+  "Insufficient credits. You have no tokens left to continue the conversation."
+];
+
 export function formatAgentMessage(toolName: string) {
   if (!toolName || typeof toolName !== 'string') {
     return 'Panda is thinking...';
   }
   return toolNameMap[toolName] ?? 'Panda is thinking...';
+}
+
+export function isUpgradeErrorMessage(errorMessage: string): boolean {
+  return upgradeRequiredErrors.includes(errorMessage)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -67,7 +76,8 @@ export function generatePayload(eventType: string, eventData: any) {
     }
   } else if (eventType === "error") {
     return {
-      error: eventData.error
+      error: eventData.error,
+      isUpgradeErrorMessage: isUpgradeErrorMessage(eventData.error)
     }
   } else if (eventType === "file_read") { 
     return  {

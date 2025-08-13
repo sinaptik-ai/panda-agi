@@ -157,7 +157,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       className={`text-sm rounded prose prose-sm prose-gray max-w-none ${className}`}
     >
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkBreaks]}
+        remarkPlugins={[[remarkGfm, {singleTilde: false}], remarkBreaks]}
         components={{
           // Add manual URL detection for text nodes
           text: ({ children }) => {

@@ -31,6 +31,7 @@ interface EventListProps {
   conversationId?: string;
   onPreviewClick?: (previewData: PreviewData) => void;
   onFileClick?: (filename: string) => void;
+  openUpgradeModal?: () => void;
 }
 
 interface EventComponentConfig {
@@ -120,6 +121,7 @@ const EventList: React.FC<EventListProps> = ({
   conversationId,
   onPreviewClick,
   onFileClick,
+  openUpgradeModal
 }) => {
   if (!message) return null;
   if (!message.event || !message.event.data) return null;
@@ -141,6 +143,7 @@ const EventList: React.FC<EventListProps> = ({
         onFileClick={onFileClick}
         conversationId={conversationId}
         timestamp={message.event.timestamp}
+        openUpgradeModal={openUpgradeModal}
       />
     );
   }

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import {
   Send,
@@ -13,6 +13,7 @@ import {
   Archive,
   FileCode,
   LogOut,
+  Crown,
 } from "lucide-react";
 import EventList from "@/components/event-list";
 import MessageCard from "@/components/message-card";
@@ -26,14 +27,18 @@ import { getAccessToken, isAuthRequired, logout } from "@/lib/api/auth";
 import { GridView } from "@/components/ui/grid-view";
 import { formatAgentMessage } from "@/lib/utils";
 import { getFileType } from "@/lib/utils";
+import UpgradeModal from "@/components/upgrade-modal";
+import { useSearchParams } from "next/navigation";
+import { PLATFORM_MODE } from "@/lib/config";
 
 interface RequestBody {
   query: string;
   conversation_id?: string;
 }
 
-function App() {
+function ChatApp() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isAuthenticating, setIsAuthenticating] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [agentMessage, setAgentMessage] = useState<string>("Panda is thinking...");
@@ -47,6 +52,7 @@ function App() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -71,6 +77,14 @@ function App() {
   useEffect(() => {
     resizeTextarea();
   }, [inputValue]);
+
+  // Handle URL parameters for upgrade modal
+  useEffect(() => {
+    const upgradeParam = searchParams.get('upgrade');
+    if (upgradeParam === 'open') {
+      setShowUpgradeModal(true);
+    }
+  }, [searchParams]);
 
   // Handle multiple file uploads
   const handleFilesUpload = useCallback(
@@ -369,7 +383,7 @@ function App() {
               // Process the complete event
               try {
                 const eventData = JSON.parse(eventBuffer);
-                
+
                 // Validate that eventData has the expected structure
                 if (eventData && typeof eventData === "object") {
                   // Handle conversation_started event
@@ -642,6 +656,17 @@ function App() {
                 </button>
               )}
 
+              {/* Upgrade Button */}
+              { PLATFORM_MODE && <button
+                  onClick={() => setShowUpgradeModal(true)}
+                  className="flex items-center space-x-2 px-4 py-2 text-sm bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                  title="Upgrade Subscription"
+                >
+                  <Crown className="w-4 h-4" />
+                  <span>Upgrade</span>
+                </button>
+               }
+
               {/* Logout Button - only show if authentication is required */}
               {isAuthRequired() && (
                 <button
@@ -763,6 +788,7 @@ function App() {
                     conversationId={conversationId}
                     onPreviewClick={handlePreviewClick}
                     onFileClick={handleFileClick}
+                    openUpgradeModal={() => setShowUpgradeModal(true)}
                   />
                 )}
               </div>
@@ -905,8 +931,32 @@ function App() {
         width={sidebarWidth}
         onResize={setSidebarWidth}
       />
+
+      {/* Upgrade Modal */}
+      <UpgradeModal 
+        isOpen={showUpgradeModal} 
+        onClose={() => setShowUpgradeModal(false)}
+      />
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 relative mb-4 mx-auto">
+            <span className="text-4xl select-none absolute inset-0 flex items-center justify-center">
+              🐼
+            </span>
+          </div>
+          <h1 className="text-2xl font-semibold mb-2">Loading...</h1>
+          <p className="text-muted-foreground">Loading chat interface</p>
+        </div>
+      </div>
+    }>
+      <ChatApp />
+    </Suspense>
+  );
+}
