@@ -28,7 +28,7 @@ class DockerEnv(LocalEnv):
         base_path: Union[str, Path],
         image: str = "python:3.9-slim",
         metadata: Optional[Dict[str, Any]] = None,
-        ports: Optional[List[int]] = None,
+        ports: Optional[List[int]] = [8080, 2664],
         timeout: Optional[int] = 3600,
     ):
         """
@@ -95,17 +95,19 @@ class DockerEnv(LocalEnv):
             "-w",
             str(self.container_workdir),
         ]
-        
+
         # Add port mappings if specified
         for port in self.ports:
             docker_cmd.extend(["-p", f"{port}:{port}"])
-            
-        docker_cmd.extend([
-            self.image,
-            "tail",
-            "-f",
-            "/dev/null",  # Keep container running
-        ])
+
+        docker_cmd.extend(
+            [
+                self.image,
+                "tail",
+                "-f",
+                "/dev/null",  # Keep container running
+            ]
+        )
         try:
             proc = await asyncio.create_subprocess_exec(
                 *docker_cmd,
@@ -363,11 +365,11 @@ class DockerEnv(LocalEnv):
     async def kill(self) -> Dict[str, Any]:
         """
         Forcefully kill and remove the persistent Docker container and image.
-        
+
         This method immediately stops and removes the persistent container,
         terminating all running processes and tmux sessions within it,
         then removes the Docker image to free up disk space.
-        
+
         Returns:
             Dict containing status information about the kill operation.
         """
@@ -376,9 +378,9 @@ class DockerEnv(LocalEnv):
             "message": "No persistent container to kill",
             "container_id": None,
             "container_name": None,
-            "image_removed": False
+            "image_removed": False,
         }
-        
+
         if self.persistent_container_id:
             try:
                 # Force kill the container (SIGKILL)
@@ -390,7 +392,7 @@ class DockerEnv(LocalEnv):
                     stderr=asyncio.subprocess.PIPE,
                 )
                 stdout, stderr = await kill_proc.communicate()
-                
+
                 # Remove the container
                 rm_proc = await asyncio.create_subprocess_exec(
                     "docker",
@@ -400,7 +402,7 @@ class DockerEnv(LocalEnv):
                     stderr=asyncio.subprocess.PIPE,
                 )
                 await rm_proc.communicate()
-                
+
                 # Remove the Docker image
                 image_removed = False
                 try:
@@ -414,87 +416,99 @@ class DockerEnv(LocalEnv):
                     )
                     rmi_stdout, rmi_stderr = await rmi_proc.communicate()
                     image_removed = rmi_proc.returncode == 0
-                    
+
                     if image_removed:
                         logger.info(f"Removed Docker image {self.image}")
                     else:
-                        logger.warning(f"Failed to remove Docker image {self.image}: {rmi_stderr.decode()}")
-                        
+                        logger.warning(
+                            f"Failed to remove Docker image {self.image}: {rmi_stderr.decode()}"
+                        )
+
                 except Exception as img_e:
                     logger.warning(f"Error removing Docker image {self.image}: {img_e}")
-                
-                result.update({
-                    "message": "Successfully killed persistent container and removed image" if image_removed else "Successfully killed persistent container (image removal failed)",
-                    "container_id": self.persistent_container_id,
-                    "container_name": self.persistent_container_name,
-                    "image_removed": image_removed
-                })
-                
+
+                result.update(
+                    {
+                        "message": "Successfully killed persistent container and removed image"
+                        if image_removed
+                        else "Successfully killed persistent container (image removal failed)",
+                        "container_id": self.persistent_container_id,
+                        "container_name": self.persistent_container_name,
+                        "image_removed": image_removed,
+                    }
+                )
+
                 logger.info(
                     f"Killed persistent container {self.persistent_container_name} (ID: {self.persistent_container_id})"
                 )
-                
+
                 # Reset container tracking
                 self.persistent_container_id = None
-                
+
             except Exception as e:
-                result.update({
-                    "status": "error",
-                    "message": f"Error killing persistent container: {e}",
-                    "container_id": self.persistent_container_id,
-                    "container_name": self.persistent_container_name,
-                    "image_removed": False
-                })
+                result.update(
+                    {
+                        "status": "error",
+                        "message": f"Error killing persistent container: {e}",
+                        "container_id": self.persistent_container_id,
+                        "container_name": self.persistent_container_name,
+                        "image_removed": False,
+                    }
+                )
                 logger.error(f"Error killing persistent container: {e}")
-        
+
         return result
 
     def get_exposed_ports(self) -> List[int]:
         """
         Get the list of currently exposed ports.
-        
+
         Returns:
             List of port numbers that are exposed from container to host.
         """
         return self.ports.copy()
-    
+
     def add_port(self, port: int) -> bool:
         """
         Add a port to the list of ports to expose.
-        
+
         Note: This only affects new containers. If a persistent container
         is already running, you'll need to kill it and recreate it for
         the new port mapping to take effect.
-        
+
         Args:
             port: Port number to expose (same port on host and container)
-            
+
         Returns:
             True if port was added, False if it was already in the list.
         """
         if port not in self.ports:
             self.ports.append(port)
-            logger.info(f"Added port {port} to expose list (will take effect on next container creation)")
+            logger.info(
+                f"Added port {port} to expose list (will take effect on next container creation)"
+            )
             return True
         return False
-    
+
     def remove_port(self, port: int) -> bool:
         """
         Remove a port from the list of ports to expose.
-        
+
         Note: This only affects new containers. If a persistent container
         is already running, you'll need to kill it and recreate it for
         the port mapping change to take effect.
-        
+
         Args:
             port: Port number to remove from expose list
-            
+
         Returns:
             True if port was removed, False if it wasn't in the list.
         """
         if port in self.ports:
             self.ports.remove(port)
-            logger.info(f"Removed port {port} from expose list (will take effect on next container creation)")
+            logger.info(
+                f"Removed port {port} from expose list (will take effect on next container creation)"
+            )
             return True
         return False
 
@@ -532,3 +546,11 @@ class DockerEnv(LocalEnv):
                 logger.warning(f"Error cleaning up persistent container: {e}")
 
         return result
+
+    def get_available_ports(self) -> List[int]:
+        """Get list of available ports."""
+        try:
+            return self.ports
+        except Exception as e:
+            logger.warning(f"Error getting available ports: {str(e)}")
+            return []

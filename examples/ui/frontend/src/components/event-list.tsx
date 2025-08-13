@@ -12,6 +12,7 @@ import FileExploreEvent from "./events/file-explore";
 import ShellExecEvent from "./events/shell-exec";
 import ShellViewEvent from "./events/shell-view";
 import ShellWriteEvent from "./events/shell-write";
+import ExecuteScriptEvent from "./events/execute-script";
 import ToolUseEvent from "./events/use-skill";
 import { Message } from "@/lib/types/event-message";
 import { generatePayload } from "@/lib/utils";
@@ -30,6 +31,7 @@ interface EventListProps {
   conversationId?: string;
   onPreviewClick?: (previewData: PreviewData) => void;
   onFileClick?: (filename: string) => void;
+  openUpgradeModal?: () => void;
 }
 
 interface EventComponentConfig {
@@ -58,6 +60,10 @@ const EVENT_COMPONENTS: Record<string, EventComponentConfig> = {
   },
   shell_exec_command: {
     component: ShellExecEvent,
+    props: ["payload"],
+  },
+  execute_script: {
+    component: ExecuteScriptEvent,
     props: ["payload"],
   },
   shell_view: {
@@ -115,6 +121,7 @@ const EventList: React.FC<EventListProps> = ({
   conversationId,
   onPreviewClick,
   onFileClick,
+  openUpgradeModal
 }) => {
   if (!message) return null;
   if (!message.event || !message.event.data) return null;
@@ -136,6 +143,7 @@ const EventList: React.FC<EventListProps> = ({
         onFileClick={onFileClick}
         conversationId={conversationId}
         timestamp={message.event.timestamp}
+        openUpgradeModal={openUpgradeModal}
       />
     );
   }

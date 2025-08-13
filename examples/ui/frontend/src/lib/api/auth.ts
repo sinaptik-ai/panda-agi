@@ -1,4 +1,5 @@
 import { getServerURL } from "@/lib/server";
+import { PLATFORM_MODE } from "@/lib/config";
 
 /**
  * Validates the authentication token
@@ -116,7 +117,7 @@ export function removeAuthToken(): void {
  * @returns True if authentication is required
  */
 export function isAuthRequired(): boolean {
-  return process.env.NEXT_PUBLIC_USE_AUTH === "true";
+  return PLATFORM_MODE || false;
 }
 
 /**

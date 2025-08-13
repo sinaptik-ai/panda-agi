@@ -22,12 +22,12 @@ const ToolUseEvent: React.FC<ToolUseEventProps> = ({ payload }) => {
   };
 
   const getDisplayContent = () => {
-    const toolName = payload.tool_name || "Unknown Tool";
+    const toolName = payload.tool_name || "Unknown tool";
     const params = payload.parameters || {};
     const paramsString = Object.entries(params)
       .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
       .join(", ");
-    return `Using Tool: ${toolName}${
+    return `Using tool: ${toolName}${
       paramsString ? ` with ${paramsString}` : ""
     }`;
   };
@@ -39,7 +39,7 @@ const ToolUseEvent: React.FC<ToolUseEventProps> = ({ payload }) => {
       <div className="mx-3 mb-4 bg-blue-50 border border-blue-200 rounded-md overflow-hidden">
         <div className="flex items-center px-3 py-2 bg-blue-100 border-b border-blue-200">
           <Zap className="w-4 h-4 mr-2 text-blue-600" />
-          <span className="text-sm font-mono text-blue-700">Tool Used:  {payload.tool_name}</span>
+          <span className="text-sm font-mono text-blue-700">Tool used:  {payload.tool_name}</span>
         </div>
         <div className="p-3 font-mono text-sm space-y-2">
           {result && result.data && (

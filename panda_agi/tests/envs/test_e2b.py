@@ -145,12 +145,55 @@ async def test_file_write():
     # print(output)
 
 
+async def test_python3_execute_script():
+    script = """import pandas as pd
+
+# Read the CSV file
+file_path = './apple_5yr_one.csv'
+df = pd.read_csv(file_path)
+print("DataFrame loaded successfully!")
+print(f"Shape: {df.shape}")
+print(df.head())
+"""
+
+    env = E2BEnv("/test_workspace", timeout=30)
+    await env.create()
+    assert env.sandbox is not None
+
+    # Write script to a temporary file
+    temp_script_path = "temp_script.py"
+    write_result = await env.write_file(temp_script_path, script)
+    print(f"Write result: {write_result}")
+
+    session_id = "test_session"
+    full_command = f"python3 {temp_script_path}"
+
+    result = await env.exec_shell(
+        command=full_command,
+        session_id=session_id,
+        blocking=False,
+    )
+
+    print("result: ")
+    print(result)
+
+    print("Checking process output")
+    output = await env.get_process_output(session_id=session_id, wait_seconds=5)
+    print(output)
+
+    await env.kill_background_process(session_id=session_id)
+
+    # Clean up temp file
+    await env.delete_file(temp_script_path)
+
+
 async def main():
-    # await test_e2b_env()
-    # await test_process_output()
-    # await test_write_to_process()
+    await test_e2b_env()
+    await test_process_output()
+    await test_write_to_process()
     await test_server()
-    # await test_file_write()
+    await test_file_write()
+    await test_python3_execute_script()
 
 
 if __name__ == "__main__":
