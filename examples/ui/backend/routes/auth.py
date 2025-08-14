@@ -22,24 +22,6 @@ router = APIRouter(prefix="/public/auth", tags=["authentication"])
 security = HTTPBearer()
 
 
-def set_auth_cookie(response: Response, token_data: dict):
-    """Set authentication cookie on the response"""
-    is_localhost = os.getenv("ENVIRONMENT", "development") == "development"
-    domain = "" if is_localhost else None
-
-    # Set the cookie with proper attributes
-    response.set_cookie(
-        key="auth_token",
-        value=json.dumps(token_data),
-        max_age=30 * 24 * 60 * 60,  # 30 days
-        path="/",
-        httponly=False,  # Allow JavaScript access
-        secure=False,  # Set to True in production with HTTPS
-        samesite="lax",  # Allow cross-site requests
-        domain=domain,
-    )
-
-
 @router.get("/github")
 async def github_auth(redirect_uri: Optional[str] = Query(None)):
     """GitHub auth endpoint with optional redirect_uri"""
@@ -78,18 +60,6 @@ async def validate_auth(credentials: HTTPAuthorizationCredentials = Depends(secu
 
             # Create response with cookie
             response = JSONResponse(content=response_data)
-
-            # Set the auth cookie with the token data
-            token_data = {
-                "access_token": token,
-                "expires_at": response_data.get("expires_at"),
-                "expires_in": response_data.get("expires_in"),
-                "refresh_token": response_data.get("refresh_token"),
-                "token_type": response_data.get("token_type"),
-                "provider_token": response_data.get("provider_token"),
-            }
-            set_auth_cookie(response, token_data)
-
             return response
 
 
@@ -109,8 +79,5 @@ async def refresh_token(refresh_token_data: dict):
 
             # Create response with cookie
             response = JSONResponse(content=response_data)
-
-            # Set the auth cookie with the new token data
-            set_auth_cookie(response, response_data)
 
             return response
