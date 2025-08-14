@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { getServerURL } from "@/lib/server";
+import { storeAuthToken, removeAuthToken } from "@/lib/api/auth";
 
 export default function Authenticate() {
   const router = useRouter();
@@ -43,25 +44,26 @@ export default function Authenticate() {
             provider_token: params.provider_token || null
           };
           
-          // Save the complete auth object to localStorage
-          localStorage.setItem("auth_token", JSON.stringify(authData));
-          
           // Clear the hash from URL to avoid potential issues
           window.history.replaceState({}, document.title, "/authenticate");
           
           setStatus("Validating token with server...");
           
-          // Validate the token with our backend
+          // Validate the token with our backend and set server-side cookies
           try {
             const response = await fetch(`${getServerURL()}/public/auth/validate`, {
               headers: {
                 Authorization: `Bearer ${params.access_token}`,
               },
+              credentials: 'include', // Include cookies in the request
             });
 
             if (response.ok) {
               const userData = await response.json();
               console.log("Token validation successful:", userData);
+
+              // Store token in localStorage (server will handle cookies)
+              storeAuthToken(authData);
 
               // Store any user data if needed
               if (userData.user) {
@@ -78,13 +80,13 @@ export default function Authenticate() {
               console.error("Token validation failed");
               setError("Token validation failed. Please try again.");
               setStatus("Authentication failed");
-              localStorage.removeItem("auth_token");
+              removeAuthToken();
             }
           } catch (validationError) {
             console.error("Token validation error:", validationError);
             setError(`Error validating token: ${validationError instanceof Error ? validationError.message : 'Unknown error'}`);
             setStatus("Authentication failed");
-            localStorage.removeItem("auth_token");
+            removeAuthToken();
           }
         } else {
           setError("No access token found in the URL");

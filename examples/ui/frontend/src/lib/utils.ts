@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { getApiOptions } from "./api/common";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -112,7 +113,8 @@ export function generatePayload(eventType: string, eventData: any) {
 
 
 export async function downloadWithCheck(url: string, filename: string) {
-    const res = await fetch(url);
+    const options = await getApiOptions();
+    const res = await fetch(url, options);
     if (!res.ok) {
       const errorData = await res.json();
       throw new Error(errorData?.detail || `Download failed with status ${res.status}`);

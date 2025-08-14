@@ -2,6 +2,39 @@ import { getServerURL } from "@/lib/server";
 import { PLATFORM_MODE } from "@/lib/config";
 
 /**
+ * Cookie utility functions
+ */
+const COOKIE_NAME = "auth_token";
+const COOKIE_EXPIRY_DAYS = 30;
+
+function setCookie(name: string, value: string, days: number): void {
+  const expires = new Date();
+  expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+  
+  // For development, we need to set cookies that work across localhost ports
+  // In production, you would set the domain to your actual domain
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const domain = isLocalhost ? '' : `;domain=${window.location.hostname}`;
+  
+  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax${domain}`;
+}
+
+function getCookie(name: string): string | null {
+  const nameEQ = name + "=";
+  const ca = document.cookie.split(';');
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+  }
+  return null;
+}
+
+function deleteCookie(name: string): void {
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
+}
+
+/**
  * Validates the authentication token
  * @param token - The token to validate
  * @returns True if the token is valid
@@ -11,7 +44,8 @@ export async function validateToken(token: string): Promise<boolean> {
     const response = await fetch(`${getServerURL()}/public/auth/validate`, {
       headers: {
         Authorization: `Bearer ${token}`
-      }
+      },
+      credentials: 'include'
     });
     
     return response.ok;
@@ -32,7 +66,9 @@ export async function getGitHubAuthUrl(): Promise<string | null> {
     const redirectUri = `${currentHost}/authenticate`;
     
     // Pass the redirect URI as a query parameter
-    const response = await fetch(`${getServerURL()}/public/auth/github?redirect_uri=${encodeURIComponent(redirectUri)}`);
+    const response = await fetch(`${getServerURL()}/public/auth/github?redirect_uri=${encodeURIComponent(redirectUri)}`, {
+      credentials: 'include'
+    });
     const data = await response.json();
 
     if (data && data.auth_url) {
@@ -58,41 +94,62 @@ export async function getGitHubAuthUrl(): Promise<string | null> {
  */
 export interface AuthToken {
   access_token: string;
-  expires_at: string | null;
-  expires_in: string | null;
-  refresh_token: string | null;
-  token_type: string | null;
-  provider_token: string | null;
+  expires_at?: string | null;
+  expires_in?: string | null;
+  refresh_token?: string | null;
+  token_type?: string | null;
+  provider_token?: string | null;
 }
 
 /**
- * Stores the authentication token in local storage
+ * Stores the authentication token in both local storage and cookies
  * @param token - The authentication token to store
  */
 export function storeAuthToken(token: string | AuthToken): void {
+  let tokenData: AuthToken;
+  
   if (typeof token === 'string') {
-    localStorage.setItem("auth_token", JSON.stringify({ access_token: token }));
+    tokenData = { access_token: token };
   } else {
-    localStorage.setItem("auth_token", JSON.stringify(token));
+    tokenData = token;
   }
+  
+  // Store in localStorage
+  localStorage.setItem("auth_token", JSON.stringify(tokenData));
+  
+  // Store in cookies
+  setCookie(COOKIE_NAME, JSON.stringify(tokenData), COOKIE_EXPIRY_DAYS);
 }
 
 /**
- * Gets the authentication token from local storage
+ * Gets the authentication token from local storage or cookies
  * @returns The authentication token if it exists
  */
 export function getAuthToken(): AuthToken | null {
+  // Try localStorage first
   const authTokenStr = localStorage?.getItem("auth_token");
-  if (!authTokenStr) {
-    return null;
+  if (authTokenStr) {
+    try {
+      return JSON.parse(authTokenStr) as AuthToken;
+    } catch (e) {
+      console.error("Error parsing auth token from localStorage:", e);
+    }
   }
   
-  try {
-    return JSON.parse(authTokenStr) as AuthToken;
-  } catch (e) {
-    console.error("Error parsing auth token:", e);
-    return null;
+  // Fall back to cookies
+  const cookieTokenStr = getCookie(COOKIE_NAME);
+  if (cookieTokenStr) {
+    try {
+      const tokenData = JSON.parse(cookieTokenStr) as AuthToken;
+      // Sync back to localStorage
+      localStorage.setItem("auth_token", cookieTokenStr);
+      return tokenData;
+    } catch (e) {
+      console.error("Error parsing auth token from cookie:", e);
+    }
   }
+  
+  return null;
 }
 
 /**
@@ -105,11 +162,12 @@ export function getAccessToken(): string | null {
 }
 
 /**
- * Removes the authentication token from local storage
+ * Removes the authentication token from both local storage and cookies
  */
 export function removeAuthToken(): void {
   localStorage.removeItem("auth_token");
   localStorage.removeItem("user_data");
+  deleteCookie(COOKIE_NAME);
 }
 
 /**
@@ -133,6 +191,7 @@ export async function refreshAuthToken(refreshToken: string): Promise<AuthToken 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ refresh_token: refreshToken }),
+      credentials: 'include',
     });
 
     if (!response.ok) {
