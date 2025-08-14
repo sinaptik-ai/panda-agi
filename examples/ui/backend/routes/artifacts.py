@@ -202,8 +202,6 @@ async def get_user_artifacts(
             ) as resp:
                 response = await resp.json()
 
-                print(response)
-
                 if resp.status != 200:
                     logger.error(f"Error getting creations: {response}")
                     message = (
@@ -236,15 +234,13 @@ async def _get_public_artifact_file(
     try:
         async with aiohttp.ClientSession() as session:
             url = f"{PANDA_AGI_SERVER_URL}/artifacts/public/{artifact_id}/{file_path}"
-            print("URL:", url)
             async with session.get(url) as resp:
                 if resp.status != 200:
                     logger.error(f"Error getting creation file: {resp.status}")
                     response = await resp.json()
-                    print("Error getting creation file: ", response["detail"])
                     raise HTTPException(
                         status_code=resp.status,
-                        detail=f"Failed to get creation file: {resp.status}",
+                        detail=f"Failed to get creation file: {response['detail'] if 'detail' in response else resp.status}",
                     )
 
                 # Get content as bytes

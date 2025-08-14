@@ -68,7 +68,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Check for X-Authorization header
         auth_header = request.headers.get("x-authorization")
 
-        print("Headers: ", request.headers)
         api_key = None
 
         if auth_header:
