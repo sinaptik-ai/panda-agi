@@ -31,25 +31,10 @@ logger.setLevel(logging.DEBUG)
 app = FastAPI(title="PandaAGI SDK API", version="1.0.0")
 
 # Add CORS middleware
-# When using credentials, we need to specify exact origins instead of wildcard
-allowed_origins = [
-    "http://localhost:3000",  # Default Next.js port
-    "http://localhost:3001",  # Alternative Next.js port
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-]
-
-# Add production origins if needed
-if os.getenv("ENVIRONMENT") == "production":
-    allowed_origins.extend(
-        [
-            "https://your-production-domain.com",  # Replace with your actual domain
-        ]
-    )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
