@@ -132,7 +132,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
             # Fall back to PANDA_AGI_KEY environment variable
             api_key = os.getenv("PANDA_AGI_KEY")
 
-        print("API key: ", api_key)
 
         # If no API key found, return authorization error
         if not api_key and request.method != "OPTIONS":
