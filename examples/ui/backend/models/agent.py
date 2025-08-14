@@ -27,6 +27,7 @@ class ArtifactResponse(BaseModel):
     filepath: str
     conversation_id: str
     created_at: datetime
+    is_public: bool
     metadata: dict = Field(default_factory=dict)
 
 
