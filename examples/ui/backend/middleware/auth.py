@@ -14,39 +14,6 @@ PANDA_AGI_SERVER_URL = (
 )
 
 
-def get_cors_headers(request: Request) -> dict:
-    """
-    Get CORS headers based on the request origin.
-    """
-    origin = request.headers.get("origin")
-
-    # Define allowed origins
-    allowed_origins = [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-    ]
-
-    # Add production origins if needed
-    if os.getenv("ENVIRONMENT") == "production":
-        allowed_origins.extend(
-            [
-                "https://your-production-domain.com",  # Replace with your actual domain
-            ]
-        )
-
-    # Use the request origin if it's allowed, otherwise use the first allowed origin
-    cors_origin = origin if origin in allowed_origins else allowed_origins[0]
-
-    return {
-        "Access-Control-Allow-Origin": cors_origin,
-        "Access-Control-Allow-Methods": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Credentials": "true",
-    }
-
-
 def parse_cookies(cookie_header: str) -> dict:
     """
     Parse cookie header string into a dictionary.
@@ -140,7 +107,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         "error": "Invalid authorization format",
                         "detail": "X-Authorization header must use Bearer token format",
                     },
-                    headers=get_cors_headers(request),
                 )
         else:
             # Check for auth_token cookie if header is not provided
@@ -149,13 +115,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 cookies = parse_cookies(cookie_header)
                 auth_token = extract_token_from_cookie(cookies)
 
-        print("Headers: ", request.headers)
-        print("Cookies: ", auth_token)
         api_key = None
 
         if auth_token:
             api_key = await get_api_key(auth_token)
-            print("API key: ", api_key)
             if not api_key:
                 print("Invalid authorization token")
                 return JSONResponse(
@@ -164,7 +127,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         "error": "Invalid authorization",
                         "detail": "Invalid Authorization token",
                     },
-                    headers=get_cors_headers(request),
                 )
         else:
             # Fall back to PANDA_AGI_KEY environment variable
@@ -179,7 +141,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 content={
                     "detail": "Authorization required",
                 },
-                headers=get_cors_headers(request),
             )
 
         # Add the API key to request state so routes can access it

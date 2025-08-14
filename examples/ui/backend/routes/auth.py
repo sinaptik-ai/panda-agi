@@ -24,8 +24,6 @@ security = HTTPBearer()
 
 def set_auth_cookie(response: Response, token_data: dict):
     """Set authentication cookie on the response"""
-    # For development, we need to set cookies that work across localhost ports
-    # In production, you would set the domain to your actual domain
     is_localhost = os.getenv("ENVIRONMENT", "development") == "development"
     domain = "" if is_localhost else None
 
@@ -93,13 +91,6 @@ async def validate_auth(credentials: HTTPAuthorizationCredentials = Depends(secu
             set_auth_cookie(response, token_data)
 
             return response
-
-
-@router.post("/set-cookie")
-async def set_auth_cookie_endpoint(token_data: dict, response: Response):
-    """Set authentication cookie endpoint"""
-    set_auth_cookie(response, token_data)
-    return {"message": "Cookie set successfully"}
 
 
 @router.post("/refresh-token")
