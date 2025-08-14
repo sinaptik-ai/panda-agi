@@ -14,6 +14,7 @@ export interface ArtifactResponse {
     conversation_id: string;
     created_at: string;
     metadata: Record<string, unknown>;
+    is_public: boolean;
 }
 
 export const saveArtifact = async (conversationId: string, payload: ArtifactPayload): Promise<ArtifactResponse> => {
@@ -88,19 +89,22 @@ export const deleteArtifact = async (artifactId: string): Promise<void> => {
     }
 };
 
-export const updateArtifactName = async (artifactId: string, name: string): Promise<ArtifactResponse> => {
-    const url = getBackendServerURL(`/artifacts/${artifactId}/name`);
+export const updateArtifact = async (
+    artifactId: string, 
+    updates: { name?: string; is_public?: boolean }
+): Promise<ArtifactResponse> => {
+    const url = getBackendServerURL(`/artifacts/${artifactId}`);
     const headers = await getApiHeaders();
     
     const response = await fetch(url, {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({ name }),
+        body: JSON.stringify(updates),
     });
     
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData?.detail || `Failed to update artifact name: ${response.status}`);
+        throw new Error(errorData?.detail || `Failed to update artifact: ${response.status}`);
     }
     
     return response.json();

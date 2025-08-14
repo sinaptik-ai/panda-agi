@@ -10,6 +10,8 @@ import os
 import logging
 import traceback
 import mimetypes
+from uuid import UUID
+from typing import Optional
 
 from services.artifacts import ArtifactsService
 from models.agent import (
@@ -34,6 +36,13 @@ class ArtifactPayload(BaseModel):
     type: str
     name: str
     filepath: str
+
+
+class ArtifactUpdateRequest(BaseModel):
+    """Request model for updating artifact name and public status."""
+
+    name: Optional[str] = None
+    is_public: Optional[bool] = None
 
 
 async def cleanup_artifact(artifact_id: str, api_key: str):
@@ -193,6 +202,8 @@ async def get_user_artifacts(
             ) as resp:
                 response = await resp.json()
 
+                print(response)
+
                 if resp.status != 200:
                     logger.error(f"Error getting creations: {response}")
                     message = (
@@ -216,6 +227,51 @@ async def get_user_artifacts(
     except Exception as e:
         logger.error(f"Error getting creations: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="internal server error")
+
+
+async def _get_public_artifact_file(
+    artifact_id: UUID, file_path: str = "index.html"
+) -> Response:
+    """Helper function to get public artifact file content"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            url = f"{PANDA_AGI_SERVER_URL}/artifacts/public/{artifact_id}/{file_path}"
+            print("URL:", url)
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    logger.error(f"Error getting creation file: {resp.status}")
+                    response = await resp.json()
+                    print("Error getting creation file: ", response["detail"])
+                    raise HTTPException(
+                        status_code=resp.status,
+                        detail=f"Failed to get creation file: {resp.status}",
+                    )
+
+                # Get content as bytes
+                content_bytes = await resp.read()
+
+                # Determine MIME type
+                mime_type, _ = mimetypes.guess_type(file_path)
+                if not mime_type:
+                    mime_type = "application/octet-stream"
+
+                return Response(content=content_bytes, media_type=mime_type)
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error getting creation file: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="internal server error")
+
+
+@router.get("/public/{artifact_id}/{file_path:path}")
+async def get_artifact_file_public(
+    request: Request,
+    artifact_id: UUID,
+    file_path: str,
+) -> Response:
+    """Get artifact file content (public route, no authentication required)"""
+    return await _get_public_artifact_file(artifact_id, file_path)
 
 
 @router.get("/{artifact_id}/{file_path:path}")
@@ -292,11 +348,11 @@ async def delete_artifact(request: Request, artifact_id: str):
         raise HTTPException(status_code=500, detail="internal server error")
 
 
-@router.patch("/{artifact_id}/name", response_model=ArtifactResponse)
-async def update_artifact_name(
-    request: Request, artifact_id: str, name_update: ArtifactNameUpdateRequest
+@router.patch("/{artifact_id}", response_model=ArtifactResponse)
+async def update_artifact(
+    request: Request, artifact_id: str, update_data: ArtifactUpdateRequest
 ) -> ArtifactResponse:
-    """Update an artifact name"""
+    """Update an artifact name and/or public status"""
 
     # Get API key from request state (set by AuthMiddleware)
     api_key = getattr(request.state, "api_key", None)
@@ -308,18 +364,18 @@ async def update_artifact_name(
         async with aiohttp.ClientSession() as session:
             headers = {"X-API-KEY": f"{api_key}"}
             async with session.patch(
-                f"{PANDA_AGI_SERVER_URL}/artifacts/{artifact_id}/name",
-                json=name_update.dict(),
+                f"{PANDA_AGI_SERVER_URL}/artifacts/{artifact_id}",
+                json=update_data.dict(exclude_none=True),
                 headers=headers,
             ) as resp:
                 if resp.status != 200:
                     response = await resp.json()
                     logger.error(
-                        f"Error updating artifact name: {resp.status} {response.get('detail', 'Unknown error')}"
+                        f"Error updating creation: {resp.status} {response.get('detail', 'Unknown error')}"
                     )
                     raise HTTPException(
                         status_code=resp.status,
-                        detail=f"Failed to update creation name",
+                        detail=f"Failed to update creation",
                     )
 
                 return await resp.json()
@@ -327,5 +383,5 @@ async def update_artifact_name(
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.error(f"Error updating artifact name: {traceback.format_exc()}")
+        logger.error(f"Error updating creation: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="internal server error")

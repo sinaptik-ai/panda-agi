@@ -59,11 +59,16 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Skip authentication for health endpoints
-        if request.url.path in ["/health", "/", "/docs", "/redoc", "/openapi.json"]:
+        if (
+            request.url.path in ["/health", "/", "/docs", "/redoc", "/openapi.json"]
+            or "/public/" in request.url.path
+        ):
             return await call_next(request)
 
         # Check for X-Authorization header
-        auth_header = request.headers.get("X-Authorization")
+        auth_header = request.headers.get("x-authorization")
+
+        print("Headers: ", request.headers)
         api_key = None
 
         if auth_header:
@@ -94,12 +99,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
             api_key = os.getenv("PANDA_AGI_KEY")
 
         # If no API key found, return authorization error
-        if not api_key:
+        if not api_key and request.method != "OPTIONS":
             return JSONResponse(
                 status_code=401,
                 content={
-                    "error": "Authorization required",
-                    "detail": "PANDA_AGI_KEY required. Provide X-Authorization header or set PANDA_AGI_KEY environment variable.",
+                    "detail": "Authorization required",
                 },
                 headers=CORS_HEADERS,
             )
