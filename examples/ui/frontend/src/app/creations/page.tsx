@@ -154,7 +154,7 @@ export default function CreationsPage() {
       return;
     }
 
-    const shareUrl = `${window.location.origin}/creations/${artifact.id}`;
+    const shareUrl = `${window.location.origin}/creations/${artifact.id}/${artifact.filepath}`;
     
     try {
       await navigator.clipboard.writeText(shareUrl);
