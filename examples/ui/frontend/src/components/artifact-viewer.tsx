@@ -209,7 +209,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
         <div className="flex items-center justify-center h-full">
           <div className="flex flex-col text-center items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
-            <p className="text-gray-600">Loading artifact content...</p>
+            <p className="text-gray-600">Loading creation content...</p>
           </div>
         </div>
       );
@@ -221,7 +221,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
         <div className="flex items-center justify-center h-full">
           <div className="text-center text-red-500">
             <div className="text-4xl mb-4">⚠️</div>
-            <p className="font-medium">Error loading artifact</p>
+            <p className="font-medium">Error loading creation content</p>
             <p className="text-sm mt-2">{error}</p>
           </div>
         </div>
