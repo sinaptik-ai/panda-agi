@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
 from utils.exceptions import RestrictedAccessError, FileNotFoundError
 from services.files import FilesService
@@ -26,7 +26,9 @@ router = APIRouter(tags=["files"])
 
 @router.post("/files/upload")
 async def upload_files(
-    file: UploadFile = File(...), conversation_id: Optional[str] = Form(None)
+    request: Request,
+    file: UploadFile = File(...),
+    conversation_id: Optional[str] = Form(None),
 ):
     """
     Upload a file to the workspace using E2BEnv.
@@ -39,7 +41,9 @@ async def upload_files(
         dict: Upload status and file information
     """
     try:
-        local_agent = await get_or_create_agent(conversation_id)
+        # Get API key from request state (set by AuthMiddleware)
+        api_key = getattr(request.state, "api_key", None)
+        local_agent = await get_or_create_agent(conversation_id, api_key=api_key)
         local_env = local_agent[0].environment
 
         if not local_env:
@@ -114,6 +118,7 @@ async def upload_files(
 @router.get("/{conversation_id}/files/download")
 async def download_file(
     conversation_id: str,
+    request: Request,
     file_path: str = Query(..., description="Path to the file to download"),
 ):
     """
@@ -127,7 +132,9 @@ async def download_file(
         FileResponse: The file to download
     """
     try:
-        local_agent = await get_or_create_agent(conversation_id)
+        # Get API key from request state (set by AuthMiddleware)
+        api_key = getattr(request.state, "api_key", None)
+        local_agent = await get_or_create_agent(conversation_id, api_key=api_key)
         local_env = local_agent[0].environment
         if not local_env:
             raise HTTPException(
@@ -320,7 +327,7 @@ async def download_file(
 
 
 @router.get("/{conversation_id}/files/{file_path:path}")
-async def read_file(conversation_id: str, file_path: str):
+async def read_file(conversation_id: str, file_path: str, request: Request):
     """
     Read a file from the E2B sandbox workspace and serve it directly.
 
@@ -332,7 +339,9 @@ async def read_file(conversation_id: str, file_path: str):
         Response: The file content
     """
     try:
-        local_agent = await get_or_create_agent(conversation_id)
+        # Get API key from request state (set by AuthMiddleware)
+        api_key = getattr(request.state, "api_key", None)
+        local_agent = await get_or_create_agent(conversation_id, api_key=api_key)
         local_env = local_agent[0].environment
         if not local_env:
             raise HTTPException(
