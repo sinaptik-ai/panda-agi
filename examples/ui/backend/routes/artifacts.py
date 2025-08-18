@@ -14,6 +14,7 @@ from uuid import UUID
 from typing import Optional
 
 from services.artifacts import ArtifactsService
+from utils.markdown_utils import process_markdown_to_pdf
 from models.agent import (
     ArtifactResponse,
     ArtifactsListResponse,
@@ -228,7 +229,7 @@ async def get_user_artifacts(
 
 
 async def _get_public_artifact_file(
-    artifact_id: UUID, file_path: str = "index.html"
+    artifact_id: UUID, file_path: str = "index.html", raw: bool = False
 ) -> Response:
     """Helper function to get public artifact file content"""
     try:
@@ -246,7 +247,50 @@ async def _get_public_artifact_file(
                 # Get content as bytes
                 content_bytes = await resp.read()
 
-                # Determine MIME type
+                # Check if it's a markdown file and raw mode is not requested
+                if file_path.lower().endswith((".md", ".markdown")) and not raw:
+                    logger.debug(f"Converting markdown file to PDF: {file_path}")
+
+                    # Define async function to fetch files (no headers needed for public)
+                    async def fetch_file(url: str, headers: dict = None) -> bytes:
+                        async with session.get(url) as resp:
+                            if resp.status == 200:
+                                return await resp.read()
+                            else:
+                                raise Exception(f"Failed to fetch file: {resp.status}")
+
+                    # Decode markdown content
+                    markdown_content = content_bytes.decode("utf-8")
+
+                    # Get the base URL for resolving relative image paths
+                    base_url = f"{PANDA_AGI_SERVER_URL}/artifacts/public/{artifact_id}/"
+
+                    # Use the utility function to convert markdown to PDF
+                    result = await process_markdown_to_pdf(
+                        markdown_content=markdown_content,
+                        file_path=file_path,
+                        base_url=base_url,
+                        get_file_func=fetch_file,
+                        headers=None,
+                    )
+
+                    if result:
+                        pdf_bytes, pdf_filename = result
+                        return Response(
+                            content=pdf_bytes,
+                            media_type="application/pdf",
+                            headers={
+                                "Content-Disposition": f"inline; filename={pdf_filename}"
+                            },
+                        )
+                    else:
+                        # Fall back to regular markdown response if conversion fails
+                        logger.debug(
+                            "PDF conversion failed, falling back to markdown response"
+                        )
+                        pass
+
+                # Determine MIME type for non-markdown files or when conversion fails
                 mime_type, _ = mimetypes.guess_type(file_path)
                 if not mime_type:
                     mime_type = "application/octet-stream"
@@ -265,13 +309,19 @@ async def get_artifact_file_public(
     request: Request,
     artifact_id: UUID,
     file_path: str,
+    raw: bool = Query(False, alias="raw"),
 ) -> Response:
     """Get artifact file content (public route, no authentication required)"""
-    return await _get_public_artifact_file(artifact_id, file_path)
+    return await _get_public_artifact_file(artifact_id, file_path, raw)
 
 
 @router.get("/{artifact_id}/{file_path:path}")
-async def get_artifact_file(request: Request, artifact_id: str, file_path: str):
+async def get_artifact_file(
+    request: Request,
+    artifact_id: str,
+    file_path: str,
+    raw: bool = Query(False, alias="raw"),
+):
     """Get artifact file content"""
 
     # Get API key from request state (set by AuthMiddleware)
@@ -295,7 +345,50 @@ async def get_artifact_file(request: Request, artifact_id: str, file_path: str):
                 # Get content as bytes
                 content_bytes = await resp.read()
 
-                # Determine MIME type
+                # Check if it's a markdown file and raw mode is not requested
+                if file_path.lower().endswith((".md", ".markdown")) and not raw:
+                    logger.debug(f"Converting markdown file to PDF: {file_path}")
+
+                    # Define async function to fetch files
+                    async def fetch_file(url: str, headers: dict) -> bytes:
+                        async with session.get(url, headers=headers) as resp:
+                            if resp.status == 200:
+                                return await resp.read()
+                            else:
+                                raise Exception(f"Failed to fetch file: {resp.status}")
+
+                    # Decode markdown content
+                    markdown_content = content_bytes.decode("utf-8")
+
+                    # Get the base URL for resolving relative image paths
+                    base_url = f"{PANDA_AGI_SERVER_URL}/artifacts/{artifact_id}/"
+
+                    # Use the utility function to convert markdown to PDF
+                    result = await process_markdown_to_pdf(
+                        markdown_content=markdown_content,
+                        file_path=file_path,
+                        base_url=base_url,
+                        get_file_func=fetch_file,
+                        headers=headers,
+                    )
+
+                    if result:
+                        pdf_bytes, pdf_filename = result
+                        return Response(
+                            content=pdf_bytes,
+                            media_type="application/pdf",
+                            headers={
+                                "Content-Disposition": f"inline; filename={pdf_filename}"
+                            },
+                        )
+                    else:
+                        # Fall back to regular markdown response if conversion fails
+                        logger.debug(
+                            "PDF conversion failed, falling back to markdown response"
+                        )
+                        pass
+
+                # Determine MIME type for non-markdown files
                 mime_type, _ = mimetypes.guess_type(file_path)
                 if not mime_type:
                     mime_type = "application/octet-stream"
