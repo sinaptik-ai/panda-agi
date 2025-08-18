@@ -36,7 +36,7 @@ async def process_artifact_markdown_to_pdf(
     content_bytes: bytes,
     artifact_id: str,
     session: aiohttp.ClientSession,
-    headers: dict,
+    headers: Optional[dict],
     is_public: bool = False,
 ) -> Optional[Response]:
     """
