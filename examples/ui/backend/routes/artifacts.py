@@ -61,7 +61,7 @@ async def process_artifact_markdown_to_pdf(
             if resp.status == 200:
                 return await resp.read()
             else:
-                raise Exception(f"Failed to fetch file: {resp.status}")
+                raise Exception(f"Failed to fetch file from {url}: {resp.status}")
 
     # Decode markdown content
     markdown_content = content_bytes.decode("utf-8")
