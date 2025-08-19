@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Crown, Settings, Menu } from "lucide-react";
+import { LogOut, Crown, Settings, Menu, CreditCard } from "lucide-react";
+import { toast } from "react-hot-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/lib/api/auth";
+import { createCustomerPortal, getUserSubscription } from "@/lib/api/stripe";
 import { PLATFORM_MODE } from "@/lib/config";
 
 interface UserMenuProps {
@@ -18,6 +20,24 @@ interface UserMenuProps {
 
 const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick }) => {
   const router = useRouter();
+  const [hasInvoices, setHasInvoices] = useState(false);
+
+  useEffect(() => {
+    const checkInvoicesAvailability = async () => {
+      if (PLATFORM_MODE) {
+        try {
+          const subscription = await getUserSubscription();
+          setHasInvoices(subscription.has_subscription);
+        } catch (error) {
+          console.error("Failed to check subscription:", error);
+          setHasInvoices(false);
+          toast.error("Failed to check subscription status");
+        }
+      }
+    };
+
+    checkInvoicesAvailability();
+  }, []);
 
   const handleUpgradeClick = () => {
     if (PLATFORM_MODE) {
@@ -26,6 +46,26 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick }) => {
     } else {
       // In non-platform mode, redirect to external upgrade page
       window.open("https://agi.pandas-ai.com/upgrade", "_blank");
+    }
+  };
+
+  const handleInvoicesClick = async () => {
+    try {
+      // First check availability
+      const availabilityCheck = await createCustomerPortal({
+        return_url: window.location.href,
+        check_availability: true,
+      });
+      
+      // If availability check passes, get the actual portal URL
+      const portalResponse = await createCustomerPortal({
+        return_url: window.location.href,
+      });
+      
+      window.open(portalResponse.url, "_blank");
+    } catch (error) {
+      console.error("Failed to open customer portal:", error);
+      toast.error("Failed to open billing portal. Please try again later.");
     }
   };
 
@@ -54,6 +94,13 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick }) => {
         {/* Platform mode specific options */}
         {PLATFORM_MODE && (
           <>
+            {/* Invoices and Billing - only show if user has subscription */}
+            {hasInvoices && (
+              <DropdownMenuItem onClick={handleInvoicesClick}>
+                <CreditCard className="w-4 h-4 mr-2" />
+                <span>Invoices & Billing</span>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout}>
               <LogOut className="w-4 h-4 mr-2" />

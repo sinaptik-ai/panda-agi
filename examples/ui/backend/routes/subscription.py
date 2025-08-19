@@ -42,6 +42,48 @@ class UpdateSubscriptionRequest(BaseModel):
     )
 
 
+class PortalRequest(BaseModel):
+    """Request model for creating a customer portal session"""
+
+    return_url: Optional[str] = Field(
+        None, description="URL to redirect after leaving the portal"
+    )
+    check_availability: Optional[bool] = Field(
+        None, description="Whether to check availability of the subscription"
+    )
+
+
+@router.post("/create-customer-portal")
+async def create_customer_portal(request: Request, portal_request: PortalRequest):
+    """Create a customer portal session"""
+
+    # Get API key from request state (set by AuthMiddleware)
+    api_key = getattr(request.state, "api_key", None)
+
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized access")
+
+    async with aiohttp.ClientSession() as session:
+        headers = {"X-API-KEY": f"{api_key}"}
+
+        payload = {
+            "return_url": portal_request.return_url,
+            "check_availability": portal_request.check_availability,
+        }
+
+        async with session.post(
+            f"{PANDA_AGI_SERVER_URL}/payment/stripe/create-customer-portal",
+            headers=headers,
+            json=payload,
+        ) as resp:
+            if resp.status != 200:
+                raise HTTPException(
+                    status_code=resp.status, detail="Failed to create customer portal"
+                )
+
+            return await resp.json()
+
+
 @router.get("/subscription")
 async def get_subscription(request: Request):
     """Get the current user's subscription"""
