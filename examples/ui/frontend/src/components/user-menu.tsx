@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { logout } from "@/lib/api/auth";
 import { createCustomerPortal, getUserSubscription } from "@/lib/api/stripe";
-import { PLATFORM_MODE } from "@/lib/config";
+import { PLATFORM_MODE, EXTERNAL_URLS } from "@/lib/config";
 
 interface UserMenuProps {
   onUpgradeClick: () => void;
@@ -45,7 +45,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick }) => {
       onUpgradeClick();
     } else {
       // In non-platform mode, redirect to external upgrade page
-      window.open("https://agi.pandas-ai.com/upgrade", "_blank");
+      window.open(EXTERNAL_URLS.UPGRADE, "_blank");
     }
   };
 
@@ -71,7 +71,7 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick }) => {
 
   const handleManagePlanClick = () => {
     // Redirect to manage plan page (you can customize this URL)
-    window.open("https://agi.pandasai.com/dashboard", "_blank");
+    window.open(EXTERNAL_URLS.DASHBOARD, "_blank");
   };
 
   return (
