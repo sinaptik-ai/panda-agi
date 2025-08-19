@@ -104,5 +104,5 @@ async def refresh_token(refresh_token_data: dict):
         )
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Authentication service error: {str(e)}"
+            status_code=500, detail="Authentication service encountered an internal error. Please try again later."
         )
