@@ -156,7 +156,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
 
     try {
       const fileUrl = getBackendServerURL(
-        `/artifacts/${artifact.id}/${encodeURIComponent(artifact.filepath)}`
+        `/artifacts/${artifact.id}/${encodeURIComponent(artifact.filepath)}?raw=true`
       );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

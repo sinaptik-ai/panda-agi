@@ -124,18 +124,65 @@ class ArtifactsService:
     async def get_files_for_markdown(
         filepath: str, env: BaseEnv, artifact_id: str = None
     ):
+        """
+        Recursively get all files referenced in markdown content.
+        This includes files referenced in the main markdown file and any markdown files
+        that are referenced within those files.
+        """
+        # Set to track all processed files to avoid infinite loops
+        processed_files = set()
+        files_to_process = [filepath]
 
-        content_bytes, _ = await FilesService.get_file_from_env(filepath, env)
+        while files_to_process:
+            current_file = files_to_process.pop(0)
 
-        markdown_text = content_bytes.decode("utf-8")
-        yield content_bytes, filepath
-        relative_paths = ArtifactsService.extract_relative_paths_from_markdown(
-            markdown_text
-        )
+            if current_file in processed_files:
+                continue
 
-        for relative_path in relative_paths:
-            content_bytes, _ = await FilesService.get_file_from_env(relative_path, env)
-            yield content_bytes, relative_path
+            processed_files.add(current_file)
+
+            try:
+                content_bytes, _ = await FilesService.get_file_from_env(
+                    current_file, env
+                )
+                yield content_bytes, current_file
+
+                # Only process markdown files for further path extraction
+                if current_file.lower().endswith((".md", ".markdown")):
+                    markdown_text = content_bytes.decode("utf-8")
+                    relative_paths = (
+                        ArtifactsService.extract_relative_paths_from_markdown(
+                            markdown_text
+                        )
+                    )
+
+                    # Add new markdown files to processing queue
+                    for relative_path in relative_paths:
+                        if (
+                            relative_path not in processed_files
+                            and relative_path not in files_to_process
+                        ):
+                            # Check if it's a markdown file to process recursively
+                            if relative_path.lower().endswith((".md", ".markdown")):
+                                files_to_process.append(relative_path)
+                            else:
+                                # For non-markdown files, yield them immediately
+                                try:
+                                    file_content_bytes, _ = (
+                                        await FilesService.get_file_from_env(
+                                            relative_path, env
+                                        )
+                                    )
+                                    yield file_content_bytes, relative_path
+                                    processed_files.add(relative_path)
+                                except Exception as e:
+                                    logger.warning(
+                                        f"Failed to get file {relative_path}: {e}"
+                                    )
+
+            except Exception as e:
+                logger.warning(f"Failed to get file {current_file}: {e}")
+                continue
 
     @staticmethod
     async def get_files_for_iframe(

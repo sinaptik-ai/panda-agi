@@ -10,6 +10,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 import os
 
+from fastapi.responses import JSONResponse
+
 
 PANDA_AGI_SERVER_URL = (
     os.environ.get("PANDA_AGI_BASE_URL") or "https://agi-api.pandas-ai.com"
@@ -35,6 +37,11 @@ async def github_auth(redirect_uri: Optional[str] = Query(None)):
         async with session.post(
             f"{PANDA_AGI_SERVER_URL}/public/auth/github", json=payload
         ) as resp:
+            if resp.status != 200:
+                raise HTTPException(
+                    status_code=resp.status, detail="GitHub authentication failed"
+                )
+
             response = await resp.json()
             return response
 
@@ -66,18 +73,35 @@ async def validate_auth(credentials: HTTPAuthorizationCredentials = Depends(secu
 @router.post("/refresh-token")
 async def refresh_token(refresh_token_data: dict):
     """Refresh authentication token by forwarding to backend service"""
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            f"{PANDA_AGI_SERVER_URL}/public/auth/refresh-token", json=refresh_token_data
-        ) as resp:
-            if resp.status != 200:
-                raise HTTPException(
-                    status_code=resp.status, detail="Token refresh failed"
-                )
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{PANDA_AGI_SERVER_URL}/public/auth/refresh-token",
+                json=refresh_token_data,
+            ) as resp:
+                if resp.status != 200:
+                    raise HTTPException(
+                        status_code=resp.status, detail="Token refresh failed"
+                    )
 
-            response_data = await resp.json()
+                response_data = await resp.json()
 
-            # Create response with cookie
-            response = JSONResponse(content=response_data)
+                # Create response with cookie
+                response = JSONResponse(content=response_data)
 
-            return response
+                return response
+    except aiohttp.ClientConnectorError:
+        raise HTTPException(
+            status_code=503,
+            detail="Authentication service is currently unavailable. Please try again later.",
+        )
+    except aiohttp.ServerTimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="Authentication service is taking too long to respond. Please try again.",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Authentication service encountered an internal error. Please try again later.",
+        )

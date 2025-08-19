@@ -196,7 +196,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
     try {
       const fileUrl = getBackendServerURL(
-        `/${conversationId}/files/${encodeURIComponent(filename)}`
+        `/${conversationId}/files/${encodeURIComponent(filename)}?raw=true`
       );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -687,7 +687,13 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         )}`
       );
       try {
-        await downloadWithCheck(downloadUrl, filename.split("/").pop() || "download");
+        let fileName = filename.split("/").pop()
+
+        if (fileName && fileName.endsWith(".md")) {
+          fileName = fileName.replace(".md", ".pdf");
+        }
+
+        await downloadWithCheck(downloadUrl, fileName || "download");
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Download failed: File not found or access denied";
         toast.error(errorMessage);
@@ -704,8 +710,6 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   };
 
   // Handle artifact save
-
-
   return (
     <div
       className="fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-lg z-50 flex flex-col"
