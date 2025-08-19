@@ -195,6 +195,14 @@ export async function refreshAuthToken(refreshToken: string): Promise<AuthToken 
     });
 
     if (!response.ok) {
+      // Check if it's a server downtime or timeout error
+      if (response.status === 503 || response.status === 504) {
+        console.warn("Authentication service temporarily unavailable, keeping existing token");
+        // Return the current token instead of null to prevent logout
+        return getAuthToken();
+      }
+      
+      // For other errors (401, 403, etc.), the token is actually invalid
       throw new Error(`Token refresh failed: ${response.status}`);
     }
 
@@ -205,6 +213,13 @@ export async function refreshAuthToken(refreshToken: string): Promise<AuthToken 
     
     return newToken;
   } catch (error) {
+    // Check if it's a network error (server down, timeout, etc.)
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      console.warn("Network error during token refresh, keeping existing token");
+      // Return the current token instead of null to prevent logout
+      return getAuthToken();
+    }
+    
     console.error("Token refresh error:", error);
     return null;
   }
@@ -254,7 +269,14 @@ export async function ensureValidToken(): Promise<boolean> {
   // Try to refresh the token
   if (authToken.refresh_token) {
     const newToken = await refreshAuthToken(authToken.refresh_token);
-    return newToken !== null;
+    
+    // If we get a token back (even the old one due to server downtime), consider it valid
+    if (newToken !== null) {
+      return true;
+    }
+    
+    // Only return false if we explicitly got null (token is actually invalid)
+    return false;
   }
 
   // No refresh token available, token is invalid
