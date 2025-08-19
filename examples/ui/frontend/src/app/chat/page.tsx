@@ -3,12 +3,11 @@ import React, { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
-  LogOut,
-  Crown,
 } from "lucide-react";
 import ContentSidebar, { PreviewData } from "@/components/content-sidebar";
-import { getAccessToken, isAuthRequired, logout } from "@/lib/api/auth";
+import { getAccessToken, isAuthRequired } from "@/lib/api/auth";
 import UpgradeModal from "@/components/upgrade-modal";
+import UserMenu from "@/components/user-menu";
 import { useSearchParams } from "next/navigation";
 import { PLATFORM_MODE } from "@/lib/config";
 import ChatBox from "@/components/chatbox";
@@ -163,28 +162,8 @@ function ChatApp() {
                 <span>New Chat</span>
               </button>
 
-              {/* Upgrade Button */}
-              { PLATFORM_MODE && <button
-                  onClick={() => setShowUpgradeModal(true)}
-                  className="flex items-center space-x-2 px-4 py-2 text-sm bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-                  title="Upgrade Subscription"
-                >
-                  <Crown className="w-4 h-4" />
-                  <span>Upgrade</span>
-                </button>
-               }
-
-              {/* Logout Button - only show if authentication is required */}
-              {isAuthRequired() && (
-                <button
-                  onClick={logout}
-                  className="flex items-center space-x-2 px-4 py-2 text-sm bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
-                  title="Logout"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
-                </button>
-              )}
+              {/* User Menu Dropdown */}
+              <UserMenu onUpgradeClick={() => setShowUpgradeModal(true)} />
             </div>
           </div>
         </div>

@@ -115,9 +115,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 cookies = parse_cookies(cookie_header)
                 auth_token = extract_token_from_cookie(cookies)
 
-        api_key = None
-
-        api_key = os.getenv("PANDA_AGI_KEY")
+        api_key = os.getenv("PANDA_AGI_KEY", None)
 
         if not api_key and auth_token:
             api_key = await get_api_key(auth_token)
