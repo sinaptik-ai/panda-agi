@@ -14,6 +14,7 @@ import ShellViewEvent from "./events/shell-view";
 import ShellWriteEvent from "./events/shell-write";
 import ExecuteScriptEvent from "./events/execute-script";
 import ToolUseEvent from "./events/use-skill";
+import ToolErrorEvent from "./events/tool-error";
 import { Message } from "@/lib/types/event-message";
 import { generatePayload } from "@/lib/utils";
 
@@ -106,6 +107,10 @@ const EVENT_COMPONENTS: Record<string, EventComponentConfig> = {
   deploy_server: {
     component: ToolUseEvent,
     props: ["payload"],
+  },
+  error: {
+    component: ToolErrorEvent,
+    props: ["payload", "openUpgradeModal"],
   }
 };
 
@@ -113,7 +118,7 @@ const EVENT_COMPONENTS: Record<string, EventComponentConfig> = {
 const SPECIAL_EVENT_HANDLERS: Record<string, React.FC<UserMessageEventProps>> = {
   user_send_message: UserMessageEvent,
   user_question: UserMessageEvent,
-  error: UserMessageEvent
+  exception: UserMessageEvent
 };
 
 const EventList: React.FC<EventListProps> = ({
@@ -127,7 +132,11 @@ const EventList: React.FC<EventListProps> = ({
   if (!message.event || !message.event.data) return null;
 
   const eventData = message.event.data;
-  const eventType = eventData.tool_name || eventData.event_type || "unknown";
+  let eventType = eventData.tool_name || eventData.event_type || "unknown";
+
+  if (message.event.event_type === "error") {
+    eventType = message.event.event_type
+  }
 
 
   const payload = generatePayload(eventType, eventData);
@@ -157,6 +166,7 @@ const EventList: React.FC<EventListProps> = ({
     const componentProps = {
       payload,
       onPreviewClick,
+      openUpgradeModal,
     };
     return <Component {...componentProps} />;
   } else if (!["completed_task", "planning"].includes(eventType)) {

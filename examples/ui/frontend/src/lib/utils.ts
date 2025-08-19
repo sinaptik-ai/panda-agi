@@ -75,16 +75,23 @@ export function generatePayload(eventType: string, eventData: any) {
       language: eventData.input_params.language,
       output: eventData.output_params.output
     }
+  } else if (eventType === "exception") {
+    return {
+      error: eventData.data.error,
+      isUpgradeErrorMessage: isUpgradeErrorMessage(eventData.data.error)
+    }
   } else if (eventType === "error") {
     return {
-      error: eventData.error,
-      isUpgradeErrorMessage: isUpgradeErrorMessage(eventData.error)
+      tool_name: eventData.tool_name || "Unknown tool",
+      input_params: eventData.input_params || {},
+      error: eventData.data?.error || "Unknown error occurred",
+      isUpgradeErrorMessage: isUpgradeErrorMessage(eventData.data?.error || "")
     }
   } else if (eventType === "file_read") { 
     return  {
         file: eventData.input_params.file,
         path: eventData.input_params.path,
-        content: eventData.output_params.content,
+        content: eventData.output_params?.content,
         start_line: eventData.input_params.start_line,
         end_line: eventData.input_params.end_line
     }

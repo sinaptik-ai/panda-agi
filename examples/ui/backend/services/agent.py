@@ -109,8 +109,10 @@ async def event_stream(
         # Send error event
         error_data = {
             "data": {
-                "event_type": "error",
-                "error": str(e),
+                "event_type": "exception",
+                "data": {
+                    "error": str(e),
+                },
             },
         }
         yield f"<event>{json.dumps(error_data)}</event>"
