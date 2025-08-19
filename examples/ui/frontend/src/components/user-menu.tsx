@@ -45,20 +45,15 @@ const UserMenu: React.FC<UserMenuProps> = ({ onUpgradeClick }) => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        {/* Upgrade option - always show */}
+        {/* Manage Plan option - always show */}
         <DropdownMenuItem onClick={handleUpgradeClick}>
           <Crown className="w-4 h-4 mr-2" />
-          <span>Upgrade</span>
+          <span>Manage Plan</span>
         </DropdownMenuItem>
 
         {/* Platform mode specific options */}
         {PLATFORM_MODE && (
           <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleManagePlanClick}>
-              <Settings className="w-4 h-4 mr-2" />
-              <span>Manage Plan</span>
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout}>
               <LogOut className="w-4 h-4 mr-2" />
