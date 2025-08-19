@@ -115,12 +115,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 cookies = parse_cookies(cookie_header)
                 auth_token = extract_token_from_cookie(cookies)
 
-        api_key = None
+        api_key = os.getenv("PANDA_AGI_KEY", None)
 
-        if auth_token:
+        if not api_key and auth_token:
             api_key = await get_api_key(auth_token)
             if not api_key:
-                print("Invalid authorization token")
                 return JSONResponse(
                     status_code=401,
                     content={
@@ -128,10 +127,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         "detail": "Invalid Authorization token",
                     },
                 )
-        else:
-            # Fall back to PANDA_AGI_KEY environment variable
-            api_key = os.getenv("PANDA_AGI_KEY")
-
 
         # If no API key found, return authorization error
         if not api_key and request.method != "OPTIONS":

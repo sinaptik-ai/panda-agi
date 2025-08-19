@@ -12,6 +12,8 @@ import { toast } from "react-hot-toast";
 import ArtifactViewer from "@/components/artifact-viewer";
 import DeleteConfirmationDialog from "@/components/delete-confirmation-dialog";
 import EditNameDialog from "@/components/edit-name-dialog";
+import UserMenu from "@/components/user-menu";
+import UpgradeModal from "@/components/upgrade-modal";
 
 export default function CreationsPage() {
   const router = useRouter();
@@ -36,6 +38,9 @@ export default function CreationsPage() {
   // Artifact viewer state
   const [selectedArtifact, setSelectedArtifact] = useState<ArtifactResponse | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  
+  // Upgrade modal state
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     fetchArtifacts();
@@ -183,7 +188,7 @@ export default function CreationsPage() {
 
   const formatDate = (dateString: string) => {
     try {
-      return format(new Date(dateString), "MMM dd, yyyy HH:mm");
+      return format(new Date(dateString), "MMM dd, yyyy");
     } catch {
       return dateString;
     }
@@ -201,9 +206,92 @@ export default function CreationsPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-lg">Loading creations...</div>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header - positioned absolutely over content */}
+        <div className="glass-header p-4 fixed top-0 left-0 right-0 z-10 backdrop-blur-xl bg-white/80">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                <span className="text-2xl select-none">🐼</span>
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">
+                  My Creations
+                </h1>
+                <p className="text-sm text-gray-500">
+                  View and manage your saved creations
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              {/* Back to Chat Button */}
+              <Button
+                variant="outline"
+                onClick={() => router.push('/chat')}
+                className="flex items-center space-x-2 px-4 py-2 text-sm bg-white hover:bg-gray-50 border border-gray-200 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Chat</span>
+              </Button>
+
+              {/* User Menu Dropdown */}
+              <UserMenu onUpgradeClick={() => setShowUpgradeModal(true)} />
+            </div>
+          </div>
+        </div>
+
+        {/* Main content with top padding for fixed header */}
+        <div className="pt-20 px-6">
+          <div className="max-w-4xl mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle>Creations</CardTitle>
+                <div className="flex items-center space-x-2">
+                  <div className="w-64 h-9 bg-gray-200 rounded-md animate-pulse"></div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-6 font-semibold text-gray-700">Name</th>
+                        <th className="text-left py-3 px-6 font-semibold text-gray-700 w-24">Status</th>
+                        <th className="text-left py-3 px-6 font-semibold text-gray-700 w-32">Date Saved</th>
+                        <th className="text-left py-3 px-6 font-semibold text-gray-700 w-48">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...Array(5)].map((_, index) => (
+                        <tr key={index} className="border-b border-gray-100">
+                          <td className="py-3 px-6">
+                            <div className="w-48 h-4 bg-gray-200 rounded animate-pulse"></div>
+                          </td>
+                          <td className="py-3 px-6">
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 bg-gray-200 rounded-full animate-pulse"></div>
+                              <div className="w-12 h-3 bg-gray-200 rounded animate-pulse"></div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-6">
+                            <div className="w-20 h-4 bg-gray-200 rounded animate-pulse"></div>
+                          </td>
+                          <td className="py-3 px-6">
+                            <div className="flex items-center space-x-1">
+                              {[...Array(4)].map((_, actionIndex) => (
+                                <div key={actionIndex} className="w-8 h-8 bg-gray-200 rounded-md animate-pulse"></div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     );
@@ -220,23 +308,45 @@ export default function CreationsPage() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <div className="flex items-center space-x-4 mb-4">
-          <Button
-            variant="outline"
-            onClick={() => router.push('/chat')}
-            className="flex items-center space-x-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to Chat</span>
-          </Button>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header - positioned absolutely over content */}
+      <div className="glass-header p-4 fixed top-0 left-0 right-0 z-10 backdrop-blur-xl bg-white/80">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+              <span className="text-2xl select-none">🐼</span>
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">
+                My Creations
+              </h1>
+              <p className="text-sm text-gray-500">
+                View and manage your saved creations
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            {/* Back to Chat Button */}
+            <Button
+              variant="outline"
+              onClick={() => router.push('/chat')}
+              className="flex items-center space-x-2 px-4 py-2 text-sm bg-white hover:bg-gray-50 border border-gray-200 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Chat</span>
+            </Button>
+
+            {/* User Menu Dropdown */}
+            <UserMenu onUpgradeClick={() => setShowUpgradeModal(true)} />
+          </div>
         </div>
-        <h1 className="text-3xl font-bold mb-2">My Creations</h1>
-        <p className="text-gray-600">View and manage your saved creations</p>
       </div>
 
-      <Card>
+      {/* Main content with top padding for fixed header */}
+      <div className="pt-20 px-6">
+        <div className="max-w-4xl mx-auto">
+        <Card>
         <CardHeader>
           <CardTitle>Creations</CardTitle>
           <div className="flex items-center space-x-2">
@@ -257,88 +367,94 @@ export default function CreationsPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium">Name</th>
-                    <th className="text-left py-3 px-4 font-medium">Status</th>
-                    <th className="text-left py-3 px-4 font-medium">Date Saved</th>
-                    <th className="text-left py-3 px-4 font-medium">Actions</th>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-6 font-semibold text-gray-700">Name</th>
+                    <th className="text-left py-3 px-6 font-semibold text-gray-700 w-24">Status</th>
+                    <th className="text-left py-3 px-6 font-semibold text-gray-700 w-32">Date Saved</th>
+                    <th className="text-left py-3 px-6 font-semibold text-gray-700 w-48">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredArtifacts.map((artifact) => (
-                    <tr key={artifact.id} className="border-b hover:bg-gray-50">
-                      <td className="py-3 px-4">{artifact.name}</td>
-                      <td className="py-3 px-4">
+                    <tr key={artifact.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors duration-150">
+                      <td className="py-3 px-6">
+                        <div className="max-w-xs">
+                          <div className="font-medium text-gray-900 truncate" title={artifact.name}>
+                            {artifact.name}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-6">
                         <div className="flex items-center space-x-2">
                           {artifact.is_public ? (
                             <>
-                              <Globe className="w-4 h-4 text-green-600" />
-                              <span className="text-green-600 text-sm">Public</span>
+                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                              <span className="text-green-700 text-xs font-medium">Public</span>
                             </>
                           ) : (
                             <>
-                              <div className="w-4 h-4 rounded-full bg-gray-300" />
-                              <span className="text-gray-600 text-sm">Private</span>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                              <span className="text-gray-600 text-xs font-medium">Private</span>
                             </>
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-gray-600">
+                      <td className="py-3 px-6 text-gray-600 text-sm">
                         {formatDate(artifact.created_at)}
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
+                      <td className="py-3 px-6">
+                        <div className="flex items-center space-x-1">
+                          <button
                             onClick={() => handleViewArtifact(artifact)}
+                            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors duration-150"
+                            title="View"
                           >
-                            View
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          </button>
+                          
+                          <button
                             onClick={() => handleEditClick(artifact)}
                             disabled={updatingArtifact === artifact.id}
-                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Edit"
                           >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Edit
-                          </Button>
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          
                           {artifact.is_public && (
-                            <Button
-                              variant="outline"
-                              size="sm"
+                            <button
                               onClick={() => handleCopyShareLink(artifact)}
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-md transition-colors duration-150"
+                              title="Share"
                             >
-                              <Share2 className="w-4 h-4 mr-1" />
-                              Share
-                            </Button>
+                              <Share2 className="w-4 h-4" />
+                            </button>
                           )}
-                          <Button
-                            variant="outline"
-                            size="sm"
+                          
+                          <button
                             onClick={() => handleTogglePublic(artifact)}
                             disabled={updatingArtifact === artifact.id}
-                            className={artifact.is_public 
-                              ? "text-orange-600 hover:text-orange-700 hover:bg-orange-50" 
-                              : "text-green-600 hover:text-green-700 hover:bg-green-50"
-                            }
+                            className={`p-2 rounded-md transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${
+                              artifact.is_public 
+                                ? "text-gray-600 hover:text-orange-600 hover:bg-orange-50" 
+                                : "text-gray-600 hover:text-green-600 hover:bg-green-50"
+                            }`}
+                            title={artifact.is_public ? "Make Private" : "Make Public"}
                           >
-                            <Globe className="w-4 h-4 mr-1" />
-                            {artifact.is_public ? "Make Private" : "Make Public"}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
+                            <Globe className="w-4 h-4" />
+                          </button>
+                          
+                          <button
                             onClick={() => handleDeleteClick(artifact)}
                             disabled={deletingArtifact === artifact.id}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Delete"
                           >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Delete
-                          </Button>
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -376,6 +492,8 @@ export default function CreationsPage() {
           )}
         </CardContent>
       </Card>
+        </div>
+      </div>
 
       {/* Artifact Viewer */}
       <ArtifactViewer
@@ -404,6 +522,12 @@ export default function CreationsPage() {
         description="Enter a new name for this creation."
         currentName={artifactToEdit?.name || ""}
         isLoading={updatingArtifact === artifactToEdit?.id}
+      />
+
+      {/* Upgrade Modal */}
+      <UpgradeModal 
+        isOpen={showUpgradeModal} 
+        onClose={() => setShowUpgradeModal(false)}
       />
     </div>
   );
