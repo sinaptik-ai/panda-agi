@@ -39,7 +39,6 @@ async def run_agent(query_data: AgentQuery, request: Request):
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
             },
         )
     except Exception as e:

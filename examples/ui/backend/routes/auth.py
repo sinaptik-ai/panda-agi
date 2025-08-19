@@ -3,9 +3,11 @@ Authentication routes for the PandaAGI API.
 """
 
 import aiohttp
+import json
 from typing import Optional
-from fastapi import APIRouter, Query, Depends, HTTPException
+from fastapi import APIRouter, Query, Depends, HTTPException, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
 import os
 
 
@@ -33,13 +35,18 @@ async def github_auth(redirect_uri: Optional[str] = Query(None)):
         async with session.post(
             f"{PANDA_AGI_SERVER_URL}/public/auth/github", json=payload
         ) as resp:
+            if resp.status != 200:
+                raise HTTPException(
+                    status_code=resp.status, detail="GitHub authentication failed"
+                )
+
             response = await resp.json()
             return response
 
 
 @router.get("/validate")
 async def validate_auth(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Validate authentication token by forwarding to backend service"""
+    """Validate authentication token by forwarding to backend service and set cookie"""
     token = credentials.credentials  # Extract the token from the bearer header
 
     async with aiohttp.ClientSession() as session:
@@ -54,7 +61,10 @@ async def validate_auth(credentials: HTTPAuthorizationCredentials = Depends(secu
                     status_code=resp.status, detail="Token validation failed"
                 )
 
-            response = await resp.json()
+            response_data = await resp.json()
+
+            # Create response with cookie
+            response = JSONResponse(content=response_data)
             return response
 
 
@@ -70,5 +80,9 @@ async def refresh_token(refresh_token_data: dict):
                     status_code=resp.status, detail="Token refresh failed"
                 )
 
-            response = await resp.json()
+            response_data = await resp.json()
+
+            # Create response with cookie
+            response = JSONResponse(content=response_data)
+
             return response

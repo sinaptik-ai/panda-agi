@@ -1,5 +1,5 @@
 import { getBackendServerURL } from "@/lib/server";
-import { getApiHeaders } from "./common";
+import { getApiOptions } from "./common";
 
 interface ArtifactPayload {
     type: string;
@@ -14,15 +14,16 @@ export interface ArtifactResponse {
     conversation_id: string;
     created_at: string;
     metadata: Record<string, unknown>;
+    is_public: boolean;
 }
 
 export const saveArtifact = async (conversationId: string, payload: ArtifactPayload): Promise<ArtifactResponse> => {
     const url = getBackendServerURL(`/artifacts/${conversationId}/save`);
-    const headers = await getApiHeaders();
+    const options = await getApiOptions();
     
     const response = await fetch(url, {
         method: 'POST',
-        headers,
+        ...options,
         body: JSON.stringify(payload),
     });
     
@@ -41,11 +42,11 @@ export interface ArtifactsListResponse {
 
 export const getArtifacts = async (limit: number = 100, offset: number = 0): Promise<ArtifactsListResponse> => {
     const url = getBackendServerURL(`/artifacts?limit=${limit}&offset=${offset}`);
-    const headers = await getApiHeaders();
+    const options = await getApiOptions();
     
     const response = await fetch(url, {
         method: 'GET',
-        headers,
+        ...options,
     });
     
     if (!response.ok) {
@@ -58,11 +59,11 @@ export const getArtifacts = async (limit: number = 100, offset: number = 0): Pro
 
 export const getArtifactFile = async (artifactId: string, filePath: string): Promise<string> => {
     const url = getBackendServerURL(`/artifacts/${artifactId}/${encodeURIComponent(filePath)}`);
-    const headers = await getApiHeaders();
+    const options = await getApiOptions();
     
     const response = await fetch(url, {
         method: 'GET',
-        headers,
+        ...options,
     });
     
     if (!response.ok) {
@@ -75,11 +76,11 @@ export const getArtifactFile = async (artifactId: string, filePath: string): Pro
 
 export const deleteArtifact = async (artifactId: string): Promise<void> => {
     const url = getBackendServerURL(`/artifacts/${artifactId}`);
-    const headers = await getApiHeaders();
+    const options = await getApiOptions();
     
     const response = await fetch(url, {
         method: 'DELETE',
-        headers,
+        ...options,
     });
     
     if (!response.ok) {
@@ -88,19 +89,22 @@ export const deleteArtifact = async (artifactId: string): Promise<void> => {
     }
 };
 
-export const updateArtifactName = async (artifactId: string, name: string): Promise<ArtifactResponse> => {
-    const url = getBackendServerURL(`/artifacts/${artifactId}/name`);
-    const headers = await getApiHeaders();
+export const updateArtifact = async (
+    artifactId: string, 
+    updates: { name?: string; is_public?: boolean }
+): Promise<ArtifactResponse> => {
+    const url = getBackendServerURL(`/artifacts/${artifactId}`);
+    const options = await getApiOptions();
     
     const response = await fetch(url, {
         method: 'PATCH',
-        headers,
-        body: JSON.stringify({ name }),
+        ...options,
+        body: JSON.stringify(updates),
     });
     
     if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData?.detail || `Failed to update artifact name: ${response.status}`);
+        throw new Error(errorData?.detail || `Failed to update artifact: ${response.status}`);
     }
     
     return response.json();
