@@ -15,6 +15,7 @@ import { formatTimestamp } from "@/lib/date";
 import { getBackendServerURL } from "@/lib/server";
 import { toast } from "react-hot-toast";
 import { downloadWithCheck } from "@/lib/utils";
+import { PLATFORM_MODE } from "@/lib/config";
 
 interface PreviewData {
   url: string;
@@ -194,7 +195,11 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
             {
               payload.isUpgradeErrorMessage && (
                 <div className="text-sm text-gray-700 mt-1 leading-relaxed">
-                  <a className="text-blue-500 hover:cursor-pointer" onClick={openUpgradeModal}>Upgrade your plan</a>
+                   {!PLATFORM_MODE ? (
+                    <a className="text-blue-500 hover:cursor-pointer" onClick={() => window.open('https://agi.pandas-ai.com/upgrade', '_blank', 'noopener,noreferrer')}>Upgrade your plan</a>
+                   ) : (
+                    <a className="text-blue-500 hover:cursor-pointer" onClick={openUpgradeModal}>Upgrade your plan</a>
+                   )}
                 </div>
               )
             }
