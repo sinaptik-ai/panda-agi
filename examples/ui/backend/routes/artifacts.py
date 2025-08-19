@@ -10,8 +10,11 @@ import os
 import logging
 import traceback
 import mimetypes
+from uuid import UUID
+from typing import Optional
 
 from services.artifacts import ArtifactsService
+from utils.markdown_utils import process_markdown_to_pdf
 from models.agent import (
     ArtifactResponse,
     ArtifactsListResponse,
@@ -27,6 +30,70 @@ PANDA_AGI_SERVER_URL = (
 # Create router
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
 
+
+async def process_artifact_markdown_to_pdf(
+    file_path: str,
+    content_bytes: bytes,
+    artifact_id: str,
+    session: aiohttp.ClientSession,
+    headers: Optional[dict],
+    is_public: bool = False,
+) -> Optional[Response]:
+    """
+    Process a markdown file from artifacts and return it as a PDF response.
+
+    Args:
+        file_path: Path to the markdown file
+        content_bytes: The markdown content as bytes
+        artifact_id: The artifact ID
+        session: The aiohttp session for making requests
+        headers: Headers to use for requests
+        is_public: Whether this is a public artifact (affects base URL)
+
+    Returns:
+        Response: PDF response if conversion successful, None if should fall back
+    """
+    logger.debug(f"Converting markdown file to PDF: {file_path}")
+
+    # Define async function to fetch files
+    async def fetch_file(url: str, headers: dict) -> bytes:
+        async with session.get(url, headers=headers) as resp:
+            if resp.status == 200:
+                return await resp.read()
+            else:
+                raise Exception(f"Failed to fetch file from {url}: {resp.status}")
+
+    # Decode markdown content
+    markdown_content = content_bytes.decode("utf-8")
+
+    # Get the base URL for resolving relative image paths
+    if is_public:
+        base_url = f"{PANDA_AGI_SERVER_URL}/artifacts/public/{artifact_id}/"
+    else:
+        base_url = f"{PANDA_AGI_SERVER_URL}/artifacts/{artifact_id}/"
+
+    # Use the utility function to convert markdown to PDF
+    result = await process_markdown_to_pdf(
+        markdown_content=markdown_content,
+        file_path=file_path,
+        base_url=base_url,
+        get_file_func=fetch_file,
+        headers=headers,
+    )
+
+    if result:
+        pdf_bytes, pdf_filename = result
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"inline; filename={pdf_filename}"},
+        )
+    else:
+        # Fall back to regular markdown response if conversion fails
+        logger.debug("PDF conversion failed, falling back to markdown response")
+        return None
+
+
 # Security scheme for bearer token
 
 
@@ -34,6 +101,13 @@ class ArtifactPayload(BaseModel):
     type: str
     name: str
     filepath: str
+
+
+class ArtifactUpdateRequest(BaseModel):
+    """Request model for updating artifact name and public status."""
+
+    name: Optional[str] = None
+    is_public: Optional[bool] = None
 
 
 async def cleanup_artifact(artifact_id: str, api_key: str):
@@ -218,8 +292,70 @@ async def get_user_artifacts(
         raise HTTPException(status_code=500, detail="internal server error")
 
 
+async def _get_public_artifact_file(
+    artifact_id: UUID, file_path: str = "index.html", raw: bool = False
+) -> Response:
+    """Helper function to get public artifact file content"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            url = f"{PANDA_AGI_SERVER_URL}/artifacts/public/{artifact_id}/{file_path}"
+            async with session.get(url) as resp:
+                if resp.status != 200:
+                    logger.error(f"Error getting creation file: {resp.status}")
+                    response = await resp.json()
+                    raise HTTPException(
+                        status_code=resp.status,
+                        detail=f"Failed to get creation file: {response['detail'] if 'detail' in response else resp.status}",
+                    )
+
+                # Get content as bytes
+                content_bytes = await resp.read()
+
+                # Check if it's a markdown file and raw mode is not requested
+                if file_path.lower().endswith((".md", ".markdown")) and not raw:
+                    pdf_response = await process_artifact_markdown_to_pdf(
+                        file_path,
+                        content_bytes,
+                        str(artifact_id),
+                        session,
+                        None,
+                        is_public=True,
+                    )
+                    if pdf_response:
+                        return pdf_response
+
+                # Determine MIME type for non-markdown files or when conversion fails
+                mime_type, _ = mimetypes.guess_type(file_path)
+                if not mime_type:
+                    mime_type = "application/octet-stream"
+
+                return Response(content=content_bytes, media_type=mime_type)
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error getting creation file: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="internal server error")
+
+
+@router.get("/public/{artifact_id}/{file_path:path}")
+async def get_artifact_file_public(
+    request: Request,
+    artifact_id: UUID,
+    file_path: str,
+    raw: bool = Query(False, alias="raw"),
+) -> Response:
+    """Get artifact file content (public route, no authentication required)"""
+    return await _get_public_artifact_file(artifact_id, file_path, raw)
+
+
 @router.get("/{artifact_id}/{file_path:path}")
-async def get_artifact_file(request: Request, artifact_id: str, file_path: str):
+async def get_artifact_file(
+    request: Request,
+    artifact_id: str,
+    file_path: str,
+    raw: bool = Query(False, alias="raw"),
+):
     """Get artifact file content"""
 
     # Get API key from request state (set by AuthMiddleware)
@@ -243,7 +379,20 @@ async def get_artifact_file(request: Request, artifact_id: str, file_path: str):
                 # Get content as bytes
                 content_bytes = await resp.read()
 
-                # Determine MIME type
+                # Check if it's a markdown file and raw mode is not requested
+                if file_path.lower().endswith((".md", ".markdown")) and not raw:
+                    pdf_response = await process_artifact_markdown_to_pdf(
+                        file_path,
+                        content_bytes,
+                        artifact_id,
+                        session,
+                        headers,
+                        is_public=False,
+                    )
+                    if pdf_response:
+                        return pdf_response
+
+                # Determine MIME type for non-markdown files
                 mime_type, _ = mimetypes.guess_type(file_path)
                 if not mime_type:
                     mime_type = "application/octet-stream"
@@ -292,11 +441,11 @@ async def delete_artifact(request: Request, artifact_id: str):
         raise HTTPException(status_code=500, detail="internal server error")
 
 
-@router.patch("/{artifact_id}/name", response_model=ArtifactResponse)
-async def update_artifact_name(
-    request: Request, artifact_id: str, name_update: ArtifactNameUpdateRequest
+@router.patch("/{artifact_id}", response_model=ArtifactResponse)
+async def update_artifact(
+    request: Request, artifact_id: str, update_data: ArtifactUpdateRequest
 ) -> ArtifactResponse:
-    """Update an artifact name"""
+    """Update an artifact name and/or public status"""
 
     # Get API key from request state (set by AuthMiddleware)
     api_key = getattr(request.state, "api_key", None)
@@ -308,18 +457,18 @@ async def update_artifact_name(
         async with aiohttp.ClientSession() as session:
             headers = {"X-API-KEY": f"{api_key}"}
             async with session.patch(
-                f"{PANDA_AGI_SERVER_URL}/artifacts/{artifact_id}/name",
-                json=name_update.dict(),
+                f"{PANDA_AGI_SERVER_URL}/artifacts/{artifact_id}",
+                json=update_data.dict(exclude_none=True),
                 headers=headers,
             ) as resp:
                 if resp.status != 200:
                     response = await resp.json()
                     logger.error(
-                        f"Error updating artifact name: {resp.status} {response.get('detail', 'Unknown error')}"
+                        f"Error updating creation: {resp.status} {response.get('detail', 'Unknown error')}"
                     )
                     raise HTTPException(
                         status_code=resp.status,
-                        detail=f"Failed to update creation name",
+                        detail=f"Failed to update creation",
                     )
 
                 return await resp.json()
@@ -327,5 +476,5 @@ async def update_artifact_name(
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.error(f"Error updating artifact name: {traceback.format_exc()}")
+        logger.error(f"Error updating creation: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="internal server error")

@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { getArtifacts, deleteArtifact, updateArtifactName, ArtifactResponse, ArtifactsListResponse } from "@/lib/api/artifacts";
+import { getArtifacts, deleteArtifact, updateArtifact, ArtifactResponse, ArtifactsListResponse } from "@/lib/api/artifacts";
 import { format } from "date-fns";
-import { ArrowLeft, Trash2, Edit } from "lucide-react";
+import { ArrowLeft, Trash2, Edit, Globe, Copy, Share2 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import ArtifactViewer from "@/components/artifact-viewer";
 import DeleteConfirmationDialog from "@/components/delete-confirmation-dialog";
@@ -106,7 +106,7 @@ export default function CreationsPage() {
 
     try {
       setUpdatingArtifact(artifactToEdit.id);
-      const updatedArtifact = await updateArtifactName(artifactToEdit.id, newName);
+      const updatedArtifact = await updateArtifact(artifactToEdit.id, {name: newName});
       
       // Update the artifact in the local state
       setArtifacts(prev => prev.map(artifact => 
@@ -123,6 +123,51 @@ export default function CreationsPage() {
       setUpdatingArtifact(null);
       setEditDialogOpen(false);
       setArtifactToEdit(null);
+    }
+  };
+
+  const handleTogglePublic = async (artifact: ArtifactResponse) => {
+    try {
+      setUpdatingArtifact(artifact.id);
+      const updatedArtifact = await updateArtifact(artifact.id, { is_public: !artifact.is_public });
+      
+      // Update the artifact in the local state
+      setArtifacts(prev => prev.map(a => 
+        a.id === artifact.id 
+          ? { ...a, is_public: updatedArtifact.is_public }
+          : a
+      ));
+      
+      const status = updatedArtifact.is_public ? "public" : "private";
+      toast.success(`Creation made ${status} successfully!`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to update creation visibility";
+      toast.error(errorMessage);
+    } finally {
+      setUpdatingArtifact(null);
+    }
+  };
+
+  const handleCopyShareLink = async (artifact: ArtifactResponse) => {
+    if (!artifact.is_public) {
+      toast.error("Creation must be public to share");
+      return;
+    }
+
+    const shareUrl = `${window.location.origin}/creations/${artifact.id}/${encodeURIComponent(artifact.filepath)}`;
+    
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Share link copied to clipboard!");
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = shareUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      toast.success("Share link copied to clipboard!");
     }
   };
 
@@ -214,6 +259,7 @@ export default function CreationsPage() {
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-3 px-4 font-medium">Name</th>
+                    <th className="text-left py-3 px-4 font-medium">Status</th>
                     <th className="text-left py-3 px-4 font-medium">Date Saved</th>
                     <th className="text-left py-3 px-4 font-medium">Actions</th>
                   </tr>
@@ -222,6 +268,21 @@ export default function CreationsPage() {
                   {filteredArtifacts.map((artifact) => (
                     <tr key={artifact.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">{artifact.name}</td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center space-x-2">
+                          {artifact.is_public ? (
+                            <>
+                              <Globe className="w-4 h-4 text-green-600" />
+                              <span className="text-green-600 text-sm">Public</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-4 h-4 rounded-full bg-gray-300" />
+                              <span className="text-gray-600 text-sm">Private</span>
+                            </>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-3 px-4 text-gray-600">
                         {formatDate(artifact.created_at)}
                       </td>
@@ -243,6 +304,30 @@ export default function CreationsPage() {
                           >
                             <Edit className="w-4 h-4 mr-1" />
                             Edit
+                          </Button>
+                          {artifact.is_public && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCopyShareLink(artifact)}
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                            >
+                              <Share2 className="w-4 h-4 mr-1" />
+                              Share
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleTogglePublic(artifact)}
+                            disabled={updatingArtifact === artifact.id}
+                            className={artifact.is_public 
+                              ? "text-orange-600 hover:text-orange-700 hover:bg-orange-50" 
+                              : "text-green-600 hover:text-green-700 hover:bg-green-50"
+                            }
+                          >
+                            <Globe className="w-4 h-4 mr-1" />
+                            {artifact.is_public ? "Make Private" : "Make Public"}
                           </Button>
                           <Button
                             variant="outline"

@@ -1,5 +1,5 @@
 import { API_URL } from '../config'
-import { getApiHeaders } from './common'
+import { getApiOptions } from './common'
 
 interface PortalRequest {
   return_url?: string
@@ -41,10 +41,10 @@ export interface UserSubscriptionResponse {
 export async function createPaymentSession(
   params: CreatePaymentSessionRequest
 ): Promise<CreatePaymentSessionResponse> {
-  const headers = await getApiHeaders();
+  const options = await getApiOptions();
   const response = await fetch(`${API_URL}/payment/stripe/create-payment-session`, {
     method: 'POST',
-    headers,
+    ...options,
     body: JSON.stringify(params),
   })
 
@@ -62,10 +62,10 @@ export async function createPaymentSession(
 export async function updateSubscription(
   params: UpdateSubscriptionRequest
 ): Promise<CreatePaymentSessionResponse> {
-  const headers = await getApiHeaders();
+  const options = await getApiOptions();
   const response = await fetch(`${API_URL}/payment/stripe/update-subscription`, {
     method: 'POST',
-    headers,
+    ...options,
     body: JSON.stringify(params),
   })
 
@@ -81,10 +81,10 @@ export async function updateSubscription(
  * Gets a user's current subscription information
  */
 export async function getUserSubscription(): Promise<UserSubscriptionResponse> {
-  const headers = await getApiHeaders(false);
+  const options = await getApiOptions(false);
   const response = await fetch(`${API_URL}/payment/stripe/subscription`, {
     method: 'GET',
-    headers,
+    ...options,
   })
 
   if (!response.ok) {
@@ -99,10 +99,10 @@ export async function getUserSubscription(): Promise<UserSubscriptionResponse> {
  * Cancels a user's subscription
  */
 export async function cancelSubscription(userId: string): Promise<boolean> {
-  const headers = await getApiHeaders();
+  const options = await getApiOptions();
   const response = await fetch(`${API_URL}/payment/stripe/cancel-subscription`, {
     method: 'POST',
-    headers,
+    ...options,
     body: JSON.stringify({ user_id: userId }),
   })
 
@@ -120,10 +120,10 @@ export async function cancelSubscription(userId: string): Promise<boolean> {
 export async function createCustomerPortal(
   params?: PortalRequest
 ): Promise<{ url: string }> {
-  const headers = await getApiHeaders();
+  const options = await getApiOptions();
   const response = await fetch(`${API_URL}/payment/stripe/create-customer-portal`, {
     method: 'POST',
-    headers,
+    ...options,
     body: JSON.stringify(params || {}),
   })
 
