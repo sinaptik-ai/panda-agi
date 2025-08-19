@@ -2,7 +2,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   Send,
-  Plus,
   Paperclip,
   X,
   FileText,
@@ -20,7 +19,7 @@ import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { GridView } from "@/components/ui/grid-view";
 import { formatAgentMessage } from "@/lib/utils";
-import { getFileType } from "@/lib/utils";
+import { PreviewData } from "@/components/content-sidebar";
 
 interface RequestBody {
   query: string;
@@ -30,7 +29,7 @@ interface RequestBody {
 interface ChatBoxProps {
   conversationId: string | undefined;
   setConversationId: (id: string | undefined) => void;
-  onPreviewClick: (data: any) => void;
+  onPreviewClick: (data: PreviewData) => void;
   onFileClick: (filename: string) => void;
   openUpgradeModal: () => void;
   isConnected: boolean;
@@ -111,8 +110,7 @@ export default function ChatBox({
 
           const apiUrl = getBackendServerURL("/files/upload");
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const apiHeaders: any = await getApiHeaders(false);
+          const apiHeaders = await getApiHeaders(false);
 
           const response = await fetch(apiUrl, {
             method: "POST",
@@ -175,69 +173,52 @@ export default function ChatBox({
     scrollToBottom();
   }, [messages]);
 
-  // Drag and drop handlers
+  // Drag and drop event handlers
+  const handleDragOver = (e: DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragEnter = (e: DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    if (e.dataTransfer?.files) {
+      const files = Array.from(e.dataTransfer.files);
+      await handleFilesUpload(files);
+    }
+  };
+
+  // Set up drag and drop event listeners
   useEffect(() => {
-    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(true);
-    };
-
-    const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(true);
-    };
-
-    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      // Only set isDragging to false if we're leaving the drop zone
-      // and not entering a child element
-      if (e.currentTarget === dropZoneRef.current) {
-        setIsDragging(false);
-      }
-    };
-
-    const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
-
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const droppedFiles = Array.from(e.dataTransfer.files);
-        await handleFilesUpload(droppedFiles);
-      }
-    };
-
-    // Add event listeners to the drop zone
     const dropZone = dropZoneRef.current;
     if (dropZone) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dropZone.addEventListener("dragover", handleDragOver as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dropZone.addEventListener("dragenter", handleDragEnter as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dropZone.addEventListener("dragleave", handleDragLeave as any);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      dropZone.addEventListener("drop", handleDrop as any);
+      dropZone.addEventListener("dragover", handleDragOver);
+      dropZone.addEventListener("dragenter", handleDragEnter);
+      dropZone.addEventListener("dragleave", handleDragLeave);
+      dropZone.addEventListener("drop", handleDrop);
     }
 
     // Cleanup
     return () => {
       if (dropZone) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        dropZone.removeEventListener("dragover", handleDragOver as any);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        dropZone.removeEventListener("dragenter", handleDragEnter as any);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        dropZone.removeEventListener("dragleave", handleDragLeave as any);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        dropZone.removeEventListener("drop", handleDrop as any);
+        dropZone.removeEventListener("dragover", handleDragOver);
+        dropZone.removeEventListener("dragenter", handleDragEnter);
+        dropZone.removeEventListener("dragleave", handleDragLeave);
+        dropZone.removeEventListener("drop", handleDrop);
       }
     };
-  }, [handleFilesUpload]);
+  }, []);
 
   const sendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -302,8 +283,7 @@ export default function ChatBox({
         requestBody.conversation_id = conversationId;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const apiHeaders: any = await getApiHeaders();
+      const apiHeaders = await getApiHeaders();
 
       const response = await fetch(apiUrl, {
         method: "POST",
