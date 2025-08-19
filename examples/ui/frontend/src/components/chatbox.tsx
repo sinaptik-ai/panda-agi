@@ -82,6 +82,16 @@ export default function ChatBox({
     resizeTextarea();
   }, [inputValue]);
 
+  // Clear messages when starting a new conversation
+  useEffect(() => {
+    if (!conversationId) {
+      setMessages([]);
+      setAgentMessage("Panda is thinking...");
+      setInputValue("");
+      setPendingFiles([]);
+    }
+  }, [conversationId]);
+
   // Handle multiple file uploads
   const handleFilesUpload = useCallback(
     async (files: File[]) => {
