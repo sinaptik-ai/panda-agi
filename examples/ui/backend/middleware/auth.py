@@ -117,10 +117,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         api_key = None
 
-        if auth_token:
+        api_key = os.getenv("PANDA_AGI_KEY")
+
+        if not api_key and auth_token:
             api_key = await get_api_key(auth_token)
             if not api_key:
-                print("Invalid authorization token")
                 return JSONResponse(
                     status_code=401,
                     content={
@@ -128,10 +129,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
                         "detail": "Invalid Authorization token",
                     },
                 )
-        else:
-            # Fall back to PANDA_AGI_KEY environment variable
-            api_key = os.getenv("PANDA_AGI_KEY")
-
 
         # If no API key found, return authorization error
         if not api_key and request.method != "OPTIONS":

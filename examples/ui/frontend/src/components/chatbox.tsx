@@ -526,7 +526,7 @@ export default function ChatBox({
     <div
       className="relative transition-all duration-300 w-full bg-gradient-to-br from-blue-50 to-indigo-100"
       style={{
-        width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : "100%",
+        width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw",
         height: "100vh",
       }}
     >
@@ -664,7 +664,7 @@ export default function ChatBox({
       <div
         className="absolute bottom-0 left-0 right-0 p-4"
         style={{
-          width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : "100%",
+          width: sidebarOpen ? `calc(100vw - ${sidebarWidth}px)` : "100vw",
         }}
       >
         <div className="max-w-4xl mx-auto">
