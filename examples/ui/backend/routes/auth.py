@@ -80,8 +80,6 @@ async def refresh_token(refresh_token_data: dict):
                 json=refresh_token_data,
             ) as resp:
                 if resp.status != 200:
-                    print(resp)
-                    print("REFRESH TOKEN RESPONSE", await resp.text())
                     raise HTTPException(
                         status_code=resp.status, detail="Token refresh failed"
                     )
