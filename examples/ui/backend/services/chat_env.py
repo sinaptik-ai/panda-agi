@@ -7,6 +7,8 @@ from panda_agi.envs.local_env import LocalEnv
 
 WORKSPACE_PATH = os.getenv("WORKSPACE_PATH", "./workspace")
 
+E2B_TEMPLATE = os.getenv("E2B_TEMPLATE", "ytj4es1gv3a3r7gqfyu5")
+
 
 async def get_env(metadata: Optional[Dict[str, Any]] = None, force_new: bool = False):
     env = os.getenv("ENV", "local")
@@ -16,14 +18,20 @@ async def get_env(metadata: Optional[Dict[str, Any]] = None, force_new: bool = F
             sandbox = await E2BEnv.get_active_sandbox(metadata)
             if sandbox:
                 return E2BEnv(
-                    "/workspace",
+                    template=E2B_TEMPLATE,
+                    base_path="/workspace",
                     metadata=metadata,
                     timeout=1800,
                     sandbox=sandbox,
                 )
 
         if not sandbox:
-            sandbox = E2BEnv("/workspace", metadata=metadata, timeout=1800)
+            sandbox = E2BEnv(
+                template=E2B_TEMPLATE,
+                base_path="/workspace",
+                metadata=metadata,
+                timeout=1800,
+            )
             await sandbox.create()
 
         return sandbox
