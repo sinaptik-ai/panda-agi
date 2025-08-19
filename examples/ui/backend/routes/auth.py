@@ -35,6 +35,11 @@ async def github_auth(redirect_uri: Optional[str] = Query(None)):
         async with session.post(
             f"{PANDA_AGI_SERVER_URL}/public/auth/github", json=payload
         ) as resp:
+            if resp.status != 200:
+                raise HTTPException(
+                    status_code=resp.status, detail="GitHub authentication failed"
+                )
+
             response = await resp.json()
             return response
 
