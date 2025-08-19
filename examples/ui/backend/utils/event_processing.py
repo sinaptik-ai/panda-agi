@@ -24,12 +24,7 @@ def should_render_event(event: dict) -> bool:
     if not isinstance(event, dict):
         return False
 
-    event_type = event.get("event_type", None)
-
-    if event_type == "tool_end" or event_type == "tool_start":
-        return True
-
-    return False
+    return event.get("event_type", None) != None
 
 
 def truncate_long_content(data, max_length: int = 5000):
