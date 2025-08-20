@@ -40,7 +40,6 @@ def get_base_artifact_url(artifact_id: str, is_public: bool = False) -> str:
     Get the base artifact URL constructed from the source domain.
 
     Args:
-        request: The FastAPI request object
         artifact_id: The artifact ID
         is_public: Whether this is a public artifact
 
