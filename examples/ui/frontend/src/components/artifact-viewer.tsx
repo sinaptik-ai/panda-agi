@@ -160,7 +160,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     setError(null);
 
     try {
-      const fileUrl = `${fileBaseUrl}/${encodeURIComponent(artifact.filepath)}?raw=true`;
+      const fileUrl = `${fileBaseUrl}${encodeURIComponent(artifact.filepath)}?raw=true`;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const apiHeaders: any = await getApiHeaders();
