@@ -13,6 +13,7 @@ export interface ArtifactData {
   filepath: string;
   conversation_id: string;
   created_at: string;
+  is_public: boolean;
   metadata: Record<string, unknown>;
 }
 
@@ -135,6 +136,10 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isPublic = artifact?.is_public || false
+
+  const fileBaseUrl = `${window.location.origin}/creations/${isPublic ? "share" : "private"}/${artifact?.id}/`
+
   // Fetch file content when artifact changes
   useEffect(() => {
     if (!artifact) {
@@ -155,9 +160,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     setError(null);
 
     try {
-      const fileUrl = getBackendServerURL(
-        `/artifacts/${artifact.id}/${encodeURIComponent(artifact.filepath)}?raw=true`
-      );
+      const fileUrl = `${fileBaseUrl}/${encodeURIComponent(artifact.filepath)}?raw=true`;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const apiHeaders: any = await getApiHeaders();
@@ -228,11 +231,10 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       );
     }
 
+    const fileUrl = `${window.location.origin}/creations/${isPublic ? "share" : "private"}/${artifact?.id}/`
+
     switch (type) {
       case "markdown":
-        const fileUrl = getBackendServerURL(
-            `/artifacts/${artifact.id}/`
-          );
         return (
           <div className="prose prose-sm max-w-none">
             <MarkdownRenderer baseUrl={fileUrl}>{content}</MarkdownRenderer>
@@ -242,9 +244,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
         return (
           <div className="h-full">
             <iframe
-              src={getBackendServerURL(
-                `/artifacts/${artifact.id}/${encodeURIComponent(artifact.filepath)}`
-              )}
+              src={`${fileUrl}/${encodeURIComponent(artifact.filepath)}`}
               className="w-full h-full border-0"
               title={artifact.name}
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
@@ -283,11 +283,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
             {artifact.name}
           </h3>
           <a
-              href={
-                getBackendServerURL(
-                    `/artifacts/${artifact.id}/${encodeURIComponent(artifact.filepath)}`
-                  )
-              }
+              href={`${fileBaseUrl}/${encodeURIComponent(artifact.filepath)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-blue-600 hover:underline flex items-center space-x-1 mt-1"

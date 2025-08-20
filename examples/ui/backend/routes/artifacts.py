@@ -27,8 +27,33 @@ PANDA_AGI_SERVER_URL = (
     os.environ.get("PANDA_AGI_BASE_URL") or "https://agi-api.pandas-ai.com"
 )
 
+PANDA_CHAT_CLIENT_URL = (
+    os.environ.get("PANDA_CHAT_CLIENT_URL") or "https://chat.pandas-ai.com"
+)
+
 # Create router
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
+
+
+def get_base_artifact_url(artifact_id: str, is_public: bool = False) -> str:
+    """
+    Get the base artifact URL constructed from the source domain.
+
+    Args:
+        request: The FastAPI request object
+        artifact_id: The artifact ID
+        is_public: Whether this is a public artifact
+
+    Returns:
+        str: The base artifact URL in format source/artifact_id or source/public/artifact_id
+    """
+    # Construct base URL
+    if is_public:
+        base_artifact_url = f"{PANDA_CHAT_CLIENT_URL}/creations/share/{artifact_id}"
+    else:
+        base_artifact_url = f"{PANDA_CHAT_CLIENT_URL}/creations/private/{artifact_id}"
+
+    return base_artifact_url
 
 
 async def process_artifact_markdown_to_pdf(
@@ -38,6 +63,7 @@ async def process_artifact_markdown_to_pdf(
     session: aiohttp.ClientSession,
     headers: Optional[dict],
     is_public: bool = False,
+    base_source_url: str = None,
 ) -> Optional[Response]:
     """
     Process a markdown file from artifacts and return it as a PDF response.
@@ -79,6 +105,7 @@ async def process_artifact_markdown_to_pdf(
         base_url=base_url,
         get_file_func=fetch_file,
         headers=headers,
+        base_source_url=base_source_url,
     )
 
     if result:
@@ -293,7 +320,10 @@ async def get_user_artifacts(
 
 
 async def _get_public_artifact_file(
-    artifact_id: UUID, file_path: str = "index.html", raw: bool = False
+    artifact_id: UUID,
+    file_path: str = "index.html",
+    raw: bool = False,
+    base_source_url: str = None,
 ) -> Response:
     """Helper function to get public artifact file content"""
     try:
@@ -320,6 +350,7 @@ async def _get_public_artifact_file(
                         session,
                         None,
                         is_public=True,
+                        base_source_url=base_source_url,
                     )
                     if pdf_response:
                         return pdf_response
@@ -340,13 +371,12 @@ async def _get_public_artifact_file(
 
 @router.get("/public/{artifact_id}/{file_path:path}")
 async def get_artifact_file_public(
-    request: Request,
-    artifact_id: UUID,
-    file_path: str,
-    raw: bool = Query(False, alias="raw"),
+    artifact_id: UUID, file_path: str, raw: bool = Query(False, alias="raw")
 ) -> Response:
     """Get artifact file content (public route, no authentication required)"""
-    return await _get_public_artifact_file(artifact_id, file_path, raw)
+    # Get base artifact URL
+    base_source_url = get_base_artifact_url(str(artifact_id), is_public=True)
+    return await _get_public_artifact_file(artifact_id, file_path, raw, base_source_url)
 
 
 @router.get("/{artifact_id}/{file_path:path}")
@@ -357,12 +387,14 @@ async def get_artifact_file(
     raw: bool = Query(False, alias="raw"),
 ):
     """Get artifact file content"""
-
     # Get API key from request state (set by AuthMiddleware)
     api_key = getattr(request.state, "api_key", None)
 
     if not api_key:
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # Get base artifact URL
+    base_source_url = get_base_artifact_url(artifact_id, is_public=False)
 
     try:
         async with aiohttp.ClientSession() as session:
@@ -388,6 +420,7 @@ async def get_artifact_file(
                         session,
                         headers,
                         is_public=False,
+                        base_source_url=base_source_url,
                     )
                     if pdf_response:
                         return pdf_response

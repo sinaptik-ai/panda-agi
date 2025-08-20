@@ -148,7 +148,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     ) {
       return url;
     }
-
     return new URL(url, baseUrl).toString();
   };
 
@@ -222,7 +221,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               if (!transformedHref) {
                 return <span>{children}</span>;
               }
-              
+
               if (onPreviewClick) {
                 return (
                   <button
