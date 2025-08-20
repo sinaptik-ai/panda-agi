@@ -51,7 +51,9 @@ class E2BEnv(BaseEnv):
     async def _ensure_sandbox_connected(self):
         """Ensure sandbox is connected, connecting if necessary."""
         if self.sandbox is None:
-            self.sandbox = await self._connect(self.timeout, self._metadata)
+            self.sandbox = await self._connect(
+                self.template, self.timeout, self._metadata
+            )
 
     async def _initialize_tmux(self):
         """Initialize tmux in the E2B sandbox environment."""
