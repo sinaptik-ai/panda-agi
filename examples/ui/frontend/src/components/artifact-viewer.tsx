@@ -231,20 +231,19 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       );
     }
 
-    const fileUrl = `${window.location.origin}/creations/${isPublic ? "share" : "private"}/${artifact?.id}/`
 
     switch (type) {
       case "markdown":
         return (
           <div className="prose prose-sm max-w-none">
-            <MarkdownRenderer baseUrl={fileUrl}>{content}</MarkdownRenderer>
+            <MarkdownRenderer baseUrl={fileBaseUrl}>{content}</MarkdownRenderer>
           </div>
         );
       case "iframe":
         return (
           <div className="h-full">
             <iframe
-              src={`${fileUrl}/${encodeURIComponent(artifact.filepath)}`}
+              src={`${fileBaseUrl}${encodeURIComponent(artifact.filepath)}`}
               className="w-full h-full border-0"
               title={artifact.name}
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
@@ -283,7 +282,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
             {artifact.name}
           </h3>
           <a
-              href={`${fileBaseUrl}/${encodeURIComponent(artifact.filepath)}`}
+              href={`${fileBaseUrl}${encodeURIComponent(artifact.filepath)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-blue-600 hover:underline flex items-center space-x-1 mt-1"
