@@ -19,6 +19,7 @@ async def process_markdown_to_pdf(
     base_url: str,
     get_file_func,
     headers: dict = None,
+    base_source_url: Optional[str] = None,
 ) -> Optional[Tuple[bytes, str]]:
     """
     Convert markdown content to PDF with embedded base64 images.
@@ -81,6 +82,38 @@ async def process_markdown_to_pdf(
                 result = result.replace(match.group(0), replacement)
 
             return result
+
+        # Replace relative paths with base source url
+        if base_source_url:
+            markdown_content = markdown_content.replace(base_url, base_source_url)
+
+            # Check for relative .md file references and prepend base_source_url
+            # Pattern to match markdown links: [text](path.md) or [text](./path.md) or [text](../path.md)
+            md_link_pattern = r"\[([^\]]*)\]\(([^)]+\.md)\)"
+
+            def replace_md_links(match):
+                link_text = match.group(1)
+                md_path = match.group(2)
+
+                # Skip if already absolute URL
+                if md_path.startswith(("http://", "https://")):
+                    return match.group(0)
+
+                # If it's a relative path, prepend base_source_url
+                if md_path.startswith(("./", "../", "/")) or not md_path.startswith(
+                    ("http://", "https://")
+                ):
+                    # Remove leading ./ or ../ if present
+                    clean_path = md_path.lstrip("./").lstrip("../")
+                    full_url = f"{base_source_url}/{clean_path}"
+                    return f"[{link_text}]({full_url})"
+
+                return match.group(0)
+
+            # Apply the replacement
+            markdown_content = re.sub(
+                md_link_pattern, replace_md_links, markdown_content
+            )
 
         # Fetch and convert images to base64 in markdown content
         resolved_markdown = await fetch_and_convert_images_to_base64(
