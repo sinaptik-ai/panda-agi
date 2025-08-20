@@ -38,7 +38,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
           # Check if version already exists
-          if python -c "import requests, sys; sys.exit(requests.get(f'https://pypi.org/pypi/panda-agi/{VERSION}/json').status_code != 200)"; then
+          if python -c "import requests, sys;\ntry:\n    r = requests.get(f'https://pypi.org/pypi/panda-agi/{VERSION}/json')\n    sys.exit(r.status_code != 200)\nexcept Exception:\n    sys.exit(1)"; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "Version $VERSION already exists on PyPI. Skipping publish."
           else
