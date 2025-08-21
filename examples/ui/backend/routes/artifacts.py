@@ -220,7 +220,7 @@ async def save_artifact(
             )
             headers = {"X-API-KEY": f"{api_key}"}
             async with session.post(
-                f"{PANDA_AGI_SERVER_URL}/artifacts", json=payload_dict, headers=headers
+                f"{PANDA_AGI_SERVER_URL}/artifacts/", json=payload_dict, headers=headers
             ) as resp:
                 response = await resp.json()
 
