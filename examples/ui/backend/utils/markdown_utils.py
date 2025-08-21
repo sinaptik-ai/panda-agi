@@ -136,49 +136,50 @@ async def process_markdown_to_pdf(
             <style>
                 body {{ 
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                    font-size: 13px;
                     line-height: 1.6; 
-                    margin: 40px; 
+                    margin: 4px; 
                     color: #333; 
                 }}
                 h1, h2, h3, h4, h5, h6 {{ 
                     color: #2c3e50; 
-                    margin-top: 24px; 
-                    margin-bottom: 16px; 
+                    margin-top: 16px; 
+                    margin-bottom: 12px; 
                 }}
                 h1 {{ 
                     border-bottom: 2px solid #eaecef; 
-                    padding-bottom: 8px; 
+                    padding-bottom: 6px; 
                 }}
                 h2 {{ 
                     border-bottom: 1px solid #eaecef; 
-                    padding-bottom: 4px; 
+                    padding-bottom: 3px; 
                 }}
                 code {{ 
                     background-color: #f6f8fa; 
-                    padding: 2px 4px; 
+                    padding: 1px 3px; 
                     border-radius: 3px; 
                     font-family: 'SFMono-Regular', Consolas, monospace; 
                 }}
                 pre {{ 
                     background-color: #f6f8fa; 
-                    padding: 16px; 
+                    padding: 12px; 
                     border-radius: 6px; 
                     overflow-x: auto; 
                 }}
                 blockquote {{ 
                     border-left: 4px solid #dfe2e5; 
-                    padding-left: 16px; 
+                    padding-left: 12px; 
                     margin-left: 0; 
                     color: #6a737d; 
                 }}
                 table {{ 
                     border-collapse: collapse; 
                     width: 100%; 
-                    margin: 16px 0; 
+                    margin: 12px 0; 
                 }}
                 th, td {{ 
                     border: 1px solid #dfe2e5; 
-                    padding: 8px 12px; 
+                    padding: 6px 8px; 
                     text-align: left; 
                 }}
                 th {{ 
@@ -196,7 +197,7 @@ async def process_markdown_to_pdf(
                     max-width: 100%; 
                     height: auto; 
                     display: block; 
-                    margin: 16px auto; 
+                    margin: 12px auto; 
                 }}
             </style>
         </head>
