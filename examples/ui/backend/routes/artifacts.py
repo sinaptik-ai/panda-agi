@@ -289,7 +289,7 @@ async def get_user_artifacts(
             headers = {"X-API-KEY": f"{api_key}"}
             params = {"limit": limit, "offset": offset}
             async with session.get(
-                f"{PANDA_AGI_SERVER_URL}/artifacts", headers=headers, params=params
+                f"{PANDA_AGI_SERVER_URL}/artifacts/", headers=headers, params=params
             ) as resp:
                 response = await resp.json()
 
