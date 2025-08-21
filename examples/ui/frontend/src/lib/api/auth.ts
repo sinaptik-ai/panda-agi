@@ -31,7 +31,12 @@ function getCookie(name: string): string | null {
 }
 
 function deleteCookie(name: string): void {
-  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
+  // For development, we need to delete cookies that work across localhost ports
+  // In production, you would set the domain to your actual domain
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const domain = isLocalhost ? '' : `;domain=${window.location.hostname}`;
+  
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;${domain}`;
 }
 
 /**
