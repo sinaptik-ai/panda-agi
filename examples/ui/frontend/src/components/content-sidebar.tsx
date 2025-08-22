@@ -13,6 +13,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownRenderer from "./ui/markdown-renderer";
 import SaveArtifactButton from "./save-artifact-button";
+import ExcelViewer from "./excel-viewer";
 import Papa from "papaparse";
 import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
@@ -157,7 +158,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
   // State for normalized filename and content
   const [normalizedFilename, setNormalizedFilename] = useState("");
-  const [fileContent, setFileContent] = useState<string | null>(null);
+  const [fileContent, setFileContent] = useState<string | ArrayBuffer | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -209,7 +210,18 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         throw new Error(errorMessage?.detail || `Failed to fetch file: ${response.status}!`);
       }
 
-      const content = await response.text();
+      const tableExtension = filename.split(".").pop()?.toLowerCase() || "";
+        
+      let content: string | ArrayBuffer;
+      // Check if it's an Excel file
+      if (["xls", "xlsx"].includes(tableExtension)) {
+        const excelContent = await response.arrayBuffer();
+        content = excelContent;
+      } else {
+        content = await response.text()
+      }
+
+      
       setFileContent(content);
     } catch (err) {
       console.error("Error fetching file content:", err);
@@ -374,13 +386,27 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         return (
           <div className="prose prose-sm max-w-none">
             
-            <MarkdownRenderer baseUrl={fileAbsUrl}>{content}</MarkdownRenderer>
+            <MarkdownRenderer baseUrl={fileAbsUrl}>{content as string}</MarkdownRenderer>
           </div>
         );
       case "table":
         const tableFilename = normalizedFilename || previewData.url || "";
         const tableExtension = tableFilename.split(".").pop()?.toLowerCase() || "";
-        const tableData = parseCSV(content);
+        
+        // Check if it's an Excel file
+        if (["xls", "xlsx"].includes(tableExtension)) {
+          
+          
+          return (
+            <ExcelViewer
+              fileName={normalizedFilename}
+              content={content as ArrayBuffer}
+            />
+          );
+        }
+        
+        // Handle CSV files with the existing logic
+        const tableData = parseCSV(content as string);
         
         return (
           <div className="h-full flex flex-col">
@@ -476,7 +502,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
               </div>
               <div className="flex items-center space-x-3 text-xs text-gray-400">
                 <span>HTML</span>
-                <span>{content.split("\n").length} lines</span>
+                <span>{(content as string).split("\n").length} lines</span>
               </div>
             </div>
 
@@ -495,7 +521,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
                   },
                 }}
               >
-                {content}
+                {content as string}
               </SyntaxHighlighter>
             </div>
           </div>
@@ -556,7 +582,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
                     PDF Content (if readable)
                   </span>
                   <span className="text-xs text-gray-400">
-                    {content.split("\n").length} lines
+                    {(content as string).split("\n").length} lines
                   </span>
                 </div>
                 <div className="flex-1 overflow-auto">
@@ -568,7 +594,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
                     customStyle={getCommonStyle()}
                     className="syntax-highlighter"
                   >
-                    {content}
+                    {content as string}
                   </SyntaxHighlighter>
                 </div>
               </div>
@@ -610,7 +636,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
               </div>
               <div className="flex items-center space-x-3 text-xs text-gray-400">
                 <span>{language}</span>
-                <span>{content.split("\n").length} lines</span>
+                <span>{(content as string).split("\n").length} lines</span>
               </div>
             </div>
 
@@ -630,7 +656,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
                   },
                 }}
               >
-                {content}
+                {content as string}
               </SyntaxHighlighter>
             </div>
           </div>
