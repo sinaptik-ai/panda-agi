@@ -389,7 +389,6 @@ async def _get_public_artifact_file(
             html_content = generate_error_page_html(
                 500,
                 "We're experiencing technical difficulties. Please try again later.",
-                "PandaAGI",
             )
             return Response(
                 content=html_content, media_type="text/html", status_code=500
