@@ -285,8 +285,6 @@ async def get_user_artifacts(
     if not api_key:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    raise Exception("Test")
-
     try:
         async with aiohttp.ClientSession() as session:
             headers = {"X-API-KEY": f"{api_key}"}
