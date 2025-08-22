@@ -76,7 +76,7 @@ class Agent:
                 "No API key provided. Please set PANDA_AGI_KEY in environment or pass api_key parameter"
             )
 
-        # validate the conversation_id should valid UUID otherwise raise an error
+        # Validate that conversation_id is a valid UUID; otherwise, raise a ValueError.
         if conversation_id is not None:
             try:
                 import uuid
