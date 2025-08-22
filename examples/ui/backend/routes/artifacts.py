@@ -15,6 +15,7 @@ from typing import Optional
 
 from services.artifacts import ArtifactsService
 from utils.markdown_utils import process_markdown_to_pdf
+from utils.html_utils import generate_error_page_html, should_return_html
 from models.agent import (
     ArtifactResponse,
     ArtifactsListResponse,
@@ -284,6 +285,8 @@ async def get_user_artifacts(
     if not api_key:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
+    raise Exception("Test")
+
     try:
         async with aiohttp.ClientSession() as session:
             headers = {"X-API-KEY": f"{api_key}"}
@@ -323,6 +326,7 @@ async def _get_public_artifact_file(
     file_path: str = "index.html",
     raw: bool = False,
     base_source_url: str = None,
+    request: Request = None,
 ) -> Response:
     """Helper function to get public artifact file content"""
     try:
@@ -332,9 +336,26 @@ async def _get_public_artifact_file(
                 if resp.status != 200:
                     logger.error(f"Error getting creation file: {resp.status}")
                     response = await resp.json()
+                    error_detail = (
+                        response["detail"]
+                        if "detail" in response
+                        else f"HTTP {resp.status}"
+                    )
+
+                    # Check if client accepts HTML
+                    if request and should_return_html(request.headers.get("accept")):
+                        html_content = generate_error_page_html(
+                            resp.status, error_detail
+                        )
+                        return Response(
+                            content=html_content,
+                            media_type="text/html",
+                            status_code=resp.status,
+                        )
+
                     raise HTTPException(
                         status_code=resp.status,
-                        detail=f"Failed to get creation file: {response['detail'] if 'detail' in response else resp.status}",
+                        detail=error_detail,
                     )
 
                 # Get content as bytes
@@ -365,17 +386,32 @@ async def _get_public_artifact_file(
         raise e
     except Exception as e:
         logger.error(f"Error getting creation file: {traceback.format_exc()}")
+        # Check if client accepts HTML
+        if request and should_return_html(request.headers.get("accept")):
+            html_content = generate_error_page_html(
+                500,
+                "We're experiencing technical difficulties. Please try again later.",
+                "PandaAGI",
+            )
+            return Response(
+                content=html_content, media_type="text/html", status_code=500
+            )
         raise HTTPException(status_code=500, detail="internal server error")
 
 
 @router.get("/public/{artifact_id}/{file_path:path}")
 async def get_artifact_file_public(
-    artifact_id: UUID, file_path: str, raw: bool = Query(False, alias="raw")
+    request: Request,
+    artifact_id: UUID,
+    file_path: str,
+    raw: bool = Query(False, alias="raw"),
 ) -> Response:
     """Get artifact file content (public route, no authentication required)"""
     # Get base artifact URL
     base_source_url = get_base_artifact_url(str(artifact_id), is_public=True)
-    return await _get_public_artifact_file(artifact_id, file_path, raw, base_source_url)
+    return await _get_public_artifact_file(
+        artifact_id, file_path, raw, base_source_url, request
+    )
 
 
 @router.get("/{artifact_id}/{file_path:path}")
@@ -390,6 +426,14 @@ async def get_artifact_file(
     api_key = getattr(request.state, "api_key", None)
 
     if not api_key:
+        # Check if client accepts HTML
+        if should_return_html(request.headers.get("accept")):
+            html_content = generate_error_page_html(
+                401, "Please log in to access this resource"
+            )
+            return Response(
+                content=html_content, media_type="text/html", status_code=401
+            )
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     # Get base artifact URL
@@ -402,9 +446,27 @@ async def get_artifact_file(
             async with session.get(url, headers=headers) as resp:
                 if resp.status != 200:
                     logger.error(f"Error getting creation file: {resp.status}")
+                    response = await resp.json()
+                    error_detail = (
+                        response["detail"]
+                        if "detail" in response
+                        else f"HTTP {resp.status}"
+                    )
+
+                    # Check if client accepts HTML
+                    if should_return_html(request.headers.get("accept")):
+                        html_content = generate_error_page_html(
+                            resp.status, error_detail
+                        )
+                        return Response(
+                            content=html_content,
+                            media_type="text/html",
+                            status_code=resp.status,
+                        )
+
                     raise HTTPException(
                         status_code=resp.status,
-                        detail=f"Failed to get creation file: {resp.status}",
+                        detail=error_detail,
                     )
 
                 # Get content as bytes
@@ -435,6 +497,15 @@ async def get_artifact_file(
         raise e
     except Exception as e:
         logger.error(f"Error getting creation file: {traceback.format_exc()}")
+        # Check if client accepts HTML
+        if should_return_html(request.headers.get("accept")):
+            html_content = generate_error_page_html(
+                500,
+                "We're experiencing technical difficulties. Please try again later.",
+            )
+            return Response(
+                content=html_content, media_type="text/html", status_code=500
+            )
         raise HTTPException(status_code=500, detail="internal server error")
 
 
