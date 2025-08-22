@@ -75,6 +75,18 @@ class Agent:
             raise ValueError(
                 "No API key provided. Please set PANDA_AGI_KEY in environment or pass api_key parameter"
             )
+
+        # validate the conversation_id should valid UUID otherwise raise an error
+        if conversation_id is not None:
+            try:
+                import uuid
+
+                uuid.UUID(conversation_id)
+            except Exception:
+                raise ValueError(
+                    f"Invalid conversation_id: '{conversation_id}'. Must be a valid UUID."
+                )
+
         self.system_prompt = system_prompt
         self.messages = messages
         self.conversation_id = conversation_id
