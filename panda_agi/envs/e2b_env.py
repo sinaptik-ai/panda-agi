@@ -115,9 +115,7 @@ class E2BEnv(BaseEnv):
             query = SandboxQuery(metadata=metadata)
 
             paginator = AsyncSandbox.list(query=query)
-            matches = []
-            async for match in paginator:
-                matches.append(match)
+            matches = await paginator.next_items()
 
             if not matches:
                 raise Exception("Session destroyed, please restart the conversation")

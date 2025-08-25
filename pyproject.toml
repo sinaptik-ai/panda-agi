@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "panda-agi"
-version = "0.7.0-beta.1"
+version = "0.7.0-beta.2"
 description = "PandaAGI SDK"
 authors = [
     {name = "Facundo Nicolas Maidana", email = "facundo@pandas-ai.com"},
@@ -22,7 +22,7 @@ dependencies = [
     "markdownify",
     "httpx",
     "tavily-python",
-    "e2b-code-interpreter",
+    "e2b-code-interpreter==2.0.0",
 ]
 
 [project.optional-dependencies]
