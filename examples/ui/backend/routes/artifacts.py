@@ -2,6 +2,7 @@
 Artifacts routes for the PandaAGI SDK.
 """
 
+from io import BytesIO
 import aiohttp
 from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import Response
@@ -199,6 +200,40 @@ async def upload_file_to_s3(
         )
 
 
+async def upload_file_to_gcs(
+    presigned_post: dict, file_bytes: bytes, relative_path: str = None
+):
+    upload_url = presigned_post["url"]
+    fields = presigned_post["fields"].copy()
+
+    filename = relative_path or "file"
+    file_path = "uploads/" + filename
+
+    # Manually add the 'key' field with the intended file path.
+    # This is required for `starts-with` policies.
+    fields["key"] = file_path
+
+    print(f"Final fields being sent: {fields}")
+
+    file_obj = BytesIO(file_bytes)
+
+    async with aiohttp.ClientSession() as session:
+        data = aiohttp.FormData()
+
+        for key, value in fields.items():
+            data.add_field(key, value)
+
+        data.add_field("file", file_obj, filename=filename)
+
+        async with session.post(upload_url, data=data) as resp:
+            if not resp.status in (200, 201, 204):
+                body = await resp.text()
+                raise Exception(f"GCS upload failed: {resp.status} {body}")
+
+            print(f"Successfully uploaded {file_path} with status {resp.status}")
+            return resp
+
+
 @router.post("/{conversation_id}/save")
 async def save_artifact(
     request: Request, conversation_id: str, payload: ArtifactPayload
@@ -249,7 +284,7 @@ async def save_artifact(
         )
 
         async for file_bytes, relative_path in files_generator:
-            await upload_file_to_s3(
+            await upload_file_to_gcs(
                 response["upload_credentials"], file_bytes, relative_path
             )
 
