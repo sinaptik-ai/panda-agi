@@ -15,6 +15,7 @@ import { formatTimestamp } from "@/lib/date";
 import { getBackendServerURL } from "@/lib/server";
 import { toast } from "react-hot-toast";
 import { downloadWithCheck } from "@/lib/utils";
+import { PLATFORM_MODE } from "@/lib/config";
 
 interface PreviewData {
   url: string;
@@ -25,6 +26,7 @@ export interface UserMessagePayload {
     text?: string;
     message?: string;
     error?: string;
+    isUpgradeErrorMessage?: boolean;
     attachments?: string[];
 }
 
@@ -34,6 +36,7 @@ export interface UserMessageEventProps {
   conversationId?: string;
   onFileClick?: (filename: string) => void;
   timestamp?: string;
+  openUpgradeModal?: () => void;
 }
 
 const UserMessageEvent: React.FC<UserMessageEventProps> = ({
@@ -42,6 +45,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
   conversationId,
   onFileClick,
   timestamp,
+  openUpgradeModal
 }) => {
   if (!payload) return null;
 
@@ -184,11 +188,21 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
           <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
           <div className="flex-1">
             <h4 className="font-semibold text-gray-900 text-sm">Error</h4>
-            <div className="text-sm text-gray-700 mt-1 leading-relaxed">
-              <MarkdownRenderer onPreviewClick={onPreviewClick}>
-                {payload.error || "An error occurred"}
-              </MarkdownRenderer>
-            </div>
+            <MarkdownRenderer onPreviewClick={onPreviewClick}>
+              {payload.error  as string}
+            </MarkdownRenderer>
+
+            {
+              payload.isUpgradeErrorMessage && (
+                <div className="text-sm text-gray-700 mt-1 leading-relaxed">
+                   {!PLATFORM_MODE ? (
+                    <a className="text-blue-500 hover:cursor-pointer" onClick={() => window.open('https://agi.pandas-ai.com/upgrade', '_blank', 'noopener,noreferrer')}>Upgrade your plan</a>
+                   ) : (
+                    <a className="text-blue-500 hover:cursor-pointer" onClick={openUpgradeModal}>Upgrade your plan</a>
+                   )}
+                </div>
+              )
+            }
           </div>
         </div>
         {timestamp && (

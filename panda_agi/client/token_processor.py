@@ -21,6 +21,7 @@ class TokenProcessor:
         self.immediate_execution_mode = (
             False  # If True, collect tools AND yield events for immediate execution
         )
+        self.started_tools: Dict[str, Dict[str, Any]] = {}  # Track tools that have started but not completed
 
     def reset(self):
         """Reset the processor state"""
@@ -28,6 +29,7 @@ class TokenProcessor:
         self.accumulated_content = ""
         self.xml_buffer = ""
         self.completed_tools.clear()
+        self.started_tools.clear()
         self.tool_call_id_counter = 0
 
     async def process_token_stream(
@@ -99,7 +101,11 @@ class TokenProcessor:
         if not self.tool_registry:
             return
 
-        # Look for complete XML tool calls
+        # First, check for opening tags to emit start events
+        async for start_event in self._detect_opening_tags_and_yield_start_events():
+            yield start_event
+
+        # Then, look for complete XML tool calls
         xml_chunks = self._extract_xml_chunks(self.xml_buffer)
 
         for chunk in xml_chunks:
@@ -114,15 +120,101 @@ class TokenProcessor:
 
                 logger.info(f"Detected XML tool call: {tool_call['function_name']}")
 
-                # Yield tool_detected event
+                # Find and remove the corresponding start event from started_tools
+                # We need to find the start event that matches this complete tool
+                start_tool_id = None
+                for position_key, start_tool in self.started_tools.items():
+                    if (start_tool["xml_tag_name"] == tool_call.get("xml_tag_name") and 
+                        start_tool["function_name"] == tool_call["function_name"]):
+                        start_tool_id = start_tool["id"]
+                        del self.started_tools[position_key]
+                        break
+
+                # Use the start tool ID if we found one, otherwise generate a new ID
+                final_tool_call_id = start_tool_id if start_tool_id else tool_call["id"]
+
+                # Yield tool_detected event (this is the "end" event)
                 yield {
                     "type": "tool_detected",
                     "function_name": tool_call["function_name"],
                     "arguments": tool_call["arguments"],
-                    "tool_call_id": tool_call["id"],
+                    "tool_call_id": final_tool_call_id,
                     "xml_tag_name": tool_call.get("xml_tag_name"),
                     "raw_xml": tool_call.get("raw_xml"),
+                    "status": "end",  # Mark this as the end event
                 }
+
+    async def _detect_opening_tags_and_yield_start_events(
+        self,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Detect opening XML tags and yield start events for tools"""
+        if not self.tool_registry:
+            return
+
+        # Get all known XML tag names from the registry
+        xml_patterns = self.tool_registry.get_all_xml_patterns()
+        if not xml_patterns:
+            return
+
+        # Extract tag names from patterns (assuming patterns are like r'<tag_name[^>]*>.*?</tag_name>')
+        tag_names = set()
+        for pattern in xml_patterns:
+            # Extract tag name from pattern - look for the first capturing group or tag name
+            tag_match = re.search(r'<([^>\s\[\^]+)', pattern)
+            if tag_match:
+                tag_names.add(tag_match.group(1))
+
+        # Look for opening tags in the buffer
+        for tag_name in tag_names:
+            # Pattern to match opening tag (with or without attributes)
+            opening_tag_pattern = f'<{tag_name}(?:[^>]*)>'
+            matches = list(re.finditer(opening_tag_pattern, self.xml_buffer, re.IGNORECASE))
+            
+            for match in matches:
+                opening_tag = match.group(0)
+                match_start = match.start()
+                match_end = match.end()
+                
+                # Create a unique identifier for this specific opening tag position
+                position_key = f"{tag_name}_{match_start}_{match_end}"
+                
+                # Check if we've already emitted a start event for this tag at this position
+                if position_key not in self.started_tools:
+                    # Get tool definition from registry
+                    tool_def = self.tool_registry.get_xml_tool_definition(tag_name)
+                    if tool_def:
+                        # Generate a proper tool call ID
+                        self.tool_call_id_counter += 1
+                        tool_call_id = f"tool_call_{self.tool_call_id_counter}"
+                        
+                        # Extract attributes from opening tag
+                        attributes = self._extract_attributes(opening_tag)
+                        
+                        # Create partial tool call for start event
+                        start_tool_call = {
+                            "id": tool_call_id,
+                            "function_name": tool_def.function_name,
+                            "xml_tag_name": tag_name,
+                            "arguments": attributes,  # Only attributes available at start
+                            "raw_xml": opening_tag,
+                            "position_key": position_key,
+                        }
+                        
+                        # Store in started_tools using position_key to avoid duplicate start events
+                        self.started_tools[position_key] = start_tool_call
+                        
+                        logger.info(f"Detected XML tool start: {tool_def.function_name}")
+                        
+                        # Yield tool start event
+                        yield {
+                            "type": "tool_detected",
+                            "function_name": tool_def.function_name,
+                            "arguments": attributes,
+                            "tool_call_id": tool_call_id,
+                            "xml_tag_name": tag_name,
+                            "raw_xml": opening_tag,
+                            "status": "start",  # Mark this as the start event
+                        }
 
     async def _process_xml_tools(self, new_content: str):
         """Process XML tool calls from the buffer (legacy method for backward compatibility)"""

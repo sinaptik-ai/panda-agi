@@ -1,4 +1,5 @@
 import logging
+import shlex
 import uuid
 from typing import Any, Dict, Optional
 
@@ -151,91 +152,147 @@ class ExecuteScriptHandler(ToolHandler):
 
         return None
 
-    def _needs_eof_syntax(self, code: str) -> bool:
-        """Determine if code should use EOF syntax instead of -c flag"""
-        # Use EOF for multi-line code or code with complex quoting
+    def _should_use_temp_file(self, code: str) -> bool:
+        """Determine if code should use temporary file approach for reliability"""
         return (
             "\n" in code.strip()  # Multi-line code
-            or code.count('"') > 2  # Many double quotes
-            or code.count("'") > 2  # Many single quotes
-            or len(code) > 200  # Long code
+            or len(code) > 100  # Long code
+            or code.count('"') + code.count("'") > 3  # Complex quoting
             or "${" in code  # Shell variable expansion
             or "`" in code  # Backticks
+            or ("(" in code and ")" in code)
+            and ")" in code  # Function calls that might confuse shell
         )
 
-    async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        # Language command mapping
-        language_commands = {
+    async def _execute_with_temp_file(self, language: str, code: str) -> ToolResult:
+        """Execute code using temporary file approach (most reliable)"""
+
+        # File extensions for different languages
+        extensions = {
+            "python": ".py",
+            "bash": ".sh",
+            "javascript": ".js",
+            "powershell": ".ps1",
+        }
+
+        # Commands for different languages
+        commands = {
+            "python": "python",
+            "bash": "bash",
+            "javascript": "node",
+            "powershell": "powershell -File",
+        }
+
+        execution_id = f"script_{uuid.uuid4().hex[:8]}"
+        temp_filename = f"temp_script_{execution_id}{extensions[language]}"
+
+        try:
+            # Write code to temporary file
+            write_result = await self.environment.write_file(temp_filename, code)
+            if write_result.get("status") != "success":
+                return ToolResult(
+                    success=False,
+                    error=f"Failed to write temporary file: {write_result.get('message', 'Unknown error')}",
+                )
+
+            # Execute the file
+            command = f"{commands[language]} {temp_filename}"
+            logger.info(f"Executing script from file: {command}")
+
+            result: ShellOutput = await self.environment.exec_shell(
+                command=command,
+                session_id=execution_id,
+                blocking=True,
+            )
+
+            return result.to_tool_result()
+
+        finally:
+            # Clean up temporary file
+            try:
+                await self.environment.delete_file(temp_filename)
+            except Exception as e:
+                logger.warning(
+                    f"Failed to clean up temporary file {temp_filename}: {e}"
+                )
+
+    async def _execute_with_stdin(self, language: str, code: str) -> ToolResult:
+        """Execute code using stdin approach (for simple scripts)"""
+
+        commands = {
             "python": "python3",
             "bash": "bash",
             "javascript": "node",
-            "powershell": "powershell",
+            "powershell": "powershell",  # PowerShell doesn't work well with stdin for scripts
         }
 
-        # EOF delimiters for different languages
-        eof_delimiters = {
-            "python": "PYTHON_EOF",
-            "bash": "BASH_EOF",
-            "javascript": "JS_EOF",
-            "powershell": "PS_EOF",
-        }
-
-        language = params["language"]
-        code = params["code"]
-
-        # Get the base command
-        base_cmd = language_commands[language]
-        eof_delimiter = eof_delimiters[language]
-
-        # Decide whether to use EOF syntax or -c flag
-        if self._needs_eof_syntax(code):
-            # Use EOF syntax for complex code
-            if language == "python":
-                full_command = (
-                    f"{base_cmd} << '{eof_delimiter}'\n{code}\n{eof_delimiter}"
-                )
-            elif language == "bash":
-                full_command = (
-                    f"{base_cmd} << '{eof_delimiter}'\n{code}\n{eof_delimiter}"
-                )
-            elif language == "javascript":
-                full_command = (
-                    f"{base_cmd} << '{eof_delimiter}'\n{code}\n{eof_delimiter}"
-                )
-            elif language == "powershell":
-                # PowerShell doesn't support heredoc, fall back to -Command with escaping
-                escaped_code = code.replace('"', '""').replace("'", "''")
-                full_command = f'{base_cmd} -Command "{escaped_code}"'
-        else:
-            # Use -c flag for simple code
-            if language == "python":
-                escaped_code = code.replace('"', '\\"').replace("'", "\\'")
-                full_command = f'{base_cmd} -c "{escaped_code}"'
-            elif language == "bash":
-                escaped_code = code.replace('"', '\\"')
-                full_command = f'{base_cmd} -c "{escaped_code}"'
-            elif language == "javascript":
-                escaped_code = code.replace('"', '\\"').replace("'", "\\'")
-                full_command = f'{base_cmd} -e "{escaped_code}"'
-            elif language == "powershell":
-                escaped_code = code.replace('"', '""').replace("'", "''")
-                full_command = f'{base_cmd} -Command "{escaped_code}"'
-
-        # Get execution directory, default to current directory
-        exec_dir = params.get("exec_dir", ".")
         execution_id = f"script_{uuid.uuid4().hex[:8]}"
 
-        logger.info(f"Executing script: {full_command}")
+        if language == "powershell":
+            # PowerShell needs special handling
+            escaped_code = code.replace('"', '""').replace("'", "''")
+            command = f'powershell -Command "{escaped_code}"'
+        else:
+            # Use printf to avoid issues with echo and special characters
+            # printf is more reliable than echo for complex strings
+            escaped_code = code.replace("\\", "\\\\").replace("%", "%%")
+            command = f"printf '%s' '{escaped_code}' | {commands[language]}"
+
+        logger.info(f"Executing script via stdin: {command}")
 
         result: ShellOutput = await self.environment.exec_shell(
-            command=full_command,
-            exec_dir=exec_dir,
+            command=command,
             session_id=execution_id,
             blocking=True,
         )
-        logger.info(f"Script result: {result}")
 
         return result.to_tool_result()
+
+    async def _execute_with_command_flag(self, language: str, code: str) -> ToolResult:
+        """Execute code using -c flag (for very simple one-liners)"""
+
+        execution_id = f"script_{uuid.uuid4().hex[:8]}"
+
+        if language == "python":
+            # Use shlex.quote for safe escaping
+            command = f"python3 -c {shlex.quote(code)}"
+        elif language == "bash":
+            # Use shlex.quote for safe escaping
+            command = f"bash -c {shlex.quote(code)}"
+        elif language == "javascript":
+            # Node.js uses -e flag
+            command = f"node -e {shlex.quote(code)}"
+        elif language == "powershell":
+            escaped_code = code.replace('"', '""').replace("'", "''")
+            command = f'powershell -Command "{escaped_code}"'
+
+        logger.info(f"Executing script with command flag: {command}")
+
+        result: ShellOutput = await self.environment.exec_shell(
+            command=command,
+            session_id=execution_id,
+            blocking=True,
+        )
+
+        return result.to_tool_result()
+
+    async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        language = params["language"]
+        code = params["code"].strip()
+
+        # Strategy selection based on code complexity
+        if self._should_use_temp_file(code):
+            # Use temporary file for complex code (most reliable)
+            logger.info("Using temporary file approach for complex script")
+            return await self._execute_with_temp_file(language, code)
+        elif len(code) < 50 and "\n" not in code:
+            # Use command flag for very simple one-liners
+            logger.info("Using command flag approach for simple script")
+            return await self._execute_with_command_flag(language, code)
+        else:
+            # Use stdin for medium complexity
+            logger.info("Using stdin approach for medium complexity script")
+            return await self._execute_with_stdin(language, code)
 
 
 @ToolRegistry.register(

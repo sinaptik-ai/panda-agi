@@ -22,6 +22,7 @@ class E2BEnv(BaseEnv):
 
     def __init__(
         self,
+        template: str,
         base_path: Union[str, Path],
         metadata: Optional[Dict[str, Any]] = None,
         timeout: int = 3600,
@@ -37,17 +38,22 @@ class E2BEnv(BaseEnv):
 
         self.working_directory = self.base_path
         self.sandbox = sandbox  # Will be None if not provided
+        self.template = template
         self.ports = ports
         self._metadata = metadata  # Store for deferred connection
 
     async def create(self):
-        await self._connect(self.timeout, self._metadata)
+        if self.template is None:
+            raise ValueError("E2B template is required")
+        await self._connect(self.template, self.timeout, self._metadata)
         await self._ensure_tmux_initialized()
 
     async def _ensure_sandbox_connected(self):
         """Ensure sandbox is connected, connecting if necessary."""
         if self.sandbox is None:
-            self.sandbox = await self._connect(self.timeout, self._metadata)
+            self.sandbox = await self._connect(
+                self.template, self.timeout, self._metadata
+            )
 
     async def _initialize_tmux(self):
         """Initialize tmux in the E2B sandbox environment."""
@@ -80,15 +86,18 @@ class E2BEnv(BaseEnv):
         except Exception as e:
             return ExecutionResult(output="", error=str(e), exit_code=-1, success=False)
 
-    async def _connect(self, timeout: int, metadata: Optional[Dict[str, Any]] = None):
+    async def _connect(
+        self,
+        template: str,
+        timeout: int = 3600,
+        metadata: Optional[Dict[str, Any]] = None,
+    ):
         if AsyncSandbox is None:
             raise ImportError(
                 "e2b_code_interpreter is not installed. "
                 "Please install it with `pip install panda-agi[e2b]`"
             )
-        sbx = await AsyncSandbox.create(
-            "ytj4es1gv3a3r7gqfyu5", metadata=metadata, timeout=timeout
-        )
+        sbx = await AsyncSandbox.create(template, metadata=metadata, timeout=timeout)
         # Ensure base directory exists within sandbox
         await sbx.files.make_dir(str(self.base_path))
         return sbx
@@ -381,8 +390,14 @@ class E2BEnv(BaseEnv):
     def get_hosted_url(self, port) -> str:
         return self.sandbox.get_host(port)
 
-    async def is_port_available(self, port: int) -> bool:
-        pass
+    def kill(self):
+        """
+        Destructor: schedule sandbox.close() if possible.
+        """
+        self.sandbox.kill()
 
-    async def get_available_ports(self) -> List[int]:
+    async def is_port_available(self, port: int) -> bool:
+        return port not in self.ports
+
+    def get_available_ports(self) -> List[int]:
         return self.ports

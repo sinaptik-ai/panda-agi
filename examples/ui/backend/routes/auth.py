@@ -3,10 +3,14 @@ Authentication routes for the PandaAGI API.
 """
 
 import aiohttp
+import json
 from typing import Optional
-from fastapi import APIRouter, Query, Depends, HTTPException
+from fastapi import APIRouter, Query, Depends, HTTPException, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
 import os
+
+from fastapi.responses import JSONResponse
 
 
 PANDA_AGI_SERVER_URL = (
@@ -33,13 +37,18 @@ async def github_auth(redirect_uri: Optional[str] = Query(None)):
         async with session.post(
             f"{PANDA_AGI_SERVER_URL}/public/auth/github", json=payload
         ) as resp:
+            if resp.status != 200:
+                raise HTTPException(
+                    status_code=resp.status, detail="GitHub authentication failed"
+                )
+
             response = await resp.json()
             return response
 
 
 @router.get("/validate")
 async def validate_auth(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Validate authentication token by forwarding to backend service"""
+    """Validate authentication token by forwarding to backend service and set cookie"""
     token = credentials.credentials  # Extract the token from the bearer header
 
     async with aiohttp.ClientSession() as session:
@@ -54,21 +63,45 @@ async def validate_auth(credentials: HTTPAuthorizationCredentials = Depends(secu
                     status_code=resp.status, detail="Token validation failed"
                 )
 
-            response = await resp.json()
+            response_data = await resp.json()
+
+            # Create response with cookie
+            response = JSONResponse(content=response_data)
             return response
 
 
 @router.post("/refresh-token")
 async def refresh_token(refresh_token_data: dict):
     """Refresh authentication token by forwarding to backend service"""
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            f"{PANDA_AGI_SERVER_URL}/public/auth/refresh-token", json=refresh_token_data
-        ) as resp:
-            if resp.status != 200:
-                raise HTTPException(
-                    status_code=resp.status, detail="Token refresh failed"
-                )
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{PANDA_AGI_SERVER_URL}/public/auth/refresh-token",
+                json=refresh_token_data,
+            ) as resp:
+                if resp.status != 200:
+                    raise HTTPException(
+                        status_code=resp.status, detail="Token refresh failed"
+                    )
 
-            response = await resp.json()
-            return response
+                response_data = await resp.json()
+
+                # Create response with cookie
+                response = JSONResponse(content=response_data)
+
+                return response
+    except aiohttp.ClientConnectorError:
+        raise HTTPException(
+            status_code=503,
+            detail="Authentication service is currently unavailable. Please try again later.",
+        )
+    except aiohttp.ServerTimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="Authentication service is taking too long to respond. Please try again.",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Authentication service encountered an internal error. Please try again later.",
+        )
