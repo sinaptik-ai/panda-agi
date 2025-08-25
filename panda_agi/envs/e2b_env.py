@@ -113,10 +113,7 @@ class E2BEnv(BaseEnv):
             )
         if metadata and "conversation_id" in metadata:
             query = SandboxQuery(metadata=metadata)
-
-            paginator = AsyncSandbox.list(query=query)
-            matches = await paginator.next_items()
-
+            matches = await AsyncSandbox.list(query=query)
             if not matches:
                 raise Exception("Session destroyed, please restart the conversation")
             sbx_info = matches[0]

@@ -22,7 +22,7 @@ dependencies = [
     "markdownify",
     "httpx",
     "tavily-python",
-    "e2b-code-interpreter==2.0.0",
+    "e2b-code-interpreter>=1.0.0,<2.0.0",
 ]
 
 [project.optional-dependencies]
