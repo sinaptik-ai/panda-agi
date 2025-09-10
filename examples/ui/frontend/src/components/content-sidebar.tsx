@@ -22,6 +22,7 @@ import {
 } from "@/lib/utils";
 import ArtifactActions from "./artifact-actions";
 import { ArtifactData } from "@/types/artifact";
+import { useSavedArtifacts } from "@/contexts/saved-artifacts-context";
 
 export interface PreviewData {
   title?: string;
@@ -51,6 +52,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 }) => {
   // Define iframe-like content types that should be treated similarly
   const IFRAME_LIKE_TYPES = ["iframe", "pxml"] as const;
+  
+  // Get saved artifacts context
+  const { saveArtifact: saveArtifactToContext, getArtifact, removeArtifact } = useSavedArtifacts();
   
   // Utility function to normalize filenames (remove leading './' or '/' if present)
   const normalizeFilename = (filename: string): string => {
@@ -105,9 +109,24 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       setJustSaved(false);
       setSuggestedName("");
       setShouldTriggerEdit(false);
-      setFileContent(null);
     }
   }, [isOpen]);
+
+  // Function to check for existing saved artifact
+  const checkExistingArtifact = () => {
+    if (!previewData?.filename || !previewData?.timestamp) {
+      return;
+    }
+
+    const existingArtifact = getArtifact(previewData.filename, previewData.timestamp);
+    if (existingArtifact) {
+      setSavedArtifact(existingArtifact);
+      setIsSaved(true);
+      setSuggestedName(existingArtifact.name);
+      return true; // Found existing artifact
+    }
+    return false; // No existing artifact
+  };
 
   // Function to get suggested name
   const getSuggestedName = async () => {
@@ -141,12 +160,20 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   };
 
-  // Get suggested name when sidebar opens
+  // Check for existing artifact and get suggested name when sidebar opens
   useEffect(() => {
-    if (fileContent && ["markdown", "pxml"].includes(previewData?.type || "") && conversationId) {
-      getSuggestedName();
+    if (isOpen && previewData) {
+      // First check if there's an existing saved artifact
+      const hasExistingArtifact = checkExistingArtifact();
+      
+      // If no existing artifact and we have the required data, get suggested name
+      if (!hasExistingArtifact && fileContent && ["markdown", "pxml"].includes(previewData?.type || "") && conversationId) {
+        getSuggestedName();
+      }
     }
-  }, [fileContent]);
+  }, [isOpen, previewData, fileContent, conversationId]);
+
+
 
   // Convert markdown content to HTML for editor
   useEffect(() => {
@@ -829,6 +856,16 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     setSavedArtifact(artifactData.artifact);
     setSuggestedName(artifactData.artifact.name);
 
+    // Save artifact to context for global access
+    if (conversationId && previewData?.filename && previewData?.timestamp) {
+      saveArtifactToContext(
+        artifactData.artifact,
+        previewData.filename,
+        previewData.timestamp,
+        conversationId
+      );
+    }
+
     // CRITICAL: Check if user made changes before first save
     // If yes, we need to update the creation with current editor content
     if (hasUnsavedChanges) {
@@ -869,12 +906,28 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   // Handle artifact updated
   const handleArtifactUpdated = (updatedArtifact: ArtifactData) => {
     setSavedArtifact(updatedArtifact);
+    
+    // Update artifact in context
+    if (conversationId && previewData?.filename && previewData?.timestamp) {
+      saveArtifactToContext(
+        updatedArtifact,
+        previewData.filename,
+        previewData.timestamp,
+        conversationId
+      );
+    }
   };
 
   // Handle artifact deleted
   const handleArtifactDeleted = () => {
     setIsSaved(false);
     setSavedArtifact(null);
+    
+    // Remove artifact from context
+    if (previewData?.filename && previewData?.timestamp) {
+      removeArtifact(previewData.filename, previewData.timestamp);
+    }
+    
     onClose();
   };
 
@@ -896,10 +949,21 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         });
         
         // Update the saved artifact state
-        setSavedArtifact({
+        const updatedArtifactData = {
           ...savedArtifact,
           name: updatedArtifact.name,
-        });
+        };
+        setSavedArtifact(updatedArtifactData);
+        
+        // Update artifact in context
+        if (conversationId && previewData?.filename && previewData?.timestamp) {
+          saveArtifactToContext(
+            updatedArtifactData,
+            previewData.filename,
+            previewData.timestamp,
+            conversationId
+          );
+        }
         
         toast.success("Creation name updated successfully");
       } catch (error) {

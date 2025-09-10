@@ -11,6 +11,7 @@ import { useInactivityTimer } from "@/hooks/useInactivityTimer";
 import { storeAuthToken, removeAuthToken, refreshAuthToken } from "@/lib/api/auth";
 import { getServerURL } from "@/lib/server";
 import { notifyAuthChange } from "@/hooks/useAuth";
+import { SavedArtifactsProvider } from "@/contexts/saved-artifacts-context";
 
 
 export default function Home() {
@@ -204,55 +205,57 @@ export default function Home() {
   const isInitialLoading = isAuthenticating;
 
   return (
-    <div className="flex h-screen">
-      <Header
-        ref={headerRef}
-        isInitialLoading={isInitialLoading}
-        isConnected={isConnected}
-        sidebarOpen={sidebarOpen}
-        sidebarWidth={sidebarWidth}
-        onNewConversation={startNewConversation}
-      />
-
-      {/* Main content */}
-      <div
-        className="flex flex-col transition-all duration-300 w-full"
-        style={{
-          width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : "100%",
-        }}
-      >
-        {/* ChatBox Component */}
-        <ChatBox
-          ref={chatBoxRef}
-          conversationId={conversationId}
-          setConversationId={setConversationId}
-          onPreviewClick={handlePreviewClick}
-          onFileClick={handleFileClick}
+    <SavedArtifactsProvider conversationId={conversationId}>
+      <div className="flex h-screen">
+        <Header
+          ref={headerRef}
+          isInitialLoading={isInitialLoading}
           isConnected={isConnected}
-          setIsConnected={setIsConnected}
           sidebarOpen={sidebarOpen}
           sidebarWidth={sidebarWidth}
-          isInitialLoading={isInitialLoading}
-          initialQuery={initialQuery}
-          onCreditsRefetch={async () => {
-            headerRef.current?.refreshCredits();
-          }}
-          onUserMessage={trackUserMessage}
+          onNewConversation={startNewConversation}
         />
+
+        {/* Main content */}
+        <div
+          className="flex flex-col transition-all duration-300 w-full"
+          style={{
+            width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : "100%",
+          }}
+        >
+          {/* ChatBox Component */}
+          <ChatBox
+            ref={chatBoxRef}
+            conversationId={conversationId}
+            setConversationId={setConversationId}
+            onPreviewClick={handlePreviewClick}
+            onFileClick={handleFileClick}
+            isConnected={isConnected}
+            setIsConnected={setIsConnected}
+            sidebarOpen={sidebarOpen}
+            sidebarWidth={sidebarWidth}
+            isInitialLoading={isInitialLoading}
+            initialQuery={initialQuery}
+            onCreditsRefetch={async () => {
+              headerRef.current?.refreshCredits();
+            }}
+            onUserMessage={trackUserMessage}
+          />
+        </div>
+
+        {/* Sidebar */}
+        <ContentSidebar
+          isOpen={sidebarOpen}
+          onClose={closeSidebar}
+          previewData={previewData}
+          conversationId={conversationId}
+          width={sidebarWidth}
+          onResize={setSidebarWidth}
+        />
+
+        {/* Session Expired Popup */}
+        <SessionExpiredPopup isOpen={showInactivityPopup} />
       </div>
-
-      {/* Sidebar */}
-      <ContentSidebar
-        isOpen={sidebarOpen}
-        onClose={closeSidebar}
-        previewData={previewData}
-        conversationId={conversationId}
-        width={sidebarWidth}
-        onResize={setSidebarWidth}
-      />
-
-      {/* Session Expired Popup */}
-      <SessionExpiredPopup isOpen={showInactivityPopup} />
-    </div>
+    </SavedArtifactsProvider>
   );
 }

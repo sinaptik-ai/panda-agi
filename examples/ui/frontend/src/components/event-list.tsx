@@ -145,7 +145,6 @@ const EventList: React.FC<EventListProps> = ({
   if (eventType in SPECIAL_EVENT_HANDLERS) {
     const userMessagePayload = payload as unknown as UserMessagePayload;
     const SpecialComponent = SPECIAL_EVENT_HANDLERS[eventType as keyof typeof SPECIAL_EVENT_HANDLERS];
-    console.log("message.event.timestamp: ", message);
     return (
       <SpecialComponent
         payload={userMessagePayload}
