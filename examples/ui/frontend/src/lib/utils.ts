@@ -259,3 +259,20 @@ export const getFileUrl = (filename: string, conversationId: string, raw: boolea
   const queryString = params.toString();
   return queryString ? `${baseUrl}?${queryString}` : baseUrl;
 };
+
+
+export const getArtifactFileUrl = (filename: string, artifactId: string, raw: boolean=false, timestamp?: string) => {
+  // timestamp is in ISO format with timezone
+  const baseUrl = `${window.origin}/creations/${artifactId}/${encodeURIComponent(filename)}`;
+  
+  const params = new URLSearchParams();
+  if (raw) {
+    params.append('raw', 'true');
+  }
+  if (timestamp) {
+    params.append('timestamp', timestamp);
+  }
+  
+  const queryString = params.toString();
+  return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+};

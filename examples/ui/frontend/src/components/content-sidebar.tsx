@@ -11,7 +11,6 @@ import ResizableSidebar from "./ui/resizable-sidebar";
 import FileIcon from "./ui/file-icon";
 import ExcelViewer from "./excel-viewer";
 import Papa from "papaparse";
-import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { config } from "@/lib/config";
 import { toast } from "react-hot-toast";
@@ -19,9 +18,12 @@ import {
   getFileExtension,
   isExcelFile,
   validateContentType,
+  getFileUrl,
+  getArtifactFileUrl,
 } from "@/lib/utils";
 import ArtifactActions from "./artifact-actions";
 import { ArtifactData } from "@/types/artifact";
+import { useSavedArtifacts } from "@/contexts/saved-artifacts-context";
 
 export interface PreviewData {
   title?: string;
@@ -51,6 +53,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 }) => {
   // Define iframe-like content types that should be treated similarly
   const IFRAME_LIKE_TYPES = ["iframe", "pxml"] as const;
+  
+  // Get saved artifacts context
+  const { saveArtifact: saveArtifactToContext, getArtifact, removeArtifact } = useSavedArtifacts();
   
   // Utility function to normalize filenames (remove leading './' or '/' if present)
   const normalizeFilename = (filename: string): string => {
@@ -96,18 +101,44 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   const onEditTitleRef = useRef<(() => void) | null>(null);
 
   // Reset saved state when sidebar closes
+  // Reusable function to reset sidebar state
+  const resetSidebarState = () => {
+    setIsSaved(false);
+    setSavedArtifact(null);
+    setHasUnsavedChanges(false);
+    setIsSaving(false);
+    setJustSaved(false);
+    setFileContent(null);
+    setSuggestedName("");
+    setShouldTriggerEdit(false);
+  };
+
   useEffect(() => {
     if (!isOpen) {
-      setIsSaved(false);
-      setSavedArtifact(null);
-      setHasUnsavedChanges(false);
-      setIsSaving(false);
-      setJustSaved(false);
-      setSuggestedName("");
-      setShouldTriggerEdit(false);
-      setFileContent(null);
+      resetSidebarState();
     }
   }, [isOpen]);
+
+  const onSidebarClose = () => {
+    resetSidebarState();
+    onClose();
+  };
+
+  // Function to check for existing saved artifact
+  const checkExistingArtifact = () => {
+    if (!previewData?.filename || !previewData?.timestamp) {
+      return;
+    }
+
+    const existingArtifact = getArtifact(previewData.filename, previewData.timestamp);
+    if (existingArtifact) {
+      setSavedArtifact(existingArtifact);
+      setIsSaved(true);
+      setSuggestedName(existingArtifact.name);
+      return existingArtifact; // Found existing artifact
+    }
+    return; // No existing artifact
+  };
 
   // Function to get suggested name
   const getSuggestedName = async () => {
@@ -141,12 +172,20 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   };
 
-  // Get suggested name when sidebar opens
+  // Check for existing artifact and get suggested name when sidebar opens
   useEffect(() => {
-    if (fileContent && ["markdown", "pxml"].includes(previewData?.type || "") && conversationId) {
-      getSuggestedName();
+    if (isOpen && previewData) {
+      // First check if there's an existing saved artifact
+      const hasExistingArtifact = checkExistingArtifact();
+      
+      // If no existing artifact and we have the required data, get suggested name
+      if (!hasExistingArtifact && fileContent && ["markdown", "pxml"].includes(previewData?.type || "") && conversationId) {
+        getSuggestedName();
+      }
     }
-  }, [fileContent]);
+  }, [isOpen, previewData, fileContent, conversationId]);
+
+
 
   // Convert markdown content to HTML for editor
   useEffect(() => {
@@ -218,10 +257,13 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       const normalized = normalizeFilename(filename);
       setNormalizedFilename(normalized);
 
-      // Only fetch content if it's not an image and we don't already have content
+      // Check if there's an existing saved artifact first
+      const existingArtifact = checkExistingArtifact();
+      
+  
       const fileType = previewData.type || "text";
-      if (fileType !== "image" && !previewData.content) {
-        fetchFileContent(filename);
+      if (fileType !== "image" && !previewData.content ) {
+        fetchFileContent(filename, existingArtifact || null);
       } else if (previewData.content) {
         // If content was provided directly, use it
         setFileContent(previewData.content);
@@ -323,14 +365,18 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   };
 
   // Function to fetch file content
-  const fetchFileContent = async (filename: string) => {
+  const fetchFileContent = async (filename: string, existingArtifact: null | ArtifactData) => {
+    if (!conversationId) {
+      return;
+    }
     setIsLoading(true);
     setError(null);
 
     try {
-      const fileUrl = getBackendServerURL(
-        `/${conversationId}/files/${encodeURIComponent(filename)}?raw=true&timestamp=${previewData?.timestamp}`
-      );
+      // Use getArtifactFileUrl if we have a saved artifact, otherwise use getFileUrl
+      const fileUrl = existingArtifact && existingArtifact?.id
+        ? getArtifactFileUrl(filename, existingArtifact.id, true, previewData?.timestamp)
+        : getFileUrl(filename, conversationId, true, previewData?.timestamp);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const apiHeaders: any = await getApiHeaders();
@@ -656,11 +702,15 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           </div>
         );
       case "image":
+        if (!normalizedFilename || !conversationId) {
+          return null;
+        }
         // For images, construct the URL from the filename
-        const imageUrl = getBackendServerURL(
-          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}?timestamp=${previewData?.timestamp}`
-        );
-
+        // Use getArtifactFileUrl if we have a saved artifact, otherwise use getFileUrl
+        const imageUrl = savedArtifact?.id 
+          ? getArtifactFileUrl(normalizedFilename, savedArtifact.id, false, previewData?.timestamp)
+          : getFileUrl(normalizedFilename, conversationId, false, previewData?.timestamp);
+        
         return (
           <div className="flex justify-center">
             <img
@@ -829,6 +879,16 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     setSavedArtifact(artifactData.artifact);
     setSuggestedName(artifactData.artifact.name);
 
+    // Save artifact to context for global access
+    if (conversationId && previewData?.filename && previewData?.timestamp) {
+      saveArtifactToContext(
+        artifactData.artifact,
+        previewData.filename,
+        previewData.timestamp,
+        conversationId
+      );
+    }
+
     // CRITICAL: Check if user made changes before first save
     // If yes, we need to update the creation with current editor content
     if (hasUnsavedChanges) {
@@ -869,13 +929,29 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   // Handle artifact updated
   const handleArtifactUpdated = (updatedArtifact: ArtifactData) => {
     setSavedArtifact(updatedArtifact);
+    
+    // Update artifact in context
+    if (conversationId && previewData?.filename && previewData?.timestamp) {
+      saveArtifactToContext(
+        updatedArtifact,
+        previewData.filename,
+        previewData.timestamp,
+        conversationId
+      );
+    }
   };
 
   // Handle artifact deleted
   const handleArtifactDeleted = () => {
     setIsSaved(false);
     setSavedArtifact(null);
-    onClose();
+    
+    // Remove artifact from context
+    if (previewData?.filename && previewData?.timestamp) {
+      removeArtifact(previewData.filename, previewData.timestamp);
+    }
+    
+    onSidebarClose();
   };
 
   // Handle edit name - trigger title editing in ResizableSidebar
@@ -896,10 +972,21 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         });
         
         // Update the saved artifact state
-        setSavedArtifact({
+        const updatedArtifactData = {
           ...savedArtifact,
           name: updatedArtifact.name,
-        });
+        };
+        setSavedArtifact(updatedArtifactData);
+        
+        // Update artifact in context
+        if (conversationId && previewData?.filename && previewData?.timestamp) {
+          saveArtifactToContext(
+            updatedArtifactData,
+            previewData.filename,
+            previewData.timestamp,
+            conversationId
+          );
+        }
         
         toast.success("Creation name updated successfully");
       } catch (error) {
@@ -981,7 +1068,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         artifact={savedArtifact}
         onArtifactUpdated={handleArtifactUpdated}
         onArtifactDeleted={handleArtifactDeleted}
-        onClose={onClose}
+        onClose={onSidebarClose}
         isSaved={isSaved}
         previewData={previewData}
         conversationId={conversationId}
@@ -997,9 +1084,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   const subtitleHref =
     previewData.url ||
     (normalizedFilename && conversationId
-      ? getBackendServerURL(
-          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}?timestamp=${previewData?.timestamp}`
-        )
+      ? savedArtifact?.id 
+        ? getArtifactFileUrl(normalizedFilename, savedArtifact.id, false, previewData?.timestamp)
+        : getFileUrl(normalizedFilename, conversationId, false, previewData?.timestamp)
       : undefined);
 
   return (
@@ -1009,7 +1096,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
       <ResizableSidebar
         isOpen={isOpen}
-        onClose={onClose}
+        onClose={onSidebarClose}
         title={suggestedName || previewData.title}
         subtitle={
            normalizedFilename || previewData.url

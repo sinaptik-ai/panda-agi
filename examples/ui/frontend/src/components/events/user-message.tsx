@@ -14,6 +14,7 @@ import { getBackendServerURL } from "@/lib/server";
 import { toast } from "react-hot-toast";
 import { downloadWithCheck } from "@/lib/utils";
 import { PLATFORM_MODE } from "@/lib/config";
+import { useSavedArtifacts } from "@/contexts/saved-artifacts-context";
 
 interface PreviewData {
   url: string;
@@ -46,6 +47,9 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
   openUpgradeModal,
 }) => {
   if (!payload) return null;
+
+  // Get saved artifacts context
+  const { getArtifact } = useSavedArtifacts();
 
   const isError = !!payload.error;
 
@@ -252,6 +256,19 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
     attachments = attachmentsString.split(",");
   }
 
+  const getAttachmentName = (filename: string): string => {
+    // Check if there's a saved artifact for this filename and timestamp
+    if (timestamp) {
+      const artifact = getArtifact(filename, timestamp);
+      if (artifact) {
+        return artifact.name;
+      }
+    }
+    
+    // Return the original filename if no saved artifact found
+    return filename;
+  };
+
   return (
     <>
       {/* Main Card */}
@@ -314,10 +331,16 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
             {attachments.map((attachment, index) => {
               const filename = attachment.split("/").pop() || "";
               const extension = filename.split(".").pop()?.toLowerCase();
+              const attachmentName = getAttachmentName(filename);
+              const isSavedArtifact = attachmentName !== filename;
 
               return (
                 <div key={index} className="flex justify-start">
-                  <div className="group flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 hover:shadow-md min-w-80 max-w-2xl">
+                  <div className={`group flex items-center justify-between gap-2 p-3 border rounded-lg transition-all duration-200 hover:shadow-md min-w-80 max-w-2xl ${
+                    isSavedArtifact 
+                      ? "bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-200 hover:from-emerald-100 hover:to-green-100" 
+                      : "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100"
+                  }`}>
                     <div className="flex items-center space-x-3 flex-1 min-w-0">
                       <div className="flex-shrink-0">
                         {getFileIcon(attachment)}
@@ -326,12 +349,27 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
                       <div className="flex-1 min-w-0">
                         <button
                           onClick={() => handleFileClick(attachment)}
-                          className="text-left w-full group-hover:text-blue-800 transition-colors cursor-pointer"
+                          className={`text-left w-full transition-colors cursor-pointer ${
+                            isSavedArtifact 
+                              ? "group-hover:text-emerald-800" 
+                              : "group-hover:text-blue-800"
+                          }`}
                         >
-                          <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-900">
-                            {filename}
-                          </p>
-                          {extension && (
+                          <div className="flex items-center gap-2">
+                            <p className={`text-sm font-medium truncate ${
+                              isSavedArtifact 
+                                ? "text-emerald-900 group-hover:text-emerald-900" 
+                                : "text-gray-900 group-hover:text-blue-900"
+                            }`}>
+                              {attachmentName}
+                            </p>
+                            {isSavedArtifact && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                Saved
+                              </span>
+                            )}
+                          </div>
+                          {extension && !isSavedArtifact && (
                             <p className="text-xs text-gray-500 uppercase font-mono">
                               {extension} file
                             </p>
@@ -343,7 +381,11 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
                     <div className="flex items-center space-x-2 flex-shrink-0">
                       <button
                         onClick={() => handleFileClick(attachment)}
-                        className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-blue-200 hover:border-blue-300 text-blue-600 hover:text-blue-700 transition-all duration-200 hover:shadow-sm cursor-pointer"
+                        className={`flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white transition-all duration-200 hover:shadow-sm cursor-pointer ${
+                          isSavedArtifact 
+                            ? "border border-emerald-200 hover:border-emerald-300 text-emerald-600 hover:text-emerald-700" 
+                            : "border border-blue-200 hover:border-blue-300 text-blue-600 hover:text-blue-700"
+                        }`}
                         title="Preview file"
                       >
                         <Eye className="w-4 h-4" />
