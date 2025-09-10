@@ -100,10 +100,16 @@ class CSVLoader {
             // Use the actual file path from PXML, not hardcoded 'dataset.csv'
             // Extract just the filename from the full path
             const fileName = filePath.split('/').pop();
-            
+
             // Construct the correct URL for the CSV file
             // URL pattern: /creations/{artifactId}/{fileName}
-            const fileUrl = `/creations/${artifactId}/${fileName}`;
+            // By default it picks the base path browser or when iframe is used
+            let fileUrl = "";
+            if (artifactId !== "default") {
+                fileUrl = `/creations/${artifactId}/${fileName}`;
+            } else {
+                fileUrl = filePath;
+            }
             
             const response = await fetch(fileUrl);
             

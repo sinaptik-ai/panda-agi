@@ -500,7 +500,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           src={url}
           className="w-full h-full"
           title={title}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
         />
       </div>
     );

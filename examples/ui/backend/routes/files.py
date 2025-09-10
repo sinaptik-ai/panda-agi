@@ -364,12 +364,8 @@ async def read_file(
         # Check if it's a PXML file and compile it (unless raw mode is requested)
         if file_path.lower().endswith((".pxml")) and not raw:
             content_bytes = content_bytes.decode("utf-8")
-            # Extract artifact ID from the conversation_id for now
-            # In the future, this should be passed as a parameter
-            artifact_id = conversation_id
-            html_content = await PXMLService.compile_pxml(
-                content_bytes, local_env, artifact_id
-            )
+
+            html_content = await PXMLService.compile_pxml(content_bytes, local_env)
             return Response(content=html_content, media_type="text/html")
 
         # Check if it's a markdown file and raw mode is not requested
