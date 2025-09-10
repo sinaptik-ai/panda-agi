@@ -13,6 +13,66 @@ class DashboardCore {
   }
 
   /**
+   * Update dashboard metadata using data attributes for reliable targeting
+   * @param {Object} metadata - Dashboard metadata object
+   */
+  updateMetadata(metadata) {
+    console.log('Updating dashboard metadata:', metadata);
+    
+    // Update document title (always update, even if empty)
+    if (metadata.hasOwnProperty('name')) {
+      const titleElement = document.querySelector('title');
+      if (titleElement) {
+        titleElement.textContent = metadata.name || '';
+      }
+    }
+    
+    // Update dashboard name using explicit data attribute (always update, even if empty)
+    if (metadata.hasOwnProperty('name')) {
+      const nameElement = document.querySelector('[data-dashboard-name]');
+      if (nameElement) {
+        nameElement.textContent = metadata.name || '';
+        console.log('Updated dashboard name to:', metadata.name || '(empty)');
+      } else {
+        console.warn('Dashboard name element not found');
+      }
+    }
+    
+    // Update dashboard description using explicit data attribute (always update, even if empty)
+    if (metadata.hasOwnProperty('description')) {
+      const descElement = document.querySelector('[data-dashboard-description]');
+      if (descElement) {
+        descElement.textContent = metadata.description || '';
+        console.log('Updated dashboard description to:', metadata.description || '(empty)');
+      } else {
+        console.warn('Dashboard description element not found');
+      }
+    }
+    
+    // Update dashboard icon using explicit data attribute
+    if (metadata.hasOwnProperty('icon') && metadata.icon) {
+      const iconElement = document.querySelector('[data-dashboard-icon]');
+      if (iconElement) {
+        // Remove all existing fa- classes
+        const classesToRemove = Array.from(iconElement.classList).filter(cls => cls.startsWith('fa-'));
+        classesToRemove.forEach(cls => iconElement.classList.remove(cls));
+        // Add the new icon class
+        iconElement.classList.add(metadata.icon);
+        console.log('Updated dashboard icon to:', metadata.icon);
+      } else {
+        console.warn('Dashboard icon element not found');
+      }
+    }
+    
+    // Update theme if applicable
+    if (metadata.hasOwnProperty('theme') && metadata.theme) {
+      document.body.className = document.body.className.replace(/theme-\w+/g, '');
+      document.body.classList.add(`theme-${metadata.theme}`);
+      console.log('Updated dashboard theme to:', metadata.theme);
+    }
+  }
+
+  /**
    * Initialize the dashboard with configuration
    */
   initialize(config) {
@@ -454,6 +514,83 @@ window.addEventListener("message", (event) => {
         window.updateKPI(newId);
       }
     }
+  } else if (event.data.type === "update-dashboard-metadata") {
+    const { dashboardMetadata } = event.data;
+    
+    // Use the robust updateMetadata method
+    if (window.dashboard && window.dashboard.updateMetadata) {
+      window.dashboard.updateMetadata(dashboardMetadata);
+    } else {
+      console.error('Dashboard instance not found or updateMetadata method not available');
+    }
+    
+    // Update dashboard configuration if it exists
+    if (window.dashboard && window.dashboard.config) {
+      // Update filters in the dashboard config
+      if (dashboardMetadata.filters) {
+        window.dashboard.config.filters = dashboardMetadata.filters.map(filter => ({
+          id: filter.id,
+          name: filter.name,
+          type: filter.type,
+          values_formula: filter.values_formula
+        }));
+        
+        // Reinitialize filters with new configuration
+        dashboardMetadata.filters.forEach(filter => {
+          try {
+            window.dashboard.initializeFilter(filter, false);
+          } catch (error) {
+            console.warn('Error reinitializing filter:', filter.id, error);
+            // Fallback to individual filter initialization functions
+            try {
+              if (filter.type === 'list') {
+                window.initializeListFilter && window.initializeListFilter(filter.id, [], filter.name);
+              } else if (filter.type === 'number_range') {
+                window.initializeRangeFilter && window.initializeRangeFilter(filter.id, [], filter.name);
+              } else if (filter.type === 'date_range') {
+                window.initializeDateRangeFilter && window.initializeDateRangeFilter(filter.id, [], filter.name);
+              }
+            } catch (fallbackError) {
+              console.warn('Error with fallback filter initialization:', filter.id, fallbackError);
+            }
+          }
+        });
+        
+        // Also try to update any existing filter containers in the DOM
+        dashboardMetadata.filters.forEach(filter => {
+          const filterContainer = document.getElementById(filter.id);
+          if (filterContainer) {
+            // Update the filter label/name if it exists
+            const label = filterContainer.querySelector('label, .filter-label, .filter-name');
+            if (label) {
+              label.textContent = filter.name;
+            }
+            
+            // Update data attributes that might be used by the filter system
+            filterContainer.setAttribute('data-filter-name', filter.name);
+            filterContainer.setAttribute('data-filter-type', filter.type);
+            filterContainer.setAttribute('data-values-formula', filter.values_formula);
+          }
+        });
+      }
+    }
+    
+    // Force a refresh of the dashboard data if the update flag is set
+    if (event.data.forceUpdate && window.dashboard) {
+      try {
+        window.dashboard.updateDashboardData && window.dashboard.updateDashboardData();
+      } catch (error) {
+        console.warn('Error forcing dashboard update:', error);
+      }
+    }
+    
+    console.log('Dashboard metadata updated:', dashboardMetadata);
+  } else if (event.data.type === "dashboard-saved") {
+    const { dashboardMetadata } = event.data;
+    console.log('Dashboard saved:', dashboardMetadata);
+    
+    // Show save success notification or update UI as needed
+    // This could trigger any post-save updates to the dashboard
   }
 });
 

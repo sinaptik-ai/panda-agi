@@ -51,6 +51,19 @@ interface KPIConfig {
   unit: string;
 }
 
+interface DashboardMetadata {
+  name: string;
+  description: string;
+  icon: string;
+  theme: string;
+  filters: Array<{
+    id: string;
+    name: string;
+    type: string;
+    values_formula: string;
+  }>;
+}
+
 interface DashboardEditorProps {
   content: string;
   artifact?: ArtifactData | null;
@@ -138,6 +151,98 @@ const CUSTOM_CURRENCIES = [
   { value: "currency:nzd", label: "NZD - New Zealand Dollar" },
 ];
 
+
+const DASHBOARD_ICONS = [
+  { value: "fa-chart-area", label: "Area Chart" },
+  { value: "fa-arrow-down", label: "Arrow Down" },
+  { value: "fa-arrow-left", label: "Arrow Left" },
+  { value: "fa-arrow-right", label: "Arrow Right" },
+  { value: "fa-arrow-up", label: "Arrow Up" },
+  { value: "fa-chart-bar", label: "Bar Chart" },
+  { value: "fa-bluetooth", label: "Bluetooth" },
+  { value: "fa-briefcase", label: "Briefcase" },
+  { value: "fa-building", label: "Building" },
+  { value: "fa-calendar", label: "Calendar" },
+  { value: "fa-check-circle", label: "Check Circle" },
+  { value: "fa-clock", label: "Clock" },
+  { value: "fa-cloud", label: "Cloud" },
+  { value: "fa-coins", label: "Coins" },
+  { value: "fa-comments", label: "Comments" },
+  { value: "fa-compress", label: "Compress" },
+  { value: "fa-cpu", label: "CPU" },
+  { value: "fa-credit-card", label: "Credit Card" },
+  { value: "fa-tachometer-alt", label: "Dashboard" },
+  { value: "fa-database", label: "Database" },
+  { value: "fa-desktop", label: "Desktop" },
+  { value: "fa-dollar-sign", label: "Dollar Sign" },
+  { value: "fa-download", label: "Download" },
+  { value: "fa-envelope", label: "Envelope" },
+  { value: "fa-euro-sign", label: "Euro Sign" },
+  { value: "fa-exclamation-circle", label: "Exclamation" },
+  { value: "fa-expand", label: "Expand" },
+  { value: "fa-file", label: "File" },
+  { value: "fa-file-alt", label: "File Alt" },
+  { value: "fa-file-excel", label: "File Excel" },
+  { value: "fa-file-pdf", label: "File PDF" },
+  { value: "fa-file-word", label: "File Word" },
+  { value: "fa-flag", label: "Flag" },
+  { value: "fa-folder", label: "Folder" },
+  { value: "fa-folder-open", label: "Folder Open" },
+  { value: "fa-user-graduate", label: "Graduate" },
+  { value: "fa-hard-drive", label: "Hard Drive" },
+  { value: "fa-heart", label: "Heart" },
+  { value: "fa-home", label: "Home" },
+  { value: "fa-hourglass-half", label: "Hourglass" },
+  { value: "fa-info-circle", label: "Info Circle" },
+  { value: "fa-key", label: "Key" },
+  { value: "fa-laptop", label: "Laptop" },
+  { value: "fa-chart-line", label: "Line Chart" },
+  { value: "fa-lock", label: "Lock" },
+  { value: "fa-medal", label: "Medal" },
+  { value: "fa-memory", label: "Memory" },
+  { value: "fa-microchip", label: "Microchip" },
+  { value: "fa-microphone", label: "Microphone" },
+  { value: "fa-mobile-alt", label: "Mobile" },
+  { value: "fa-network-wired", label: "Network" },
+  { value: "fa-phone", label: "Phone" },
+  { value: "fa-chart-pie", label: "Pie Chart" },
+  { value: "fa-pound-sign", label: "Pound Sign" },
+  { value: "fa-question-circle", label: "Question Circle" },
+  { value: "fa-save", label: "Save" },
+  { value: "fa-server", label: "Server" },
+  { value: "fa-cog", label: "Settings" },
+  { value: "fa-shield-alt", label: "Shield" },
+  { value: "fa-star", label: "Star" },
+  { value: "fa-stopwatch", label: "Stopwatch" },
+  { value: "fa-tablet-alt", label: "Tablet" },
+  { value: "fa-thumbs-down", label: "Thumbs Down" },
+  { value: "fa-thumbs-up", label: "Thumbs Up" },
+  { value: "fa-times-circle", label: "Times Circle" },
+  { value: "fa-tools", label: "Tools" },
+  { value: "fa-trophy", label: "Trophy" },
+  { value: "fa-upload", label: "Upload" },
+  { value: "fa-user", label: "User" },
+  { value: "fa-user-friends", label: "User Friends" },
+  { value: "fa-user-tie", label: "User Tie" },
+  { value: "fa-users", label: "Users" },
+  { value: "fa-video", label: "Video" },
+  { value: "fa-wallet", label: "Wallet" },
+  { value: "fa-wifi", label: "WiFi" },
+  { value: "fa-yen-sign", label: "Yen Sign" }
+];
+
+const DASHBOARD_THEMES = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "auto", label: "Auto" },
+];
+
+const FILTER_TYPES = [
+  { value: "list", label: "List Filter" },
+  { value: "number_range", label: "Number Range" },
+  { value: "date_range", label: "Date Range" },
+];
+
 const DashboardEditor: React.FC<DashboardEditorProps> = ({
   content,
   artifact,
@@ -170,6 +275,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   const [originalKPIState, setOriginalKPIState] = useState<KPIConfig | null>(
     null
   );
+  const [editedDashboard, setEditedDashboard] = useState<DashboardMetadata | null>(null);
+  const [originalDashboardState, setOriginalDashboardState] = useState<DashboardMetadata | null>(null);
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const saveInProgressRef = useRef(false);
@@ -298,6 +405,201 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
     return kpis;
   };
+
+  // Parse dashboard metadata from HTML content
+  const parseDashboardFromHTML = useCallback((htmlContent: string): DashboardMetadata => {
+    const parser = new DOMParser();
+    const defaultMetadata: DashboardMetadata = {
+      name: "Dashboard",
+      description: "Dashboard description",
+      icon: "fa-chart-line",
+      theme: "light",
+      filters: []
+    };
+    
+    try {
+      const doc = parser.parseFromString(htmlContent, "text/html");
+      
+      // Extract name from title or h1/h2 elements
+      const titleEl = doc.querySelector('title');
+      const h1El = doc.querySelector('h1');
+      const h2El = doc.querySelector('h2');
+      
+      let name = "Dashboard";
+      if (titleEl?.textContent?.trim()) {
+        name = titleEl.textContent.trim();
+      } else if (h1El?.textContent?.trim()) {
+        name = h1El.textContent.trim();
+      } else if (h2El?.textContent?.trim()) {
+        name = h2El.textContent.trim();
+      }
+      
+      // Extract description from meta description or paragraph elements
+      const metaDesc = doc.querySelector('meta[name="description"]');
+      const paragraphs = doc.querySelectorAll('p');
+      
+      let description = "Dashboard description";
+      if (metaDesc?.getAttribute('content')?.trim()) {
+        description = metaDesc.getAttribute('content')!.trim();
+      } else {
+        // Find a paragraph that looks like a description
+        for (const p of paragraphs) {
+          const text = p.textContent?.trim() || '';
+          if (text.length > 20 && text.length < 200 && !text.includes('chart') && !text.includes('kpi')) {
+            description = text;
+            break;
+          }
+        }
+      }
+      
+      // Extract icon from data attribute
+      const iconElement = doc.querySelector('[data-dashboard-icon]');
+      let icon = "fa-chart-line";
+      if (iconElement) {
+        // Extract the fa- class from the element's classList
+        const classes = Array.from(iconElement.classList);
+        const faClass = classes.find(cls => cls.startsWith('fa-'));
+        if (faClass) {
+          icon = faClass;
+        }
+      }
+      
+      console.log('Parsed from HTML - name:', name, 'description:', description, 'icon:', icon);
+      
+      return {
+        name,
+        description,
+        icon,
+        theme: "light", 
+        filters: []
+      };
+    } catch (error) {
+      console.error("Error parsing dashboard from HTML:", error);
+      return defaultMetadata;
+    }
+  }, []);
+
+  // Parse dashboard metadata from PXML content
+  const parseDashboardFromPXML = useCallback((pxmlContent: string): DashboardMetadata => {
+    console.log('Parsing dashboard metadata from content:', pxmlContent.substring(0, 500) + '...');
+    
+    // Check if content is HTML instead of PXML
+    if (
+      pxmlContent.trim().startsWith("<!DOCTYPE html>") ||
+      pxmlContent.trim().startsWith("<html")
+    ) {
+      console.log('Content is HTML, trying to parse from HTML');
+      return parseDashboardFromHTML(pxmlContent);
+    }
+
+    const parser = new DOMParser();
+    const defaultMetadata: DashboardMetadata = {
+      name: "Dashboard",
+      description: "Dashboard description", 
+      icon: "fa-chart-line",
+      theme: "light",
+      filters: []
+    };
+    const dashboardMetadata = { ...defaultMetadata };
+
+    try {
+      const doc = parser.parseFromString(pxmlContent, "text/xml");
+
+      // Check for parsing errors
+      const parseError = doc.querySelector("parsererror");
+      if (parseError) {
+        return defaultMetadata;
+      }
+
+      // Extract dashboard name from various possible locations
+      const titleEl = doc.querySelector("title");
+      const dashboardEl = doc.querySelector("dashboard");
+      const nameEl = doc.querySelector("name");
+      const rootEl = doc.documentElement;
+      
+      console.log('Searching for dashboard name...');
+      console.log('titleEl:', titleEl?.textContent);
+      console.log('dashboardEl name attr:', dashboardEl?.getAttribute("name"));
+      console.log('nameEl:', nameEl?.textContent);
+      console.log('root element name:', rootEl?.getAttribute("name"));
+      
+      if (titleEl?.textContent?.trim()) {
+        dashboardMetadata.name = titleEl.textContent.trim();
+        console.log('Using title element:', dashboardMetadata.name);
+      } else if (nameEl?.textContent?.trim()) {
+        dashboardMetadata.name = nameEl.textContent.trim();
+        console.log('Using name element:', dashboardMetadata.name);
+      } else if (dashboardEl?.getAttribute("name")?.trim()) {
+        dashboardMetadata.name = dashboardEl.getAttribute("name")!.trim();
+        console.log('Using dashboard name attribute:', dashboardMetadata.name);
+      } else if (rootEl?.getAttribute("name")?.trim()) {
+        dashboardMetadata.name = rootEl.getAttribute("name")!.trim();
+        console.log('Using root name attribute:', dashboardMetadata.name);
+      } else {
+        console.log('No dashboard name found, using default');
+      }
+
+      // Extract dashboard description
+      const descEl = doc.querySelector("description");
+      console.log('Searching for description...');
+      console.log('descEl:', descEl?.textContent);
+      console.log('dashboardEl description attr:', dashboardEl?.getAttribute("description"));
+      
+      if (descEl?.textContent?.trim()) {
+        dashboardMetadata.description = descEl.textContent.trim();
+        console.log('Using description element:', dashboardMetadata.description);
+      } else if (dashboardEl?.getAttribute("description")?.trim()) {
+        dashboardMetadata.description = dashboardEl.getAttribute("description")!.trim();
+        console.log('Using dashboard description attribute:', dashboardMetadata.description);
+      } else {
+        console.log('No description found, using default');
+      }
+
+      // Extract dashboard icon (look for fa_icon in PXML)
+      const iconEl = doc.querySelector("fa_icon");
+      if (iconEl?.textContent) {
+        dashboardMetadata.icon = iconEl.textContent;
+        console.log('Using fa_icon element:', dashboardMetadata.icon);
+      } else if (dashboardEl?.getAttribute("fa_icon")) {
+        dashboardMetadata.icon = dashboardEl.getAttribute("fa_icon") || "fa-chart-line";
+        console.log('Using dashboard fa_icon attribute:', dashboardMetadata.icon);
+      } else {
+        console.log('No fa_icon found, using default');
+      }
+
+      // Extract dashboard theme
+      const themeEl = doc.querySelector("theme");
+      if (themeEl?.textContent) {
+        dashboardMetadata.theme = themeEl.textContent;
+      } else if (dashboardEl?.getAttribute("theme")) {
+        dashboardMetadata.theme = dashboardEl.getAttribute("theme") || "light";
+      }
+
+      // Extract filters
+      const filterElements = doc.querySelectorAll("filter");
+      dashboardMetadata.filters = [];
+
+      filterElements.forEach((filterEl, index) => {
+        const filterId = filterEl.getAttribute("id") || `filter_${index + 1}`;
+        const filterName = filterEl.querySelector("name")?.textContent || `Filter ${index + 1}`;
+        const filterType = filterEl.querySelector("type")?.textContent || "list";
+        const valuesFormula = filterEl.querySelector("values_formula")?.textContent || "dashboardData.map(d => d.column).filter((v, i, a) => a.indexOf(v) === i)";
+
+        dashboardMetadata.filters.push({
+          id: filterId,
+          name: filterName,
+          type: filterType,
+          values_formula: valuesFormula
+        });
+      });
+
+    } catch (error) {
+      console.error("Error parsing dashboard metadata:", error);
+    }
+
+    console.log('Final parsed dashboard metadata:', dashboardMetadata);
+    return dashboardMetadata;
+  }, [parseDashboardFromHTML]);
 
   // Update PXML content with edited chart
   const updatePXMLWithChart = (
@@ -615,9 +917,11 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             return;
           }
 
-          // Clear KPI editing state
+          // Clear KPI and dashboard editing state
           setEditedKPI(null);
           setOriginalKPIState(null);
+          setEditedDashboard(null);
+          setOriginalDashboardState(null);
 
           // Ensure chart has default values for new properties
           const chartWithDefaults = {
@@ -664,9 +968,11 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             return;
           }
 
-          // Clear chart editing state
+          // Clear chart and dashboard editing state
           setEditedChart(null);
           setOriginalChartState(null);
+          setEditedDashboard(null);
+          setOriginalDashboardState(null);
 
           setEditedKPI({ ...kpi });
           setOriginalKPIState({ ...kpi }); // Store original state for reverting
@@ -686,11 +992,37 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           }
         }
       }
+      if (event.data.type === "dashboard-edit") {
+        // Check if we're switching to dashboard editing with unsaved changes
+        if (hasUnsavedChanges && (editedChart || editedKPI)) {
+          setPendingAction("switch");
+          setShowConfirmDialog(true);
+          return;
+        }
+        // Clear chart and KPI editing state
+        setEditedChart(null);
+        setOriginalChartState(null);
+        setEditedKPI(null);
+        setOriginalKPIState(null);
+        
+        // Parse dashboard metadata from existing content
+        const contentToParse = rawPXMLContent || content;
+        console.log('Content to parse for dashboard metadata:');
+        console.log('rawPXMLContent exists:', !!rawPXMLContent);
+        console.log('content exists:', !!content);
+        console.log('contentToParse preview:', contentToParse?.substring(0, 200) + '...');
+        
+        const initialDashboard = parseDashboardFromPXML(contentToParse);
+        
+        setEditedDashboard({ ...initialDashboard });
+        setOriginalDashboardState({ ...initialDashboard });
+        setIsEditorOpen(true);
+      }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [content, rawPXMLContent, hasUnsavedChanges, editedChart, editedKPI]);
+  }, [content, rawPXMLContent, hasUnsavedChanges, editedChart, editedKPI, parseDashboardFromPXML]);
 
   // Extract columns and inject click handlers into iframe
   useEffect(() => {
@@ -722,8 +1054,29 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             };
             const HIGHLIGHT_TIMEOUT = 100;
             
-            // Add click handlers to chart and KPI containers and edit buttons
+            // Add click handlers to dashboard header, chart and KPI containers and edit buttons
             function setupChartEditors() {
+              
+              // Handle dashboard header clicks (title, description, icon)
+              const dashboardHeader = document.querySelector('header');
+              if (dashboardHeader) {
+                const headerElements = dashboardHeader.querySelectorAll('h1, p, i[data-dashboard-icon]');
+                headerElements.forEach((element) => {
+                  element.style.cursor = "pointer";
+                  element.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    parent.postMessage({ type: "dashboard-edit" }, "*");
+                  });
+                  
+                  // Add hover effect
+                  element.addEventListener("mouseenter", () => {
+                    element.style.opacity = "0.8";
+                  });
+                  element.addEventListener("mouseleave", () => {
+                    element.style.opacity = "1";
+                  });
+                });
+              }
               
               // Handle chart container clicks
               const chartContainers = document.querySelectorAll('[id*="chart_"][id$="_container"]');
@@ -1093,6 +1446,25 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     }
   };
 
+  // Send live dashboard metadata updates to iframe
+  const updateDashboardInIframe = (dashboardConfig: DashboardMetadata) => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentWindow) return;
+
+    try {
+      // Send dashboard metadata updates to iframe
+      iframe.contentWindow.postMessage(
+        {
+          type: "update-dashboard-metadata",
+          dashboardMetadata: dashboardConfig,
+          forceUpdate: true,
+        },
+        "*"
+      );
+    } catch {
+      // Silently handle iframe communication errors
+    }
+  };
 
   // Send live chart updates to iframe for dynamic rendering using data attributes
   const updateChartInIframe = (chartConfig: ChartConfig) => {
@@ -1302,6 +1674,18 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     updateKPIInIframe(updatedKPI);
   };
 
+  // Update dashboard property with real-time updates
+  const updateDashboardProperty = (property: keyof DashboardMetadata, value: string | Array<{id: string; name: string; type: string; values_formula: string}>) => {
+    if (!editedDashboard) return;
+    const updatedDashboard = { ...editedDashboard, [property]: value };
+    
+    setEditedDashboard(updatedDashboard);
+    markAsChanged();
+
+    // Update dashboard in real-time
+    updateDashboardInIframe(updatedDashboard);
+  };
+
   const handleSaveChart = async () => {
     if (!editedChart || isSaving) return;
 
@@ -1468,6 +1852,53 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     }
   };
 
+  const handleSaveDashboard = async () => {
+    if (!editedDashboard || isSaving) return;
+    setIsSaving(true);
+    
+    // Close sidebar immediately for better responsiveness
+    setIsEditorOpen(false);
+    setEditedChart(null);
+    setEditedKPI(null);
+    setEditedDashboard(null);
+    setOriginalChartState(null);
+    setOriginalKPIState(null);
+    setOriginalDashboardState(null);
+    setHasUnsavedChanges(false);
+
+    // Start tracking save operation
+    saveInProgressRef.current = true;
+
+    try {
+      // For now, we'll just save the metadata to localStorage or handle it via API
+      // This would be replaced with actual dashboard metadata update logic
+      console.log('Saving dashboard metadata:', editedDashboard);
+      
+      // Trigger save to server if onSave callback is provided
+      if (onSave) {
+        await onSave();
+      }
+
+      // Send message to iframe that dashboard was saved
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          {
+            type: "dashboard-saved",
+            dashboardMetadata: editedDashboard,
+          },
+          "*"
+        );
+      }
+    } catch (error) {
+      console.error("Error saving dashboard:", error);
+    } finally {
+      setIsSaving(false);
+      // End save operation tracking
+      saveInProgressRef.current = false;
+    }
+  };
+
   const handleCloseEditor = () => {
     if (hasUnsavedChanges) {
       setPendingAction("close");
@@ -1482,8 +1913,10 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     setIsEditorOpen(false);
     setEditedChart(null);
     setEditedKPI(null);
+    setEditedDashboard(null);
     setOriginalChartState(null);
     setOriginalKPIState(null);
+    setOriginalDashboardState(null);
     setHasUnsavedChanges(false);
 
     // Send message to iframe to remove highlighting
@@ -1512,6 +1945,10 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       if (originalKPIState) {
         setEditedKPI({ ...originalKPIState });
         updateKPIInIframe(originalKPIState);
+      }
+      if (originalDashboardState) {
+        setEditedDashboard({ ...originalDashboardState });
+        updateDashboardInIframe(originalDashboardState);
       }
       closeEditorImmediate();
     } else if (pendingAction === "switch" && pendingChartData) {
@@ -1722,25 +2159,63 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       <div
         className={`transition-all duration-500 ease-out ${
           isEditorOpen ? "w-2/3" : "w-full"
-        } flex-1`}
+        } flex-1 bg-gray-50`}
         style={{
           transitionProperty: "width, flex-basis",
           transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        <iframe
-          ref={iframeRef}
-          srcDoc={getDisplayContent()}
-          className="w-full h-full border-0 transition-all duration-300 ease-out"
-          title="Dashboard Preview"
-          sandbox="allow-scripts allow-same-origin allow-forms"
-        />
+        {/* Clean Canvas Area */}
+        <div className="flex-1 overflow-auto bg-gray-50">
+          <div className="h-full flex justify-center py-8 px-4">
+            <div className="relative w-full max-w-7xl h-[calc(100vh-12rem)] group">
+              {/* Canvas container */}
+              <div className="w-full h-full rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-all duration-200">
+                <iframe
+                  ref={iframeRef}
+                  srcDoc={getDisplayContent()}
+                  className="w-full h-full border-0"
+                  title="Dashboard Preview"
+                  sandbox="allow-scripts allow-same-origin allow-forms"
+                />
+              </div>
+              
+              {/* Top-Right Three-Dot Menu */}
+              <div className="absolute top-4 right-4 z-10">
+                <div className="relative group">
+                  <button
+                    onClick={() => {
+                      window.postMessage({ type: "dashboard-edit" }, "*");
+                    }}
+                    className="w-8 h-8 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:bg-white transition-all duration-200 flex items-center justify-center text-gray-500 hover:text-gray-700 cursor-pointer group"
+                  >
+                    <Settings className="h-4 w-4 transition-transform duration-200 group-hover:rotate-90" />
+                  </button>
+                  
+                  {/* Tooltip */}
+                  <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                    <div className="bg-gray-900 text-white text-sm px-3 py-2 rounded-lg whitespace-nowrap">
+                      Dashboard Settings
+                      <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Subtle corner indicators */}
+              <div className="absolute top-2 right-2 w-1 h-1 bg-blue-400 rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-200 pointer-events-none"></div>
+              <div className="absolute bottom-2 right-2 w-1 h-1 bg-blue-400 rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-200 pointer-events-none"></div>
+              <div className="absolute bottom-2 left-2 w-1 h-1 bg-blue-400 rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-200 pointer-events-none"></div>
+              <div className="absolute top-2 left-2 w-1 h-1 bg-blue-400 rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-200 pointer-events-none"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Chart/KPI Editor Sidebar */}
+      {/* Chart/KPI/Dashboard Editor Sidebar */}
       <div
-        className={`bg-background border-l overflow-hidden transition-all duration-500 ease-out ${
-          isEditorOpen && (editedChart || editedKPI)
+        className={`bg-white border-l border-gray-200 overflow-hidden transition-all duration-500 ease-out ${
+          isEditorOpen && (editedChart || editedKPI || editedDashboard)
             ? "w-1/3 opacity-100"
             : "w-0 opacity-0"
         }`}
@@ -1749,22 +2224,15 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        {isEditorOpen && (editedChart || editedKPI) && (
+        {isEditorOpen && (editedChart || editedKPI || editedDashboard) && (
           <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="flex h-14 items-center justify-between border-b px-6">
-              <div className="flex items-center space-x-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
-                  <Settings className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold">
-                    {editedChart ? "Edit Chart" : "Edit KPI"}
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {editedChart?.name || editedKPI?.name || "Untitled"}
-                  </p>
-                </div>
+            <div className="flex h-12 items-center justify-between border-b border-gray-200 px-4 bg-white">
+              <div className="flex items-center space-x-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <h3 className="text-sm font-semibold text-gray-900">
+                  {editedChart ? "Chart" : editedKPI ? "KPI" : "Dashboard"}
+                </h3>
               </div>
               <div className="flex items-center space-x-2">
                 {hasUnsavedChanges && (
@@ -1785,8 +2253,179 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="space-y-4 p-6">
+            <div className="flex-1 overflow-y-auto bg-white">
+              <div className="space-y-1 p-2">
+                {editedDashboard && (
+                  <>
+                    {/* Dashboard Metadata Section */}
+                    <div className="border-b border-gray-100 pb-4">
+                      <div className="px-2 py-1">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <Settings className="h-4 w-4 text-muted-foreground" />
+                          <div className="text-left">
+                            <div className="text-sm font-medium">Dashboard Settings</div>
+                            <div className="text-xs text-muted-foreground">
+                              Name, description, icon, and theme
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-4">
+                          {/* Dashboard Name */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Name</label>
+                            <input
+                              type="text"
+                              value={editedDashboard.name}
+                              onChange={(e) => updateDashboardProperty('name', e.target.value)}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            />
+                          </div>
+                          {/* Dashboard Description */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Description</label>
+                            <textarea
+                              value={editedDashboard.description}
+                              onChange={(e) => updateDashboardProperty('description', e.target.value)}
+                              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px] resize-none"
+                            />
+                          </div>
+                          {/* Dashboard Icon */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Icon</label>
+                            <select
+                              value={editedDashboard.icon}
+                              onChange={(e) => updateDashboardProperty('icon', e.target.value)}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {DASHBOARD_ICONS.map((icon) => (
+                                <option key={icon.value} value={icon.value}>
+                                  {icon.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          {/* Dashboard Theme */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Theme</label>
+                            <select
+                              value={editedDashboard.theme}
+                              onChange={(e) => updateDashboardProperty('theme', e.target.value)}
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {DASHBOARD_THEMES.map((theme) => (
+                                <option key={theme.value} value={theme.value}>
+                                  {theme.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Dashboard Filters Section */}
+                    <div className="rounded-lg border bg-card">
+                      <div className="p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-3">
+                            <Database className="h-4 w-4 text-muted-foreground" />
+                            <div className="text-left">
+                              <div className="text-sm font-medium">Filters</div>
+                              <div className="text-xs text-muted-foreground">
+                                Dashboard filtering options
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const newFilter = {
+                                id: `filter_${Date.now()}`,
+                                name: 'New Filter',
+                                type: 'list',
+                                values_formula: 'dashboardData.map(d => d.column).filter((v, i, a) => a.indexOf(v) === i)'
+                              };
+                              updateDashboardProperty('filters', [...editedDashboard.filters, newFilter]);
+                            }}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Filter
+                          </Button>
+                        </div>
+                        <div className="space-y-3">
+                          {editedDashboard.filters.map((filter, index) => (
+                            <div key={filter.id} className="p-3 border rounded-md space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm font-medium">Filter {index + 1}</div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    const newFilters = editedDashboard.filters.filter((_, i) => i !== index);
+                                    updateDashboardProperty('filters', newFilters);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                  <label className="text-xs font-medium">Name</label>
+                                  <input
+                                    type="text"
+                                    value={filter.name}
+                                    onChange={(e) => {
+                                      const newFilters = [...editedDashboard.filters];
+                                      newFilters[index].name = e.target.value;
+                                      updateDashboardProperty('filters', newFilters);
+                                    }}
+                                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-xs font-medium">Type</label>
+                                  <select
+                                    value={filter.type}
+                                    onChange={(e) => {
+                                      const newFilters = [...editedDashboard.filters];
+                                      newFilters[index].type = e.target.value;
+                                      updateDashboardProperty('filters', newFilters);
+                                    }}
+                                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                  >
+                                    {FILTER_TYPES.map((type) => (
+                                      <option key={type.value} value={type.value}>
+                                        {type.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs font-medium">Values Formula</label>
+                                <textarea
+                                  value={filter.values_formula}
+                                  onChange={(e) => {
+                                    const newFilters = [...editedDashboard.filters];
+                                    newFilters[index].values_formula = e.target.value;
+                                    updateDashboardProperty('filters', newFilters);
+                                  }}
+                                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-h-[60px] resize-none font-mono"
+                                  placeholder="e.g., dashboardData.map(d =&gt; d.category).filter((v, i, a) =&gt; a.indexOf(v) === i)"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                          {editedDashboard.filters.length === 0 && (
+                            <div className="text-center py-6 text-muted-foreground text-sm">
+                              No filters configured. Click &quot;Add Filter&quot; to create one.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
                 {editedChart && (
                   <>
                     {/* General Section */}
@@ -2452,10 +3091,10 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             </div>
 
             {/* Actions */}
-            <div className="border-t bg-muted/10 p-6">
+            <div className="border-t border-gray-200 bg-gray-50/50 p-6">
               <div className="flex space-x-3">
                 <Button
-                  onClick={editedChart ? handleSaveChart : handleSaveKPI}
+                  onClick={editedChart ? handleSaveChart : editedKPI ? handleSaveKPI : handleSaveDashboard}
                   className="flex-1"
                   size="sm"
                   disabled={isSaving || !hasUnsavedChanges}
