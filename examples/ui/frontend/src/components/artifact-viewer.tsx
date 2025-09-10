@@ -472,6 +472,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
               title={artifact.name}
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
             />
+            
           </div>
         );
       default:
