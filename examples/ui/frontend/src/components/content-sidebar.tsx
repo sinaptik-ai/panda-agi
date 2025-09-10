@@ -11,7 +11,6 @@ import ResizableSidebar from "./ui/resizable-sidebar";
 import FileIcon from "./ui/file-icon";
 import ExcelViewer from "./excel-viewer";
 import Papa from "papaparse";
-import { getBackendServerURL } from "@/lib/server";
 import { getApiHeaders } from "@/lib/api/common";
 import { config } from "@/lib/config";
 import { toast } from "react-hot-toast";
@@ -19,6 +18,8 @@ import {
   getFileExtension,
   isExcelFile,
   validateContentType,
+  getFileUrl,
+  getArtifactFileUrl,
 } from "@/lib/utils";
 import ArtifactActions from "./artifact-actions";
 import { ArtifactData } from "@/types/artifact";
@@ -100,17 +101,28 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   const onEditTitleRef = useRef<(() => void) | null>(null);
 
   // Reset saved state when sidebar closes
+  // Reusable function to reset sidebar state
+  const resetSidebarState = () => {
+    setIsSaved(false);
+    setSavedArtifact(null);
+    setHasUnsavedChanges(false);
+    setIsSaving(false);
+    setJustSaved(false);
+    setFileContent(null);
+    setSuggestedName("");
+    setShouldTriggerEdit(false);
+  };
+
   useEffect(() => {
     if (!isOpen) {
-      setIsSaved(false);
-      setSavedArtifact(null);
-      setHasUnsavedChanges(false);
-      setIsSaving(false);
-      setJustSaved(false);
-      setSuggestedName("");
-      setShouldTriggerEdit(false);
+      resetSidebarState();
     }
   }, [isOpen]);
+
+  const onSidebarClose = () => {
+    resetSidebarState();
+    onClose();
+  };
 
   // Function to check for existing saved artifact
   const checkExistingArtifact = () => {
@@ -123,9 +135,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       setSavedArtifact(existingArtifact);
       setIsSaved(true);
       setSuggestedName(existingArtifact.name);
-      return true; // Found existing artifact
+      return existingArtifact; // Found existing artifact
     }
-    return false; // No existing artifact
+    return; // No existing artifact
   };
 
   // Function to get suggested name
@@ -245,10 +257,13 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       const normalized = normalizeFilename(filename);
       setNormalizedFilename(normalized);
 
-      // Only fetch content if it's not an image and we don't already have content
+      // Check if there's an existing saved artifact first
+      const existingArtifact = checkExistingArtifact();
+      
+  
       const fileType = previewData.type || "text";
-      if (fileType !== "image" && !previewData.content) {
-        fetchFileContent(filename);
+      if (fileType !== "image" && !previewData.content ) {
+        fetchFileContent(filename, existingArtifact || null);
       } else if (previewData.content) {
         // If content was provided directly, use it
         setFileContent(previewData.content);
@@ -350,14 +365,18 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   };
 
   // Function to fetch file content
-  const fetchFileContent = async (filename: string) => {
+  const fetchFileContent = async (filename: string, existingArtifact: null | ArtifactData) => {
+    if (!conversationId) {
+      return;
+    }
     setIsLoading(true);
     setError(null);
 
     try {
-      const fileUrl = getBackendServerURL(
-        `/${conversationId}/files/${encodeURIComponent(filename)}?raw=true&timestamp=${previewData?.timestamp}`
-      );
+      // Use getArtifactFileUrl if we have a saved artifact, otherwise use getFileUrl
+      const fileUrl = existingArtifact && existingArtifact?.id
+        ? getArtifactFileUrl(filename, existingArtifact.id, true, previewData?.timestamp)
+        : getFileUrl(filename, conversationId, true, previewData?.timestamp);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const apiHeaders: any = await getApiHeaders();
@@ -683,11 +702,15 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           </div>
         );
       case "image":
+        if (!normalizedFilename || !conversationId) {
+          return null;
+        }
         // For images, construct the URL from the filename
-        const imageUrl = getBackendServerURL(
-          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}?timestamp=${previewData?.timestamp}`
-        );
-
+        // Use getArtifactFileUrl if we have a saved artifact, otherwise use getFileUrl
+        const imageUrl = savedArtifact?.id 
+          ? getArtifactFileUrl(normalizedFilename, savedArtifact.id, false, previewData?.timestamp)
+          : getFileUrl(normalizedFilename, conversationId, false, previewData?.timestamp);
+        
         return (
           <div className="flex justify-center">
             <img
@@ -928,7 +951,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       removeArtifact(previewData.filename, previewData.timestamp);
     }
     
-    onClose();
+    onSidebarClose();
   };
 
   // Handle edit name - trigger title editing in ResizableSidebar
@@ -1045,7 +1068,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         artifact={savedArtifact}
         onArtifactUpdated={handleArtifactUpdated}
         onArtifactDeleted={handleArtifactDeleted}
-        onClose={onClose}
+        onClose={onSidebarClose}
         isSaved={isSaved}
         previewData={previewData}
         conversationId={conversationId}
@@ -1061,9 +1084,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   const subtitleHref =
     previewData.url ||
     (normalizedFilename && conversationId
-      ? getBackendServerURL(
-          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}?timestamp=${previewData?.timestamp}`
-        )
+      ? savedArtifact?.id 
+        ? getArtifactFileUrl(normalizedFilename, savedArtifact.id, false, previewData?.timestamp)
+        : getFileUrl(normalizedFilename, conversationId, false, previewData?.timestamp)
       : undefined);
 
   return (
@@ -1073,7 +1096,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
       <ResizableSidebar
         isOpen={isOpen}
-        onClose={onClose}
+        onClose={onSidebarClose}
         title={suggestedName || previewData.title}
         subtitle={
            normalizedFilename || previewData.url
