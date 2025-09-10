@@ -6,11 +6,6 @@ import {
   BarChart3,
   LineChart,
   PieChart,
-  ChevronDown,
-  ChevronRight,
-  Palette,
-  Database,
-  TrendingUp,
   Plus,
   Trash2,
   Circle,
@@ -256,11 +251,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   const [dynamicColumns, setDynamicColumns] = useState<
     Array<{ letter: string; name: string }>
   >([]);
-  const [expandedSections, setExpandedSections] = useState({
-    general: true,
-    xaxis: true,
-    series: true,
-  });
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingAction, setPendingAction] = useState<"close" | "switch" | null>(
@@ -838,13 +828,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     return dynamicColumns.length > 0 ? dynamicColumns : availableColumns;
   };
 
-  // Toggle section expansion
-  const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
-  };
 
   // Mark as having unsaved changes
   const markAsChanged = () => {
@@ -2212,11 +2195,11 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         </div>
       </div>
 
-      {/* Chart/KPI/Dashboard Editor Sidebar */}
+      {/* Clean Properties Panel */}
       <div
-        className={`bg-white border-l border-gray-200 overflow-hidden transition-all duration-500 ease-out ${
+        className={`bg-white border-l border-gray-200 overflow-hidden transition-all duration-300 ease-out ${
           isEditorOpen && (editedChart || editedKPI || editedDashboard)
-            ? "w-1/3 opacity-100"
+            ? "w-80 opacity-100"
             : "w-0 opacity-0"
         }`}
         style={{
@@ -2226,12 +2209,11 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       >
         {isEditorOpen && (editedChart || editedKPI || editedDashboard) && (
           <div className="h-full flex flex-col">
-            {/* Header */}
-            <div className="flex h-12 items-center justify-between border-b border-gray-200 px-4 bg-white">
+            {/* Clean Header */}
+            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-4 bg-gray-50">
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <h3 className="text-sm font-semibold text-gray-900">
-                  {editedChart ? "Chart" : editedKPI ? "KPI" : "Dashboard"}
+                <h3 className="text-sm font-medium text-gray-700">
+                  {editedChart ? "Chart Settings" : editedKPI ? "KPI Settings" : "Dashboard Settings"}
                 </h3>
               </div>
               <div className="flex items-center space-x-2">
@@ -2252,50 +2234,42 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
               </div>
             </div>
 
-            {/* Content */}
+            {/* Clean Content */}
             <div className="flex-1 overflow-y-auto bg-white">
-              <div className="space-y-1 p-2">
+              <div className="p-4 space-y-6">
                 {editedDashboard && (
                   <>
-                    {/* Dashboard Metadata Section */}
-                    <div className="border-b border-gray-100 pb-4">
-                      <div className="px-2 py-1">
-                        <div className="flex items-center space-x-3 mb-4">
-                          <Settings className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-left">
-                            <div className="text-sm font-medium">Dashboard Settings</div>
-                            <div className="text-xs text-muted-foreground">
-                              Name, description, icon, and theme
-                            </div>
-                          </div>
-                        </div>
+                    {/* Clean Dashboard Metadata */}
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Dashboard Properties</h4>
                         <div className="space-y-4">
                           {/* Dashboard Name */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium">Name</label>
+                            <label className="text-sm font-medium text-gray-700">Name</label>
                             <input
                               type="text"
                               value={editedDashboard.name}
                               onChange={(e) => updateDashboardProperty('name', e.target.value)}
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                             />
                           </div>
                           {/* Dashboard Description */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium">Description</label>
+                            <label className="text-sm font-medium text-gray-700">Description</label>
                             <textarea
                               value={editedDashboard.description}
                               onChange={(e) => updateDashboardProperty('description', e.target.value)}
-                              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px] resize-none"
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none min-h-[80px] resize-none"
                             />
                           </div>
                           {/* Dashboard Icon */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium">Icon</label>
+                            <label className="text-sm font-medium text-gray-700">Icon</label>
                             <select
                               value={editedDashboard.icon}
                               onChange={(e) => updateDashboardProperty('icon', e.target.value)}
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                             >
                               {DASHBOARD_ICONS.map((icon) => (
                                 <option key={icon.value} value={icon.value}>
@@ -2306,11 +2280,11 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                           </div>
                           {/* Dashboard Theme */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium">Theme</label>
+                            <label className="text-sm font-medium text-gray-700">Theme</label>
                             <select
                               value={editedDashboard.theme}
                               onChange={(e) => updateDashboardProperty('theme', e.target.value)}
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                             >
                               {DASHBOARD_THEMES.map((theme) => (
                                 <option key={theme.value} value={theme.value}>
@@ -2322,19 +2296,13 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                         </div>
                       </div>
                     </div>
-                    {/* Dashboard Filters Section */}
-                    <div className="rounded-lg border bg-card">
-                      <div className="p-4">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center space-x-3">
-                            <Database className="h-4 w-4 text-muted-foreground" />
-                            <div className="text-left">
-                              <div className="text-sm font-medium">Filters</div>
-                              <div className="text-xs text-muted-foreground">
-                                Dashboard filtering options
-                              </div>
-                            </div>
-                          </div>
+                    {/* Notion-style Filters Section */}
+                    <div className="space-y-4">
+                      <div>
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                          Filters
+                        </div>
+                        <div className="flex items-center justify-between mb-3">
                           <Button
                             size="sm"
                             variant="outline"
@@ -2428,34 +2396,14 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                 )}
                 {editedChart && (
                   <>
-                    {/* General Section */}
-                    <div className="rounded-lg border bg-card">
-                      <Button
-                        variant="ghost"
-                        onClick={() => toggleSection("general")}
-                        className="w-full justify-between p-4 h-auto font-normal"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Palette className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-left">
-                            <div className="text-sm font-medium">General</div>
-                            <div className="text-xs text-muted-foreground">
-                              Chart title and type
-                            </div>
-                          </div>
-                        </div>
-                        {expandedSections.general ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-
-                      {expandedSections.general && (
-                        <div className="border-t bg-muted/30 p-4 space-y-4">
+                    {/* Clean Chart Editor */}
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Chart Properties</h4>
+                        <div className="space-y-4">
                           {/* Chart Title */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            <label className="text-sm font-medium text-gray-700">
                               Chart Title
                             </label>
                             <input
@@ -2464,14 +2412,14 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               onChange={(e) =>
                                 updateChartProperty("name", e.target.value)
                               }
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                               placeholder="Enter chart title"
                             />
                           </div>
 
                           {/* Chart Type */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            <label className="text-sm font-medium text-gray-700">
                               Chart Type
                             </label>
                             <div className="grid grid-cols-3 gap-2">
@@ -2480,50 +2428,63 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                 const isSelected =
                                   editedChart.type === type.value;
                                 return (
-                                  <Button
+                                  <button
                                     key={type.value}
-                                    variant={isSelected ? "default" : "outline"}
-                                    size="sm"
                                     onClick={() =>
                                       updateChartProperty("type", type.value)
                                     }
                                     className={cn(
-                                      "flex h-auto flex-col space-y-1 p-3",
-                                      !isSelected && "text-muted-foreground"
+                                      "group relative flex h-auto flex-col space-y-2 p-3 text-sm border rounded-lg transition-all duration-200 hover:scale-105",
+                                      isSelected 
+                                        ? "border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700 shadow-md ring-2 ring-blue-200" 
+                                        : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:shadow-sm"
                                     )}
                                   >
-                                    <IconComponent className="h-4 w-4" />
-                                    <span className="text-xs">
+                                    <div className={cn(
+                                      "transition-all duration-200",
+                                      isSelected ? "scale-110" : "group-hover:scale-105"
+                                    )}>
+                                      <IconComponent className="h-4 w-4 mx-auto" />
+                                    </div>
+                                    <span className="text-xs font-medium">
                                       {type.label}
                                     </span>
-                                  </Button>
+                                    {isSelected && (
+                                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
+                                        <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                                      </div>
+                                    )}
+                                  </button>
                                 );
                               })}
                             </div>
                           </div>
 
                           {/* Chart Options */}
-                          <div className="space-y-4">
+                          <div className="space-y-3">
                             {/* Area Option - Only for line charts */}
                             {editedChart.type === "line" && (
                               <div className="space-y-2">
-                                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                <label className="text-sm font-medium text-gray-700">
                                   Area
                                 </label>
-                                <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-full">
+                                <div className="inline-flex h-10 items-center justify-center rounded-lg bg-gray-100 p-1 text-gray-600 w-full">
                                   <button
                                     type="button"
                                     onClick={() =>
                                       updateChartOption("area", "none")
                                     }
                                     className={cn(
-                                      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
+                                      "group relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 flex-1",
                                       (editedChart.area || "none") === "none"
-                                        ? "bg-background text-foreground shadow"
-                                        : "hover:bg-muted-foreground/10"
+                                        ? "bg-white text-gray-900 shadow-md ring-2 ring-blue-200 border border-blue-300"
+                                        : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
                                     )}
                                   >
-                                    None
+                                    <span className="relative z-10">None</span>
+                                    {(editedChart.area || "none") === "none" && (
+                                      <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-md"></div>
+                                    )}
                                   </button>
                                   <button
                                     type="button"
@@ -2531,13 +2492,16 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                       updateChartOption("area", "area")
                                     }
                                     className={cn(
-                                      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
+                                      "group relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 flex-1",
                                       (editedChart.area || "none") === "area"
-                                        ? "bg-background text-foreground shadow"
-                                        : "hover:bg-muted-foreground/10"
+                                        ? "bg-white text-gray-900 shadow-md ring-2 ring-blue-200 border border-blue-300"
+                                        : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
                                     )}
                                   >
-                                    Area
+                                    <span className="relative z-10">Area</span>
+                                    {(editedChart.area || "none") === "area" && (
+                                      <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-md"></div>
+                                    )}
                                   </button>
                                 </div>
                               </div>
@@ -2551,24 +2515,26 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               editedChart.type === "combo_chart") &&
                               editedChart.series_list.length > 1 && (
                                 <div className="space-y-2">
-                                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                  <label className="text-sm font-medium text-gray-700">
                                     Stacked
                                   </label>
-                                  <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-full">
+                                  <div className="inline-flex h-10 items-center justify-center rounded-lg bg-gray-100 p-1 text-gray-600 w-full">
                                     <button
                                       type="button"
                                       onClick={() =>
                                         updateChartOption("stacked", "none")
                                       }
                                       className={cn(
-                                        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
-                                        (editedChart.stacked || "none") ===
-                                          "none"
-                                          ? "bg-background text-foreground shadow"
-                                          : "hover:bg-muted-foreground/10"
+                                        "group relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 flex-1",
+                                        (editedChart.stacked || "none") === "none"
+                                          ? "bg-white text-gray-900 shadow-md ring-2 ring-blue-200 border border-blue-300"
+                                          : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
                                       )}
                                     >
-                                      None
+                                      <span className="relative z-10">None</span>
+                                      {(editedChart.stacked || "none") === "none" && (
+                                        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-md"></div>
+                                      )}
                                     </button>
                                     <button
                                       type="button"
@@ -2576,192 +2542,140 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                         updateChartOption("stacked", "stacked")
                                       }
                                       className={cn(
-                                        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
-                                        (editedChart.stacked || "none") ===
-                                          "stacked"
-                                          ? "bg-background text-foreground shadow"
-                                          : "hover:bg-muted-foreground/10"
+                                        "group relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 flex-1",
+                                        (editedChart.stacked || "none") === "stacked"
+                                          ? "bg-white text-gray-900 shadow-md ring-2 ring-blue-200 border border-blue-300"
+                                          : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
                                       )}
                                     >
-                                      Stacked
+                                      <span className="relative z-10">Stacked</span>
+                                      {(editedChart.stacked || "none") === "stacked" && (
+                                        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-md"></div>
+                                      )}
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        updateChartOption(
-                                          "stacked",
-                                          "100_stacked"
-                                        )
+                                        updateChartOption("stacked", "100_stacked")
                                       }
                                       className={cn(
-                                        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
-                                        (editedChart.stacked || "none") ===
-                                          "100_stacked"
-                                          ? "bg-background text-foreground shadow"
-                                          : "hover:bg-muted-foreground/10"
+                                        "group relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 flex-1",
+                                        (editedChart.stacked || "none") === "100_stacked"
+                                          ? "bg-white text-gray-900 shadow-md ring-2 ring-blue-200 border border-blue-300"
+                                          : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
                                       )}
                                     >
-                                      100%
+                                      <span className="relative z-10">100%</span>
+                                      {(editedChart.stacked || "none") === "100_stacked" && (
+                                        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-md"></div>
+                                      )}
                                     </button>
                                   </div>
                                 </div>
                               )}
                           </div>
                         </div>
-                      )}
-                    </div>
-
-                    {/* X-Axis Section */}
-                    <div className="rounded-lg border bg-card">
-                      <Button
-                        variant="ghost"
-                        onClick={() => toggleSection("xaxis")}
-                        className="w-full justify-between p-4 h-auto font-normal"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Database className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-left">
-                            <div className="text-sm font-medium">
-                              {getAxisLabel(editedChart.type)}
+                      </div>
+                      
+                      {/* X-Axis Configuration */}
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                            {getAxisLabel(editedChart.type)}
+                          </h4>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-gray-700">
+                                {getAxisLabel(editedChart.type)} Name
+                              </label>
+                              <input
+                                type="text"
+                                value={editedChart.x_axis.name}
+                                onChange={(e) =>
+                                  updateNestedProperty(
+                                    "x_axis",
+                                    "name",
+                                    e.target.value
+                                  )
+                                }
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                placeholder="Enter axis name"
+                              />
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              {editedChart.type === "horizontal_bar"
-                                ? "Value axis configuration"
-                                : editedChart.type === "pie" ||
-                                  editedChart.type === "donut"
-                                ? "Label configuration"
-                                : editedChart.type === "bubble" ||
-                                  editedChart.type === "scatter"
-                                ? "X-axis configuration"
-                                : editedChart.type === "radar"
-                                ? "Dimension configuration"
-                                : editedChart.type === "combo_chart"
-                                ? "Category axis configuration"
-                                : "Category axis configuration"}
-                            </div>
-                          </div>
-                        </div>
-                        {expandedSections.xaxis ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-gray-700">
+                                Column
+                              </label>
+                              <select
+                                value={editedChart.x_axis.column}
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  if (!editedChart) return;
 
-                      {expandedSections.xaxis && (
-                        <div className="border-t bg-muted/30 p-4 space-y-4">
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                              {getAxisLabel(editedChart.type)} Name
-                            </label>
-                            <input
-                              type="text"
-                              value={editedChart.x_axis.name}
-                              onChange={(e) =>
-                                updateNestedProperty(
-                                  "x_axis",
-                                  "name",
-                                  e.target.value
-                                )
-                              }
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                              placeholder="Enter axis name"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                              Column
-                            </label>
-                            <select
-                              value={editedChart.x_axis.column}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                if (!editedChart) return;
+                                  // Find the selected column name
+                                  const selectedColumn =
+                                    getAvailableColumns().find(
+                                      (col) => col.letter === value
+                                    );
+                                  const columnName = selectedColumn
+                                    ? selectedColumn.name
+                                    : "";
 
-                                // Find the selected column name
-                                const selectedColumn =
-                                  getAvailableColumns().find(
-                                    (col) => col.letter === value
-                                  );
-                                const columnName = selectedColumn
-                                  ? selectedColumn.name
-                                  : "";
-
-                                const updatedChart = {
-                                  ...editedChart,
-                                  x_axis: {
-                                    ...editedChart.x_axis,
-                                    column: value,
-                                    group_by: value,
-                                    name: columnName, // Update the name to match the selected column
-                                  },
-                                };
-                                setEditedChart(updatedChart);
-                                markAsChanged();
-                                updateChartInIframe(updatedChart);
-                              }}
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            >
+                                  const updatedChart = {
+                                    ...editedChart,
+                                    x_axis: {
+                                      ...editedChart.x_axis,
+                                      column: value,
+                                      group_by: value,
+                                      name: columnName, // Update the name to match the selected column
+                                    },
+                                  };
+                                  setEditedChart(updatedChart);
+                                  markAsChanged();
+                                  updateChartInIframe(updatedChart);
+                                }}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              >
                               {getAvailableColumns().map((col) => (
                                 <option key={col.letter} value={col.letter}>
                                   {col.name}
                                 </option>
                               ))}
-                            </select>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Series Section */}
-                    <div className="rounded-lg border bg-card">
-                      <Button
-                        variant="ghost"
-                        onClick={() => toggleSection("series")}
-                        className="w-full justify-between p-4 h-auto font-normal"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-left">
-                            <div className="text-sm font-medium">
-                              {getSeriesLabel(editedChart.type)}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {editedChart.series_list.length} configured
+                              </select>
                             </div>
                           </div>
                         </div>
-                        {expandedSections.series ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-
-                      {expandedSections.series && (
-                        <div className="border-t bg-muted/30 p-4 space-y-3">
-                          {editedChart.series_list.map((series, index) => (
-                            <div
-                              key={index}
-                              className="rounded-md border bg-background p-4 space-y-3"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="text-sm font-medium">
-                                  {editedChart.type === "line"
-                                    ? `Line ${index + 1}`
-                                    : editedChart.type === "pie" ||
-                                      editedChart.type === "donut"
-                                    ? `Value ${index + 1}`
-                                    : editedChart.type === "bubble"
-                                    ? `Bubble ${index + 1}`
-                                    : editedChart.type === "scatter"
-                                    ? `Point ${index + 1}`
-                                    : editedChart.type === "radar"
-                                    ? `Metric ${index + 1}`
-                                    : editedChart.type === "combo_chart"
-                                    ? index === 0 ? `Bar ${index + 1}` : `Line ${index + 1}`
-                                    : `Series ${index + 1}`}
-                                </div>
+                      </div>
+                      
+                      {/* Series Configuration */}
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                            {getSeriesLabel(editedChart.type)} ({editedChart.series_list.length} configured)
+                          </h4>
+                          <div className="space-y-4">
+                            {editedChart.series_list.map((series, index) => (
+                              <div
+                                key={index}
+                                className="rounded border border-gray-200 bg-gray-50/50 p-3 space-y-3"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="text-xs font-medium text-gray-600">
+                                    {editedChart.type === "line"
+                                      ? `Line ${index + 1}`
+                                      : editedChart.type === "pie" ||
+                                        editedChart.type === "donut"
+                                      ? `Value ${index + 1}`
+                                      : editedChart.type === "bubble"
+                                      ? `Bubble ${index + 1}`
+                                      : editedChart.type === "scatter"
+                                      ? `Point ${index + 1}`
+                                      : editedChart.type === "radar"
+                                      ? `Metric ${index + 1}`
+                                      : editedChart.type === "combo_chart"
+                                      ? index === 0 ? `Bar ${index + 1}` : `Line ${index + 1}`
+                                      : `Series ${index + 1}`}
+                                  </div>
                                 <div className="flex items-center space-x-1">
                                   <div className="h-2 w-2 rounded-full bg-primary"></div>
                                   {editedChart.series_list.length > 1 && (
@@ -2776,54 +2690,54 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                   )}
                                 </div>
                               </div>
-                              <div className="space-y-3">
-                                <div className="space-y-2">
-                                  <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                    {editedChart.type === "line"
-                                      ? "Line Name"
-                                      : editedChart.type === "pie" ||
-                                        editedChart.type === "donut"
-                                      ? "Value Name"
-                                      : editedChart.type === "bubble"
-                                      ? "Bubble Name"
-                                      : editedChart.type === "scatter"
-                                      ? "Point Name"
-                                      : editedChart.type === "radar"
-                                      ? "Metric Name"
-                                      : editedChart.type === "combo_chart"
-                                      ? index === 0 ? "Bar Name" : "Line Name"
-                                      : "Series Name"}
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={series.name}
-                                    onChange={(e) =>
-                                      updateSeriesProperty(
-                                        index,
-                                        "name",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                    placeholder="Enter series name"
-                                  />
-                                </div>
-                                <div className={`grid gap-2 ${editedChart.type === "scatter" || editedChart.type === "radar" ? "grid-cols-1" : "grid-cols-2"}`}>
+                                <div className="space-y-3">
                                   <div className="space-y-2">
-                                    <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                      {editedChart.type === "bubble" ? "Y-Axis Column" : "Column"}
+                                    <label className="text-sm font-medium text-gray-700">
+                                      {editedChart.type === "line"
+                                        ? "Line Name"
+                                        : editedChart.type === "pie" ||
+                                          editedChart.type === "donut"
+                                        ? "Value Name"
+                                        : editedChart.type === "bubble"
+                                        ? "Bubble Name"
+                                        : editedChart.type === "scatter"
+                                        ? "Point Name"
+                                        : editedChart.type === "radar"
+                                        ? "Metric Name"
+                                        : editedChart.type === "combo_chart"
+                                        ? index === 0 ? "Bar Name" : "Line Name"
+                                        : "Series Name"}
                                     </label>
-                                    <select
-                                      value={series.column}
+                                    <input
+                                      type="text"
+                                      value={series.name}
                                       onChange={(e) =>
                                         updateSeriesProperty(
                                           index,
-                                          "column",
+                                          "name",
                                           e.target.value
                                         )
                                       }
-                                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
+                                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                      placeholder="Enter series name"
+                                    />
+                                  </div>
+                                  <div className={`grid gap-3 ${editedChart.type === "scatter" || editedChart.type === "radar" ? "grid-cols-1" : "grid-cols-2"}`}>
+                                    <div className="space-y-2">
+                                      <label className="text-sm font-medium text-gray-700">
+                                        {editedChart.type === "bubble" ? "Y-Axis Column" : "Column"}
+                                      </label>
+                                      <select
+                                        value={series.column}
+                                        onChange={(e) =>
+                                          updateSeriesProperty(
+                                            index,
+                                            "column",
+                                            e.target.value
+                                          )
+                                        }
+                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                      >
                                       <option value="">Select column</option>
                                       {getAvailableColumns().map((col) => (
                                         <option
@@ -2863,22 +2777,22 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                       </select>
                                     </div>
                                   )}
-                                  {editedChart.type !== "scatter" && editedChart.type !== "radar" && (
-                                    <div className="space-y-2">
-                                      <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                        Aggregation
-                                      </label>
-                                      <select
-                                        value={series.aggregation}
-                                        onChange={(e) =>
-                                          updateSeriesProperty(
-                                            index,
-                                            "aggregation",
-                                            e.target.value
-                                          )
-                                        }
-                                        className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                      >
+                                    {editedChart.type !== "scatter" && editedChart.type !== "radar" && (
+                                      <div className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-700">
+                                          Aggregation
+                                        </label>
+                                        <select
+                                          value={series.aggregation}
+                                          onChange={(e) =>
+                                            updateSeriesProperty(
+                                              index,
+                                              "aggregation",
+                                              e.target.value
+                                            )
+                                          }
+                                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                        >
                                         {AGGREGATION_TYPES.map((agg) => (
                                           <option
                                             key={agg.value}
@@ -2895,66 +2809,47 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                             </div>
                           ))}
 
-                          {/* Add Series Button */}
-                          <Button
-                            variant="outline"
-                            onClick={addSeries}
-                            className="w-full border-dashed"
-                            size="sm"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add{" "}
-                            {editedChart.type === "line"
-                              ? "Line"
-                              : editedChart.type === "pie" ||
-                                editedChart.type === "donut"
-                              ? "Value"
-                              : editedChart.type === "bubble"
-                              ? "Bubble"
-                              : editedChart.type === "scatter"
-                              ? "Point"
-                              : editedChart.type === "radar"
-                              ? "Metric"
-                              : editedChart.type === "combo_chart"
-                              ? "Series"
-                              : "Series"}
-                          </Button>
+                            {/* Add Series Button */}
+                            <button
+                              onClick={addSeries}
+                              className="w-full border border-dashed border-gray-300 rounded px-3 py-2 text-xs text-gray-600 hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center space-x-1"
+                            >
+                              <Plus className="h-3 w-3" />
+                              <span>
+                                Add{" "}
+                                {editedChart.type === "line"
+                                  ? "Line"
+                                  : editedChart.type === "pie" ||
+                                    editedChart.type === "donut"
+                                  ? "Value"
+                                  : editedChart.type === "bubble"
+                                  ? "Bubble"
+                                  : editedChart.type === "scatter"
+                                  ? "Point"
+                                  : editedChart.type === "radar"
+                                  ? "Metric"
+                                  : editedChart.type === "combo_chart"
+                                  ? "Series"
+                                  : "Series"}
+                              </span>
+                            </button>
+                          </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   </>
                 )}
 
                 {editedKPI && (
                   <>
-                    {/* KPI General Section */}
-                    <div className="rounded-lg border bg-card">
-                      <Button
-                        variant="ghost"
-                        onClick={() => toggleSection("general")}
-                        className="w-full justify-between p-4 h-auto font-normal"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Palette className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-left">
-                            <div className="text-sm font-medium">General</div>
-                            <div className="text-xs text-muted-foreground">
-                              KPI name and icon
-                            </div>
-                          </div>
-                        </div>
-                        {expandedSections.general ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-
-                      {expandedSections.general && (
-                        <div className="border-t bg-muted/30 p-4 space-y-4">
+                    {/* Clean KPI Editor */}
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">KPI Properties</h4>
+                        <div className="space-y-4">
                           {/* KPI Name */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            <label className="text-sm font-medium text-gray-700">
                               KPI Name
                             </label>
                             <input
@@ -2963,14 +2858,14 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               onChange={(e) =>
                                 updateKPIProperty("name", e.target.value)
                               }
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                               placeholder="Enter KPI name"
                             />
                           </div>
 
                           {/* KPI Icon */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            <label className="text-sm font-medium text-gray-700">
                               Icon
                             </label>
                             <select
@@ -2978,7 +2873,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               onChange={(e) =>
                                 updateKPIProperty("fa_icon", e.target.value)
                               }
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                             >
                               {KPI_ICONS.map((icon) => (
                                 <option key={icon.value} value={icon.value}>
@@ -2988,71 +2883,50 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                             </select>
                           </div>
                         </div>
-                      )}
-                    </div>
-
-                    {/* KPI Value Section */}
-                    <div className="rounded-lg border bg-card">
-                      <Button
-                        variant="ghost"
-                        onClick={() => toggleSection("xaxis")}
-                        className="w-full justify-between p-4 h-auto font-normal"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Database className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-left">
-                            <div className="text-sm font-medium">
-                              Value Configuration
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Formula, format, and unit
-                            </div>
-                          </div>
-                        </div>
-                        {expandedSections.xaxis ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-
-                      {expandedSections.xaxis && (
-                        <div className="border-t bg-muted/30 p-4 space-y-4">
-                          {/* Formula */}
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                              Formula
-                            </label>
-                            <input
-                              type="text"
-                              value={editedKPI.value_formula}
-                              onChange={(e) =>
-                                updateKPIProperty(
-                                  "value_formula",
-                                  e.target.value
-                                )
-                              }
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                              placeholder="e.g., =SUM(G2:G)"
-                            />
-                          </div>
-
-                          {/* Format */}
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                              Format
-                            </label>
-                            <select
-                              value={editedKPI.format_type}
-                              onChange={(e) => {
-                                if (e.target.value === "currency:custom") {
-                                  setShowCurrencyModal(true);
-                                } else {
-                                  updateKPIProperty("format_type", e.target.value);
+                      </div>
+                      
+                      {/* KPI Value Configuration */}
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                            Value Configuration
+                          </h4>
+                          <div className="space-y-4">
+                            {/* Formula */}
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-gray-700">
+                                Formula
+                              </label>
+                              <input
+                                type="text"
+                                value={editedKPI.value_formula}
+                                onChange={(e) =>
+                                  updateKPIProperty(
+                                    "value_formula",
+                                    e.target.value
+                                  )
                                 }
-                              }}
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            >
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                placeholder="e.g., =SUM(G2:G)"
+                              />
+                            </div>
+
+                            {/* Format */}
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-gray-700">
+                                Format
+                              </label>
+                              <select
+                                value={editedKPI.format_type}
+                                onChange={(e) => {
+                                  if (e.target.value === "currency:custom") {
+                                    setShowCurrencyModal(true);
+                                  } else {
+                                    updateKPIProperty("format_type", e.target.value);
+                                  }
+                                }}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              >
                               {/* Show custom currency if selected */}
                               {editedKPI.format_type.startsWith("currency:") && !KPI_FORMATS.some(f => f.value === editedKPI.format_type) && (
                                 <option value={editedKPI.format_type}>
@@ -3067,31 +2941,32 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                             </select>
                           </div>
 
-                          {/* Unit */}
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                              Unit (optional)
-                            </label>
-                            <input
-                              type="text"
-                              value={editedKPI.unit}
-                              onChange={(e) =>
-                                updateKPIProperty("unit", e.target.value)
-                              }
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                              placeholder="e.g., %, units, etc."
-                            />
+                            {/* Unit */}
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium text-gray-700">
+                                Unit (optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={editedKPI.unit}
+                                onChange={(e) =>
+                                  updateKPIProperty("unit", e.target.value)
+                                }
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                placeholder="e.g., %, units, etc."
+                              />
+                            </div>
                           </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   </>
                 )}
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="border-t border-gray-200 bg-gray-50/50 p-6">
+            {/* Clean Actions */}
+            <div className="border-t border-gray-200 bg-gray-50 p-4">
               <div className="flex space-x-3">
                 <Button
                   onClick={editedChart ? handleSaveChart : editedKPI ? handleSaveKPI : handleSaveDashboard}
