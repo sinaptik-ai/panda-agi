@@ -15,7 +15,6 @@ export const useArtifactStatus = (filename?: string, timestamp?: string) => {
     isSaved: !!artifact,
     artifactId: artifact?.id,
     artifactName: artifact?.name,
-    artifactUrl: artifact?.url,
     isPublic: artifact?.is_public,
   };
 };

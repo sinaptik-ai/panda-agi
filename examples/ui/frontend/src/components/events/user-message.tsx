@@ -46,10 +46,10 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
   timestamp,
   openUpgradeModal,
 }) => {
-  if (!payload) return null;
-
-  // Get saved artifacts context
+  // Get saved artifacts context - must be called before any conditional returns
   const { getArtifact } = useSavedArtifacts();
+
+  if (!payload) return null;
 
   const isError = !!payload.error;
 
