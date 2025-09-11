@@ -23,7 +23,7 @@ def convert_bytes_to_utf8(content_bytes):
     best_guess = results.best()
 
     if best_guess is None:
-        raise ValueError("Unable to detect encoding")
+        raise ValueError("Unable to detect encoding for provided bytes.")
 
     # Convert text back to UTF-8 bytes
     return best_guess.output(encoding="utf-8")
