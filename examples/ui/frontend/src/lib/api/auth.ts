@@ -19,7 +19,9 @@ function setCookie(name: string, value: string, days: number): void {
     window.location.hostname === "127.0.0.1";
   const domain = isLocalhost ? "" : `;domain=.pandas-ai.com`;
 
-  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax${domain}`;
+  const encodedValue = encodeURIComponent(value);
+
+  document.cookie = `${name}=${encodedValue};expires=${expires.toUTCString()};path=/;SameSite=Lax${domain}`;
 }
 
 function getCookie(name: string): string | null {
@@ -28,7 +30,11 @@ function getCookie(name: string): string | null {
   for (let i = 0; i < ca.length; i++) {
     let c = ca[i];
     while (c.charAt(0) === " ") c = c.substring(1, c.length);
-    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+    if (c.indexOf(nameEQ) === 0) {
+      const encodedValue = c.substring(nameEQ.length, c.length);
+      // Decode the URI-encoded cookie value
+      return decodeURIComponent(encodedValue);
+    }
   }
   return null;
 }
@@ -39,7 +45,7 @@ function deleteCookie(name: string): void {
   const isLocalhost =
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1";
-  const domain = isLocalhost ? "" : `;domain=${window.location.hostname}`;
+  const domain = isLocalhost ? "" : `;domain=.pandas-ai.com`;
 
   document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;${domain}`;
 }
