@@ -53,6 +53,7 @@ const FileReadEvent: React.FC<FileReadEventProps> = ({
 
   const handlePreviewClick = () => {
     if (onPreviewClick && filename) {
+      const fileType = getFileType(filename);
       onPreviewClick({
         filename: filename,
         title: filename.split("/").pop(),
