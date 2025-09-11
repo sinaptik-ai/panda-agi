@@ -453,7 +453,7 @@ async def save_artifact(
         if artifact_id:
             await cleanup_artifact(artifact_id, api_key)
         logger.error(f"Error saving creations: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail="internal server error")
+        raise HTTPException(status_code=500, detail="Failed to save creations")
 
 
 @router.get("/", response_model=ArtifactsListResponse)
@@ -584,6 +584,10 @@ async def serve_artifact_file(
                     )
                     if html_response:
                         return html_response
+                    else:
+                        raise HTTPException(
+                            status_code=500, detail="Failed to convert PXML to HTML"
+                        )
 
                 # Determine MIME type for non-markdown files
                 mime_type, _ = mimetypes.guess_type(file_path)

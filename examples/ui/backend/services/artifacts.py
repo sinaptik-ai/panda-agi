@@ -456,13 +456,18 @@ Suggested name:"""
             )
 
             # Get CSV files using the PXMLService method
+            csv_file_count = 0
             async for (
                 csv_content_bytes,
                 csv_file_path,
             ) in PXMLService.get_csv_files_for_pxml(pxml_content, env):
                 logger.info(f"Uploading PXML CSV file path: {csv_file_path}")
                 # Yield the CSV file content with its filepath
+                csv_file_count += 1
                 yield csv_content_bytes, csv_file_path
+
+            if csv_file_count == 0:
+                raise ValueError(f"Csv file path not found {filepath}")
 
             # Also yield the PXML file itself
             yield pxml_content.encode("utf-8"), filepath
@@ -470,12 +475,4 @@ Suggested name:"""
         except Exception as e:
             logger.error(f"Error getting files for PXML {filepath}: {e}")
             logger.error(f"Traceback: {traceback.format_exc()}")
-            # If there's an error, still try to yield the PXML file itself
-            try:
-                pxml_content_bytes, _ = await ArtifactsService.get_file_for_artifact(
-                    filepath, env
-                )
-                yield pxml_content_bytes, filepath
-            except Exception:
-                logger.error(f"Failed to get PXML file {filepath} as fallback")
-                pass
+            raise
