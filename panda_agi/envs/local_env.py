@@ -282,6 +282,7 @@ class LocalEnv(BaseEnv):
         """
         try:
             target_path = self._resolve_path(path)
+
             return target_path.exists()
         except Exception:
             return False
@@ -332,7 +333,7 @@ class LocalEnv(BaseEnv):
         """List files in a directory."""
         try:
             if path is None:
-                target_path = self.working_directory
+                target_path = self.base_path
             else:
                 target_path = self._resolve_path(path)
 
