@@ -351,7 +351,7 @@ class CSVProcessor:
         try:
             # Use StringIO to convert string content to file-like object for pandas
             csv_io = StringIO(csv_content)
-            self.data = pd.read_csv(csv_io)
+            self.data = pd.read_csv(csv_io, on_bad_lines="skip")
             self.headers = list(self.data.columns)
             self._create_column_mappings()
             return True
