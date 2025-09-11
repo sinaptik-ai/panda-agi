@@ -467,7 +467,7 @@ Suggested name:"""
                 yield csv_content_bytes, csv_file_path
 
             if csv_file_count == 0:
-                raise ValueError(f"Csv file path not found {filepath}")
+                raise ValueError(f"CSV file path not found {filepath}")
 
             # Also yield the PXML file itself
             yield pxml_content.encode("utf-8"), filepath
