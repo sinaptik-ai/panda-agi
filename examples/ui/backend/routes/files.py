@@ -18,6 +18,7 @@ from services.pxml import PXMLService
 from utils.exceptions import RestrictedAccessError, FileNotFoundError
 from utils.markdown_utils import process_markdown_to_pdf
 from utils.datetime_utils import parse_timestamp
+from utils.encoding_utils import convert_bytes_to_utf8
 from services.files import FilesService
 from services.agent import get_or_create_agent
 
@@ -160,10 +161,20 @@ async def upload_files(
         # Read the uploaded file content
         content = await file.read()
 
+        # Standardize encoding to UTF-8 using utility function
+        if isinstance(content, bytes):
+            try:
+                content = convert_bytes_to_utf8(content)
+            except Exception as e:
+                logger.error(f"Error during encoding standardization: {e}")
+                logger.error("Keeping original content due to encoding error")
+        else:
+            # If content is already a string, encode it as UTF-8
+            content = str(content).encode("utf-8")
+            logger.info("Converted string content to UTF-8 bytes")
+
         # Write the file using E2BEnv
-        result = await local_env.write_file(
-            safe_filename, content, mode="wb", encoding=None
-        )
+        result = await local_env.write_file(safe_filename, content, mode="wb")
 
         if result["status"] != "success":
             raise Exception(
