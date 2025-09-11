@@ -17,6 +17,10 @@ class PXMLService:
         """
         if csv_path.startswith("./"):
             return csv_path[2:]
+
+        if csv_path.startswith("/"):
+            return csv_path[1:]
+
         return csv_path
 
     @staticmethod
@@ -42,6 +46,7 @@ class PXMLService:
             # - Checks if path is wrong from the model
             # - Find the .csv file in the workspace
             # - If only one file exists return it as the path
+
             if not await env.path_exists(file_path):
                 # Check for CSV files in the environment
                 files = await env.list_files(recursive=True)
@@ -51,7 +56,6 @@ class PXMLService:
                         for file in files["files"]
                         if file["type"] == "file" and file["name"].endswith(".csv")
                     ]
-
                     if len(csv_files) == 1:
                         # Only one CSV file exists, return its path
                         logger.info(
@@ -112,7 +116,9 @@ class PXMLService:
 
     @staticmethod
     async def compile(
-        xml_content: str, get_file: Callable[[str], Tuple[bytes, str]], artifact_id: str = None
+        xml_content: str,
+        get_file: Callable[[str], Tuple[bytes, str]],
+        artifact_id: str = None,
     ) -> str:
         """
         Compile a PXML file and return the compiled HTML file
@@ -123,6 +129,7 @@ class PXMLService:
 
             csv_file_path = dashboard_data["metadata"].file_path
 
+            csv_file_path = PXMLService.normalize_csv_path(csv_file_path)
             logger.info(f"PXML CSV file path: {csv_file_path}")
 
             file_bytes, _ = await get_file(csv_file_path)
@@ -142,7 +149,9 @@ class PXMLService:
             raise Exception(f"Failed to compile PXML file")
 
     @staticmethod
-    async def compile_pxml(xml_content: str, env: BaseEnv, artifact_id: str = None) -> str:
+    async def compile_pxml(
+        xml_content: str, env: BaseEnv, artifact_id: str = None
+    ) -> str:
         """
         Compile a PXML file and return the compiled data.
         """
