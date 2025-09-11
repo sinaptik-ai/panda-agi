@@ -12,3 +12,4 @@ kaleido>=0.2.1
 panda-agi>=0.7.0b2
 aiohttp
 openai>=1.0.0
+charset-normalizer>=3.0.0
