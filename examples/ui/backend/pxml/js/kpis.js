@@ -244,6 +244,46 @@ function registerKPI(kpiId, formula, formatType, unit, dataParams = null) {
   };
 }
 
+function displayKPIError(valueElement, changeElement, error, kpi) {
+  // Create a more informative error message
+  let errorMessage = "Formula Error";
+  let errorDetails = error.message || "Unknown error";
+  
+  // Categorize error types for better user experience
+  if (error.message.includes("Formula is empty")) {
+    errorMessage = "Missing Formula";
+    errorDetails = "No formula has been defined for this KPI";
+  } else if (error.message.includes("returned no valid results")) {
+    errorMessage = "No Data";
+    errorDetails = "Formula returned no valid results";
+  } else if (error.message.includes("returned null/undefined")) {
+    errorMessage = "Invalid Data";
+    errorDetails = "Formula returned null or undefined value";
+  } else if (error.message.includes("not available")) {
+    errorMessage = "System Error";
+    errorDetails = "Required system components not available";
+  } else if (error.message.includes("invalid result")) {
+    errorMessage = "Invalid Result";
+    errorDetails = "Formula produced an invalid result";
+  }
+  
+  // Display error in value element
+  valueElement.innerHTML = `
+    <div class="text-center">
+      <div class="text-gray-400 text-sm">—</div>
+    </div>
+  `;
+  
+  // Display error icon in change element
+  if (changeElement) {
+    changeElement.innerHTML = `
+      <div class="flex items-center justify-center text-gray-400">
+        <i class="fas fa-exclamation-circle text-xs"></i>
+      </div>
+    `;
+  }
+}
+
 function updateKPI(kpiId) {
   const kpi = window.registeredKPIs[kpiId];
   if (!kpi) return;
@@ -309,10 +349,8 @@ function updateKPI(kpiId) {
       changeElement.innerHTML = "";
     }
   } catch (error) {
-    valueElement.textContent = "N/A";
-    if (changeElement) {
-      changeElement.innerHTML = `<i class="fas fa-exclamation-triangle text-red-500"></i> Invalid formula`;
-    }
+    console.warn(`KPI ${kpiId} formula evaluation failed:`, error);
+    displayKPIError(valueElement, changeElement, error, kpi);
   }
 
   setTimeout(() => {

@@ -448,7 +448,18 @@ class CSVLoader {
                     LEFT: window.ExcelHelpers.excelLeft,
                     MONTH: window.ExcelHelpers.getMonth,
                     CHOOSE: window.ExcelHelpers.excelChoose,
-                    // Add other Excel functions as needed
+                    IF: window.ExcelHelpers.excelIf,
+                    SUM: window.ExcelHelpers.excelSum,
+                    AVERAGE: window.ExcelHelpers.excelAvg,
+                    COUNT: window.ExcelHelpers.excelCount,
+                    COUNTA: window.ExcelHelpers.excelCountA,
+                    MAX: window.ExcelHelpers.excelMax,
+                    MIN: window.ExcelHelpers.excelMin,
+                    COUNTIF: window.ExcelHelpers.arrayCountIf,
+                    COUNTIFS: window.ExcelHelpers.arrayCountIfs,
+                    SUMIF: window.ExcelHelpers.arraySumIf,
+                    AVERAGEIF: window.ExcelHelpers.arrayAverageIf,
+                    UNIQUE: window.ExcelHelpers.arrayUnique,
                 };
                 
                 

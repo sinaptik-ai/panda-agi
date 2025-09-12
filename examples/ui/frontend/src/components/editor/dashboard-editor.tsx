@@ -269,8 +269,47 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   const [compilationError, setCompilationError] = useState<string | null>(null);
   const [rawPXMLContent, setRawPXMLContent] = useState<string | null>(null);
 
+  // Centralized XML sanitization utility
+  const sanitizeXMLContent = (content: string): string => {
+    return content
+      .replace(/<formula>([\s\S]*?)<\/formula>/g, (match, formulaContent) => {
+        return `<formula>${formulaContent
+          .replace(/<>/g, '&lt;&gt;')
+          .replace(/<=/g, '&lt;=')
+          .replace(/>=/g, '&gt;=')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+        }</formula>`;
+      })
+      .replace(/\{\{([\s\S]*?)\}\}/g, (match, formulaContent) => {
+        return `{{${formulaContent
+          .replace(/<>/g, '&lt;&gt;')
+          .replace(/<=/g, '&lt;=')
+          .replace(/>=/g, '&gt;=')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+        }}}`;
+      });
+  };
+
+  // Unescape formulas for display in text inputs
+  const unescapeFormula = (formula: string): string => {
+    return formula
+      .replace(/&lt;&gt;/g, '<>')
+      .replace(/&lt;=/g, '<=')
+      .replace(/&gt;=/g, '>=')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"');
+  };
+
   // Parse PXML content to extract chart configurations
-  const parseChartsFromPXML = (pxmlContent: string): ChartConfig[] => {
+  const parseChartsFromPXML = useCallback((pxmlContent: string): ChartConfig[] => {
     // Check if content is HTML instead of PXML
     if (
       pxmlContent.trim().startsWith("<!DOCTYPE html>") ||
@@ -279,11 +318,14 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       return [];
     }
 
+    // Sanitize XML content to escape formula operators
+    const sanitizedContent = sanitizeXMLContent(pxmlContent);
+
     const charts: ChartConfig[] = [];
     const parser = new DOMParser();
 
     try {
-      const doc = parser.parseFromString(pxmlContent, "text/xml");
+      const doc = parser.parseFromString(sanitizedContent, "text/xml");
 
       // Check for parsing errors
       const parseError = doc.querySelector("parsererror");
@@ -336,10 +378,10 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     } catch {}
 
     return charts;
-  };
+  }, []);
 
   // Parse PXML content to extract KPI configurations
-  const parseKPIsFromPXML = (pxmlContent: string): KPIConfig[] => {
+  const parseKPIsFromPXML = useCallback((pxmlContent: string): KPIConfig[] => {
     // Check if content is HTML instead of PXML
     if (
       pxmlContent.trim().startsWith("<!DOCTYPE html>") ||
@@ -348,11 +390,14 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       return [];
     }
 
+    // Sanitize XML content to escape formula operators
+    const sanitizedContent = sanitizeXMLContent(pxmlContent);
+
     const kpis: KPIConfig[] = [];
     const parser = new DOMParser();
 
     try {
-      const doc = parser.parseFromString(pxmlContent, "text/xml");
+      const doc = parser.parseFromString(sanitizedContent, "text/xml");
 
       // Check for parsing errors
       const parseError = doc.querySelector("parsererror");
@@ -384,7 +429,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     } catch {}
 
     return kpis;
-  };
+  }, []);
 
   // Parse dashboard metadata from HTML content
   const parseDashboardFromHTML = useCallback((htmlContent: string): DashboardMetadata => {
@@ -532,6 +577,9 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       return parseDashboardFromHTML(pxmlContent);
     }
 
+    // Sanitize XML content to escape formula operators
+    const sanitizedContent = sanitizeXMLContent(pxmlContent);
+
     const parser = new DOMParser();
     const defaultMetadata: DashboardMetadata = {
       name: "Dashboard",
@@ -543,7 +591,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     const dashboardMetadata = { ...defaultMetadata };
 
     try {
-      const doc = parser.parseFromString(pxmlContent, "text/xml");
+      const doc = parser.parseFromString(sanitizedContent, "text/xml");
 
       // Check for parsing errors
       const parseError = doc.querySelector("parsererror");
@@ -697,7 +745,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
       // Update filters
       if (dashboardMetadata.filters && dashboardMetadata.filters.length > 0) {
-        console.log('💾 Saving filters to PXML:', dashboardMetadata.filters);
         
         // Find or create the filters section
         let filtersSection = dashboardElement.querySelector("filters");
@@ -714,7 +761,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         
         // Clear existing filters from the filters section
         const existingFilters = filtersSection.querySelectorAll("filter");
-        console.log('💾 Removing existing filters from filters section:', existingFilters.length);
         existingFilters.forEach(filter => filter.remove());
         
         // Also remove any filters that might be outside the filters section
@@ -727,7 +773,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
         // Add new filters to the filters section
         dashboardMetadata.filters.forEach(filter => {
-          console.log('💾 Adding filter to PXML:', filter);
           const filterElement = doc.createElement("filter");
           filterElement.setAttribute("type", filter.type);
 
@@ -746,9 +791,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           filtersSection.appendChild(filterElement);
         });
         
-        console.log('💾 Successfully saved', dashboardMetadata.filters.length, 'filters to PXML in filters section');
       } else {
-        console.log('💾 No filters to save - cleaning up all filter elements');
         
         // Remove the entire filters section if it exists
         const filtersSection = dashboardElement.querySelector("filters");
@@ -758,9 +801,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         
         // Remove any orphaned filter elements that might be outside the filters section
         const allFilters = dashboardElement.querySelectorAll("filter");
-        console.log('💾 Removing orphaned filters:', allFilters.length);
         allFilters.forEach(filter => {
-          console.log('💾 Removing orphaned filter:', filter);
           filter.remove();
         });
       }
@@ -1230,7 +1271,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [content, rawPXMLContent, hasUnsavedChanges, editedChart, editedKPI, editedDashboard, isDashboardSettingsOpen, isFiltersOpen, parseDashboardFromPXML]);
+  }, [content, rawPXMLContent, hasUnsavedChanges, editedChart, editedKPI, editedDashboard, isDashboardSettingsOpen, isFiltersOpen, parseDashboardFromPXML, parseChartsFromPXML, parseKPIsFromPXML]);
 
   // Extract columns and inject click handlers into iframe
   useEffect(() => {
@@ -1659,7 +1700,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     const iframe = iframeRef.current;
     if (!iframe || !iframe.contentWindow) return;
 
-    console.log('📤 updateDashboardInIframe called with:', dashboardConfig);
 
     try {
       // Send dashboard metadata updates to iframe (including filters)
@@ -1680,9 +1720,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       
       // Send specific filter updates (similar to KPI/chart updates)
       if (dashboardConfig.filters && iframe.contentWindow) {
-        console.log('Sending filter updates to iframe:', dashboardConfig.filters);
         dashboardConfig.filters.forEach(filter => {
-          console.log('Sending filter update:', { filterId: filter.id, config: filter });
           iframe.contentWindow!.postMessage(
             {
               type: "update-filter-config",
@@ -2578,14 +2616,11 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         filters: [...(editedDashboard.filters || []), newFilter],
       };
       
-      console.log('➕ Adding filter:', newFilter);
-      console.log('📊 Updated dashboard filters:', updatedDashboard.filters);
       
       setEditedDashboard(updatedDashboard);
       markAsChanged();
       
       // Update dashboard in real-time
-      console.log('🔄 Calling updateDashboardInIframe with:', updatedDashboard);
       updateDashboardInIframe(updatedDashboard);
     }
   };
@@ -2598,21 +2633,17 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         filters: updatedFilters,
       };
       
-      console.log('➖ Removing filter at index:', index);
-      console.log('📊 Updated dashboard filters:', updatedDashboard.filters);
       
       setEditedDashboard(updatedDashboard);
       markAsChanged();
       
       // Update dashboard in real-time
-      console.log('🔄 Calling updateDashboardInIframe with:', updatedDashboard);
       updateDashboardInIframe(updatedDashboard);
     }
   };
 
   const updateFilter = (index: number, field: string, value: string) => {
     if (editedDashboard && editedDashboard.filters) {
-      console.log('updateFilter called:', { index, field, value, currentFilter: editedDashboard.filters[index] });
       
       const updatedFilters = [...editedDashboard.filters];
       updatedFilters[index] = {
@@ -2624,7 +2655,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       if (field === 'name' && updatedFilters[index].id.startsWith('filter_') && !updatedFilters[index].id.includes('_dropdown') && !updatedFilters[index].id.includes('_button')) {
         const newId = `filter_${value.toLowerCase().replace(/\s+/g, '_')}_dropdown`;
         updatedFilters[index].id = newId;
-        console.log('Updated filter ID to:', newId);
       }
       
       const updatedDashboard = {
@@ -2632,8 +2662,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         filters: updatedFilters,
       };
       
-      console.log('Updated filter:', updatedFilters[index]);
-      console.log('Sending to iframe:', updatedDashboard);
       
       setEditedDashboard(updatedDashboard);
       markAsChanged();
@@ -2978,7 +3006,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               <div className="space-y-2">
                                 <label className="text-xs font-medium">Values Formula</label>
                                 <textarea
-                                  value={filter.values_formula}
+                                  value={unescapeFormula(filter.values_formula)}
                                   onChange={(e) => {
                                     const newFilters = [...editedDashboard.filters];
                                     newFilters[index].values_formula = e.target.value;
@@ -3508,7 +3536,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                             </label>
                             <input
                               type="text"
-                              value={editedKPI.value_formula}
+                              value={unescapeFormula(editedKPI.value_formula)}
                               onChange={(e) =>
                                 updateKPIProperty(
                                   "value_formula",
@@ -3768,7 +3796,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               Formula
                             </label>
                             <textarea
-                              value={filter.values_formula}
+                              value={unescapeFormula(filter.values_formula)}
                               onChange={(e) =>
                                 updateFilter(index, "values_formula", e.target.value)
                               }

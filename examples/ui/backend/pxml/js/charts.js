@@ -268,6 +268,9 @@ function renderChartCard(chartId, config, isLoading = false) {
     if (!isLoading) {
         registerChart(chartId, config);
     }
+    
+    // Debug: Log that chart card was rendered
+    console.log('Chart card rendered for:', chartId, 'Container exists:', !!container);
 }
 
 function registerChart(chartId, config) {
@@ -277,6 +280,21 @@ function registerChart(chartId, config) {
         canvas: document.getElementById(chartId + '_canvas'),
         loadingElement: document.getElementById(chartId + '_loading')
     };
+}
+
+function displayChartError(loadingElement, errorData, config) {
+    // Show error state but keep the chart card structure intact for editing
+    loadingElement.innerHTML = `
+        <div class="flex items-center justify-center h-full">
+            <div class="text-center">
+                <i class="fas fa-exclamation-circle text-gray-400 text-2xl mb-2"></i>
+                <p class="text-sm text-gray-500">Unable to render chart</p>
+            </div>
+        </div>
+    `;
+    
+    // Ensure the loading element is visible (it should be hidden when chart renders successfully)
+    loadingElement.style.display = 'flex';
 }
 
 function updateChart(chartId) {
@@ -295,6 +313,31 @@ function updateChart(chartId) {
         
         // Process data for chart
         const chartData = processChartData(filteredData, config);
+        
+        // Check if chart should show error state (only for visual rendering)
+        const hasErrors = checkForFormulaErrors(filteredData, config);
+        const isEmpty = chartData.labels.length === 0 || chartData.datasets.every(d => d.data.length === 0);
+        
+        if (hasErrors || isEmpty) {
+            // Destroy existing chart
+            if (chartInfo.chartInstance) {
+                chartInfo.chartInstance.destroy();
+                chartInfo.chartInstance = null;
+            }
+            
+            // Display error message but keep chart card structure intact
+            displayChartError(loadingElement, {
+                error: true,
+                message: "Chart cannot be rendered - no data available",
+                details: hasErrors || [{
+                    type: 'empty_data',
+                    message: `Chart has ${chartData.labels.length} labels and ${chartData.datasets.length} datasets with no data`
+                }]
+            }, config);
+            
+            // Ensure the chart card remains clickable for editing
+            return;
+        }
         
         // Destroy existing chart
         if (chartInfo.chartInstance) {
@@ -315,12 +358,11 @@ function updateChart(chartId) {
         
     } catch (error) {
         console.error(`Error updating chart ${chartId}:`, error);
-        loadingElement.innerHTML = `
-            <div class="text-center">
-                <i class="fas fa-exclamation-triangle text-red-500 text-2xl mb-2"></i>
-                <p class="text-sm text-red-600">Chart error</p>
-            </div>
-        `;
+        displayChartError(loadingElement, {
+            error: true,
+            message: 'Chart rendering failed',
+            details: [{ type: 'render_error', message: error.message }]
+        }, config);
     }
 }
 
@@ -328,6 +370,71 @@ function updateAllCharts() {
     Object.keys(window.registeredCharts).forEach(chartId => {
         updateChart(chartId);
     });
+}
+
+function checkForFormulaErrors(data, config) {
+    const { x_axis, series_list } = config;
+    const errors = [];
+    
+    // Check if data is empty or invalid
+    if (!data || data.length === 0) {
+        return {
+            type: 'no_data',
+            message: 'No data available for chart rendering'
+        };
+    }
+    
+    // Check if x-axis column has any valid data
+    const columnMapping = getColumnMapping();
+    const xColumnName = columnMapping[x_axis.column] || x_axis.column;
+    const xValues = data.map(row => row[xColumnName]).filter(val => val !== null && val !== undefined && val !== '');
+    
+    if (xValues.length === 0) {
+        errors.push({
+            type: 'x_axis_error',
+            message: `X-axis column '${x_axis.column}' has no valid data`,
+            column: x_axis.column
+        });
+    }
+    
+    // Check if any series has valid data
+    let hasValidSeries = false;
+    series_list.forEach((series, index) => {
+        const seriesColumnName = columnMapping[series.column] || series.column;
+        const seriesValues = data.map(row => row[seriesColumnName]).filter(val => val !== null && val !== undefined && val !== '');
+        
+        if (seriesValues.length > 0) {
+            hasValidSeries = true;
+        }
+    });
+    
+    if (!hasValidSeries) {
+        errors.push({
+            type: 'series_error',
+            message: 'No series have valid data',
+            series: 'All series'
+        });
+    }
+    
+    // Check for transformation column errors if they're being used
+    const transformationColumns = ['performance_tier', 'attendance_category'];
+    const usedTransformationColumns = transformationColumns.filter(colName => 
+        data.some(row => row.hasOwnProperty(colName))
+    );
+    
+    // Check if transformation columns have all null values (indicating formula failure)
+    usedTransformationColumns.forEach(colName => {
+        const allNulls = data.every(row => row[colName] === null || row[colName] === undefined);
+        if (allNulls) {
+            errors.push({
+                type: 'transformation_error',
+                message: `Transformation column '${colName}' formula evaluation failed`,
+                column: colName
+            });
+        }
+    });
+    
+    return errors.length > 0 ? errors : null;
 }
 
 function processChartData(data, config) {
