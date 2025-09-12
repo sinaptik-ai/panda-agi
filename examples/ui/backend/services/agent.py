@@ -86,8 +86,24 @@ async def event_stream(
                 result = await agent.environment.read_file(path=file_names[0])
                 if result["status"] == "success":
                     lines = result["content"].splitlines(keepends=True)
-                    content = "".join(lines[0:5])
-                    query = f"{query}\n\nHere are the first 5 rows of the file\n\n: {content}"
+                    header = lines[0]
+                    content = "".join(lines[1:6])
+                    column_mapping = ""
+                    for idx, col in enumerate(header.split(",")):
+                        letter = chr(65 + idx)  # A, B, C, ...
+                        column_mapping += f"{col} -> Column {letter}\n"
+                    query = f"""{query}
+
+Here the first rows of the CSV:
+```
+{content}
+```
+
+Mapping of the columns to the Excel letters:
+```
+{column_mapping}
+```
+"""
             except Exception as e:
                 logger.error("error reading file: ", e)
 
