@@ -731,7 +731,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         onEditLinkUrl={handleEditLinkUrl}
       />
       
-      <div className="flex-1 p-6 overflow-auto">
+      <div className="flex-1 p-6 overflow-auto bg-gray-100">
         <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 min-h-full shadow-sm hover:shadow-md transition-shadow duration-200 rounded-lg relative">
           <div className="px-16 py-12">
             <EditorContent

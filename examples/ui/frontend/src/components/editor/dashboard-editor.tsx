@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   X,
-  Settings,
   BarChart3,
   LineChart,
   PieChart,
@@ -12,6 +12,8 @@ import {
   MoreHorizontal,
   Target,
   Loader2,
+  Layout,
+  Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArtifactData } from "@/types/artifact";
@@ -62,7 +64,6 @@ interface DashboardMetadata {
 interface DashboardEditorProps {
   content: string;
   artifact?: ArtifactData | null;
-  onChange: (content: string) => void;
   onSave?: (content?: string) => Promise<void>;
   availableColumns?: Array<{ letter: string; name: string }>;
 }
@@ -113,38 +114,6 @@ const KPI_FORMATS = [
   { value: "decimal", label: "Decimal" },
 ];
 
-const CUSTOM_CURRENCIES = [
-  { value: "currency:usd", label: "USD - US Dollar" },
-  { value: "currency:eur", label: "EUR - Euro" },
-  { value: "currency:gbp", label: "GBP - British Pound" },
-  { value: "currency:jpy", label: "JPY - Japanese Yen" },
-  { value: "currency:cad", label: "CAD - Canadian Dollar" },
-  { value: "currency:aud", label: "AUD - Australian Dollar" },
-  { value: "currency:chf", label: "CHF - Swiss Franc" },
-  { value: "currency:cny", label: "CNY - Chinese Yuan" },
-  { value: "currency:inr", label: "INR - Indian Rupee" },
-  { value: "currency:brl", label: "BRL - Brazilian Real" },
-  { value: "currency:mxn", label: "MXN - Mexican Peso" },
-  { value: "currency:krw", label: "KRW - South Korean Won" },
-  { value: "currency:sgd", label: "SGD - Singapore Dollar" },
-  { value: "currency:hkd", label: "HKD - Hong Kong Dollar" },
-  { value: "currency:nok", label: "NOK - Norwegian Krone" },
-  { value: "currency:sek", label: "SEK - Swedish Krona" },
-  { value: "currency:dkk", label: "DKK - Danish Krone" },
-  { value: "currency:pln", label: "PLN - Polish Zloty" },
-  { value: "currency:czk", label: "CZK - Czech Koruna" },
-  { value: "currency:huf", label: "HUF - Hungarian Forint" },
-  { value: "currency:try", label: "TRY - Turkish Lira" },
-  { value: "currency:rub", label: "RUB - Russian Ruble" },
-  { value: "currency:zar", label: "ZAR - South African Rand" },
-  { value: "currency:ils", label: "ILS - Israeli Shekel" },
-  { value: "currency:thb", label: "THB - Thai Baht" },
-  { value: "currency:php", label: "PHP - Philippine Peso" },
-  { value: "currency:idr", label: "IDR - Indonesian Rupiah" },
-  { value: "currency:myr", label: "MYR - Malaysian Ringgit" },
-  { value: "currency:vnd", label: "VND - Vietnamese Dong" },
-  { value: "currency:nzd", label: "NZD - New Zealand Dollar" },
-];
 
 
 const DASHBOARD_ICONS = [
@@ -241,11 +210,32 @@ const FILTER_TYPES = [
 const DashboardEditor: React.FC<DashboardEditorProps> = ({
   content,
   artifact,
-  onChange, // eslint-disable-line @typescript-eslint/no-unused-vars
   onSave,
   availableColumns = [],
 }) => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isDashboardSettingsOpen, setIsDashboardSettingsOpen] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  
+  // Unified Save Changes Button Component
+  const SaveChangesButton = ({ onSave, className = "" }: { onSave?: () => void; className?: string }) => (
+    <Button 
+      onClick={onSave} 
+      size="sm" 
+      disabled={!hasUnsavedChanges || isSaving}
+      className={className}
+    >
+      {isSaving ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Saving...
+        </>
+      ) : (
+        "Save Changes"
+      )}
+    </Button>
+  );
+
   const [editedChart, setEditedChart] = useState<ChartConfig | null>(null);
   const [editedKPI, setEditedKPI] = useState<KPIConfig | null>(null);
   const [dynamicColumns, setDynamicColumns] = useState<
@@ -260,6 +250,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     null
   );
   const [pendingKPIData, setPendingKPIData] = useState<KPIConfig | null>(null);
+  const [pendingSwitchAction, setPendingSwitchAction] = useState<"dashboard-settings" | "filters" | null>(null);
   const [originalChartState, setOriginalChartState] =
     useState<ChartConfig | null>(null);
   const [originalKPIState, setOriginalKPIState] = useState<KPIConfig | null>(
@@ -267,7 +258,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   );
   const [editedDashboard, setEditedDashboard] = useState<DashboardMetadata | null>(null);
   const [originalDashboardState, setOriginalDashboardState] = useState<DashboardMetadata | null>(null);
-  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const saveInProgressRef = useRef(false);
   const lastSavedContentRef = useRef<string | null>(null);
@@ -454,14 +444,77 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         }
       }
       
-      console.log('Parsed from HTML - name:', name, 'description:', description, 'icon:', icon);
+      // Extract filters from HTML (if any exist)
+      const filterElements = doc.querySelectorAll('.filter-component');
+      const filters: Array<{
+        id: string;
+        name: string;
+        type: string;
+        values_formula: string;
+      }> = [];
+      
+      
+      // Also try to find filters by looking for the filters section
+      
+      // Try to extract filters from embedded JavaScript configuration
+      const scriptTags = doc.querySelectorAll('script');
+      for (const script of scriptTags) {
+        const scriptContent = script.textContent || '';
+        if (scriptContent.includes('filters') && scriptContent.includes('[')) {
+          try {
+            // Try to extract the filters array from the script
+            const filtersMatch = scriptContent.match(/filters\s*:\s*\[([\s\S]*?)\]/);
+            if (filtersMatch) {
+              // Found filters in script
+            }
+          } catch {
+            // Error parsing script for filters
+          }
+        }
+      }
+      
+      filterElements.forEach((filterEl, index) => {
+        const labelEl = filterEl.querySelector('label');
+        const filterName = labelEl?.textContent?.trim() || `Filter ${index + 1}`;
+        
+        // Determine filter type based on HTML structure
+        let filterType = 'list'; // default
+        if (filterEl.querySelector('input[type="number"]')) {
+          filterType = 'number_range';
+        } else if (filterEl.querySelector('input[type="date"]')) {
+          filterType = 'date_range';
+        }
+        
+        // Try to extract the filter ID - look for the actual filter ID in the iframe
+        const buttonEl = filterEl.querySelector('[id*="_button"]');
+        const dropdownEl = filterEl.querySelector('[id*="_dropdown"]');
+        let filterId = buttonEl?.id || dropdownEl?.id || `filter_${index + 1}`;
+        
+        // Convert button ID to dropdown ID if needed (e.g., filter_branch_button -> filter_branch_dropdown)
+        if (filterId.includes('_button')) {
+          filterId = filterId.replace('_button', '_dropdown');
+        }
+        
+        // For now, use a default formula - this will be editable in the UI
+        const valuesFormula = '';
+        
+        if (filterName && filterName !== 'Filter' && filterName !== 'Filters') {
+          filters.push({
+            id: filterId,
+            name: filterName,
+            type: filterType,
+            values_formula: valuesFormula
+          });
+        }
+      });
+      
       
       return {
         name,
         description,
         icon,
         theme: "light", 
-        filters: []
+        filters
       };
     } catch (error) {
       console.error("Error parsing dashboard from HTML:", error);
@@ -471,14 +524,11 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
   // Parse dashboard metadata from PXML content
   const parseDashboardFromPXML = useCallback((pxmlContent: string): DashboardMetadata => {
-    console.log('Parsing dashboard metadata from content:', pxmlContent.substring(0, 500) + '...');
-    
     // Check if content is HTML instead of PXML
     if (
       pxmlContent.trim().startsWith("<!DOCTYPE html>") ||
       pxmlContent.trim().startsWith("<html")
     ) {
-      console.log('Content is HTML, trying to parse from HTML');
       return parseDashboardFromHTML(pxmlContent);
     }
 
@@ -507,54 +557,31 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       const nameEl = doc.querySelector("name");
       const rootEl = doc.documentElement;
       
-      console.log('Searching for dashboard name...');
-      console.log('titleEl:', titleEl?.textContent);
-      console.log('dashboardEl name attr:', dashboardEl?.getAttribute("name"));
-      console.log('nameEl:', nameEl?.textContent);
-      console.log('root element name:', rootEl?.getAttribute("name"));
-      
       if (titleEl?.textContent?.trim()) {
         dashboardMetadata.name = titleEl.textContent.trim();
-        console.log('Using title element:', dashboardMetadata.name);
       } else if (nameEl?.textContent?.trim()) {
         dashboardMetadata.name = nameEl.textContent.trim();
-        console.log('Using name element:', dashboardMetadata.name);
       } else if (dashboardEl?.getAttribute("name")?.trim()) {
         dashboardMetadata.name = dashboardEl.getAttribute("name")!.trim();
-        console.log('Using dashboard name attribute:', dashboardMetadata.name);
       } else if (rootEl?.getAttribute("name")?.trim()) {
         dashboardMetadata.name = rootEl.getAttribute("name")!.trim();
-        console.log('Using root name attribute:', dashboardMetadata.name);
-      } else {
-        console.log('No dashboard name found, using default');
       }
 
       // Extract dashboard description
       const descEl = doc.querySelector("description");
-      console.log('Searching for description...');
-      console.log('descEl:', descEl?.textContent);
-      console.log('dashboardEl description attr:', dashboardEl?.getAttribute("description"));
       
       if (descEl?.textContent?.trim()) {
         dashboardMetadata.description = descEl.textContent.trim();
-        console.log('Using description element:', dashboardMetadata.description);
       } else if (dashboardEl?.getAttribute("description")?.trim()) {
         dashboardMetadata.description = dashboardEl.getAttribute("description")!.trim();
-        console.log('Using dashboard description attribute:', dashboardMetadata.description);
-      } else {
-        console.log('No description found, using default');
       }
 
       // Extract dashboard icon (look for fa_icon in PXML)
       const iconEl = doc.querySelector("fa_icon");
       if (iconEl?.textContent) {
         dashboardMetadata.icon = iconEl.textContent;
-        console.log('Using fa_icon element:', dashboardMetadata.icon);
       } else if (dashboardEl?.getAttribute("fa_icon")) {
         dashboardMetadata.icon = dashboardEl.getAttribute("fa_icon") || "fa-chart-line";
-        console.log('Using dashboard fa_icon attribute:', dashboardMetadata.icon);
-      } else {
-        console.log('No fa_icon found, using default');
       }
 
       // Extract dashboard theme
@@ -570,10 +597,32 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       dashboardMetadata.filters = [];
 
       filterElements.forEach((filterEl, index) => {
-        const filterId = filterEl.getAttribute("id") || `filter_${index + 1}`;
+        let filterId = filterEl.getAttribute("id") || `filter_${index + 1}`;
+        
+        // Ensure the filter ID follows the iframe naming convention
+        if (!filterId.includes('_dropdown') && !filterId.includes('_button')) {
+          // If it's a generic ID, try to create a proper one based on the name
         const filterName = filterEl.querySelector("name")?.textContent || `Filter ${index + 1}`;
-        const filterType = filterEl.querySelector("type")?.textContent || "list";
-        const valuesFormula = filterEl.querySelector("values_formula")?.textContent || "dashboardData.map(d => d.column).filter((v, i, a) => a.indexOf(v) === i)";
+          const nameSlug = filterName.toLowerCase().replace(/\s+/g, '_');
+          filterId = `filter_${nameSlug}_dropdown`;
+        }
+        
+        const filterName = filterEl.querySelector("name")?.textContent || `Filter ${index + 1}`;
+        const filterType = filterEl.getAttribute("type") || filterEl.querySelector("type")?.textContent || "list";
+        
+        // Look for values formula in different possible locations
+        let valuesFormula = "";
+        const valuesFormulaEl = filterEl.querySelector("values_formula");
+        const valuesEl = filterEl.querySelector("values");
+        const formulaEl = valuesEl?.querySelector("formula");
+        
+        if (valuesFormulaEl) {
+          valuesFormula = valuesFormulaEl.textContent || "";
+        } else if (formulaEl) {
+          valuesFormula = formulaEl.textContent || "";
+        } else {
+          valuesFormula = "";
+        }
 
         dashboardMetadata.filters.push({
           id: filterId,
@@ -587,11 +636,142 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       console.error("Error parsing dashboard metadata:", error);
     }
 
-    console.log('Final parsed dashboard metadata:', dashboardMetadata);
     return dashboardMetadata;
   }, [parseDashboardFromHTML]);
 
+  // Ensure dashboard data is loaded when filters sidebar opens
+  useEffect(() => {
+    if (isFiltersOpen && !editedDashboard) {
+      const contentToParse = rawPXMLContent || content;
+      const dashboardData = parseDashboardFromPXML(contentToParse);
+      setEditedDashboard(dashboardData);
+    }
+  }, [isFiltersOpen, editedDashboard, content, rawPXMLContent, parseDashboardFromPXML]);
+
   // Update PXML content with edited chart
+  const updatePXMLWithDashboard = (
+    originalContent: string,
+    dashboardMetadata: DashboardMetadata
+  ): string => {
+    const parser = new DOMParser();
+    const serializer = new XMLSerializer();
+
+    try {
+      const doc = parser.parseFromString(originalContent, "text/xml");
+      const dashboardElement = doc.querySelector("dashboard");
+      
+      if (!dashboardElement) {
+        console.error("Dashboard element not found in PXML");
+        return originalContent;
+      }
+
+      // Update dashboard name
+      const nameElement = dashboardElement.querySelector("name");
+      if (nameElement) {
+        nameElement.textContent = dashboardMetadata.name;
+      } else {
+        const newNameElement = doc.createElement("name");
+        newNameElement.textContent = dashboardMetadata.name;
+        dashboardElement.insertBefore(newNameElement, dashboardElement.firstChild);
+      }
+
+      // Update dashboard description
+      const descElement = dashboardElement.querySelector("description");
+      if (descElement) {
+        descElement.textContent = dashboardMetadata.description;
+      } else {
+        const newDescElement = doc.createElement("description");
+        newDescElement.textContent = dashboardMetadata.description;
+        dashboardElement.insertBefore(newDescElement, nameElement?.nextSibling || dashboardElement.firstChild);
+      }
+
+      // Update dashboard icon
+      const iconElement = dashboardElement.querySelector("fa_icon");
+      if (iconElement) {
+        iconElement.textContent = dashboardMetadata.icon;
+      } else {
+        const newIconElement = doc.createElement("fa_icon");
+        newIconElement.textContent = dashboardMetadata.icon;
+        dashboardElement.insertBefore(newIconElement, dashboardElement.firstChild);
+      }
+
+      // Update filters
+      if (dashboardMetadata.filters && dashboardMetadata.filters.length > 0) {
+        console.log('💾 Saving filters to PXML:', dashboardMetadata.filters);
+        
+        // Find or create the filters section
+        let filtersSection = dashboardElement.querySelector("filters");
+        if (!filtersSection) {
+          filtersSection = doc.createElement("filters");
+          // Insert after fa_icon element
+          const faIconElement = dashboardElement.querySelector("fa_icon");
+          if (faIconElement) {
+            dashboardElement.insertBefore(filtersSection, faIconElement.nextSibling);
+          } else {
+            dashboardElement.appendChild(filtersSection);
+          }
+        }
+        
+        // Clear existing filters from the filters section
+        const existingFilters = filtersSection.querySelectorAll("filter");
+        console.log('💾 Removing existing filters from filters section:', existingFilters.length);
+        existingFilters.forEach(filter => filter.remove());
+        
+        // Also remove any filters that might be outside the filters section
+        const allFilters = dashboardElement.querySelectorAll("filter");
+        allFilters.forEach(filter => {
+          if (!filtersSection.contains(filter)) {
+            filter.remove();
+          }
+        });
+
+        // Add new filters to the filters section
+        dashboardMetadata.filters.forEach(filter => {
+          console.log('💾 Adding filter to PXML:', filter);
+          const filterElement = doc.createElement("filter");
+          filterElement.setAttribute("type", filter.type);
+
+          // Add name element
+          const nameElement = doc.createElement("name");
+          nameElement.textContent = filter.name;
+          filterElement.appendChild(nameElement);
+
+          // Add values element with formula inside
+          const valuesElement = doc.createElement("values");
+          const formulaElement = doc.createElement("formula");
+          formulaElement.textContent = filter.values_formula || "";
+          valuesElement.appendChild(formulaElement);
+          filterElement.appendChild(valuesElement);
+
+          filtersSection.appendChild(filterElement);
+        });
+        
+        console.log('💾 Successfully saved', dashboardMetadata.filters.length, 'filters to PXML in filters section');
+      } else {
+        console.log('💾 No filters to save - cleaning up all filter elements');
+        
+        // Remove the entire filters section if it exists
+        const filtersSection = dashboardElement.querySelector("filters");
+        if (filtersSection) {
+          filtersSection.remove();
+        }
+        
+        // Remove any orphaned filter elements that might be outside the filters section
+        const allFilters = dashboardElement.querySelectorAll("filter");
+        console.log('💾 Removing orphaned filters:', allFilters.length);
+        allFilters.forEach(filter => {
+          console.log('💾 Removing orphaned filter:', filter);
+          filter.remove();
+        });
+      }
+
+      return serializer.serializeToString(doc);
+    } catch (error) {
+      console.error("Error updating PXML with dashboard metadata:", error);
+      return originalContent;
+    }
+  };
+
   const updatePXMLWithChart = (
     originalContent: string,
     chartConfig: ChartConfig
@@ -823,9 +1003,46 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     return [];
   };
 
+  // Extract columns from PXML content as fallback
+  const extractColumnsFromPXML = (content: string): Array<{ letter: string; name: string }> => {
+    const columns: Array<{ letter: string; name: string }> = [];
+    const columnSet = new Set<string>();
+    
+    // Look for column references in formulas like =unique(E2:E), =unique(F2:F), etc.
+    const formulaMatches = content.match(/=unique\(([A-Z]+)\d+:[A-Z]+\)/g);
+    
+    if (formulaMatches) {
+      formulaMatches.forEach(match => {
+        const columnMatch = match.match(/=unique\(([A-Z]+)\d+:[A-Z]+\)/);
+        if (columnMatch) {
+          const letter = columnMatch[1];
+          if (!columnSet.has(letter)) {
+            columnSet.add(letter);
+            columns.push({
+              letter: letter,
+              name: `Column ${letter}`
+            });
+          }
+        }
+      });
+    }
+    
+    return columns;
+  };
+
   // Get columns for dropdowns
   const getAvailableColumns = () => {
-    return dynamicColumns.length > 0 ? dynamicColumns : availableColumns;
+    if (dynamicColumns.length > 0) {
+      return dynamicColumns;
+    }
+    
+    // Fallback to columns extracted from PXML content
+    const pxmlColumns = extractColumnsFromPXML(content);
+    if (pxmlColumns.length > 0) {
+      return pxmlColumns;
+    }
+    
+    return availableColumns;
   };
 
 
@@ -892,8 +1109,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         const chart = charts.find((c) => c.id === event.data.chartId);
 
         if (chart) {
-          // Check if we're switching to a different chart with unsaved changes
-          if (hasUnsavedChanges && editedChart && editedChart.id !== chart.id) {
+          // Check if we're switching with unsaved changes
+          if (hasUnsavedChanges && (editedChart || editedKPI || (isDashboardSettingsOpen && editedDashboard) || (isFiltersOpen && editedDashboard))) {
             setPendingAction("switch");
             setPendingChartData(chart);
             setShowConfirmDialog(true);
@@ -905,6 +1122,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           setOriginalKPIState(null);
           setEditedDashboard(null);
           setOriginalDashboardState(null);
+          setIsDashboardSettingsOpen(false);
+          setIsFiltersOpen(false);
 
           // Ensure chart has default values for new properties
           const chartWithDefaults = {
@@ -943,8 +1162,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         const kpi = kpis.find((k) => k.id === event.data.kpiId);
 
         if (kpi) {
-          // Check if we're switching to a different KPI with unsaved changes
-          if (hasUnsavedChanges && editedKPI && editedKPI.id !== kpi.id) {
+          // Check if we're switching with unsaved changes
+          if (hasUnsavedChanges && (editedChart || editedKPI || (isDashboardSettingsOpen && editedDashboard) || (isFiltersOpen && editedDashboard))) {
             setPendingAction("switch");
             setPendingKPIData(kpi);
             setShowConfirmDialog(true);
@@ -956,6 +1175,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           setOriginalChartState(null);
           setEditedDashboard(null);
           setOriginalDashboardState(null);
+          setIsDashboardSettingsOpen(false);
+          setIsFiltersOpen(false);
 
           setEditedKPI({ ...kpi });
           setOriginalKPIState({ ...kpi }); // Store original state for reverting
@@ -987,25 +1208,29 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         setOriginalChartState(null);
         setEditedKPI(null);
         setOriginalKPIState(null);
+        setIsFiltersOpen(false);
         
         // Parse dashboard metadata from existing content
         const contentToParse = rawPXMLContent || content;
-        console.log('Content to parse for dashboard metadata:');
-        console.log('rawPXMLContent exists:', !!rawPXMLContent);
-        console.log('content exists:', !!content);
-        console.log('contentToParse preview:', contentToParse?.substring(0, 200) + '...');
         
         const initialDashboard = parseDashboardFromPXML(contentToParse);
         
         setEditedDashboard({ ...initialDashboard });
         setOriginalDashboardState({ ...initialDashboard });
-        setIsEditorOpen(true);
+        setIsDashboardSettingsOpen(true);
+        setIsFiltersOpen(false);
+        
+        // Clear selection in iframe
+        const iframe = iframeRef.current;
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ type: "clear-selection" }, "*");
+        }
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [content, rawPXMLContent, hasUnsavedChanges, editedChart, editedKPI, parseDashboardFromPXML]);
+  }, [content, rawPXMLContent, hasUnsavedChanges, editedChart, editedKPI, editedDashboard, isDashboardSettingsOpen, isFiltersOpen, parseDashboardFromPXML]);
 
   // Extract columns and inject click handlers into iframe
   useEffect(() => {
@@ -1094,7 +1319,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
                 // Add hover effect
                 container.addEventListener("mouseenter", () => {
-                  container.style.boxShadow = "0 0 0 2px rgba(34, 197, 94, 0.3)";
+                  container.style.boxShadow = "0 0 0 2px rgba(59, 130, 246, 0.3)";
                   container.style.borderRadius = CHART_BORDER_RADIUS.HOVER;
                 });
                 container.addEventListener("mouseleave", () => {
@@ -1172,7 +1397,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
               // Add highlighting to the current KPI
               const currentKPI = document.getElementById(kpiId + '_container');
               if (currentKPI) {
-                currentKPI.classList.add('ring-2', 'ring-green-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-green-50/40', 'selected-kpi');
+                currentKPI.classList.add('ring-2', 'ring-blue-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-green-50/40', 'selected-kpi');
                 currentKPI.style.transition = 'all 0.2s ease-out';
                 currentKPI.style.borderRadius = CHART_BORDER_RADIUS.SELECTED;
               } else {
@@ -1184,7 +1409,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             function removeAllHighlighting() {
               // Combined selector to target all chart and KPI related elements efficiently
               const combinedSelector = '.chart-component, div[class*="chart-component"], div[id*="chart_"][id$="_container"], .kpi-component, div[class*="kpi-component"], div[id*="kpi_"][id$="_container"]';
-              const highlightClasses = ['ring-2', 'ring-blue-400', 'ring-green-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-blue-50/40', 'bg-green-50/40', 'selected-chart', 'selected-kpi', 'ring-1', 'ring-blue-300', 'ring-green-300', 'ring-opacity-40', 'shadow-sm', 'scale-[1.01]', 'bg-blue-50/20', 'bg-green-50/20'];
+              const highlightClasses = ['ring-2', 'ring-blue-400', 'ring-blue-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-blue-50/40', 'bg-green-50/40', 'selected-chart', 'selected-kpi', 'ring-1', 'ring-blue-300', 'ring-opacity-40', 'shadow-sm', 'scale-[1.01]', 'bg-blue-50/20', 'bg-green-50/20'];
               
               document.querySelectorAll(combinedSelector).forEach(element => {
                 // Remove all possible highlighting classes in one call
@@ -1434,18 +1659,43 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     const iframe = iframeRef.current;
     if (!iframe || !iframe.contentWindow) return;
 
+    console.log('📤 updateDashboardInIframe called with:', dashboardConfig);
+
     try {
-      // Send dashboard metadata updates to iframe
+      // Send dashboard metadata updates to iframe (including filters)
       iframe.contentWindow.postMessage(
         {
           type: "update-dashboard-metadata",
-          dashboardMetadata: dashboardConfig,
+          dashboardMetadata: {
+            name: dashboardConfig.name,
+            description: dashboardConfig.description,
+            icon: dashboardConfig.icon,
+            theme: dashboardConfig.theme,
+            filters: dashboardConfig.filters || []
+          },
           forceUpdate: true,
         },
         "*"
       );
-    } catch {
-      // Silently handle iframe communication errors
+      
+      // Send specific filter updates (similar to KPI/chart updates)
+      if (dashboardConfig.filters && iframe.contentWindow) {
+        console.log('Sending filter updates to iframe:', dashboardConfig.filters);
+        dashboardConfig.filters.forEach(filter => {
+          console.log('Sending filter update:', { filterId: filter.id, config: filter });
+          iframe.contentWindow!.postMessage(
+            {
+              type: "update-filter-config",
+              filterId: filter.id,
+              config: filter,
+            },
+            "*"
+          );
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error sending message to iframe:', error);
     }
   };
 
@@ -1840,7 +2090,8 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     setIsSaving(true);
     
     // Close sidebar immediately for better responsiveness
-    setIsEditorOpen(false);
+    setIsDashboardSettingsOpen(false);
+    setIsFiltersOpen(false);
     setEditedChart(null);
     setEditedKPI(null);
     setEditedDashboard(null);
@@ -1853,13 +2104,25 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     saveInProgressRef.current = true;
 
     try {
-      // For now, we'll just save the metadata to localStorage or handle it via API
-      // This would be replaced with actual dashboard metadata update logic
-      console.log('Saving dashboard metadata:', editedDashboard);
+      // Use raw PXML content for updating if available
+      const contentToUpdate = rawPXMLContent || content;
+
+      const updatedContent = updatePXMLWithDashboard(contentToUpdate, editedDashboard);
+      
+      // Update the stored raw PXML content
+      if (rawPXMLContent) {
+        setRawPXMLContent(updatedContent);
+      }
+
+      // Store the saved content for comparison
+      lastSavedContentRef.current = updatedContent;
+      
+      // Don't call onChange during save - the onSave callback will handle the content update
+      // onChange(updatedContent);
       
       // Trigger save to server if onSave callback is provided
       if (onSave) {
-        await onSave();
+        await onSave(updatedContent);
       }
 
       // Send message to iframe that dashboard was saved
@@ -1872,6 +2135,17 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           },
           "*"
         );
+        
+        // Also send updated filter configuration to iframe
+        if (editedDashboard.filters && editedDashboard.filters.length > 0) {
+          iframe.contentWindow.postMessage(
+            {
+              type: "update-dashboard-metadata",
+            dashboardMetadata: editedDashboard,
+          },
+          "*"
+        );
+        }
       }
     } catch (error) {
       console.error("Error saving dashboard:", error);
@@ -1914,6 +2188,26 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     }
   };
 
+  // Handle closing dashboard settings sidebar
+  const handleCloseDashboardSettings = () => {
+    if (hasUnsavedChanges && editedDashboard) {
+      setPendingAction("close");
+      setShowConfirmDialog(true);
+    } else {
+      setIsDashboardSettingsOpen(false);
+    }
+  };
+
+  // Handle closing filters sidebar
+  const handleCloseFilters = () => {
+    if (hasUnsavedChanges && editedDashboard) {
+      setPendingAction("close");
+      setShowConfirmDialog(true);
+    } else {
+      setIsFiltersOpen(false);
+    }
+  };
+
   // Handle confirmation dialog
   const handleConfirmDiscard = () => {
     setShowConfirmDialog(false);
@@ -1933,7 +2227,15 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         setEditedDashboard({ ...originalDashboardState });
         updateDashboardInIframe(originalDashboardState);
       }
+      
+      // Close the appropriate sidebar
+      if (isDashboardSettingsOpen) {
+        setIsDashboardSettingsOpen(false);
+      } else if (isFiltersOpen) {
+        setIsFiltersOpen(false);
+      } else {
       closeEditorImmediate();
+      }
     } else if (pendingAction === "switch" && pendingChartData) {
       // Revert current chart to original state first
       if (originalChartState) {
@@ -1988,11 +2290,131 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           "*"
         );
       }
+    } else if (pendingAction === "switch") {
+      // Handle switching between different editing modes
+      // Revert current state to original
+      if (originalChartState) {
+        updateChartInIframe(originalChartState);
+      }
+      if (originalKPIState) {
+        updateKPIInIframe(originalKPIState);
+      }
+      if (originalDashboardState) {
+        updateDashboardInIframe(originalDashboardState);
+      }
+      
+      // Clear all editing states
+      setEditedChart(null);
+      setEditedKPI(null);
+      setEditedDashboard(null);
+      setOriginalChartState(null);
+      setOriginalKPIState(null);
+      setOriginalDashboardState(null);
+      setIsEditorOpen(false);
+      setIsDashboardSettingsOpen(false);
+      setIsFiltersOpen(false);
+      
+      // Clear selection in iframe
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: "clear-selection" }, "*");
+      }
+      
+      // Execute the pending switch action
+      if (pendingSwitchAction === "dashboard-settings") {
+        const contentToParse = rawPXMLContent || content;
+        setEditedDashboard(parseDashboardFromPXML(contentToParse));
+        setIsDashboardSettingsOpen(true);
+      } else if (pendingSwitchAction === "filters") {
+        const contentToParse = rawPXMLContent || content;
+        setEditedDashboard(parseDashboardFromPXML(contentToParse));
+        setIsFiltersOpen(true);
+      }
+    }
+
+    // Handle chart switching after confirmation
+    if (pendingChartData) {
+      // Revert current state to original first
+      if (originalChartState) {
+        updateChartInIframe(originalChartState);
+      }
+      if (originalKPIState) {
+        updateKPIInIframe(originalKPIState);
+      }
+      if (originalDashboardState) {
+        updateDashboardInIframe(originalDashboardState);
+      }
+      
+      // Then switch to new chart
+      const chartWithDefaults = {
+        ...pendingChartData,
+        area: pendingChartData.area || "none",
+        stacked: pendingChartData.stacked || "none",
+      };
+      setEditedChart({ ...chartWithDefaults });
+      setEditedKPI(null);
+      setEditedDashboard(null);
+      setOriginalChartState({ ...chartWithDefaults });
+      setOriginalKPIState(null);
+      setOriginalDashboardState(null);
+      setIsEditorOpen(true);
+      setIsDashboardSettingsOpen(false);
+      setIsFiltersOpen(false);
+      
+      // Send message to iframe to highlight the chart
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          {
+            type: "chart-edit",
+            chartId: pendingChartData.id,
+          },
+          "*"
+        );
+      }
+    }
+
+    // Handle KPI switching after confirmation
+    if (pendingKPIData) {
+      // Revert current state to original first
+      if (originalChartState) {
+        updateChartInIframe(originalChartState);
+      }
+      if (originalKPIState) {
+        updateKPIInIframe(originalKPIState);
+      }
+      if (originalDashboardState) {
+        updateDashboardInIframe(originalDashboardState);
+      }
+      
+      // Then switch to new KPI
+      setEditedKPI({ ...pendingKPIData });
+      setEditedChart(null);
+      setEditedDashboard(null);
+      setOriginalKPIState({ ...pendingKPIData });
+      setOriginalChartState(null);
+      setOriginalDashboardState(null);
+      setIsEditorOpen(true);
+      setIsDashboardSettingsOpen(false);
+      setIsFiltersOpen(false);
+      
+      // Send message to iframe to highlight the KPI
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          {
+            type: "kpi-edit",
+            kpiId: pendingKPIData.id,
+          },
+          "*"
+        );
+      }
     }
 
     setPendingAction(null);
     setPendingChartData(null);
     setPendingKPIData(null);
+    setPendingSwitchAction(null);
   };
 
   const handleCancelDiscard = () => {
@@ -2000,6 +2422,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     setPendingAction(null);
     setPendingChartData(null);
     setPendingKPIData(null);
+    setPendingSwitchAction(null);
   };
 
   // Fetch compiled HTML version when we have raw PXML
@@ -2136,55 +2559,237 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     return compiledContent || content;
   };
 
+  // Filter management functions
+  const addFilter = () => {
+    if (editedDashboard) {
+      const filterIndex = (editedDashboard.filters?.length || 0) + 1;
+      const filterName = `Filter ${filterIndex}`;
+      const filterId = `filter_${filterName.toLowerCase().replace(/\s+/g, '_')}_dropdown`;
+      
+      const newFilter = {
+        id: filterId,
+        name: filterName,
+        type: "list",
+        values_formula: "",
+      };
+      
+      const updatedDashboard = {
+        ...editedDashboard,
+        filters: [...(editedDashboard.filters || []), newFilter],
+      };
+      
+      console.log('➕ Adding filter:', newFilter);
+      console.log('📊 Updated dashboard filters:', updatedDashboard.filters);
+      
+      setEditedDashboard(updatedDashboard);
+      markAsChanged();
+      
+      // Update dashboard in real-time
+      console.log('🔄 Calling updateDashboardInIframe with:', updatedDashboard);
+      updateDashboardInIframe(updatedDashboard);
+    }
+  };
+
+  const removeFilter = (index: number) => {
+    if (editedDashboard && editedDashboard.filters) {
+      const updatedFilters = editedDashboard.filters.filter((_, i) => i !== index);
+      const updatedDashboard = {
+        ...editedDashboard,
+        filters: updatedFilters,
+      };
+      
+      console.log('➖ Removing filter at index:', index);
+      console.log('📊 Updated dashboard filters:', updatedDashboard.filters);
+      
+      setEditedDashboard(updatedDashboard);
+      markAsChanged();
+      
+      // Update dashboard in real-time
+      console.log('🔄 Calling updateDashboardInIframe with:', updatedDashboard);
+      updateDashboardInIframe(updatedDashboard);
+    }
+  };
+
+  const updateFilter = (index: number, field: string, value: string) => {
+    if (editedDashboard && editedDashboard.filters) {
+      console.log('updateFilter called:', { index, field, value, currentFilter: editedDashboard.filters[index] });
+      
+      const updatedFilters = [...editedDashboard.filters];
+      updatedFilters[index] = {
+        ...updatedFilters[index],
+        [field]: value,
+      };
+      
+      // Only update the ID for new filters or if the current ID is generic
+      if (field === 'name' && updatedFilters[index].id.startsWith('filter_') && !updatedFilters[index].id.includes('_dropdown') && !updatedFilters[index].id.includes('_button')) {
+        const newId = `filter_${value.toLowerCase().replace(/\s+/g, '_')}_dropdown`;
+        updatedFilters[index].id = newId;
+        console.log('Updated filter ID to:', newId);
+      }
+      
+      const updatedDashboard = {
+        ...editedDashboard,
+        filters: updatedFilters,
+      };
+      
+      console.log('Updated filter:', updatedFilters[index]);
+      console.log('Sending to iframe:', updatedDashboard);
+      
+      setEditedDashboard(updatedDashboard);
+      markAsChanged();
+      
+      // Update dashboard in real-time
+      updateDashboardInIframe(updatedDashboard);
+    }
+  };
+
+  // Toolbar component
+  const Toolbar = () => (
+    <TooltipProvider>
+      <div className="sticky top-0 z-10 flex items-center justify-between p-3 bg-white border-b border-gray-200 shadow-sm">
+        <div className="flex items-center space-x-1">
+          {/* Dashboard Settings Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => {
+                  // Check if we're switching with unsaved changes
+                  if (hasUnsavedChanges && (editedChart || editedKPI || (isFiltersOpen && editedDashboard))) {
+                    setPendingAction("switch");
+                    setPendingSwitchAction("dashboard-settings");
+                    setShowConfirmDialog(true);
+                    return;
+                  }
+                  
+                  setIsDashboardSettingsOpen(!isDashboardSettingsOpen);
+                  setIsFiltersOpen(false);
+                  setEditedChart(null);
+                  setEditedKPI(null);
+                  setOriginalChartState(null);
+                  setOriginalKPIState(null);
+                  
+                  // Clear selection in iframe
+                  const iframe = iframeRef.current;
+                  if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: "clear-selection" }, "*");
+                  }
+                  
+                  if (!isDashboardSettingsOpen) {
+                    const contentToParse = rawPXMLContent || content;
+                    setEditedDashboard(parseDashboardFromPXML(contentToParse));
+                  }
+                }}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
+                  isDashboardSettingsOpen
+                    ? "bg-blue-50 text-blue-700 border border-blue-200"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                }`}
+              >
+                <Layout className="w-4 h-4" />
+                <span>Dashboard Settings</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Configure dashboard name, description, and icon</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Filters Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => {
+                  // Check if we're switching with unsaved changes
+                  if (hasUnsavedChanges && (editedChart || editedKPI || (isDashboardSettingsOpen && editedDashboard))) {
+                    setPendingAction("switch");
+                    setPendingSwitchAction("filters");
+                    setShowConfirmDialog(true);
+                    return;
+                  }
+                  
+                  setIsFiltersOpen(!isFiltersOpen);
+                  setIsDashboardSettingsOpen(false);
+                  setEditedChart(null);
+                  setEditedKPI(null);
+                  setOriginalChartState(null);
+                  setOriginalKPIState(null);
+                  
+                  // Clear selection in iframe
+                  const iframe = iframeRef.current;
+                  if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: "clear-selection" }, "*");
+                  }
+                  
+                  if (!isFiltersOpen) {
+                    const contentToParse = rawPXMLContent || content;
+                    setEditedDashboard(parseDashboardFromPXML(contentToParse));
+                  }
+                }}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
+                  isFiltersOpen
+                    ? "bg-blue-50 text-blue-700 border border-blue-200"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                <span>Edit Filters</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Add and configure interactive filters</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+
+        {/* Status */}
+        <div className="flex items-center space-x-3 text-sm text-gray-500">
+          {hasUnsavedChanges && (
+            <span className="flex items-center space-x-1 text-yellow-600">
+              <div className="w-2 h-2 bg-yellow-400 rounded-full" />
+              <span>Unsaved changes</span>
+            </span>
+          )}
+          {isSaving && (
+            <span className="flex items-center space-x-1">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Saving...</span>
+            </span>
+          )}
+        </div>
+      </div>
+    </TooltipProvider>
+  );
+
   return (
-    <div className="h-full flex">
+    <div className="h-full flex flex-col bg-gray-50">
+      <Toolbar />
+      
+      <div className="flex-1 flex min-h-0">
       {/* Main Dashboard View */}
       <div
         className={`transition-all duration-500 ease-out ${
-          isEditorOpen ? "w-2/3" : "w-full"
-        } flex-1 bg-gray-50`}
+            isEditorOpen || isDashboardSettingsOpen || isFiltersOpen ? "w-2/3" : "w-full"
+          } flex-1 bg-gray-50 min-h-0`}
         style={{
           transitionProperty: "width, flex-basis",
           transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        {/* Clean Canvas Area */}
-        <div className="flex-1 overflow-auto bg-gray-50">
-          <div className="h-full flex justify-center py-8 px-4">
-            <div className="relative w-full max-w-7xl h-[calc(100vh-12rem)] group">
+          {/* Clean Canvas Area */}
+          <div className="h-full overflow-auto bg-gray-100">
+            <div className="h-full flex justify-center py-8 px-4">
+              <div className="relative w-full max-w-7xl h-full group">
               {/* Canvas container */}
               <div className="w-full h-full rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-all duration-200">
-                <iframe
-                  ref={iframeRef}
-                  srcDoc={getDisplayContent()}
+        <iframe
+          ref={iframeRef}
+          srcDoc={getDisplayContent()}
                   className="w-full h-full border-0"
-                  title="Dashboard Preview"
-                  sandbox="allow-scripts allow-same-origin allow-forms"
-                />
-              </div>
-              
-              {/* Top-Right Three-Dot Menu */}
-              <div className="absolute top-4 right-4 z-10">
-                <div className="relative group">
-                  <button
-                    onClick={() => {
-                      window.postMessage({ type: "dashboard-edit" }, "*");
-                    }}
-                    className="w-8 h-8 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:bg-white transition-all duration-200 flex items-center justify-center text-gray-500 hover:text-gray-700 cursor-pointer group"
-                  >
-                    <Settings className="h-4 w-4 transition-transform duration-200 group-hover:rotate-90" />
-                  </button>
-                  
-                  {/* Tooltip */}
-                  <div className="absolute right-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                    <div className="bg-gray-900 text-white text-sm px-3 py-2 rounded-lg whitespace-nowrap">
-                      Dashboard Settings
-                      <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
+          title="Dashboard Preview"
+          sandbox="allow-scripts allow-same-origin allow-forms"
+        />
+      </div>
+
               {/* Subtle corner indicators */}
               <div className="absolute top-2 right-2 w-1 h-1 bg-blue-400 rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-200 pointer-events-none"></div>
               <div className="absolute bottom-2 right-2 w-1 h-1 bg-blue-400 rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-200 pointer-events-none"></div>
@@ -2195,10 +2800,10 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         </div>
       </div>
 
-      {/* Clean Properties Panel */}
+      {/* Unified Sidebar */}
       <div
-        className={`bg-white border-l border-gray-200 overflow-hidden transition-all duration-300 ease-out ${
-          isEditorOpen && (editedChart || editedKPI || editedDashboard)
+        className={`bg-white border-l border-gray-200 overflow-hidden transition-all duration-300 ease-out h-full ${
+          isEditorOpen && (editedChart || editedKPI) || isDashboardSettingsOpen || isFiltersOpen
             ? "w-80 opacity-100"
             : "w-0 opacity-0"
         }`}
@@ -2207,14 +2812,15 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        {isEditorOpen && (editedChart || editedKPI || editedDashboard) && (
+        {/* Chart/KPI Editor Content */}
+        {isEditorOpen && (editedChart || editedKPI) && (
           <div className="h-full flex flex-col">
             {/* Clean Header */}
-            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-4 bg-gray-50">
+            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-4 bg-gray-50 flex-shrink-0">
               <div className="flex items-center space-x-2">
                 <h3 className="text-sm font-medium text-gray-700">
-                  {editedChart ? "Chart Settings" : editedKPI ? "KPI Settings" : "Dashboard Settings"}
-                </h3>
+                  {editedChart ? "Chart Settings" : "KPI Settings"}
+                  </h3>
               </div>
               <div className="flex items-center space-x-2">
                 {hasUnsavedChanges && (
@@ -2235,7 +2841,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             </div>
 
             {/* Clean Content */}
-            <div className="flex-1 overflow-y-auto bg-white">
+            <div className="flex-1 overflow-y-auto bg-white min-h-0">
               <div className="p-4 space-y-6">
                 {editedDashboard && (
                   <>
@@ -2301,7 +2907,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                       <div>
                         <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
                           Filters
-                        </div>
+                              </div>
                         <div className="flex items-center justify-between mb-3">
                           <Button
                             size="sm"
@@ -2311,7 +2917,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                 id: `filter_${Date.now()}`,
                                 name: 'New Filter',
                                 type: 'list',
-                                values_formula: 'dashboardData.map(d => d.column).filter((v, i, a) => a.indexOf(v) === i)'
+                                values_formula: ''
                               };
                               updateDashboardProperty('filters', [...editedDashboard.filters, newFilter]);
                             }}
@@ -2378,9 +2984,12 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                     newFilters[index].values_formula = e.target.value;
                                     updateDashboardProperty('filters', newFilters);
                                   }}
-                                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-h-[60px] resize-none font-mono"
-                                  placeholder="e.g., dashboardData.map(d =&gt; d.category).filter((v, i, a) =&gt; a.indexOf(v) === i)"
+                                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-h-[80px] resize-none font-mono"
+                                  placeholder="e.g., =unique(B2:B) or =unique(E2:E)"
                                 />
+                                <p className="text-xs text-gray-500">
+                                  Use Excel-style formulas like =unique(B2:B) to get unique values from column B
+                                </p>
                               </div>
                             </div>
                           ))}
@@ -2575,77 +3184,77 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               )}
                           </div>
                         </div>
-                      </div>
-                      
+                    </div>
+
                       {/* X-Axis Configuration */}
                       <div className="space-y-4">
                         <div>
                           <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
-                            {getAxisLabel(editedChart.type)}
+                              {getAxisLabel(editedChart.type)}
                           </h4>
                           <div className="space-y-4">
-                            <div className="space-y-2">
+                          <div className="space-y-2">
                               <label className="text-sm font-medium text-gray-700">
-                                {getAxisLabel(editedChart.type)} Name
-                              </label>
-                              <input
-                                type="text"
-                                value={editedChart.x_axis.name}
-                                onChange={(e) =>
-                                  updateNestedProperty(
-                                    "x_axis",
-                                    "name",
-                                    e.target.value
-                                  )
-                                }
+                              {getAxisLabel(editedChart.type)} Name
+                            </label>
+                            <input
+                              type="text"
+                              value={editedChart.x_axis.name}
+                              onChange={(e) =>
+                                updateNestedProperty(
+                                  "x_axis",
+                                  "name",
+                                  e.target.value
+                                )
+                              }
                                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                                placeholder="Enter axis name"
-                              />
-                            </div>
-                            <div className="space-y-2">
+                              placeholder="Enter axis name"
+                            />
+                          </div>
+                          <div className="space-y-2">
                               <label className="text-sm font-medium text-gray-700">
-                                Column
-                              </label>
-                              <select
-                                value={editedChart.x_axis.column}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (!editedChart) return;
+                              Column
+                            </label>
+                            <select
+                              value={editedChart.x_axis.column}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (!editedChart) return;
 
-                                  // Find the selected column name
-                                  const selectedColumn =
-                                    getAvailableColumns().find(
-                                      (col) => col.letter === value
-                                    );
-                                  const columnName = selectedColumn
-                                    ? selectedColumn.name
-                                    : "";
+                                // Find the selected column name
+                                const selectedColumn =
+                                  getAvailableColumns().find(
+                                    (col) => col.letter === value
+                                  );
+                                const columnName = selectedColumn
+                                  ? selectedColumn.name
+                                  : "";
 
-                                  const updatedChart = {
-                                    ...editedChart,
-                                    x_axis: {
-                                      ...editedChart.x_axis,
-                                      column: value,
-                                      group_by: value,
-                                      name: columnName, // Update the name to match the selected column
-                                    },
-                                  };
-                                  setEditedChart(updatedChart);
-                                  markAsChanged();
-                                  updateChartInIframe(updatedChart);
-                                }}
+                                const updatedChart = {
+                                  ...editedChart,
+                                  x_axis: {
+                                    ...editedChart.x_axis,
+                                    column: value,
+                                    group_by: value,
+                                    name: columnName, // Update the name to match the selected column
+                                  },
+                                };
+                                setEditedChart(updatedChart);
+                                markAsChanged();
+                                updateChartInIframe(updatedChart);
+                              }}
                                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                              >
+                            >
                               {getAvailableColumns().map((col) => (
                                 <option key={col.letter} value={col.letter}>
                                   {col.name}
                                 </option>
                               ))}
-                              </select>
-                            </div>
+                            </select>
                           </div>
                         </div>
-                      </div>
+                    </div>
+                            </div>
                       
                       {/* Series Configuration */}
                       <div className="space-y-4">
@@ -2654,28 +3263,28 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                             {getSeriesLabel(editedChart.type)} ({editedChart.series_list.length} configured)
                           </h4>
                           <div className="space-y-4">
-                            {editedChart.series_list.map((series, index) => (
-                              <div
-                                key={index}
+                          {editedChart.series_list.map((series, index) => (
+                            <div
+                              key={index}
                                 className="rounded border border-gray-200 bg-gray-50/50 p-3 space-y-3"
-                              >
-                                <div className="flex items-center justify-between">
+                            >
+                              <div className="flex items-center justify-between">
                                   <div className="text-xs font-medium text-gray-600">
-                                    {editedChart.type === "line"
-                                      ? `Line ${index + 1}`
-                                      : editedChart.type === "pie" ||
-                                        editedChart.type === "donut"
-                                      ? `Value ${index + 1}`
-                                      : editedChart.type === "bubble"
-                                      ? `Bubble ${index + 1}`
-                                      : editedChart.type === "scatter"
-                                      ? `Point ${index + 1}`
-                                      : editedChart.type === "radar"
-                                      ? `Metric ${index + 1}`
-                                      : editedChart.type === "combo_chart"
-                                      ? index === 0 ? `Bar ${index + 1}` : `Line ${index + 1}`
-                                      : `Series ${index + 1}`}
-                                  </div>
+                                  {editedChart.type === "line"
+                                    ? `Line ${index + 1}`
+                                    : editedChart.type === "pie" ||
+                                      editedChart.type === "donut"
+                                    ? `Value ${index + 1}`
+                                    : editedChart.type === "bubble"
+                                    ? `Bubble ${index + 1}`
+                                    : editedChart.type === "scatter"
+                                    ? `Point ${index + 1}`
+                                    : editedChart.type === "radar"
+                                    ? `Metric ${index + 1}`
+                                    : editedChart.type === "combo_chart"
+                                    ? index === 0 ? `Bar ${index + 1}` : `Line ${index + 1}`
+                                    : `Series ${index + 1}`}
+                                </div>
                                 <div className="flex items-center space-x-1">
                                   <div className="h-2 w-2 rounded-full bg-primary"></div>
                                   {editedChart.series_list.length > 1 && (
@@ -2690,54 +3299,54 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                   )}
                                 </div>
                               </div>
-                                <div className="space-y-3">
-                                  <div className="space-y-2">
+                              <div className="space-y-3">
+                                <div className="space-y-2">
                                     <label className="text-sm font-medium text-gray-700">
-                                      {editedChart.type === "line"
-                                        ? "Line Name"
-                                        : editedChart.type === "pie" ||
-                                          editedChart.type === "donut"
-                                        ? "Value Name"
-                                        : editedChart.type === "bubble"
-                                        ? "Bubble Name"
-                                        : editedChart.type === "scatter"
-                                        ? "Point Name"
-                                        : editedChart.type === "radar"
-                                        ? "Metric Name"
-                                        : editedChart.type === "combo_chart"
-                                        ? index === 0 ? "Bar Name" : "Line Name"
-                                        : "Series Name"}
+                                    {editedChart.type === "line"
+                                      ? "Line Name"
+                                      : editedChart.type === "pie" ||
+                                        editedChart.type === "donut"
+                                      ? "Value Name"
+                                      : editedChart.type === "bubble"
+                                      ? "Bubble Name"
+                                      : editedChart.type === "scatter"
+                                      ? "Point Name"
+                                      : editedChart.type === "radar"
+                                      ? "Metric Name"
+                                      : editedChart.type === "combo_chart"
+                                      ? index === 0 ? "Bar Name" : "Line Name"
+                                      : "Series Name"}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={series.name}
+                                    onChange={(e) =>
+                                      updateSeriesProperty(
+                                        index,
+                                        "name",
+                                        e.target.value
+                                      )
+                                    }
+                                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                    placeholder="Enter series name"
+                                  />
+                                </div>
+                                  <div className={`grid gap-3 ${editedChart.type === "scatter" || editedChart.type === "radar" ? "grid-cols-1" : "grid-cols-2"}`}>
+                                  <div className="space-y-2">
+                                      <label className="text-sm font-medium text-gray-700">
+                                      {editedChart.type === "bubble" ? "Y-Axis Column" : "Column"}
                                     </label>
-                                    <input
-                                      type="text"
-                                      value={series.name}
+                                    <select
+                                      value={series.column}
                                       onChange={(e) =>
                                         updateSeriesProperty(
                                           index,
-                                          "name",
+                                          "column",
                                           e.target.value
                                         )
                                       }
-                                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                                      placeholder="Enter series name"
-                                    />
-                                  </div>
-                                  <div className={`grid gap-3 ${editedChart.type === "scatter" || editedChart.type === "radar" ? "grid-cols-1" : "grid-cols-2"}`}>
-                                    <div className="space-y-2">
-                                      <label className="text-sm font-medium text-gray-700">
-                                        {editedChart.type === "bubble" ? "Y-Axis Column" : "Column"}
-                                      </label>
-                                      <select
-                                        value={series.column}
-                                        onChange={(e) =>
-                                          updateSeriesProperty(
-                                            index,
-                                            "column",
-                                            e.target.value
-                                          )
-                                        }
                                         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                                      >
+                                    >
                                       <option value="">Select column</option>
                                       {getAvailableColumns().map((col) => (
                                         <option
@@ -2777,22 +3386,22 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                       </select>
                                     </div>
                                   )}
-                                    {editedChart.type !== "scatter" && editedChart.type !== "radar" && (
-                                      <div className="space-y-2">
+                                  {editedChart.type !== "scatter" && editedChart.type !== "radar" && (
+                                    <div className="space-y-2">
                                         <label className="text-sm font-medium text-gray-700">
-                                          Aggregation
-                                        </label>
-                                        <select
-                                          value={series.aggregation}
-                                          onChange={(e) =>
-                                            updateSeriesProperty(
-                                              index,
-                                              "aggregation",
-                                              e.target.value
-                                            )
-                                          }
+                                        Aggregation
+                                      </label>
+                                      <select
+                                        value={series.aggregation}
+                                        onChange={(e) =>
+                                          updateSeriesProperty(
+                                            index,
+                                            "aggregation",
+                                            e.target.value
+                                          )
+                                        }
                                           className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                                        >
+                                      >
                                         {AGGREGATION_TYPES.map((agg) => (
                                           <option
                                             key={agg.value}
@@ -2809,31 +3418,31 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                             </div>
                           ))}
 
-                            {/* Add Series Button */}
+                          {/* Add Series Button */}
                             <button
-                              onClick={addSeries}
+                            onClick={addSeries}
                               className="w-full border border-dashed border-gray-300 rounded px-3 py-2 text-xs text-gray-600 hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center space-x-1"
-                            >
+                          >
                               <Plus className="h-3 w-3" />
                               <span>
-                                Add{" "}
-                                {editedChart.type === "line"
-                                  ? "Line"
-                                  : editedChart.type === "pie" ||
-                                    editedChart.type === "donut"
-                                  ? "Value"
-                                  : editedChart.type === "bubble"
-                                  ? "Bubble"
-                                  : editedChart.type === "scatter"
-                                  ? "Point"
-                                  : editedChart.type === "radar"
-                                  ? "Metric"
-                                  : editedChart.type === "combo_chart"
-                                  ? "Series"
-                                  : "Series"}
+                            Add{" "}
+                            {editedChart.type === "line"
+                              ? "Line"
+                              : editedChart.type === "pie" ||
+                                editedChart.type === "donut"
+                              ? "Value"
+                              : editedChart.type === "bubble"
+                              ? "Bubble"
+                              : editedChart.type === "scatter"
+                              ? "Point"
+                              : editedChart.type === "radar"
+                              ? "Metric"
+                              : editedChart.type === "combo_chart"
+                              ? "Series"
+                              : "Series"}
                               </span>
                             </button>
-                          </div>
+                        </div>
                         </div>
                       </div>
                     </div>
@@ -2883,50 +3492,44 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                             </select>
                           </div>
                         </div>
-                      </div>
-                      
+                    </div>
+
                       {/* KPI Value Configuration */}
                       <div className="space-y-4">
                         <div>
                           <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
-                            Value Configuration
+                              Value Configuration
                           </h4>
                           <div className="space-y-4">
-                            {/* Formula */}
-                            <div className="space-y-2">
+                          {/* Formula */}
+                          <div className="space-y-2">
                               <label className="text-sm font-medium text-gray-700">
-                                Formula
-                              </label>
-                              <input
-                                type="text"
-                                value={editedKPI.value_formula}
-                                onChange={(e) =>
-                                  updateKPIProperty(
-                                    "value_formula",
-                                    e.target.value
-                                  )
-                                }
+                              Formula
+                            </label>
+                            <input
+                              type="text"
+                              value={editedKPI.value_formula}
+                              onChange={(e) =>
+                                updateKPIProperty(
+                                  "value_formula",
+                                  e.target.value
+                                )
+                              }
                                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                                placeholder="e.g., =SUM(G2:G)"
-                              />
-                            </div>
+                              placeholder="e.g., =SUM(G2:G)"
+                            />
+                          </div>
 
-                            {/* Format */}
-                            <div className="space-y-2">
+                          {/* Format */}
+                          <div className="space-y-2">
                               <label className="text-sm font-medium text-gray-700">
-                                Format
-                              </label>
-                              <select
-                                value={editedKPI.format_type}
-                                onChange={(e) => {
-                                  if (e.target.value === "currency:custom") {
-                                    setShowCurrencyModal(true);
-                                  } else {
-                                    updateKPIProperty("format_type", e.target.value);
-                                  }
-                                }}
+                              Format
+                            </label>
+                            <select
+                              value={editedKPI.format_type}
+                                onChange={(e) => updateKPIProperty("format_type", e.target.value)}
                                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                              >
+                            >
                               {/* Show custom currency if selected */}
                               {editedKPI.format_type.startsWith("currency:") && !KPI_FORMATS.some(f => f.value === editedKPI.format_type) && (
                                 <option value={editedKPI.format_type}>
@@ -2941,22 +3544,22 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                             </select>
                           </div>
 
-                            {/* Unit */}
-                            <div className="space-y-2">
+                          {/* Unit */}
+                          <div className="space-y-2">
                               <label className="text-sm font-medium text-gray-700">
-                                Unit (optional)
-                              </label>
-                              <input
-                                type="text"
-                                value={editedKPI.unit}
-                                onChange={(e) =>
-                                  updateKPIProperty("unit", e.target.value)
-                                }
+                              Unit (optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={editedKPI.unit}
+                              onChange={(e) =>
+                                updateKPIProperty("unit", e.target.value)
+                              }
                                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                                placeholder="e.g., %, units, etc."
-                              />
-                            </div>
+                              placeholder="e.g., %, units, etc."
+                            />
                           </div>
+                        </div>
                         </div>
                       </div>
                     </div>
@@ -2968,16 +3571,235 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             {/* Clean Actions */}
             <div className="border-t border-gray-200 bg-gray-50 p-4">
               <div className="flex space-x-3">
-                <Button
-                  onClick={editedChart ? handleSaveChart : editedKPI ? handleSaveKPI : handleSaveDashboard}
+                <SaveChangesButton
+                  onSave={editedChart ? handleSaveChart : editedKPI ? handleSaveKPI : handleSaveDashboard}
                   className="flex-1"
-                  size="sm"
-                  disabled={isSaving || !hasUnsavedChanges}
-                >
-                  {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {isSaving ? "Saving..." : "Save Changes"}
-                </Button>
+                />
                 <Button onClick={handleCloseEditor} variant="outline" size="sm">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dashboard Settings Content */}
+        {isDashboardSettingsOpen && editedDashboard && (
+          <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-4 bg-gray-50 flex-shrink-0">
+              <div className="flex items-center space-x-2">
+                <h3 className="text-sm font-medium text-gray-700">
+                  Dashboard Settings
+                </h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                {hasUnsavedChanges && (
+                  <div className="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">
+                    <div className="mr-1 h-1.5 w-1.5 rounded-full bg-yellow-400" />
+                    Unsaved
+                  </div>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCloseDashboardSettings}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto bg-white min-h-0">
+              <div className="space-y-6 p-4">
+                <div>
+                  <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Dashboard Properties</h4>
+                  <div className="space-y-4">
+                    {/* Dashboard Name */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editedDashboard.name}
+                        onChange={(e) =>
+                          updateDashboardProperty("name", e.target.value)
+                        }
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                        placeholder="Enter dashboard name"
+                      />
+                    </div>
+
+                    {/* Dashboard Description */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Description
+                      </label>
+                      <textarea
+                        value={editedDashboard.description}
+                        onChange={(e) =>
+                          updateDashboardProperty("description", e.target.value)
+                        }
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none min-h-[80px] resize-none"
+                        placeholder="Enter dashboard description"
+                      />
+                    </div>
+
+                    {/* Dashboard Icon */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Icon
+                      </label>
+                      <select
+                        value={editedDashboard.icon}
+                        onChange={(e) =>
+                          updateDashboardProperty("icon", e.target.value)
+                        }
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                      >
+                        {DASHBOARD_ICONS.map((icon) => (
+                          <option key={icon.value} value={icon.value}>
+                            {icon.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer - Sticky */}
+            <div className="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 flex-shrink-0">
+              <div className="flex space-x-3">
+                <SaveChangesButton onSave={handleSaveDashboard} className="flex-1" />
+                <Button onClick={handleCloseDashboardSettings} variant="outline" size="sm">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Filters Content */}
+        {isFiltersOpen && (
+          <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-4 bg-gray-50 flex-shrink-0">
+              <div className="flex items-center space-x-2">
+                <h3 className="text-sm font-medium text-gray-700">
+                  Filters
+                </h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCloseFilters}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto bg-white min-h-0">
+              <div className="space-y-6 p-4">
+                <div>
+                  <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Dashboard Filters</h4>
+                  <div className="space-y-4">
+                    {(editedDashboard?.filters || []).map((filter, index) => (
+                      <div
+                        key={index}
+                        className="rounded border border-gray-200 bg-gray-50/50 p-3 space-y-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-sm font-medium text-gray-700">
+                            Filter {index + 1}
+                          </h5>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFilter(index)}
+                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">
+                              Name
+                            </label>
+                            <input
+                              type="text"
+                              value={filter.name}
+                              onChange={(e) =>
+                                updateFilter(index, "name", e.target.value)
+                              }
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              placeholder="Filter name"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">
+                              Type
+                            </label>
+                            <select
+                              value={filter.type}
+                              onChange={(e) =>
+                                updateFilter(index, "type", e.target.value)
+                              }
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                            >
+                              {FILTER_TYPES.map((type) => (
+                                <option key={type.value} value={type.value}>
+                                  {type.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">
+                              Formula
+                            </label>
+                            <textarea
+                              value={filter.values_formula}
+                              onChange={(e) =>
+                                updateFilter(index, "values_formula", e.target.value)
+                              }
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none min-h-[80px] resize-none font-mono"
+                              placeholder="e.g., =unique(B2:B) or =unique(E2:E)"
+                            />
+                            <p className="text-xs text-gray-500">
+                              Use Excel-style formulas like =unique(B2:B) to get unique values from column B
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <button
+                      onClick={addFilter}
+                      className="w-full border border-dashed border-gray-300 rounded px-3 py-2 text-xs text-gray-600 hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center space-x-1"
+                    >
+                      <Plus className="h-3 w-3" />
+                      <span>Add Filter</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer - Sticky */}
+            <div className="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 flex-shrink-0">
+              <div className="flex space-x-3">
+                <SaveChangesButton onSave={handleSaveDashboard} className="flex-1" />
+                <Button onClick={handleCloseFilters} variant="outline" size="sm">
                   Cancel
                 </Button>
               </div>
@@ -3020,49 +3842,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           </div>
         </div>
       )}
-
-      {/* Custom Currency Modal */}
-      {showCurrencyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-h-96 overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Select Currency</h3>
-              <button
-                onClick={() => setShowCurrencyModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
             </div>
-            
-            <div className="flex-1 overflow-y-auto">
-              <div className="space-y-1">
-                {CUSTOM_CURRENCIES.map((currency) => (
-                  <button
-                    key={currency.value}
-                    onClick={() => {
-                      updateKPIProperty("format_type", currency.value);
-                      setShowCurrencyModal(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded"
-                  >
-                    {currency.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="mt-4 pt-4 border-t">
-              <button
-                onClick={() => setShowCurrencyModal(false)}
-                className="w-full px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

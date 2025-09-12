@@ -70,6 +70,14 @@ class DashboardCore {
       document.body.classList.add(`theme-${metadata.theme}`);
       console.log('Updated dashboard theme to:', metadata.theme);
     }
+    
+    // Update filters if they exist in metadata
+    if (metadata.hasOwnProperty('filters')) {
+      if (this.config) {
+        this.config.filters = metadata.filters || [];
+        this.initializeFilters();
+      }
+    }
   }
 
   /**
@@ -81,6 +89,9 @@ class DashboardCore {
 
     // Always show skeleton loading initially
     this.initializeComponentsWithSkeleton();
+      
+      // Initialize filter components with JavaScript rendering
+      this.initializeFilters();
 
     // Set up a listener for when CSV data becomes available
     this.setupDataListener();
@@ -96,6 +107,7 @@ class DashboardCore {
         // Data is loaded, transition to actual data
         this.transitionToData();
         this.updateDashboardData();
+        this.initializeFilters();
       } else {
         // Data not ready yet, check again in 100ms
         setTimeout(checkData, 100);
@@ -104,6 +116,58 @@ class DashboardCore {
 
     // Start checking
     checkData();
+  }
+
+  initializeFilters() {
+    // Initialize filters using JavaScript rendering (similar to KPIs and charts)
+    const hasFilters = this.config && this.config.filters && this.config.filters.length > 0;
+    
+    // Find the existing filters container (rendered server-side)
+    const filtersContainer = document.querySelector('section.bg-white.shadow-sm.border-b');
+    
+    if (hasFilters) {
+      console.log('🔄 Initializing filters with JavaScript rendering:', this.config.filters);
+      
+      // Initialize dynamic filters system if not already done
+      if (window.dynamicFilters && !window.dynamicFilters.initialized) {
+        console.log('🔧 Initializing dynamic filters system...');
+        window.dynamicFilters.initialize(this.config);
+      }
+      
+      if (!filtersContainer) {
+        console.warn('No filters container found - filters may not be rendered');
+        return;
+      }
+      
+      // Show the filters container
+      filtersContainer.style.display = 'block';
+      
+      // Get the grid container for filters
+      const gridContainer = filtersContainer.querySelector('.grid');
+      if (!gridContainer) {
+        console.error('Could not find grid container for filters');
+        return;
+      }
+      
+      // Clear existing server-side rendered filters
+      const existingFilters = gridContainer.querySelectorAll('.filter-component');
+      existingFilters.forEach(filter => filter.remove());
+      
+      // Render all filters using JavaScript
+      this.config.filters.forEach(filter => {
+        const filterHTML = window.FilterRenderer.renderFilter(filter);
+        gridContainer.insertAdjacentHTML('beforeend', filterHTML);
+      });
+      
+      console.log('✅ Successfully initialized', this.config.filters.length, 'filters');
+    } else {
+      console.log('No filters to initialize - hiding filters section');
+      
+      // Hide the filters container if it exists
+      if (filtersContainer) {
+        filtersContainer.style.display = 'none';
+      }
+    }
   }
 
   /**
@@ -514,8 +578,225 @@ window.addEventListener("message", (event) => {
         window.updateKPI(newId);
       }
     }
-  } else if (event.data.type === "update-dashboard-metadata") {
+  } else if (event.data.type === "update-filter-data-attributes") {
+    const { filterId, config } = event.data;
+    console.log('🎯 Received update-filter-data-attributes message:', { filterId, config });
+    
+    // Update filter using the specific filter update system (similar to KPI/chart updates)
+    try {
+      // First, try to find the filter container
+      let filterContainer = document.getElementById(filterId);
+      
+      // If not found, try variations
+      if (!filterContainer) {
+        // Try different ID patterns
+        const variations = [
+          filterId + '_container',
+          filterId + '_button', 
+          filterId + '_dropdown',
+          filterId.replace('_dropdown', '_button'),
+          filterId.replace('_dropdown', ''),
+          filterId.replace('_button', '_dropdown'),
+          filterId.replace('_button', '')
+        ];
+        
+        for (const variation of variations) {
+          filterContainer = document.getElementById(variation);
+          if (filterContainer) {
+            console.log('✅ Found filter container with variation:', variation);
+            break;
+          }
+        }
+      }
+      
+      console.log('🔍 Looking for filter container with ID:', filterId);
+      console.log('🔍 Found filter container:', filterContainer);
+      
+      if (filterContainer) {
+        console.log('✅ Found filter container:', filterId, filterContainer);
+        
+        // Update the filter display text in the button (for name changes)
+        const baseId = filterId.replace('_dropdown', '');
+        
+        // Update the display text in the button (e.g., "Select Branch" -> "Select Branchi")
+        const displayElement = document.getElementById(baseId + '_display');
+        if (displayElement) {
+          console.log('🔍 Found display element, updating from:', displayElement.textContent, 'to:', 'Select ' + config.name);
+          displayElement.textContent = 'Select ' + config.name;
+          console.log('✅ Updated filter display to:', 'Select ' + config.name);
+        } else {
+          console.log('❌ No display element found for:', baseId + '_display');
+        }
+        
+        // Update the main filter label (the one with class "block text-sm font-medium text-gray-700 mb-2")
+        // First, try to find the label within the filter component
+        const filterComponent = document.querySelector(`#${baseId}`) || document.querySelector(`[id*="${baseId}"]`);
+        let mainLabel = null;
+        
+        if (filterComponent) {
+          mainLabel = filterComponent.querySelector('label.block.text-sm.font-medium.text-gray-700.mb-2');
+          if (mainLabel) {
+            console.log('🔍 Found label in filter component, updating from:', mainLabel.textContent, 'to:', config.name);
+            mainLabel.textContent = config.name;
+            console.log('✅ Updated filter component label to:', config.name);
+          }
+        }
+        
+        // If not found in component, try to find by looking for labels with the old name
+        if (!mainLabel) {
+          const allLabels = document.querySelectorAll('label.block.text-sm.font-medium.text-gray-700.mb-2');
+          for (const label of allLabels) {
+            // Check if this label is associated with our filter by looking at nearby elements
+            const parent = label.parentElement;
+            if (parent && (parent.querySelector(`#${baseId}`) || parent.querySelector(`[id*="${baseId}"]`))) {
+              console.log('🔍 Found associated label, updating from:', label.textContent, 'to:', config.name);
+              label.textContent = config.name;
+              console.log('✅ Updated associated label to:', config.name);
+              mainLabel = label;
+              break;
+            }
+          }
+        }
+        
+        // Final fallback: find any label that looks like a filter name
+        if (!mainLabel) {
+          const allLabels = document.querySelectorAll('label');
+          for (const label of allLabels) {
+            if (label.textContent && (label.textContent.includes('Branch') || label.textContent.includes('Payment') || label.textContent.includes('Customer'))) {
+              console.log('🔍 Found fallback label, updating from:', label.textContent, 'to:', config.name);
+              label.textContent = config.name;
+              console.log('✅ Updated fallback label to:', config.name);
+              break;
+            }
+          }
+        }
+        
+        // Update dropdown values if formula changed (for formula changes)
+        if (config.values_formula) {
+          console.log('🔍 Updating dropdown values with formula:', config.values_formula);
+          try {
+            // Try to compute new values from the formula
+            let newValues = [];
+            if (window.dynamicFilters && window.dynamicFilters.computeFilterValues) {
+              newValues = window.dynamicFilters.computeFilterValues(config.values_formula);
+            } else {
+              // Fallback: try to evaluate the formula directly
+              const formula = config.values_formula.replace(/^=/, '');
+              if (formula.startsWith('unique(')) {
+                // Extract column from formula like =unique(B2:B)
+                const columnMatch = formula.match(/unique\(([A-Z]+)2:[A-Z]+\)/);
+                if (columnMatch) {
+                  const column = columnMatch[1];
+                  if (window.dashboardData) {
+                    newValues = [...new Set(window.dashboardData.map(row => row[column]))].filter(v => v !== null && v !== undefined);
+                  }
+                }
+              }
+            }
+            
+            console.log('🔍 Computed new values:', newValues);
+            
+            // Update the dropdown options
+            const optionsContainer = document.getElementById(baseId + '_options');
+            if (optionsContainer && newValues.length > 0) {
+              console.log('🔍 Updating options container with new values');
+              optionsContainer.innerHTML = '';
+              
+              newValues.forEach((value, index) => {
+                const optionDiv = document.createElement('div');
+                optionDiv.className = 'filter-item px-2 py-1 text-sm rounded';
+                optionDiv.onclick = `if (event.target === this) toggleFilterOption('${baseId}', '${value}', '${config.name}')`;
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `${baseId}_${value}`;
+                checkbox.className = 'mr-2';
+                checkbox.onchange = `updateListFilter('${baseId}', '${config.name}')`;
+                
+                const label = document.createElement('label');
+                label.htmlFor = `${baseId}_${value}`;
+                label.className = 'cursor-pointer';
+                label.textContent = value;
+                
+                optionDiv.appendChild(checkbox);
+                optionDiv.appendChild(label);
+                optionsContainer.appendChild(optionDiv);
+              });
+              
+              console.log('✅ Updated dropdown options with new values');
+            }
+          } catch (error) {
+            console.warn('Error computing filter values:', error);
+          }
+        }
+        
+        // Update data attributes that might be used by the filter system
+        filterContainer.setAttribute('data-filter-name', config.name);
+        filterContainer.setAttribute('data-filter-type', config.type);
+        filterContainer.setAttribute('data-values-formula', config.values_formula);
+        
+        // Try to reinitialize the filter with new values
+        if (window.dashboard && window.dashboard.initializeFilter) {
+          window.dashboard.initializeFilter(config, false);
+          console.log('Successfully reinitialized filter:', filterId);
+        } else {
+          // Fallback to direct filter initialization functions
+          let values = [];
+          
+          if (window.dynamicFilters && window.dynamicFilters.initialized) {
+            try {
+              values = window.dynamicFilters.computeFilterValues(config.values_formula);
+            } catch (error) {
+              console.warn('Error computing filter values:', error);
+              values = [];
+            }
+          }
+          
+          if (config.type === 'list') {
+            window.initializeListFilter && window.initializeListFilter(filterId, values || [], config.name);
+          } else if (config.type === 'number_range') {
+            window.initializeRangeFilter && window.initializeRangeFilter(filterId, values || [], config.name);
+          } else if (config.type === 'date_range') {
+            window.initializeDateRangeFilter && window.initializeDateRangeFilter(filterId, values || [], config.name);
+          }
+          console.log('Reinitialized filter using fallback method:', filterId);
+        }
+      } else {
+        console.warn('❌ Filter container not found for:', filterId);
+        console.log('🔍 Available elements with similar IDs:');
+        const allElements = document.querySelectorAll('[id*="' + filterId + '"]');
+        allElements.forEach(el => console.log('  -', el.id, el));
+        
+        // Also check for all filter-related elements
+        console.log('🔍 All filter-related elements in DOM:');
+        const allFilterElements = document.querySelectorAll('[id*="filter"], [class*="filter"]');
+        allFilterElements.forEach(el => console.log('  -', el.id, el.className, el));
+      }
+     } catch (error) {
+       console.error('Error updating filter data attributes:', error);
+     }
+   } else if (event.data.type === "update-filter-config") {
+     // New JavaScript-based filter update system
+     const { filterId, config } = event.data;
+     console.log('🎯 Received update-filter-config message:', { filterId, config });
+     
+     try {
+       // Update the filter configuration using the new system
+       if (window.updateFilterConfig) {
+         window.updateFilterConfig(filterId, config);
+         console.log('✅ Updated filter using JavaScript rendering system:', filterId);
+       } else {
+         console.warn('❌ updateFilterConfig function not available, falling back to old method');
+         // Fallback to old method if new system not available
+         this.updateFilterLegacy(filterId, config);
+       }
+     } catch (error) {
+       console.error('Error updating filter:', error);
+     }
+   } else if (event.data.type === "update-dashboard-metadata") {
     const { dashboardMetadata } = event.data;
+    console.log('📥 Received update-dashboard-metadata message:', dashboardMetadata);
+    console.log('📥 Filters in message:', dashboardMetadata.filters);
     
     // Use the robust updateMetadata method
     if (window.dashboard && window.dashboard.updateMetadata) {
@@ -535,43 +816,19 @@ window.addEventListener("message", (event) => {
           values_formula: filter.values_formula
         }));
         
-        // Reinitialize filters with new configuration
-        dashboardMetadata.filters.forEach(filter => {
-          try {
-            window.dashboard.initializeFilter(filter, false);
-          } catch (error) {
-            console.warn('Error reinitializing filter:', filter.id, error);
-            // Fallback to individual filter initialization functions
-            try {
-              if (filter.type === 'list') {
-                window.initializeListFilter && window.initializeListFilter(filter.id, [], filter.name);
-              } else if (filter.type === 'number_range') {
-                window.initializeRangeFilter && window.initializeRangeFilter(filter.id, [], filter.name);
-              } else if (filter.type === 'date_range') {
-                window.initializeDateRangeFilter && window.initializeDateRangeFilter(filter.id, [], filter.name);
-              }
-            } catch (fallbackError) {
-              console.warn('Error with fallback filter initialization:', filter.id, fallbackError);
-            }
+        // Update dynamic filters system with new configuration
+        if (window.dynamicFilters) {
+          window.dynamicFilters.filterConfigs = dashboardMetadata.filters;
+          // Re-initialize if not already done
+          if (!window.dynamicFilters.initialized) {
+            console.log('🔧 Re-initializing dynamic filters system with new config...');
+            window.dynamicFilters.initialize({ metadata: window.dashboard.config.metadata, filters: dashboardMetadata.filters });
           }
-        });
+        }
         
-        // Also try to update any existing filter containers in the DOM
-        dashboardMetadata.filters.forEach(filter => {
-          const filterContainer = document.getElementById(filter.id);
-          if (filterContainer) {
-            // Update the filter label/name if it exists
-            const label = filterContainer.querySelector('label, .filter-label, .filter-name');
-            if (label) {
-              label.textContent = filter.name;
-            }
-            
-            // Update data attributes that might be used by the filter system
-            filterContainer.setAttribute('data-filter-name', filter.name);
-            filterContainer.setAttribute('data-filter-type', filter.type);
-            filterContainer.setAttribute('data-values-formula', filter.values_formula);
-          }
-        });
+        // Reinitialize all filters to handle additions, removals, and changes
+        console.log('🔄 Reinitializing all filters with new configuration:', dashboardMetadata.filters);
+        window.dashboard.initializeFilters();
       }
     }
     
@@ -587,12 +844,340 @@ window.addEventListener("message", (event) => {
     console.log('Dashboard metadata updated:', dashboardMetadata);
   } else if (event.data.type === "dashboard-saved") {
     const { dashboardMetadata } = event.data;
-    console.log('Dashboard saved:', dashboardMetadata);
+    console.log('💾 Dashboard saved:', dashboardMetadata);
     
-    // Show save success notification or update UI as needed
-    // This could trigger any post-save updates to the dashboard
+    // Update the dashboard configuration with the saved metadata
+    if (window.dashboard && window.dashboard.config) {
+      // Update filters in the dashboard config
+      if (dashboardMetadata.filters) {
+        window.dashboard.config.filters = dashboardMetadata.filters.map(filter => ({
+          id: filter.id,
+          name: filter.name,
+          type: filter.type,
+          values_formula: filter.values_formula
+        }));
+        
+        // Update dynamic filters system with saved configuration
+        if (window.dynamicFilters) {
+          window.dynamicFilters.filterConfigs = dashboardMetadata.filters;
+        }
+        
+        console.log('💾 Updated dashboard config with saved filters:', window.dashboard.config.filters);
+      }
+    }
+  } else if (event.data.type === "clear-selection") {
+    // Clear all selection borders from charts and KPIs
+    // The selection styling is applied by the parent component, so we need to remove those classes
+    const highlightClasses = ['ring-2', 'ring-blue-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-blue-50/40', 'bg-green-50/40', 'selected-chart', 'selected-kpi', 'ring-1', 'ring-blue-300', 'ring-opacity-40', 'shadow-sm', 'scale-[1.01]', 'bg-blue-50/20', 'bg-green-50/20'];
+    
+    // Target all chart and KPI containers
+    const chartContainers = document.querySelectorAll('div[id*="chart_"][id$="_container"]');
+    const kpiContainers = document.querySelectorAll('div[id*="kpi_"][id$="_container"]');
+    
+    [...chartContainers, ...kpiContainers].forEach(container => {
+      // Remove all highlighting classes
+      container.classList.remove(...highlightClasses);
+      
+      // Reset any inline styles that might have been applied
+      container.style.transition = '';
+      container.style.borderRadius = '';
+    });
+    
+    console.log('Selection cleared from dashboard');
   }
 });
+
+// JavaScript-based Filter Rendering System
+window.FilterRenderer = {
+  // Render a single filter component
+  renderFilter(filterConfig) {
+    const { id, name, type, values_formula } = filterConfig;
+    const baseId = id.replace('_dropdown', '');
+    
+    // Create the filter component HTML
+    const filterHTML = `
+      <div class="filter-component" id="${baseId}">
+        <label class="block text-sm font-medium text-gray-700 mb-2">${name}</label>
+        ${this.renderFilterInput(baseId, name, type, values_formula)}
+      </div>
+    `;
+    
+    return filterHTML;
+  },
+  
+  // Render the appropriate input based on filter type
+  renderFilterInput(baseId, name, type, values_formula) {
+    // Clear any existing range info that might be left over
+    const existingRangeInfo = document.getElementById(baseId + '_range_info');
+    if (existingRangeInfo) {
+      existingRangeInfo.remove();
+    }
+    
+    switch (type) {
+      case 'list':
+        return this.renderListFilter(baseId, name, values_formula);
+      case 'number_range':
+        return this.renderRangeFilter(baseId, name, values_formula);
+      case 'date_range':
+        return this.renderDateRangeFilter(baseId, name, values_formula);
+      default:
+        return this.renderListFilter(baseId, name, values_formula);
+    }
+  },
+  
+  // Render list filter (dropdown)
+  renderListFilter(baseId, name, values_formula) {
+    const values = this.computeFilterValues(values_formula);
+    
+    return `
+      <div class="relative">
+        <button 
+          id="${baseId}_button" 
+          onclick="toggleFilterDropdown('${baseId}')"
+          class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between"
+        >
+          <span id="${baseId}_display" class="text-gray-700">Select ${name}</span>
+          <i class="fas fa-chevron-down text-gray-400"></i>
+        </button>
+        
+        <div id="${baseId}_dropdown" class="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg hidden">
+          <div class="p-2 border-b">
+            <input 
+              type="text" 
+              id="${baseId}_search" 
+              placeholder="Search..." 
+              class="w-full px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500" 
+              onkeyup="filterDropdownOptions('${baseId}')"
+            >
+          </div>
+          <div class="filter-container p-1" id="${baseId}_options">
+            ${this.renderFilterOptions(baseId, name, values)}
+          </div>
+          <div class="p-2 border-t bg-gray-50 flex justify-end">
+            <button 
+              onclick="clearFilterSelection('${baseId}', '${name}')"
+              class="text-xs text-red-600 hover:text-red-800">Clear</button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+  
+  // Render range filter
+  renderRangeFilter(baseId, name, values_formula) {
+    // Calculate min/max values from the formula
+    const values = this.computeFilterValues(values_formula);
+    let minVal = '';
+    let maxVal = '';
+    
+    if (values.length > 0) {
+      const numericValues = values.filter(v => !isNaN(parseFloat(v))).map(v => parseFloat(v));
+      if (numericValues.length > 0) {
+        minVal = Math.min(...numericValues);
+        maxVal = Math.max(...numericValues);
+      }
+    }
+    
+    return `
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <input 
+            type="number" 
+            id="${baseId}_min" 
+            placeholder="Min" 
+            value="${minVal}"
+            min="${minVal}"
+            max="${maxVal}"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            onblur="validateAndUpdateRangeFilter('${baseId}', '${name}', 'min')"
+            onchange="validateAndUpdateRangeFilter('${baseId}', '${name}', 'min')"
+          >
+        </div>
+        <div>
+          <input 
+            type="number" 
+            id="${baseId}_max" 
+            placeholder="Max" 
+            value="${maxVal}"
+            min="${minVal}"
+            max="${maxVal}"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            onblur="validateAndUpdateRangeFilter('${baseId}', '${name}', 'max')"
+            onchange="validateAndUpdateRangeFilter('${baseId}', '${name}', 'max')"
+          >
+        </div>
+      </div>
+      <div class="mt-1 text-xs text-gray-500" id="${baseId}_range_info">
+        Range: <span id="${baseId}_min_val">${minVal || '-'}</span> to <span id="${baseId}_max_val">${maxVal || '-'}</span>
+      </div>
+    `;
+  },
+  
+  // Render date range filter
+  renderDateRangeFilter(baseId, name, values_formula) {
+    return `
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <input 
+            type="date" 
+            id="${baseId}_start" 
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            onblur="validateAndUpdateDateRangeFilter('${baseId}', '${name}', 'start')"
+            onchange="validateAndUpdateDateRangeFilter('${baseId}', '${name}', 'start')"
+          >
+        </div>
+        <div>
+          <input 
+            type="date" 
+            id="${baseId}_end" 
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            onblur="validateAndUpdateDateRangeFilter('${baseId}', '${name}', 'end')"
+            onchange="validateAndUpdateDateRangeFilter('${baseId}', '${name}', 'end')"
+          >
+        </div>
+      </div>
+    `;
+  },
+  
+  // Render filter options for list filters
+  renderFilterOptions(baseId, name, values) {
+    return values.map(value => `
+      <div class="filter-item px-2 py-1 text-sm rounded" onclick="if (event.target === this) toggleFilterOption('${baseId}', '${value}', '${name}')">
+        <input type="checkbox" id="${baseId}_${value}" class="mr-2" onchange="updateListFilter('${baseId}', '${name}')">
+        <label for="${baseId}_${value}" class="cursor-pointer">${value}</label>
+      </div>
+    `).join('');
+  },
+  
+  // Compute filter values from formula
+  computeFilterValues(formula) {
+    if (!formula) return [];
+    
+    try {
+      if (window.dynamicFilters && window.dynamicFilters.initialized && window.dynamicFilters.computeFilterValues) {
+        return window.dynamicFilters.computeFilterValues(formula);
+      } else {
+        console.log('🔄 Dynamic filters not ready, using fallback for formula:', formula);
+        // Fallback: try to evaluate the formula directly
+        const cleanFormula = formula.replace(/^=/, '');
+        if (cleanFormula.startsWith('unique(')) {
+          // Extract column from formula like =unique(B2:B)
+          const columnMatch = cleanFormula.match(/unique\(([A-Z]+)2:[A-Z]+\)/);
+          if (columnMatch) {
+            const column = columnMatch[1];
+            if (window.dashboardData) {
+              return [...new Set(window.dashboardData.map(row => row[column]))].filter(v => v !== null && v !== undefined);
+            }
+          }
+        } else if (cleanFormula.startsWith('min(') || cleanFormula.startsWith('max(')) {
+          // Handle min/max formulas for range filters
+          const columnMatch = cleanFormula.match(/(min|max)\(([A-Z]+)2:[A-Z]+\)/);
+          if (columnMatch) {
+            const column = columnMatch[2];
+            if (window.dashboardData) {
+              const values = window.dashboardData.map(row => row[column]).filter(v => v !== null && v !== undefined && !isNaN(parseFloat(v)));
+              if (values.length > 0) {
+                const numericValues = values.map(v => parseFloat(v));
+                return [columnMatch[1] === 'min' ? Math.min(...numericValues) : Math.max(...numericValues)];
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('Error computing filter values:', error);
+    }
+    
+    return [];
+  },
+  
+  // Update an existing filter
+  updateFilter(filterId, config) {
+    const baseId = filterId.replace('_dropdown', '');
+    const filterElement = document.getElementById(baseId);
+    
+    if (filterElement) {
+      // Update the label
+      const label = filterElement.querySelector('label.block.text-sm.font-medium.text-gray-700.mb-2');
+      if (label) {
+        label.textContent = config.name;
+      }
+      
+      // Update the display text (only for list filters)
+      const display = document.getElementById(baseId + '_display');
+      if (display) {
+        display.textContent = `Select ${config.name}`;
+      }
+      
+      // Update the input based on type - completely replace the input container
+      const inputContainer = filterElement.querySelector('.relative, .grid');
+      if (inputContainer) {
+        inputContainer.outerHTML = this.renderFilterInput(baseId, config.name, config.type, config.values_formula);
+      }
+      
+      // For range filters, calculate and update min/max values
+      if (config.type === 'number_range' && config.values_formula) {
+        this.updateRangeFilterValues(baseId, config.values_formula);
+      }
+      
+      console.log('✅ Updated filter using JavaScript renderer:', filterId);
+    } else {
+      console.warn('❌ Filter element not found for update:', baseId);
+    }
+  },
+  
+  // Update range filter min/max values
+  updateRangeFilterValues(baseId, values_formula) {
+    try {
+      // Calculate min and max values from the formula
+      const values = this.computeFilterValues(values_formula);
+      if (values.length > 0) {
+        const numericValues = values.filter(v => !isNaN(parseFloat(v))).map(v => parseFloat(v));
+        if (numericValues.length > 0) {
+          const minVal = Math.min(...numericValues);
+          const maxVal = Math.max(...numericValues);
+          
+          // Update the input values
+          const minInput = document.getElementById(baseId + '_min');
+          const maxInput = document.getElementById(baseId + '_max');
+          
+          if (minInput) {
+            minInput.value = minVal;
+            minInput.min = minVal;
+            minInput.max = maxVal;
+          }
+          if (maxInput) {
+            maxInput.value = maxVal;
+            maxInput.min = minVal;
+            maxInput.max = maxVal;
+          }
+          
+          // Update the range info display
+          const minValSpan = document.getElementById(baseId + '_min_val');
+          const maxValSpan = document.getElementById(baseId + '_max_val');
+          
+          if (minValSpan) minValSpan.textContent = minVal;
+          if (maxValSpan) maxValSpan.textContent = maxVal;
+          
+          console.log('✅ Updated range values:', { min: minVal, max: maxVal });
+        }
+      }
+    } catch (error) {
+      console.warn('Error updating range filter values:', error);
+    }
+  }
+};
+
+// Global filter management functions
+window.updateFilterConfig = function(filterId, config) {
+  window.FilterRenderer.updateFilter(filterId, config);
+};
+
+window.reRenderAllFilterComponents = function() {
+  if (window.dashboard) {
+    window.dashboard.initializeFilters();
+  }
+};
 
 // Create global dashboard instance
 window.dashboard = new DashboardCore();
