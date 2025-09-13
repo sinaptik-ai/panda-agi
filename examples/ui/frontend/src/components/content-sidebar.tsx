@@ -24,6 +24,7 @@ import {
 import ArtifactActions from "./artifact-actions";
 import { ArtifactData } from "@/types/artifact";
 import { useSavedArtifacts } from "@/contexts/saved-artifacts-context";
+import ChartRenderer from "./events/chart-renderer";
 
 export interface PreviewData {
   title?: string;
@@ -556,6 +557,16 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       case "iframe":
         return renderIframe(previewData.url!, previewData.title);
       case "pxml":
+        // Check if this is a chart PXML file
+        const pxmlContent = content as string;
+        if (pxmlContent && pxmlContent.trim().startsWith('<chart')) {
+          return (
+            <div className="h-full p-4 overflow-auto">
+              <ChartRenderer pxmlContent={pxmlContent} conversationId={conversationId} />
+            </div>
+          );
+        }
+        // For non-chart PXML files, use iframe
         return renderIframe(previewData.url!, previewData.title);
       case "markdown":
         return (

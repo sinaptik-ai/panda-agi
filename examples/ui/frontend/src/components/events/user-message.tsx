@@ -15,6 +15,8 @@ import { toast } from "react-hot-toast";
 import { downloadWithCheck } from "@/lib/utils";
 import { PLATFORM_MODE } from "@/lib/config";
 import { useSavedArtifacts } from "@/contexts/saved-artifacts-context";
+import { usePxmlChartDetection } from "@/hooks/usePxmlChartDetection";
+import ChartRenderer from "./chart-renderer";
 
 interface PreviewData {
   url: string;
@@ -333,6 +335,25 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
               const extension = filename.split(".").pop()?.toLowerCase();
               const attachmentName = getAttachmentName(filename);
               const isSavedArtifact = attachmentName !== filename;
+              const isPxmlFile = extension === 'pxml';
+              
+              // Use the hook to detect if this PXML file contains chart content
+              const { isChart, isLoading: isCheckingChart, content: pxmlContent } = usePxmlChartDetection(
+                isPxmlFile ? attachment : null,
+                conversationId,
+                timestamp
+              );
+
+              // If it's a PXML chart file, render it inline
+              if (isPxmlFile && isChart && !isCheckingChart && pxmlContent) {
+                return (
+                  <div key={index} className="flex justify-start">
+                    <div className="w-full max-w-4xl">
+                      <ChartRenderer pxmlContent={pxmlContent} conversationId={conversationId} />
+                    </div>
+                  </div>
+                );
+              }
 
               return (
                 <div key={index} className="flex justify-start">
