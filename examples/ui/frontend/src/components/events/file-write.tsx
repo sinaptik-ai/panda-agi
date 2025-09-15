@@ -1,5 +1,6 @@
 import React from "react";
 import { FileText, Eye } from "lucide-react";
+import { getFileType } from "@/lib/utils";
 
 interface FileWriteEventProps {
   payload?: {
@@ -32,49 +33,7 @@ const FileWriteEvent: React.FC<FileWriteEventProps> = ({
   };
 
   const handlePreviewClick = () => {
-    if (onPreviewClick && filename) {
-      const getFileType = (filePath: string): string => {
-        if (!filePath) return "text";
-        const extension = filePath.split(".").pop()?.toLowerCase();
-        if (extension && ["csv", "xls", "xlsx"].includes(extension))
-          return "table";
-        if (extension && ["md", "markdown", "txt"].includes(extension))
-          return "markdown";
-        if (extension && ["html", "htm"].includes(extension)) return "html";
-        if (
-          extension &&
-          [
-            "js",
-            "jsx",
-            "ts",
-            "tsx",
-            "py",
-            "java",
-            "c",
-            "cpp",
-            "go",
-            "rb",
-            "php",
-            "css",
-            "scss",
-            "json",
-            "xml",
-            "yaml",
-            "yml",
-          ].includes(extension)
-        )
-          return "code";
-        if (
-          extension &&
-          ["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(
-            extension
-          )
-        )
-          return "image";
-        if (extension === "pdf") return "pdf";
-        return "text";
-      };
-
+    if (onPreviewClick && filename) { 
       onPreviewClick({
         filename: filePath,
         title: filename.split("/").pop(),
@@ -84,29 +43,34 @@ const FileWriteEvent: React.FC<FileWriteEventProps> = ({
     }
   };
 
+
   return (
     <div className="flex justify-start mb-2">
-      <div className="flex items-center space-x-2 px-3 py-2 bg-white/90 rounded-xl">
-        <FileText className="w-3 h-3 text-green-600" />
-        <span className="text-xs text-slate-600 font-medium">
-          Created{" "}
-          <button
-            onClick={handlePreviewClick}
-            className="text-slate-800 hover:text-slate-900 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit font-semibold"
-            title="Click to open file"
-          >
-            {truncateFilename(filename?.split("/").pop() || filename)}
-          </button>
-        </span>
-        {payload.content && (
-          <button
-            onClick={handlePreviewClick}
-            className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-            title="View in preview"
-          >
-            <Eye className="w-3 h-3" />
-          </button>
-        )}
+      <div className="flex flex-col space-y-2 w-full">
+        {/* File creation notification */}
+        <div className="flex items-center space-x-2 px-3 py-2 bg-white/90 rounded-xl">
+          <FileText className="w-3 h-3 text-green-600" />
+          <span className="text-xs text-slate-600 font-medium">
+            Created{" "}
+            <button
+              onClick={handlePreviewClick}
+              className="text-slate-800 hover:text-slate-900 hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit font-semibold"
+              title="Click to open file"
+            >
+              {truncateFilename(filename?.split("/").pop() || filename)}
+            </button>
+          </span>
+          {payload.content && (
+            <button
+              onClick={handlePreviewClick}
+              className="flex items-center text-xs text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              title="View in preview"
+            >
+              <Eye className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+
       </div>
     </div>
   );

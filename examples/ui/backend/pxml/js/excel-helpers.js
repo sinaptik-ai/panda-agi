@@ -112,6 +112,28 @@ const ExcelHelpers = {
         return count;
     },
     
+    arrayAverageIf: function(range, criteria, averageRange) {
+        if (!Array.isArray(range)) return 0;
+        
+        // If averageRange is not provided, average the range itself
+        let avgArray = averageRange ? (Array.isArray(averageRange) ? averageRange : [averageRange]) : range;
+        
+        // If averageRange is a single value, create array of that value
+        if (!Array.isArray(avgArray)) {
+            avgArray = new Array(range.length).fill(averageRange);
+        }
+        
+        let sum = 0;
+        let count = 0;
+        for (let i = 0; i < Math.min(range.length, avgArray.length); i++) {
+            if (ExcelHelpers.meetsCriteria(range[i], criteria)) {
+                sum += Number(avgArray[i]) || 0;
+                count++;
+            }
+        }
+        return count > 0 ? sum / count : 0;
+    },
+    
     arrayIndex: function(array, rowNum, colNum) {
         if (!Array.isArray(array)) return null;
         

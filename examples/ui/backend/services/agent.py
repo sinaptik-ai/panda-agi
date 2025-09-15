@@ -86,8 +86,24 @@ async def event_stream(
                 result = await agent.environment.read_file(path=file_names[0])
                 if result["status"] == "success":
                     lines = result["content"].splitlines(keepends=True)
-                    content = "".join(lines[0:5])
-                    query = f"{query}\n\nHere are the first 5 rows of the file\n\n: {content}"
+                    header = lines[0]
+                    content = "".join(lines[1:6])
+                    column_mapping = ""
+                    for idx, col in enumerate(header.split(",")):
+                        letter = chr(65 + idx)  # A, B, C, ...
+                        column_mapping += f"{col} -> Column {letter}\n"
+                    query = f"""{query}
+
+Here the first rows of the CSV:
+```
+{content}
+```
+
+Mapping of the columns to the Excel letters:
+```
+{column_mapping}
+```
+"""
             except Exception as e:
                 logger.error("error reading file: ", e)
 
@@ -112,6 +128,26 @@ async def event_stream(
             if event is None:
                 # Skip events that couldn't be processed
                 continue
+
+            # Log every tool and its params and content when fully streamed
+            try:
+                if hasattr(event, 'to_dict'):
+                    event_dict = event.to_dict()
+                    event_type = getattr(event, 'type', None)
+                    if event_type:
+                        event_type_str = event_type.value if hasattr(event_type, 'value') else str(event_type)
+                        logger.info(f"=== TOOL EVENT STREAMED ===")
+                        logger.info(f"Event Type: {event_type_str}")
+                        logger.info(f"Event Data: {json.dumps(event_dict, indent=2)}")
+                        logger.info(f"Timestamp: {getattr(event, 'timestamp', 'N/A')}")
+                        logger.info(f"Event ID: {getattr(event, 'id', 'N/A')}")
+                        logger.info(f"=== END TOOL EVENT ===")
+                else:
+                    logger.info(f"=== RAW EVENT STREAMED ===")
+                    logger.info(f"Event: {json.dumps(event, indent=2)}")
+                    logger.info(f"=== END RAW EVENT ===")
+            except Exception as log_error:
+                logger.error(f"Error logging event: {log_error}")
 
             # Format as SSE
             yield f"<event>{json.dumps(event)}</event>"

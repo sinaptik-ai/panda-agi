@@ -58,7 +58,7 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   width,
   onResize,
   minWidth = 400,
-  maxWidth = 1050,
+  maxWidth = 1100,
   loading = false,
   error = null,
   className,
@@ -73,13 +73,13 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   onToggleFullMode,
 }) => {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
-    if (typeof window === "undefined") return width || 900;
+    if (typeof window === "undefined") return width || 1100;
 
     // On mobile (screen width < 768px), always use full width
     const isMobile = window.innerWidth < 768;
     if (isMobile) return window.innerWidth;
 
-    return width || 900;
+    return width || 1200;
   });
   const [isResizing, setIsResizing] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -172,7 +172,7 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
       onToggleFullMode();
     } else {
       // Fallback: Toggle full mode directly if no handler provided
-      const newWidth = isFullMode ? width || 900 : window.innerWidth;
+      const newWidth = isFullMode ? width || 1100 : window.innerWidth;
       setSidebarWidth(newWidth);
       if (onResize) {
         onResize(newWidth);

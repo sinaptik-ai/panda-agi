@@ -75,19 +75,32 @@ function initializeDataTable() {
     // Update counts with better formatting
     document.getElementById('dataRowCount').textContent = `(${allData.length.toLocaleString()} rows)`;
     
-    // Create table header with improved sorting icons
+    // Helper function to convert column index to Excel-like letter
+    function getExcelColumnName(index) {
+        let name = '';
+        while (index >= 0) {
+            name = String.fromCharCode((index % 26) + 65) + name;
+            index = Math.floor(index / 26) - 1;
+        }
+        return name;
+    }
+    
+    // Create table header with improved sorting icons and Excel-like column names
     const headerRow = document.getElementById('dataTableHeader');
-    headerRow.innerHTML = columns.map(col => {
+    headerRow.innerHTML = columns.map((col, index) => {
+        const excelColumnName = getExcelColumnName(index);
         const formattedCol = col.charAt(0).toUpperCase() + col.slice(1).replace(/_/g, ' ');
         const isSorted = sortColumn === col;
         const isAsc = isSorted && sortDirection === 'asc';
-        const isDesc = isSorted && sortDirection === 'desc';
         
         return `
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors duration-150 min-w-0" 
-                onclick="sortTable('${col}')" title="${formattedCol}" style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                <div class="flex items-center justify-between min-w-0">
-                    <span class="truncate min-w-0 flex-1" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${formattedCol}</span>
+            <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors duration-150 min-w-0 border-r border-gray-200" 
+                onclick="sortTable('${col}')" title="${excelColumnName}: ${formattedCol}" style="max-width: 200px;">
+                <div class="flex items-center justify-between min-w-0 w-full">
+                    <div class="flex items-center space-x-2 min-w-0 flex-1">
+                        <span class="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">${excelColumnName}</span>
+                        <span class="truncate min-w-0 flex-1 uppercase tracking-wider" style="max-width: 120px;">${formattedCol}</span>
+                    </div>
                     <div class="flex items-center space-x-1 flex-shrink-0 ml-2">
                         ${isSorted ? `
                             <span class="text-xs text-blue-600 font-medium">
@@ -396,7 +409,6 @@ function updateSortHeaders() {
         
         const isSorted = sortColumn === columnName;
         const isAsc = isSorted && sortDirection === 'asc';
-        const isDesc = isSorted && sortDirection === 'desc';
         
         iconContainer.innerHTML = isSorted ? `
             <span class="text-xs text-blue-600 font-medium">

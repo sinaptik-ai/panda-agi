@@ -54,6 +54,12 @@ export function generatePayload(eventType: string, eventData: any) {
       file: eventData.output_params.file,
       content: eventData.input_params.content,
     };
+  } else if (eventType === "file_replace") {
+    return {
+      file: eventData.input_params.file,
+      path: eventData.output_params.path,
+      content: eventData.input_params.content,
+    };
   } else if (eventType === "deploy_server") {
     return {
       tool_name: eventData.tool_name,

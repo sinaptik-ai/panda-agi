@@ -1,22 +1,19 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   X,
-  Settings,
   BarChart3,
   LineChart,
   PieChart,
-  ChevronDown,
-  ChevronRight,
-  Palette,
-  Database,
-  TrendingUp,
   Plus,
   Trash2,
   Circle,
   MoreHorizontal,
   Target,
   Loader2,
+  Layout,
+  Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ArtifactData } from "@/types/artifact";
@@ -51,10 +48,22 @@ interface KPIConfig {
   unit: string;
 }
 
+interface DashboardMetadata {
+  name: string;
+  description: string;
+  icon: string;
+  theme: string;
+  filters: Array<{
+    id: string;
+    name: string;
+    type: string;
+    values_formula: string;
+  }>;
+}
+
 interface DashboardEditorProps {
   content: string;
   artifact?: ArtifactData | null;
-  onChange: (content: string) => void;
   onSave?: (content?: string) => Promise<void>;
   availableColumns?: Array<{ letter: string; name: string }>;
 }
@@ -105,57 +114,133 @@ const KPI_FORMATS = [
   { value: "decimal", label: "Decimal" },
 ];
 
-const CUSTOM_CURRENCIES = [
-  { value: "currency:usd", label: "USD - US Dollar" },
-  { value: "currency:eur", label: "EUR - Euro" },
-  { value: "currency:gbp", label: "GBP - British Pound" },
-  { value: "currency:jpy", label: "JPY - Japanese Yen" },
-  { value: "currency:cad", label: "CAD - Canadian Dollar" },
-  { value: "currency:aud", label: "AUD - Australian Dollar" },
-  { value: "currency:chf", label: "CHF - Swiss Franc" },
-  { value: "currency:cny", label: "CNY - Chinese Yuan" },
-  { value: "currency:inr", label: "INR - Indian Rupee" },
-  { value: "currency:brl", label: "BRL - Brazilian Real" },
-  { value: "currency:mxn", label: "MXN - Mexican Peso" },
-  { value: "currency:krw", label: "KRW - South Korean Won" },
-  { value: "currency:sgd", label: "SGD - Singapore Dollar" },
-  { value: "currency:hkd", label: "HKD - Hong Kong Dollar" },
-  { value: "currency:nok", label: "NOK - Norwegian Krone" },
-  { value: "currency:sek", label: "SEK - Swedish Krona" },
-  { value: "currency:dkk", label: "DKK - Danish Krone" },
-  { value: "currency:pln", label: "PLN - Polish Zloty" },
-  { value: "currency:czk", label: "CZK - Czech Koruna" },
-  { value: "currency:huf", label: "HUF - Hungarian Forint" },
-  { value: "currency:try", label: "TRY - Turkish Lira" },
-  { value: "currency:rub", label: "RUB - Russian Ruble" },
-  { value: "currency:zar", label: "ZAR - South African Rand" },
-  { value: "currency:ils", label: "ILS - Israeli Shekel" },
-  { value: "currency:thb", label: "THB - Thai Baht" },
-  { value: "currency:php", label: "PHP - Philippine Peso" },
-  { value: "currency:idr", label: "IDR - Indonesian Rupiah" },
-  { value: "currency:myr", label: "MYR - Malaysian Ringgit" },
-  { value: "currency:vnd", label: "VND - Vietnamese Dong" },
-  { value: "currency:nzd", label: "NZD - New Zealand Dollar" },
+
+
+const DASHBOARD_ICONS = [
+  { value: "fa-chart-area", label: "Area Chart" },
+  { value: "fa-arrow-down", label: "Arrow Down" },
+  { value: "fa-arrow-left", label: "Arrow Left" },
+  { value: "fa-arrow-right", label: "Arrow Right" },
+  { value: "fa-arrow-up", label: "Arrow Up" },
+  { value: "fa-chart-bar", label: "Bar Chart" },
+  { value: "fa-bluetooth", label: "Bluetooth" },
+  { value: "fa-briefcase", label: "Briefcase" },
+  { value: "fa-building", label: "Building" },
+  { value: "fa-calendar", label: "Calendar" },
+  { value: "fa-check-circle", label: "Check Circle" },
+  { value: "fa-clock", label: "Clock" },
+  { value: "fa-cloud", label: "Cloud" },
+  { value: "fa-coins", label: "Coins" },
+  { value: "fa-comments", label: "Comments" },
+  { value: "fa-compress", label: "Compress" },
+  { value: "fa-cpu", label: "CPU" },
+  { value: "fa-credit-card", label: "Credit Card" },
+  { value: "fa-tachometer-alt", label: "Dashboard" },
+  { value: "fa-database", label: "Database" },
+  { value: "fa-desktop", label: "Desktop" },
+  { value: "fa-dollar-sign", label: "Dollar Sign" },
+  { value: "fa-download", label: "Download" },
+  { value: "fa-envelope", label: "Envelope" },
+  { value: "fa-euro-sign", label: "Euro Sign" },
+  { value: "fa-exclamation-circle", label: "Exclamation" },
+  { value: "fa-expand", label: "Expand" },
+  { value: "fa-file", label: "File" },
+  { value: "fa-file-alt", label: "File Alt" },
+  { value: "fa-file-excel", label: "File Excel" },
+  { value: "fa-file-pdf", label: "File PDF" },
+  { value: "fa-file-word", label: "File Word" },
+  { value: "fa-flag", label: "Flag" },
+  { value: "fa-folder", label: "Folder" },
+  { value: "fa-folder-open", label: "Folder Open" },
+  { value: "fa-user-graduate", label: "Graduate" },
+  { value: "fa-hard-drive", label: "Hard Drive" },
+  { value: "fa-heart", label: "Heart" },
+  { value: "fa-home", label: "Home" },
+  { value: "fa-hourglass-half", label: "Hourglass" },
+  { value: "fa-info-circle", label: "Info Circle" },
+  { value: "fa-key", label: "Key" },
+  { value: "fa-laptop", label: "Laptop" },
+  { value: "fa-chart-line", label: "Line Chart" },
+  { value: "fa-lock", label: "Lock" },
+  { value: "fa-medal", label: "Medal" },
+  { value: "fa-memory", label: "Memory" },
+  { value: "fa-microchip", label: "Microchip" },
+  { value: "fa-microphone", label: "Microphone" },
+  { value: "fa-mobile-alt", label: "Mobile" },
+  { value: "fa-network-wired", label: "Network" },
+  { value: "fa-phone", label: "Phone" },
+  { value: "fa-chart-pie", label: "Pie Chart" },
+  { value: "fa-pound-sign", label: "Pound Sign" },
+  { value: "fa-question-circle", label: "Question Circle" },
+  { value: "fa-save", label: "Save" },
+  { value: "fa-server", label: "Server" },
+  { value: "fa-cog", label: "Settings" },
+  { value: "fa-shield-alt", label: "Shield" },
+  { value: "fa-star", label: "Star" },
+  { value: "fa-stopwatch", label: "Stopwatch" },
+  { value: "fa-tablet-alt", label: "Tablet" },
+  { value: "fa-thumbs-down", label: "Thumbs Down" },
+  { value: "fa-thumbs-up", label: "Thumbs Up" },
+  { value: "fa-times-circle", label: "Times Circle" },
+  { value: "fa-tools", label: "Tools" },
+  { value: "fa-trophy", label: "Trophy" },
+  { value: "fa-upload", label: "Upload" },
+  { value: "fa-user", label: "User" },
+  { value: "fa-user-friends", label: "User Friends" },
+  { value: "fa-user-tie", label: "User Tie" },
+  { value: "fa-users", label: "Users" },
+  { value: "fa-video", label: "Video" },
+  { value: "fa-wallet", label: "Wallet" },
+  { value: "fa-wifi", label: "WiFi" },
+  { value: "fa-yen-sign", label: "Yen Sign" }
+];
+
+const DASHBOARD_THEMES = [
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+  { value: "auto", label: "Auto" },
+];
+
+const FILTER_TYPES = [
+  { value: "list", label: "List Filter" },
+  { value: "number_range", label: "Number Range" },
+  { value: "date_range", label: "Date Range" },
 ];
 
 const DashboardEditor: React.FC<DashboardEditorProps> = ({
   content,
   artifact,
-  onChange, // eslint-disable-line @typescript-eslint/no-unused-vars
   onSave,
   availableColumns = [],
 }) => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isDashboardSettingsOpen, setIsDashboardSettingsOpen] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  
+  // Unified Save Changes Button Component
+  const SaveChangesButton = ({ onSave, className = "" }: { onSave?: () => void; className?: string }) => (
+    <Button 
+      onClick={onSave} 
+      size="sm" 
+      disabled={!hasUnsavedChanges || isSaving}
+      className={className}
+    >
+      {isSaving ? (
+        <>
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          Saving...
+        </>
+      ) : (
+        "Save Changes"
+      )}
+    </Button>
+  );
+
   const [editedChart, setEditedChart] = useState<ChartConfig | null>(null);
   const [editedKPI, setEditedKPI] = useState<KPIConfig | null>(null);
   const [dynamicColumns, setDynamicColumns] = useState<
     Array<{ letter: string; name: string }>
   >([]);
-  const [expandedSections, setExpandedSections] = useState({
-    general: true,
-    xaxis: true,
-    series: true,
-  });
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingAction, setPendingAction] = useState<"close" | "switch" | null>(
@@ -165,12 +250,14 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     null
   );
   const [pendingKPIData, setPendingKPIData] = useState<KPIConfig | null>(null);
+  const [pendingSwitchAction, setPendingSwitchAction] = useState<"dashboard-settings" | "filters" | null>(null);
   const [originalChartState, setOriginalChartState] =
     useState<ChartConfig | null>(null);
   const [originalKPIState, setOriginalKPIState] = useState<KPIConfig | null>(
     null
   );
-  const [showCurrencyModal, setShowCurrencyModal] = useState(false);
+  const [editedDashboard, setEditedDashboard] = useState<DashboardMetadata | null>(null);
+  const [originalDashboardState, setOriginalDashboardState] = useState<DashboardMetadata | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const saveInProgressRef = useRef(false);
   const lastSavedContentRef = useRef<string | null>(null);
@@ -182,8 +269,47 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   const [compilationError, setCompilationError] = useState<string | null>(null);
   const [rawPXMLContent, setRawPXMLContent] = useState<string | null>(null);
 
+  // Centralized XML sanitization utility
+  const sanitizeXMLContent = (content: string): string => {
+    return content
+      .replace(/<formula>([\s\S]*?)<\/formula>/g, (match, formulaContent) => {
+        return `<formula>${formulaContent
+          .replace(/<>/g, '&lt;&gt;')
+          .replace(/<=/g, '&lt;=')
+          .replace(/>=/g, '&gt;=')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+        }</formula>`;
+      })
+      .replace(/\{\{([\s\S]*?)\}\}/g, (match, formulaContent) => {
+        return `{{${formulaContent
+          .replace(/<>/g, '&lt;&gt;')
+          .replace(/<=/g, '&lt;=')
+          .replace(/>=/g, '&gt;=')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/&/g, '&amp;')
+          .replace(/"/g, '&quot;')
+        }}}`;
+      });
+  };
+
+  // Unescape formulas for display in text inputs
+  const unescapeFormula = (formula: string): string => {
+    return formula
+      .replace(/&lt;&gt;/g, '<>')
+      .replace(/&lt;=/g, '<=')
+      .replace(/&gt;=/g, '>=')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"');
+  };
+
   // Parse PXML content to extract chart configurations
-  const parseChartsFromPXML = (pxmlContent: string): ChartConfig[] => {
+  const parseChartsFromPXML = useCallback((pxmlContent: string): ChartConfig[] => {
     // Check if content is HTML instead of PXML
     if (
       pxmlContent.trim().startsWith("<!DOCTYPE html>") ||
@@ -192,11 +318,14 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       return [];
     }
 
+    // Sanitize XML content to escape formula operators
+    const sanitizedContent = sanitizeXMLContent(pxmlContent);
+
     const charts: ChartConfig[] = [];
     const parser = new DOMParser();
 
     try {
-      const doc = parser.parseFromString(pxmlContent, "text/xml");
+      const doc = parser.parseFromString(sanitizedContent, "text/xml");
 
       // Check for parsing errors
       const parseError = doc.querySelector("parsererror");
@@ -249,10 +378,10 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     } catch {}
 
     return charts;
-  };
+  }, []);
 
   // Parse PXML content to extract KPI configurations
-  const parseKPIsFromPXML = (pxmlContent: string): KPIConfig[] => {
+  const parseKPIsFromPXML = useCallback((pxmlContent: string): KPIConfig[] => {
     // Check if content is HTML instead of PXML
     if (
       pxmlContent.trim().startsWith("<!DOCTYPE html>") ||
@@ -261,11 +390,14 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       return [];
     }
 
+    // Sanitize XML content to escape formula operators
+    const sanitizedContent = sanitizeXMLContent(pxmlContent);
+
     const kpis: KPIConfig[] = [];
     const parser = new DOMParser();
 
     try {
-      const doc = parser.parseFromString(pxmlContent, "text/xml");
+      const doc = parser.parseFromString(sanitizedContent, "text/xml");
 
       // Check for parsing errors
       const parseError = doc.querySelector("parsererror");
@@ -297,9 +429,390 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     } catch {}
 
     return kpis;
-  };
+  }, []);
+
+  // Parse dashboard metadata from HTML content
+  const parseDashboardFromHTML = useCallback((htmlContent: string): DashboardMetadata => {
+    const parser = new DOMParser();
+    const defaultMetadata: DashboardMetadata = {
+      name: "Dashboard",
+      description: "Dashboard description",
+      icon: "fa-chart-line",
+      theme: "light",
+      filters: []
+    };
+    
+    try {
+      const doc = parser.parseFromString(htmlContent, "text/html");
+      
+      // Extract name from title or h1/h2 elements
+      const titleEl = doc.querySelector('title');
+      const h1El = doc.querySelector('h1');
+      const h2El = doc.querySelector('h2');
+      
+      let name = "Dashboard";
+      if (titleEl?.textContent?.trim()) {
+        name = titleEl.textContent.trim();
+      } else if (h1El?.textContent?.trim()) {
+        name = h1El.textContent.trim();
+      } else if (h2El?.textContent?.trim()) {
+        name = h2El.textContent.trim();
+      }
+      
+      // Extract description from meta description or paragraph elements
+      const metaDesc = doc.querySelector('meta[name="description"]');
+      const paragraphs = doc.querySelectorAll('p');
+      
+      let description = "Dashboard description";
+      if (metaDesc?.getAttribute('content')?.trim()) {
+        description = metaDesc.getAttribute('content')!.trim();
+      } else {
+        // Find a paragraph that looks like a description
+        for (const p of paragraphs) {
+          const text = p.textContent?.trim() || '';
+          if (text.length > 20 && text.length < 200 && !text.includes('chart') && !text.includes('kpi')) {
+            description = text;
+            break;
+          }
+        }
+      }
+      
+      // Extract icon from data attribute
+      const iconElement = doc.querySelector('[data-dashboard-icon]');
+      let icon = "fa-chart-line";
+      if (iconElement) {
+        // Extract the fa- class from the element's classList
+        const classes = Array.from(iconElement.classList);
+        const faClass = classes.find(cls => cls.startsWith('fa-'));
+        if (faClass) {
+          icon = faClass;
+        }
+      }
+      
+      // Extract filters from HTML (if any exist)
+      const filterElements = doc.querySelectorAll('.filter-component');
+      const filters: Array<{
+        id: string;
+        name: string;
+        type: string;
+        values_formula: string;
+      }> = [];
+      
+      
+      // Also try to find filters by looking for the filters section
+      
+      // Try to extract filters from embedded JavaScript configuration
+      const scriptTags = doc.querySelectorAll('script');
+      for (const script of scriptTags) {
+        const scriptContent = script.textContent || '';
+        if (scriptContent.includes('filters') && scriptContent.includes('[')) {
+          try {
+            // Try to extract the filters array from the script
+            const filtersMatch = scriptContent.match(/filters\s*:\s*\[([\s\S]*?)\]/);
+            if (filtersMatch) {
+              // Found filters in script
+            }
+          } catch {
+            // Error parsing script for filters
+          }
+        }
+      }
+      
+      filterElements.forEach((filterEl, index) => {
+        const labelEl = filterEl.querySelector('label');
+        const filterName = labelEl?.textContent?.trim() || `Filter ${index + 1}`;
+        
+        // Determine filter type based on HTML structure
+        let filterType = 'list'; // default
+        if (filterEl.querySelector('input[type="number"]')) {
+          filterType = 'number_range';
+        } else if (filterEl.querySelector('input[type="date"]')) {
+          filterType = 'date_range';
+        }
+        
+        // Try to extract the filter ID - look for the actual filter ID in the iframe
+        const buttonEl = filterEl.querySelector('[id*="_button"]');
+        const dropdownEl = filterEl.querySelector('[id*="_dropdown"]');
+        let filterId = buttonEl?.id || dropdownEl?.id || `filter_${index + 1}`;
+        
+        // Convert button ID to dropdown ID if needed (e.g., filter_branch_button -> filter_branch_dropdown)
+        if (filterId.includes('_button')) {
+          filterId = filterId.replace('_button', '_dropdown');
+        }
+        
+        // For now, use a default formula - this will be editable in the UI
+        const valuesFormula = '';
+        
+        if (filterName && filterName !== 'Filter' && filterName !== 'Filters') {
+          filters.push({
+            id: filterId,
+            name: filterName,
+            type: filterType,
+            values_formula: valuesFormula
+          });
+        }
+      });
+      
+      
+      return {
+        name,
+        description,
+        icon,
+        theme: "light", 
+        filters
+      };
+    } catch (error) {
+      console.error("Error parsing dashboard from HTML:", error);
+      return defaultMetadata;
+    }
+  }, []);
+
+  // Parse dashboard metadata from PXML content
+  const parseDashboardFromPXML = useCallback((pxmlContent: string): DashboardMetadata => {
+    // Check if content is HTML instead of PXML
+    if (
+      pxmlContent.trim().startsWith("<!DOCTYPE html>") ||
+      pxmlContent.trim().startsWith("<html")
+    ) {
+      return parseDashboardFromHTML(pxmlContent);
+    }
+
+    // Sanitize XML content to escape formula operators
+    const sanitizedContent = sanitizeXMLContent(pxmlContent);
+
+    const parser = new DOMParser();
+    const defaultMetadata: DashboardMetadata = {
+      name: "Dashboard",
+      description: "Dashboard description", 
+      icon: "fa-chart-line",
+      theme: "light",
+      filters: []
+    };
+    const dashboardMetadata = { ...defaultMetadata };
+
+    try {
+      const doc = parser.parseFromString(sanitizedContent, "text/xml");
+
+      // Check for parsing errors
+      const parseError = doc.querySelector("parsererror");
+      if (parseError) {
+        return defaultMetadata;
+      }
+
+      // Extract dashboard name from various possible locations
+      const titleEl = doc.querySelector("title");
+      const dashboardEl = doc.querySelector("dashboard");
+      const nameEl = doc.querySelector("name");
+      const rootEl = doc.documentElement;
+      
+      if (titleEl?.textContent?.trim()) {
+        dashboardMetadata.name = titleEl.textContent.trim();
+      } else if (nameEl?.textContent?.trim()) {
+        dashboardMetadata.name = nameEl.textContent.trim();
+      } else if (dashboardEl?.getAttribute("name")?.trim()) {
+        dashboardMetadata.name = dashboardEl.getAttribute("name")!.trim();
+      } else if (rootEl?.getAttribute("name")?.trim()) {
+        dashboardMetadata.name = rootEl.getAttribute("name")!.trim();
+      }
+
+      // Extract dashboard description
+      const descEl = doc.querySelector("description");
+      
+      if (descEl?.textContent?.trim()) {
+        dashboardMetadata.description = descEl.textContent.trim();
+      } else if (dashboardEl?.getAttribute("description")?.trim()) {
+        dashboardMetadata.description = dashboardEl.getAttribute("description")!.trim();
+      }
+
+      // Extract dashboard icon (look for fa_icon in PXML)
+      const iconEl = doc.querySelector("fa_icon");
+      if (iconEl?.textContent) {
+        dashboardMetadata.icon = iconEl.textContent;
+      } else if (dashboardEl?.getAttribute("fa_icon")) {
+        dashboardMetadata.icon = dashboardEl.getAttribute("fa_icon") || "fa-chart-line";
+      }
+
+      // Extract dashboard theme
+      const themeEl = doc.querySelector("theme");
+      if (themeEl?.textContent) {
+        dashboardMetadata.theme = themeEl.textContent;
+      } else if (dashboardEl?.getAttribute("theme")) {
+        dashboardMetadata.theme = dashboardEl.getAttribute("theme") || "light";
+      }
+
+      // Extract filters
+      const filterElements = doc.querySelectorAll("filter");
+      dashboardMetadata.filters = [];
+
+      filterElements.forEach((filterEl, index) => {
+        let filterId = filterEl.getAttribute("id") || `filter_${index + 1}`;
+        
+        // Ensure the filter ID follows the iframe naming convention
+        if (!filterId.includes('_dropdown') && !filterId.includes('_button')) {
+          // If it's a generic ID, try to create a proper one based on the name
+        const filterName = filterEl.querySelector("name")?.textContent || `Filter ${index + 1}`;
+          const nameSlug = filterName.toLowerCase().replace(/\s+/g, '_');
+          filterId = `filter_${nameSlug}_dropdown`;
+        }
+        
+        const filterName = filterEl.querySelector("name")?.textContent || `Filter ${index + 1}`;
+        const filterType = filterEl.getAttribute("type") || filterEl.querySelector("type")?.textContent || "list";
+        
+        // Look for values formula in different possible locations
+        let valuesFormula = "";
+        const valuesFormulaEl = filterEl.querySelector("values_formula");
+        const valuesEl = filterEl.querySelector("values");
+        const formulaEl = valuesEl?.querySelector("formula");
+        
+        if (valuesFormulaEl) {
+          valuesFormula = valuesFormulaEl.textContent || "";
+        } else if (formulaEl) {
+          valuesFormula = formulaEl.textContent || "";
+        } else {
+          valuesFormula = "";
+        }
+
+        dashboardMetadata.filters.push({
+          id: filterId,
+          name: filterName,
+          type: filterType,
+          values_formula: valuesFormula
+        });
+      });
+
+    } catch (error) {
+      console.error("Error parsing dashboard metadata:", error);
+    }
+
+    return dashboardMetadata;
+  }, [parseDashboardFromHTML]);
+
+  // Ensure dashboard data is loaded when filters sidebar opens
+  useEffect(() => {
+    if (isFiltersOpen && !editedDashboard) {
+      const contentToParse = rawPXMLContent || content;
+      const dashboardData = parseDashboardFromPXML(contentToParse);
+      setEditedDashboard(dashboardData);
+    }
+  }, [isFiltersOpen, editedDashboard, content, rawPXMLContent, parseDashboardFromPXML]);
 
   // Update PXML content with edited chart
+  const updatePXMLWithDashboard = (
+    originalContent: string,
+    dashboardMetadata: DashboardMetadata
+  ): string => {
+    const parser = new DOMParser();
+    const serializer = new XMLSerializer();
+
+    try {
+      const doc = parser.parseFromString(originalContent, "text/xml");
+      const dashboardElement = doc.querySelector("dashboard");
+      
+      if (!dashboardElement) {
+        console.error("Dashboard element not found in PXML");
+        return originalContent;
+      }
+
+      // Update dashboard name
+      const nameElement = dashboardElement.querySelector("name");
+      if (nameElement) {
+        nameElement.textContent = dashboardMetadata.name;
+      } else {
+        const newNameElement = doc.createElement("name");
+        newNameElement.textContent = dashboardMetadata.name;
+        dashboardElement.insertBefore(newNameElement, dashboardElement.firstChild);
+      }
+
+      // Update dashboard description
+      const descElement = dashboardElement.querySelector("description");
+      if (descElement) {
+        descElement.textContent = dashboardMetadata.description;
+      } else {
+        const newDescElement = doc.createElement("description");
+        newDescElement.textContent = dashboardMetadata.description;
+        dashboardElement.insertBefore(newDescElement, nameElement?.nextSibling || dashboardElement.firstChild);
+      }
+
+      // Update dashboard icon
+      const iconElement = dashboardElement.querySelector("fa_icon");
+      if (iconElement) {
+        iconElement.textContent = dashboardMetadata.icon;
+      } else {
+        const newIconElement = doc.createElement("fa_icon");
+        newIconElement.textContent = dashboardMetadata.icon;
+        dashboardElement.insertBefore(newIconElement, dashboardElement.firstChild);
+      }
+
+      // Update filters
+      if (dashboardMetadata.filters && dashboardMetadata.filters.length > 0) {
+        
+        // Find or create the filters section
+        let filtersSection = dashboardElement.querySelector("filters");
+        if (!filtersSection) {
+          filtersSection = doc.createElement("filters");
+          // Insert after fa_icon element
+          const faIconElement = dashboardElement.querySelector("fa_icon");
+          if (faIconElement) {
+            dashboardElement.insertBefore(filtersSection, faIconElement.nextSibling);
+          } else {
+            dashboardElement.appendChild(filtersSection);
+          }
+        }
+        
+        // Clear existing filters from the filters section
+        const existingFilters = filtersSection.querySelectorAll("filter");
+        existingFilters.forEach(filter => filter.remove());
+        
+        // Also remove any filters that might be outside the filters section
+        const allFilters = dashboardElement.querySelectorAll("filter");
+        allFilters.forEach(filter => {
+          if (!filtersSection.contains(filter)) {
+            filter.remove();
+          }
+        });
+
+        // Add new filters to the filters section
+        dashboardMetadata.filters.forEach(filter => {
+          const filterElement = doc.createElement("filter");
+          filterElement.setAttribute("type", filter.type);
+
+          // Add name element
+          const nameElement = doc.createElement("name");
+          nameElement.textContent = filter.name;
+          filterElement.appendChild(nameElement);
+
+          // Add values element with formula inside
+          const valuesElement = doc.createElement("values");
+          const formulaElement = doc.createElement("formula");
+          formulaElement.textContent = filter.values_formula || "";
+          valuesElement.appendChild(formulaElement);
+          filterElement.appendChild(valuesElement);
+
+          filtersSection.appendChild(filterElement);
+        });
+        
+      } else {
+        
+        // Remove the entire filters section if it exists
+        const filtersSection = dashboardElement.querySelector("filters");
+        if (filtersSection) {
+          filtersSection.remove();
+        }
+        
+        // Remove any orphaned filter elements that might be outside the filters section
+        const allFilters = dashboardElement.querySelectorAll("filter");
+        allFilters.forEach(filter => {
+          filter.remove();
+        });
+      }
+
+      return serializer.serializeToString(doc);
+    } catch (error) {
+      console.error("Error updating PXML with dashboard metadata:", error);
+      return originalContent;
+    }
+  };
+
   const updatePXMLWithChart = (
     originalContent: string,
     chartConfig: ChartConfig
@@ -531,18 +1044,48 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     return [];
   };
 
-  // Get columns for dropdowns
-  const getAvailableColumns = () => {
-    return dynamicColumns.length > 0 ? dynamicColumns : availableColumns;
+  // Extract columns from PXML content as fallback
+  const extractColumnsFromPXML = (content: string): Array<{ letter: string; name: string }> => {
+    const columns: Array<{ letter: string; name: string }> = [];
+    const columnSet = new Set<string>();
+    
+    // Look for column references in formulas like =unique(E2:E), =unique(F2:F), etc.
+    const formulaMatches = content.match(/=unique\(([A-Z]+)\d+:[A-Z]+\)/g);
+    
+    if (formulaMatches) {
+      formulaMatches.forEach(match => {
+        const columnMatch = match.match(/=unique\(([A-Z]+)\d+:[A-Z]+\)/);
+        if (columnMatch) {
+          const letter = columnMatch[1];
+          if (!columnSet.has(letter)) {
+            columnSet.add(letter);
+            columns.push({
+              letter: letter,
+              name: `Column ${letter}`
+            });
+          }
+        }
+      });
+    }
+    
+    return columns;
   };
 
-  // Toggle section expansion
-  const toggleSection = (section: keyof typeof expandedSections) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
+  // Get columns for dropdowns
+  const getAvailableColumns = () => {
+    if (dynamicColumns.length > 0) {
+      return dynamicColumns;
+    }
+    
+    // Fallback to columns extracted from PXML content
+    const pxmlColumns = extractColumnsFromPXML(content);
+    if (pxmlColumns.length > 0) {
+      return pxmlColumns;
+    }
+    
+    return availableColumns;
   };
+
 
   // Mark as having unsaved changes
   const markAsChanged = () => {
@@ -607,17 +1150,21 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         const chart = charts.find((c) => c.id === event.data.chartId);
 
         if (chart) {
-          // Check if we're switching to a different chart with unsaved changes
-          if (hasUnsavedChanges && editedChart && editedChart.id !== chart.id) {
+          // Check if we're switching with unsaved changes
+          if (hasUnsavedChanges && (editedChart || editedKPI || (isDashboardSettingsOpen && editedDashboard) || (isFiltersOpen && editedDashboard))) {
             setPendingAction("switch");
             setPendingChartData(chart);
             setShowConfirmDialog(true);
             return;
           }
 
-          // Clear KPI editing state
+          // Clear KPI and dashboard editing state
           setEditedKPI(null);
           setOriginalKPIState(null);
+          setEditedDashboard(null);
+          setOriginalDashboardState(null);
+          setIsDashboardSettingsOpen(false);
+          setIsFiltersOpen(false);
 
           // Ensure chart has default values for new properties
           const chartWithDefaults = {
@@ -656,17 +1203,21 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         const kpi = kpis.find((k) => k.id === event.data.kpiId);
 
         if (kpi) {
-          // Check if we're switching to a different KPI with unsaved changes
-          if (hasUnsavedChanges && editedKPI && editedKPI.id !== kpi.id) {
+          // Check if we're switching with unsaved changes
+          if (hasUnsavedChanges && (editedChart || editedKPI || (isDashboardSettingsOpen && editedDashboard) || (isFiltersOpen && editedDashboard))) {
             setPendingAction("switch");
             setPendingKPIData(kpi);
             setShowConfirmDialog(true);
             return;
           }
 
-          // Clear chart editing state
+          // Clear chart and dashboard editing state
           setEditedChart(null);
           setOriginalChartState(null);
+          setEditedDashboard(null);
+          setOriginalDashboardState(null);
+          setIsDashboardSettingsOpen(false);
+          setIsFiltersOpen(false);
 
           setEditedKPI({ ...kpi });
           setOriginalKPIState({ ...kpi }); // Store original state for reverting
@@ -686,11 +1237,41 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           }
         }
       }
+      if (event.data.type === "dashboard-edit") {
+        // Check if we're switching to dashboard editing with unsaved changes
+        if (hasUnsavedChanges && (editedChart || editedKPI)) {
+          setPendingAction("switch");
+          setShowConfirmDialog(true);
+          return;
+        }
+        // Clear chart and KPI editing state
+        setEditedChart(null);
+        setOriginalChartState(null);
+        setEditedKPI(null);
+        setOriginalKPIState(null);
+        setIsFiltersOpen(false);
+        
+        // Parse dashboard metadata from existing content
+        const contentToParse = rawPXMLContent || content;
+        
+        const initialDashboard = parseDashboardFromPXML(contentToParse);
+        
+        setEditedDashboard({ ...initialDashboard });
+        setOriginalDashboardState({ ...initialDashboard });
+        setIsDashboardSettingsOpen(true);
+        setIsFiltersOpen(false);
+        
+        // Clear selection in iframe
+        const iframe = iframeRef.current;
+        if (iframe && iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ type: "clear-selection" }, "*");
+        }
+      }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [content, rawPXMLContent, hasUnsavedChanges, editedChart, editedKPI]);
+  }, [content, rawPXMLContent, hasUnsavedChanges, editedChart, editedKPI, editedDashboard, isDashboardSettingsOpen, isFiltersOpen, parseDashboardFromPXML, parseChartsFromPXML, parseKPIsFromPXML]);
 
   // Extract columns and inject click handlers into iframe
   useEffect(() => {
@@ -722,8 +1303,29 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             };
             const HIGHLIGHT_TIMEOUT = 100;
             
-            // Add click handlers to chart and KPI containers and edit buttons
+            // Add click handlers to dashboard header, chart and KPI containers and edit buttons
             function setupChartEditors() {
+              
+              // Handle dashboard header clicks (title, description, icon)
+              const dashboardHeader = document.querySelector('header');
+              if (dashboardHeader) {
+                const headerElements = dashboardHeader.querySelectorAll('h1, p, i[data-dashboard-icon]');
+                headerElements.forEach((element) => {
+                  element.style.cursor = "pointer";
+                  element.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    parent.postMessage({ type: "dashboard-edit" }, "*");
+                  });
+                  
+                  // Add hover effect
+                  element.addEventListener("mouseenter", () => {
+                    element.style.opacity = "0.8";
+                  });
+                  element.addEventListener("mouseleave", () => {
+                    element.style.opacity = "1";
+                  });
+                });
+              }
               
               // Handle chart container clicks
               const chartContainers = document.querySelectorAll('[id*="chart_"][id$="_container"]');
@@ -758,7 +1360,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
                 // Add hover effect
                 container.addEventListener("mouseenter", () => {
-                  container.style.boxShadow = "0 0 0 2px rgba(34, 197, 94, 0.3)";
+                  container.style.boxShadow = "0 0 0 2px rgba(59, 130, 246, 0.3)";
                   container.style.borderRadius = CHART_BORDER_RADIUS.HOVER;
                 });
                 container.addEventListener("mouseleave", () => {
@@ -836,7 +1438,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
               // Add highlighting to the current KPI
               const currentKPI = document.getElementById(kpiId + '_container');
               if (currentKPI) {
-                currentKPI.classList.add('ring-2', 'ring-green-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-green-50/40', 'selected-kpi');
+                currentKPI.classList.add('ring-2', 'ring-blue-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-green-50/40', 'selected-kpi');
                 currentKPI.style.transition = 'all 0.2s ease-out';
                 currentKPI.style.borderRadius = CHART_BORDER_RADIUS.SELECTED;
               } else {
@@ -848,7 +1450,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             function removeAllHighlighting() {
               // Combined selector to target all chart and KPI related elements efficiently
               const combinedSelector = '.chart-component, div[class*="chart-component"], div[id*="chart_"][id$="_container"], .kpi-component, div[class*="kpi-component"], div[id*="kpi_"][id$="_container"]';
-              const highlightClasses = ['ring-2', 'ring-blue-400', 'ring-green-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-blue-50/40', 'bg-green-50/40', 'selected-chart', 'selected-kpi', 'ring-1', 'ring-blue-300', 'ring-green-300', 'ring-opacity-40', 'shadow-sm', 'scale-[1.01]', 'bg-blue-50/20', 'bg-green-50/20'];
+              const highlightClasses = ['ring-2', 'ring-blue-400', 'ring-blue-400', 'ring-opacity-60', 'shadow-lg', 'scale-[1.02]', 'bg-blue-50/40', 'bg-green-50/40', 'selected-chart', 'selected-kpi', 'ring-1', 'ring-blue-300', 'ring-opacity-40', 'shadow-sm', 'scale-[1.01]', 'bg-blue-50/20', 'bg-green-50/20'];
               
               document.querySelectorAll(combinedSelector).forEach(element => {
                 // Remove all possible highlighting classes in one call
@@ -1093,6 +1695,47 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     }
   };
 
+  // Send live dashboard metadata updates to iframe
+  const updateDashboardInIframe = (dashboardConfig: DashboardMetadata) => {
+    const iframe = iframeRef.current;
+    if (!iframe || !iframe.contentWindow) return;
+
+
+    try {
+      // Send dashboard metadata updates to iframe (including filters)
+      iframe.contentWindow.postMessage(
+        {
+          type: "update-dashboard-metadata",
+          dashboardMetadata: {
+            name: dashboardConfig.name,
+            description: dashboardConfig.description,
+            icon: dashboardConfig.icon,
+            theme: dashboardConfig.theme,
+            filters: dashboardConfig.filters || []
+          },
+          forceUpdate: true,
+        },
+        "*"
+      );
+      
+      // Send specific filter updates (similar to KPI/chart updates)
+      if (dashboardConfig.filters && iframe.contentWindow) {
+        dashboardConfig.filters.forEach(filter => {
+          iframe.contentWindow!.postMessage(
+            {
+              type: "update-filter-config",
+              filterId: filter.id,
+              config: filter,
+            },
+            "*"
+          );
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error sending message to iframe:', error);
+    }
+  };
 
   // Send live chart updates to iframe for dynamic rendering using data attributes
   const updateChartInIframe = (chartConfig: ChartConfig) => {
@@ -1302,6 +1945,18 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     updateKPIInIframe(updatedKPI);
   };
 
+  // Update dashboard property with real-time updates
+  const updateDashboardProperty = (property: keyof DashboardMetadata, value: string | Array<{id: string; name: string; type: string; values_formula: string}>) => {
+    if (!editedDashboard) return;
+    const updatedDashboard = { ...editedDashboard, [property]: value };
+    
+    setEditedDashboard(updatedDashboard);
+    markAsChanged();
+
+    // Update dashboard in real-time
+    updateDashboardInIframe(updatedDashboard);
+  };
+
   const handleSaveChart = async () => {
     if (!editedChart || isSaving) return;
 
@@ -1468,6 +2123,77 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     }
   };
 
+  const handleSaveDashboard = async () => {
+    if (!editedDashboard || isSaving) return;
+    setIsSaving(true);
+    
+    // Close sidebar immediately for better responsiveness
+    setIsDashboardSettingsOpen(false);
+    setIsFiltersOpen(false);
+    setEditedChart(null);
+    setEditedKPI(null);
+    setEditedDashboard(null);
+    setOriginalChartState(null);
+    setOriginalKPIState(null);
+    setOriginalDashboardState(null);
+    setHasUnsavedChanges(false);
+
+    // Start tracking save operation
+    saveInProgressRef.current = true;
+
+    try {
+      // Use raw PXML content for updating if available
+      const contentToUpdate = rawPXMLContent || content;
+
+      const updatedContent = updatePXMLWithDashboard(contentToUpdate, editedDashboard);
+      
+      // Update the stored raw PXML content
+      if (rawPXMLContent) {
+        setRawPXMLContent(updatedContent);
+      }
+
+      // Store the saved content for comparison
+      lastSavedContentRef.current = updatedContent;
+      
+      // Don't call onChange during save - the onSave callback will handle the content update
+      // onChange(updatedContent);
+      
+      // Trigger save to server if onSave callback is provided
+      if (onSave) {
+        await onSave(updatedContent);
+      }
+
+      // Send message to iframe that dashboard was saved
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          {
+            type: "dashboard-saved",
+            dashboardMetadata: editedDashboard,
+          },
+          "*"
+        );
+        
+        // Also send updated filter configuration to iframe
+        if (editedDashboard.filters && editedDashboard.filters.length > 0) {
+          iframe.contentWindow.postMessage(
+            {
+              type: "update-dashboard-metadata",
+            dashboardMetadata: editedDashboard,
+          },
+          "*"
+        );
+        }
+      }
+    } catch (error) {
+      console.error("Error saving dashboard:", error);
+    } finally {
+      setIsSaving(false);
+      // End save operation tracking
+      saveInProgressRef.current = false;
+    }
+  };
+
   const handleCloseEditor = () => {
     if (hasUnsavedChanges) {
       setPendingAction("close");
@@ -1482,8 +2208,10 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     setIsEditorOpen(false);
     setEditedChart(null);
     setEditedKPI(null);
+    setEditedDashboard(null);
     setOriginalChartState(null);
     setOriginalKPIState(null);
+    setOriginalDashboardState(null);
     setHasUnsavedChanges(false);
 
     // Send message to iframe to remove highlighting
@@ -1495,6 +2223,26 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         },
         "*"
       );
+    }
+  };
+
+  // Handle closing dashboard settings sidebar
+  const handleCloseDashboardSettings = () => {
+    if (hasUnsavedChanges && editedDashboard) {
+      setPendingAction("close");
+      setShowConfirmDialog(true);
+    } else {
+      setIsDashboardSettingsOpen(false);
+    }
+  };
+
+  // Handle closing filters sidebar
+  const handleCloseFilters = () => {
+    if (hasUnsavedChanges && editedDashboard) {
+      setPendingAction("close");
+      setShowConfirmDialog(true);
+    } else {
+      setIsFiltersOpen(false);
     }
   };
 
@@ -1513,7 +2261,19 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         setEditedKPI({ ...originalKPIState });
         updateKPIInIframe(originalKPIState);
       }
+      if (originalDashboardState) {
+        setEditedDashboard({ ...originalDashboardState });
+        updateDashboardInIframe(originalDashboardState);
+      }
+      
+      // Close the appropriate sidebar
+      if (isDashboardSettingsOpen) {
+        setIsDashboardSettingsOpen(false);
+      } else if (isFiltersOpen) {
+        setIsFiltersOpen(false);
+      } else {
       closeEditorImmediate();
+      }
     } else if (pendingAction === "switch" && pendingChartData) {
       // Revert current chart to original state first
       if (originalChartState) {
@@ -1568,11 +2328,131 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           "*"
         );
       }
+    } else if (pendingAction === "switch") {
+      // Handle switching between different editing modes
+      // Revert current state to original
+      if (originalChartState) {
+        updateChartInIframe(originalChartState);
+      }
+      if (originalKPIState) {
+        updateKPIInIframe(originalKPIState);
+      }
+      if (originalDashboardState) {
+        updateDashboardInIframe(originalDashboardState);
+      }
+      
+      // Clear all editing states
+      setEditedChart(null);
+      setEditedKPI(null);
+      setEditedDashboard(null);
+      setOriginalChartState(null);
+      setOriginalKPIState(null);
+      setOriginalDashboardState(null);
+      setIsEditorOpen(false);
+      setIsDashboardSettingsOpen(false);
+      setIsFiltersOpen(false);
+      
+      // Clear selection in iframe
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({ type: "clear-selection" }, "*");
+      }
+      
+      // Execute the pending switch action
+      if (pendingSwitchAction === "dashboard-settings") {
+        const contentToParse = rawPXMLContent || content;
+        setEditedDashboard(parseDashboardFromPXML(contentToParse));
+        setIsDashboardSettingsOpen(true);
+      } else if (pendingSwitchAction === "filters") {
+        const contentToParse = rawPXMLContent || content;
+        setEditedDashboard(parseDashboardFromPXML(contentToParse));
+        setIsFiltersOpen(true);
+      }
+    }
+
+    // Handle chart switching after confirmation
+    if (pendingChartData) {
+      // Revert current state to original first
+      if (originalChartState) {
+        updateChartInIframe(originalChartState);
+      }
+      if (originalKPIState) {
+        updateKPIInIframe(originalKPIState);
+      }
+      if (originalDashboardState) {
+        updateDashboardInIframe(originalDashboardState);
+      }
+      
+      // Then switch to new chart
+      const chartWithDefaults = {
+        ...pendingChartData,
+        area: pendingChartData.area || "none",
+        stacked: pendingChartData.stacked || "none",
+      };
+      setEditedChart({ ...chartWithDefaults });
+      setEditedKPI(null);
+      setEditedDashboard(null);
+      setOriginalChartState({ ...chartWithDefaults });
+      setOriginalKPIState(null);
+      setOriginalDashboardState(null);
+      setIsEditorOpen(true);
+      setIsDashboardSettingsOpen(false);
+      setIsFiltersOpen(false);
+      
+      // Send message to iframe to highlight the chart
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          {
+            type: "chart-edit",
+            chartId: pendingChartData.id,
+          },
+          "*"
+        );
+      }
+    }
+
+    // Handle KPI switching after confirmation
+    if (pendingKPIData) {
+      // Revert current state to original first
+      if (originalChartState) {
+        updateChartInIframe(originalChartState);
+      }
+      if (originalKPIState) {
+        updateKPIInIframe(originalKPIState);
+      }
+      if (originalDashboardState) {
+        updateDashboardInIframe(originalDashboardState);
+      }
+      
+      // Then switch to new KPI
+      setEditedKPI({ ...pendingKPIData });
+      setEditedChart(null);
+      setEditedDashboard(null);
+      setOriginalKPIState({ ...pendingKPIData });
+      setOriginalChartState(null);
+      setOriginalDashboardState(null);
+      setIsEditorOpen(true);
+      setIsDashboardSettingsOpen(false);
+      setIsFiltersOpen(false);
+      
+      // Send message to iframe to highlight the KPI
+      const iframe = iframeRef.current;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          {
+            type: "kpi-edit",
+            kpiId: pendingKPIData.id,
+          },
+          "*"
+        );
+      }
     }
 
     setPendingAction(null);
     setPendingChartData(null);
     setPendingKPIData(null);
+    setPendingSwitchAction(null);
   };
 
   const handleCancelDiscard = () => {
@@ -1580,6 +2460,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     setPendingAction(null);
     setPendingChartData(null);
     setPendingKPIData(null);
+    setPendingSwitchAction(null);
   };
 
   // Fetch compiled HTML version when we have raw PXML
@@ -1716,32 +2597,242 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     return compiledContent || content;
   };
 
+  // Filter management functions
+  const addFilter = () => {
+    if (editedDashboard) {
+      const filterIndex = (editedDashboard.filters?.length || 0) + 1;
+      const filterName = `Filter ${filterIndex}`;
+      const filterId = `filter_${filterName.toLowerCase().replace(/\s+/g, '_')}_dropdown`;
+      
+      const newFilter = {
+        id: filterId,
+        name: filterName,
+        type: "list",
+        values_formula: "",
+      };
+      
+      const updatedDashboard = {
+        ...editedDashboard,
+        filters: [...(editedDashboard.filters || []), newFilter],
+      };
+      
+      
+      setEditedDashboard(updatedDashboard);
+      markAsChanged();
+      
+      // Update dashboard in real-time
+      updateDashboardInIframe(updatedDashboard);
+    }
+  };
+
+  const removeFilter = (index: number) => {
+    if (editedDashboard && editedDashboard.filters) {
+      const updatedFilters = editedDashboard.filters.filter((_, i) => i !== index);
+      const updatedDashboard = {
+        ...editedDashboard,
+        filters: updatedFilters,
+      };
+      
+      
+      setEditedDashboard(updatedDashboard);
+      markAsChanged();
+      
+      // Update dashboard in real-time
+      updateDashboardInIframe(updatedDashboard);
+    }
+  };
+
+  const updateFilter = (index: number, field: string, value: string) => {
+    if (editedDashboard && editedDashboard.filters) {
+      
+      const updatedFilters = [...editedDashboard.filters];
+      updatedFilters[index] = {
+        ...updatedFilters[index],
+        [field]: value,
+      };
+      
+      // Only update the ID for new filters or if the current ID is generic
+      if (field === 'name' && updatedFilters[index].id.startsWith('filter_') && !updatedFilters[index].id.includes('_dropdown') && !updatedFilters[index].id.includes('_button')) {
+        const newId = `filter_${value.toLowerCase().replace(/\s+/g, '_')}_dropdown`;
+        updatedFilters[index].id = newId;
+      }
+      
+      const updatedDashboard = {
+        ...editedDashboard,
+        filters: updatedFilters,
+      };
+      
+      
+      setEditedDashboard(updatedDashboard);
+      markAsChanged();
+      
+      // Update dashboard in real-time
+      updateDashboardInIframe(updatedDashboard);
+    }
+  };
+
+  // Toolbar component
+  const Toolbar = () => (
+    <TooltipProvider>
+      <div className="sticky top-0 z-10 flex items-center justify-between p-3 bg-white border-b border-gray-200 shadow-sm">
+        <div className="flex items-center space-x-1">
+          {/* Dashboard Settings Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => {
+                  // Check if we're switching with unsaved changes
+                  if (hasUnsavedChanges && (editedChart || editedKPI || (isFiltersOpen && editedDashboard))) {
+                    setPendingAction("switch");
+                    setPendingSwitchAction("dashboard-settings");
+                    setShowConfirmDialog(true);
+                    return;
+                  }
+                  
+                  setIsDashboardSettingsOpen(!isDashboardSettingsOpen);
+                  setIsFiltersOpen(false);
+                  setEditedChart(null);
+                  setEditedKPI(null);
+                  setOriginalChartState(null);
+                  setOriginalKPIState(null);
+                  
+                  // Clear selection in iframe
+                  const iframe = iframeRef.current;
+                  if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: "clear-selection" }, "*");
+                  }
+                  
+                  if (!isDashboardSettingsOpen) {
+                    const contentToParse = rawPXMLContent || content;
+                    setEditedDashboard(parseDashboardFromPXML(contentToParse));
+                  }
+                }}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
+                  isDashboardSettingsOpen
+                    ? "bg-blue-50 text-blue-700 border border-blue-200"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                }`}
+              >
+                <Layout className="w-4 h-4" />
+                <span>Dashboard Settings</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Configure dashboard name, description, and icon</p>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Filters Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => {
+                  // Check if we're switching with unsaved changes
+                  if (hasUnsavedChanges && (editedChart || editedKPI || (isDashboardSettingsOpen && editedDashboard))) {
+                    setPendingAction("switch");
+                    setPendingSwitchAction("filters");
+                    setShowConfirmDialog(true);
+                    return;
+                  }
+                  
+                  setIsFiltersOpen(!isFiltersOpen);
+                  setIsDashboardSettingsOpen(false);
+                  setEditedChart(null);
+                  setEditedKPI(null);
+                  setOriginalChartState(null);
+                  setOriginalKPIState(null);
+                  
+                  // Clear selection in iframe
+                  const iframe = iframeRef.current;
+                  if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: "clear-selection" }, "*");
+                  }
+                  
+                  if (!isFiltersOpen) {
+                    const contentToParse = rawPXMLContent || content;
+                    setEditedDashboard(parseDashboardFromPXML(contentToParse));
+                  }
+                }}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer ${
+                  isFiltersOpen
+                    ? "bg-blue-50 text-blue-700 border border-blue-200"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                }`}
+              >
+                <Filter className="w-4 h-4" />
+                <span>Edit Filters</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Add and configure interactive filters</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+
+        {/* Status */}
+        <div className="flex items-center space-x-3 text-sm text-gray-500">
+          {hasUnsavedChanges && (
+            <span className="flex items-center space-x-1 text-yellow-600">
+              <div className="w-2 h-2 bg-yellow-400 rounded-full" />
+              <span>Unsaved changes</span>
+            </span>
+          )}
+          {isSaving && (
+            <span className="flex items-center space-x-1">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Saving...</span>
+            </span>
+          )}
+        </div>
+      </div>
+    </TooltipProvider>
+  );
+
   return (
-    <div className="h-full flex">
+    <div className="h-full flex flex-col bg-gray-50">
+      <Toolbar />
+      
+      <div className="flex-1 flex min-h-0">
       {/* Main Dashboard View */}
       <div
         className={`transition-all duration-500 ease-out ${
-          isEditorOpen ? "w-2/3" : "w-full"
-        } flex-1`}
+            isEditorOpen || isDashboardSettingsOpen || isFiltersOpen ? "w-2/3" : "w-full"
+          } flex-1 bg-gray-50 min-h-0`}
         style={{
           transitionProperty: "width, flex-basis",
           transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
+          {/* Clean Canvas Area */}
+          <div className="h-full overflow-auto bg-gray-100">
+            <div className="h-full flex justify-center py-8 px-4">
+              <div className="relative w-full max-w-7xl h-full group">
+              {/* Canvas container */}
+              <div className="w-full h-full rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-all duration-200">
         <iframe
           ref={iframeRef}
           srcDoc={getDisplayContent()}
-          className="w-full h-full border-0 transition-all duration-300 ease-out"
+                  className="w-full h-full border-0"
           title="Dashboard Preview"
           sandbox="allow-scripts allow-same-origin allow-forms"
         />
       </div>
 
-      {/* Chart/KPI Editor Sidebar */}
+              {/* Subtle corner indicators */}
+              <div className="absolute top-2 right-2 w-1 h-1 bg-blue-400 rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-200 pointer-events-none"></div>
+              <div className="absolute bottom-2 right-2 w-1 h-1 bg-blue-400 rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-200 pointer-events-none"></div>
+              <div className="absolute bottom-2 left-2 w-1 h-1 bg-blue-400 rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-200 pointer-events-none"></div>
+              <div className="absolute top-2 left-2 w-1 h-1 bg-blue-400 rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-200 pointer-events-none"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Unified Sidebar */}
       <div
-        className={`bg-background border-l overflow-hidden transition-all duration-500 ease-out ${
-          isEditorOpen && (editedChart || editedKPI)
-            ? "w-1/3 opacity-100"
+        className={`bg-white border-l border-gray-200 overflow-hidden transition-all duration-300 ease-out h-full ${
+          isEditorOpen && (editedChart || editedKPI) || isDashboardSettingsOpen || isFiltersOpen
+            ? "w-80 opacity-100"
             : "w-0 opacity-0"
         }`}
         style={{
@@ -1749,22 +2840,15 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           transitionTimingFunction: "cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
+        {/* Chart/KPI Editor Content */}
         {isEditorOpen && (editedChart || editedKPI) && (
           <div className="h-full flex flex-col">
-            {/* Header */}
-            <div className="flex h-14 items-center justify-between border-b px-6">
-              <div className="flex items-center space-x-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
-                  <Settings className="h-4 w-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold">
-                    {editedChart ? "Edit Chart" : "Edit KPI"}
+            {/* Clean Header */}
+            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-4 bg-gray-50 flex-shrink-0">
+              <div className="flex items-center space-x-2">
+                <h3 className="text-sm font-medium text-gray-700">
+                  {editedChart ? "Chart Settings" : "KPI Settings"}
                   </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {editedChart?.name || editedKPI?.name || "Untitled"}
-                  </p>
-                </div>
               </div>
               <div className="flex items-center space-x-2">
                 {hasUnsavedChanges && (
@@ -1784,39 +2868,179 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
               </div>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="space-y-4 p-6">
-                {editedChart && (
+            {/* Clean Content */}
+            <div className="flex-1 overflow-y-auto bg-white min-h-0">
+              <div className="p-4 space-y-6">
+                {editedDashboard && (
                   <>
-                    {/* General Section */}
-                    <div className="rounded-lg border bg-card">
-                      <Button
-                        variant="ghost"
-                        onClick={() => toggleSection("general")}
-                        className="w-full justify-between p-4 h-auto font-normal"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Palette className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-left">
-                            <div className="text-sm font-medium">General</div>
-                            <div className="text-xs text-muted-foreground">
-                              Chart title and type
-                            </div>
+                    {/* Clean Dashboard Metadata */}
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Dashboard Properties</h4>
+                        <div className="space-y-4">
+                          {/* Dashboard Name */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">Name</label>
+                            <input
+                              type="text"
+                              value={editedDashboard.name}
+                              onChange={(e) => updateDashboardProperty('name', e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                            />
+                          </div>
+                          {/* Dashboard Description */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">Description</label>
+                            <textarea
+                              value={editedDashboard.description}
+                              onChange={(e) => updateDashboardProperty('description', e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none min-h-[80px] resize-none"
+                            />
+                          </div>
+                          {/* Dashboard Icon */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">Icon</label>
+                            <select
+                              value={editedDashboard.icon}
+                              onChange={(e) => updateDashboardProperty('icon', e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                            >
+                              {DASHBOARD_ICONS.map((icon) => (
+                                <option key={icon.value} value={icon.value}>
+                                  {icon.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          {/* Dashboard Theme */}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">Theme</label>
+                            <select
+                              value={editedDashboard.theme}
+                              onChange={(e) => updateDashboardProperty('theme', e.target.value)}
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                            >
+                              {DASHBOARD_THEMES.map((theme) => (
+                                <option key={theme.value} value={theme.value}>
+                                  {theme.label}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         </div>
-                        {expandedSections.general ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-
-                      {expandedSections.general && (
-                        <div className="border-t bg-muted/30 p-4 space-y-4">
+                      </div>
+                    </div>
+                    {/* Notion-style Filters Section */}
+                    <div className="space-y-4">
+                      <div>
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                          Filters
+                              </div>
+                        <div className="flex items-center justify-between mb-3">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const newFilter = {
+                                id: `filter_${Date.now()}`,
+                                name: 'New Filter',
+                                type: 'list',
+                                values_formula: ''
+                              };
+                              updateDashboardProperty('filters', [...editedDashboard.filters, newFilter]);
+                            }}
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Filter
+                          </Button>
+                        </div>
+                        <div className="space-y-3">
+                          {editedDashboard.filters.map((filter, index) => (
+                            <div key={filter.id} className="p-3 border rounded-md space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div className="text-sm font-medium">Filter {index + 1}</div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    const newFilters = editedDashboard.filters.filter((_, i) => i !== index);
+                                    updateDashboardProperty('filters', newFilters);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-2">
+                                  <label className="text-xs font-medium">Name</label>
+                                  <input
+                                    type="text"
+                                    value={filter.name}
+                                    onChange={(e) => {
+                                      const newFilters = [...editedDashboard.filters];
+                                      newFilters[index].name = e.target.value;
+                                      updateDashboardProperty('filters', newFilters);
+                                    }}
+                                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <label className="text-xs font-medium">Type</label>
+                                  <select
+                                    value={filter.type}
+                                    onChange={(e) => {
+                                      const newFilters = [...editedDashboard.filters];
+                                      newFilters[index].type = e.target.value;
+                                      updateDashboardProperty('filters', newFilters);
+                                    }}
+                                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                  >
+                                    {FILTER_TYPES.map((type) => (
+                                      <option key={type.value} value={type.value}>
+                                        {type.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs font-medium">Values Formula</label>
+                                <textarea
+                                  value={unescapeFormula(filter.values_formula)}
+                                  onChange={(e) => {
+                                    const newFilters = [...editedDashboard.filters];
+                                    newFilters[index].values_formula = e.target.value;
+                                    updateDashboardProperty('filters', newFilters);
+                                  }}
+                                  className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 min-h-[80px] resize-none font-mono"
+                                  placeholder="e.g., =unique(B2:B) or =unique(E2:E)"
+                                />
+                                <p className="text-xs text-gray-500">
+                                  Use Excel-style formulas like =unique(B2:B) to get unique values from column B
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                          {editedDashboard.filters.length === 0 && (
+                            <div className="text-center py-6 text-muted-foreground text-sm">
+                              No filters configured. Click &quot;Add Filter&quot; to create one.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {editedChart && (
+                  <>
+                    {/* Clean Chart Editor */}
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Chart Properties</h4>
+                        <div className="space-y-4">
                           {/* Chart Title */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            <label className="text-sm font-medium text-gray-700">
                               Chart Title
                             </label>
                             <input
@@ -1825,14 +3049,14 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               onChange={(e) =>
                                 updateChartProperty("name", e.target.value)
                               }
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                               placeholder="Enter chart title"
                             />
                           </div>
 
                           {/* Chart Type */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            <label className="text-sm font-medium text-gray-700">
                               Chart Type
                             </label>
                             <div className="grid grid-cols-3 gap-2">
@@ -1841,50 +3065,63 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                 const isSelected =
                                   editedChart.type === type.value;
                                 return (
-                                  <Button
+                                  <button
                                     key={type.value}
-                                    variant={isSelected ? "default" : "outline"}
-                                    size="sm"
                                     onClick={() =>
                                       updateChartProperty("type", type.value)
                                     }
                                     className={cn(
-                                      "flex h-auto flex-col space-y-1 p-3",
-                                      !isSelected && "text-muted-foreground"
+                                      "group relative flex h-auto flex-col space-y-2 p-3 text-sm border rounded-lg transition-all duration-200 hover:scale-105",
+                                      isSelected 
+                                        ? "border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700 shadow-md ring-2 ring-blue-200" 
+                                        : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:shadow-sm"
                                     )}
                                   >
-                                    <IconComponent className="h-4 w-4" />
-                                    <span className="text-xs">
+                                    <div className={cn(
+                                      "transition-all duration-200",
+                                      isSelected ? "scale-110" : "group-hover:scale-105"
+                                    )}>
+                                      <IconComponent className="h-4 w-4 mx-auto" />
+                                    </div>
+                                    <span className="text-xs font-medium">
                                       {type.label}
                                     </span>
-                                  </Button>
+                                    {isSelected && (
+                                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
+                                        <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                                      </div>
+                                    )}
+                                  </button>
                                 );
                               })}
                             </div>
                           </div>
 
                           {/* Chart Options */}
-                          <div className="space-y-4">
+                          <div className="space-y-3">
                             {/* Area Option - Only for line charts */}
                             {editedChart.type === "line" && (
                               <div className="space-y-2">
-                                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                <label className="text-sm font-medium text-gray-700">
                                   Area
                                 </label>
-                                <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-full">
+                                <div className="inline-flex h-10 items-center justify-center rounded-lg bg-gray-100 p-1 text-gray-600 w-full">
                                   <button
                                     type="button"
                                     onClick={() =>
                                       updateChartOption("area", "none")
                                     }
                                     className={cn(
-                                      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
+                                      "group relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 flex-1",
                                       (editedChart.area || "none") === "none"
-                                        ? "bg-background text-foreground shadow"
-                                        : "hover:bg-muted-foreground/10"
+                                        ? "bg-white text-gray-900 shadow-md ring-2 ring-blue-200 border border-blue-300"
+                                        : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
                                     )}
                                   >
-                                    None
+                                    <span className="relative z-10">None</span>
+                                    {(editedChart.area || "none") === "none" && (
+                                      <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-md"></div>
+                                    )}
                                   </button>
                                   <button
                                     type="button"
@@ -1892,13 +3129,16 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                       updateChartOption("area", "area")
                                     }
                                     className={cn(
-                                      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
+                                      "group relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 flex-1",
                                       (editedChart.area || "none") === "area"
-                                        ? "bg-background text-foreground shadow"
-                                        : "hover:bg-muted-foreground/10"
+                                        ? "bg-white text-gray-900 shadow-md ring-2 ring-blue-200 border border-blue-300"
+                                        : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
                                     )}
                                   >
-                                    Area
+                                    <span className="relative z-10">Area</span>
+                                    {(editedChart.area || "none") === "area" && (
+                                      <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-md"></div>
+                                    )}
                                   </button>
                                 </div>
                               </div>
@@ -1912,24 +3152,26 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               editedChart.type === "combo_chart") &&
                               editedChart.series_list.length > 1 && (
                                 <div className="space-y-2">
-                                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                  <label className="text-sm font-medium text-gray-700">
                                     Stacked
                                   </label>
-                                  <div className="inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground w-full">
+                                  <div className="inline-flex h-10 items-center justify-center rounded-lg bg-gray-100 p-1 text-gray-600 w-full">
                                     <button
                                       type="button"
                                       onClick={() =>
                                         updateChartOption("stacked", "none")
                                       }
                                       className={cn(
-                                        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
-                                        (editedChart.stacked || "none") ===
-                                          "none"
-                                          ? "bg-background text-foreground shadow"
-                                          : "hover:bg-muted-foreground/10"
+                                        "group relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 flex-1",
+                                        (editedChart.stacked || "none") === "none"
+                                          ? "bg-white text-gray-900 shadow-md ring-2 ring-blue-200 border border-blue-300"
+                                          : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
                                       )}
                                     >
-                                      None
+                                      <span className="relative z-10">None</span>
+                                      {(editedChart.stacked || "none") === "none" && (
+                                        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-md"></div>
+                                      )}
                                     </button>
                                     <button
                                       type="button"
@@ -1937,82 +3179,50 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                         updateChartOption("stacked", "stacked")
                                       }
                                       className={cn(
-                                        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
-                                        (editedChart.stacked || "none") ===
-                                          "stacked"
-                                          ? "bg-background text-foreground shadow"
-                                          : "hover:bg-muted-foreground/10"
+                                        "group relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 flex-1",
+                                        (editedChart.stacked || "none") === "stacked"
+                                          ? "bg-white text-gray-900 shadow-md ring-2 ring-blue-200 border border-blue-300"
+                                          : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
                                       )}
                                     >
-                                      Stacked
+                                      <span className="relative z-10">Stacked</span>
+                                      {(editedChart.stacked || "none") === "stacked" && (
+                                        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-md"></div>
+                                      )}
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() =>
-                                        updateChartOption(
-                                          "stacked",
-                                          "100_stacked"
-                                        )
+                                        updateChartOption("stacked", "100_stacked")
                                       }
                                       className={cn(
-                                        "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 flex-1",
-                                        (editedChart.stacked || "none") ===
-                                          "100_stacked"
-                                          ? "bg-background text-foreground shadow"
-                                          : "hover:bg-muted-foreground/10"
+                                        "group relative inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-all duration-200 flex-1",
+                                        (editedChart.stacked || "none") === "100_stacked"
+                                          ? "bg-white text-gray-900 shadow-md ring-2 ring-blue-200 border border-blue-300"
+                                          : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
                                       )}
                                     >
-                                      100%
+                                      <span className="relative z-10">100%</span>
+                                      {(editedChart.stacked || "none") === "100_stacked" && (
+                                        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-md"></div>
+                                      )}
                                     </button>
                                   </div>
                                 </div>
                               )}
                           </div>
                         </div>
-                      )}
                     </div>
 
-                    {/* X-Axis Section */}
-                    <div className="rounded-lg border bg-card">
-                      <Button
-                        variant="ghost"
-                        onClick={() => toggleSection("xaxis")}
-                        className="w-full justify-between p-4 h-auto font-normal"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Database className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-left">
-                            <div className="text-sm font-medium">
+                      {/* X-Axis Configuration */}
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
                               {getAxisLabel(editedChart.type)}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {editedChart.type === "horizontal_bar"
-                                ? "Value axis configuration"
-                                : editedChart.type === "pie" ||
-                                  editedChart.type === "donut"
-                                ? "Label configuration"
-                                : editedChart.type === "bubble" ||
-                                  editedChart.type === "scatter"
-                                ? "X-axis configuration"
-                                : editedChart.type === "radar"
-                                ? "Dimension configuration"
-                                : editedChart.type === "combo_chart"
-                                ? "Category axis configuration"
-                                : "Category axis configuration"}
-                            </div>
-                          </div>
-                        </div>
-                        {expandedSections.xaxis ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-
-                      {expandedSections.xaxis && (
-                        <div className="border-t bg-muted/30 p-4 space-y-4">
+                          </h4>
+                          <div className="space-y-4">
                           <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              <label className="text-sm font-medium text-gray-700">
                               {getAxisLabel(editedChart.type)} Name
                             </label>
                             <input
@@ -2025,12 +3235,12 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                   e.target.value
                                 )
                               }
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                               placeholder="Enter axis name"
                             />
                           </div>
                           <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              <label className="text-sm font-medium text-gray-700">
                               Column
                             </label>
                             <select
@@ -2061,7 +3271,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                 markAsChanged();
                                 updateChartInIframe(updatedChart);
                               }}
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                             >
                               {getAvailableColumns().map((col) => (
                                 <option key={col.letter} value={col.letter}>
@@ -2071,43 +3281,23 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                             </select>
                           </div>
                         </div>
-                      )}
                     </div>
-
-                    {/* Series Section */}
-                    <div className="rounded-lg border bg-card">
-                      <Button
-                        variant="ghost"
-                        onClick={() => toggleSection("series")}
-                        className="w-full justify-between p-4 h-auto font-normal"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-left">
-                            <div className="text-sm font-medium">
-                              {getSeriesLabel(editedChart.type)}
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              {editedChart.series_list.length} configured
-                            </div>
-                          </div>
-                        </div>
-                        {expandedSections.series ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-
-                      {expandedSections.series && (
-                        <div className="border-t bg-muted/30 p-4 space-y-3">
+                      
+                      {/* Series Configuration */}
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                            {getSeriesLabel(editedChart.type)} ({editedChart.series_list.length} configured)
+                          </h4>
+                          <div className="space-y-4">
                           {editedChart.series_list.map((series, index) => (
                             <div
                               key={index}
-                              className="rounded-md border bg-background p-4 space-y-3"
+                                className="rounded border border-gray-200 bg-gray-50/50 p-3 space-y-3"
                             >
                               <div className="flex items-center justify-between">
-                                <div className="text-sm font-medium">
+                                  <div className="text-xs font-medium text-gray-600">
                                   {editedChart.type === "line"
                                     ? `Line ${index + 1}`
                                     : editedChart.type === "pie" ||
@@ -2139,7 +3329,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               </div>
                               <div className="space-y-3">
                                 <div className="space-y-2">
-                                  <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    <label className="text-sm font-medium text-gray-700">
                                     {editedChart.type === "line"
                                       ? "Line Name"
                                       : editedChart.type === "pie" ||
@@ -2165,13 +3355,13 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                         e.target.value
                                       )
                                     }
-                                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                                     placeholder="Enter series name"
                                   />
                                 </div>
-                                <div className={`grid gap-2 ${editedChart.type === "scatter" || editedChart.type === "radar" ? "grid-cols-1" : "grid-cols-2"}`}>
+                                  <div className={`grid gap-3 ${editedChart.type === "scatter" || editedChart.type === "radar" ? "grid-cols-1" : "grid-cols-2"}`}>
                                   <div className="space-y-2">
-                                    <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                      <label className="text-sm font-medium text-gray-700">
                                       {editedChart.type === "bubble" ? "Y-Axis Column" : "Column"}
                                     </label>
                                     <select
@@ -2183,7 +3373,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                           e.target.value
                                         )
                                       }
-                                      className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                                     >
                                       <option value="">Select column</option>
                                       {getAvailableColumns().map((col) => (
@@ -2226,7 +3416,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                   )}
                                   {editedChart.type !== "scatter" && editedChart.type !== "radar" && (
                                     <div className="space-y-2">
-                                      <label className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                        <label className="text-sm font-medium text-gray-700">
                                         Aggregation
                                       </label>
                                       <select
@@ -2238,7 +3428,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                                             e.target.value
                                           )
                                         }
-                                        className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                                       >
                                         {AGGREGATION_TYPES.map((agg) => (
                                           <option
@@ -2257,13 +3447,12 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                           ))}
 
                           {/* Add Series Button */}
-                          <Button
-                            variant="outline"
+                            <button
                             onClick={addSeries}
-                            className="w-full border-dashed"
-                            size="sm"
+                              className="w-full border border-dashed border-gray-300 rounded px-3 py-2 text-xs text-gray-600 hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center space-x-1"
                           >
-                            <Plus className="h-4 w-4 mr-2" />
+                              <Plus className="h-3 w-3" />
+                              <span>
                             Add{" "}
                             {editedChart.type === "line"
                               ? "Line"
@@ -2279,43 +3468,25 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               : editedChart.type === "combo_chart"
                               ? "Series"
                               : "Series"}
-                          </Button>
+                              </span>
+                            </button>
                         </div>
-                      )}
+                        </div>
+                      </div>
                     </div>
                   </>
                 )}
 
                 {editedKPI && (
                   <>
-                    {/* KPI General Section */}
-                    <div className="rounded-lg border bg-card">
-                      <Button
-                        variant="ghost"
-                        onClick={() => toggleSection("general")}
-                        className="w-full justify-between p-4 h-auto font-normal"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Palette className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-left">
-                            <div className="text-sm font-medium">General</div>
-                            <div className="text-xs text-muted-foreground">
-                              KPI name and icon
-                            </div>
-                          </div>
-                        </div>
-                        {expandedSections.general ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-
-                      {expandedSections.general && (
-                        <div className="border-t bg-muted/30 p-4 space-y-4">
+                    {/* Clean KPI Editor */}
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">KPI Properties</h4>
+                        <div className="space-y-4">
                           {/* KPI Name */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            <label className="text-sm font-medium text-gray-700">
                               KPI Name
                             </label>
                             <input
@@ -2324,14 +3495,14 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               onChange={(e) =>
                                 updateKPIProperty("name", e.target.value)
                               }
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                               placeholder="Enter KPI name"
                             />
                           </div>
 
                           {/* KPI Icon */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            <label className="text-sm font-medium text-gray-700">
                               Icon
                             </label>
                             <select
@@ -2339,7 +3510,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               onChange={(e) =>
                                 updateKPIProperty("fa_icon", e.target.value)
                               }
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                             >
                               {KPI_ICONS.map((icon) => (
                                 <option key={icon.value} value={icon.value}>
@@ -2349,70 +3520,43 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                             </select>
                           </div>
                         </div>
-                      )}
                     </div>
 
-                    {/* KPI Value Section */}
-                    <div className="rounded-lg border bg-card">
-                      <Button
-                        variant="ghost"
-                        onClick={() => toggleSection("xaxis")}
-                        className="w-full justify-between p-4 h-auto font-normal"
-                      >
-                        <div className="flex items-center space-x-3">
-                          <Database className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-left">
-                            <div className="text-sm font-medium">
+                      {/* KPI Value Configuration */}
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
                               Value Configuration
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              Formula, format, and unit
-                            </div>
-                          </div>
-                        </div>
-                        {expandedSections.xaxis ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </Button>
-
-                      {expandedSections.xaxis && (
-                        <div className="border-t bg-muted/30 p-4 space-y-4">
+                          </h4>
+                          <div className="space-y-4">
                           {/* Formula */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              <label className="text-sm font-medium text-gray-700">
                               Formula
                             </label>
                             <input
                               type="text"
-                              value={editedKPI.value_formula}
+                              value={unescapeFormula(editedKPI.value_formula)}
                               onChange={(e) =>
                                 updateKPIProperty(
                                   "value_formula",
                                   e.target.value
                                 )
                               }
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                               placeholder="e.g., =SUM(G2:G)"
                             />
                           </div>
 
                           {/* Format */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              <label className="text-sm font-medium text-gray-700">
                               Format
                             </label>
                             <select
                               value={editedKPI.format_type}
-                              onChange={(e) => {
-                                if (e.target.value === "currency:custom") {
-                                  setShowCurrencyModal(true);
-                                } else {
-                                  updateKPIProperty("format_type", e.target.value);
-                                }
-                              }}
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                onChange={(e) => updateKPIProperty("format_type", e.target.value)}
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                             >
                               {/* Show custom currency if selected */}
                               {editedKPI.format_type.startsWith("currency:") && !KPI_FORMATS.some(f => f.value === editedKPI.format_type) && (
@@ -2430,7 +3574,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
                           {/* Unit */}
                           <div className="space-y-2">
-                            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                              <label className="text-sm font-medium text-gray-700">
                               Unit (optional)
                             </label>
                             <input
@@ -2439,31 +3583,251 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
                               onChange={(e) =>
                                 updateKPIProperty("unit", e.target.value)
                               }
-                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                               placeholder="e.g., %, units, etc."
                             />
                           </div>
                         </div>
-                      )}
+                        </div>
+                      </div>
                     </div>
                   </>
                 )}
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="border-t bg-muted/10 p-6">
+            {/* Clean Actions */}
+            <div className="border-t border-gray-200 bg-gray-50 p-4">
               <div className="flex space-x-3">
-                <Button
-                  onClick={editedChart ? handleSaveChart : handleSaveKPI}
+                <SaveChangesButton
+                  onSave={editedChart ? handleSaveChart : editedKPI ? handleSaveKPI : handleSaveDashboard}
                   className="flex-1"
-                  size="sm"
-                  disabled={isSaving || !hasUnsavedChanges}
-                >
-                  {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {isSaving ? "Saving..." : "Save Changes"}
-                </Button>
+                />
                 <Button onClick={handleCloseEditor} variant="outline" size="sm">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dashboard Settings Content */}
+        {isDashboardSettingsOpen && editedDashboard && (
+          <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-4 bg-gray-50 flex-shrink-0">
+              <div className="flex items-center space-x-2">
+                <h3 className="text-sm font-medium text-gray-700">
+                  Dashboard Settings
+                </h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                {hasUnsavedChanges && (
+                  <div className="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">
+                    <div className="mr-1 h-1.5 w-1.5 rounded-full bg-yellow-400" />
+                    Unsaved
+                  </div>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCloseDashboardSettings}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto bg-white min-h-0">
+              <div className="space-y-6 p-4">
+                <div>
+                  <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Dashboard Properties</h4>
+                  <div className="space-y-4">
+                    {/* Dashboard Name */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editedDashboard.name}
+                        onChange={(e) =>
+                          updateDashboardProperty("name", e.target.value)
+                        }
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                        placeholder="Enter dashboard name"
+                      />
+                    </div>
+
+                    {/* Dashboard Description */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Description
+                      </label>
+                      <textarea
+                        value={editedDashboard.description}
+                        onChange={(e) =>
+                          updateDashboardProperty("description", e.target.value)
+                        }
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none min-h-[80px] resize-none"
+                        placeholder="Enter dashboard description"
+                      />
+                    </div>
+
+                    {/* Dashboard Icon */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-gray-700">
+                        Icon
+                      </label>
+                      <select
+                        value={editedDashboard.icon}
+                        onChange={(e) =>
+                          updateDashboardProperty("icon", e.target.value)
+                        }
+                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                      >
+                        {DASHBOARD_ICONS.map((icon) => (
+                          <option key={icon.value} value={icon.value}>
+                            {icon.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer - Sticky */}
+            <div className="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 flex-shrink-0">
+              <div className="flex space-x-3">
+                <SaveChangesButton onSave={handleSaveDashboard} className="flex-1" />
+                <Button onClick={handleCloseDashboardSettings} variant="outline" size="sm">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Filters Content */}
+        {isFiltersOpen && (
+          <div className="h-full flex flex-col">
+            {/* Header */}
+            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-4 bg-gray-50 flex-shrink-0">
+              <div className="flex items-center space-x-2">
+                <h3 className="text-sm font-medium text-gray-700">
+                  Filters
+                </h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCloseFilters}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto bg-white min-h-0">
+              <div className="space-y-6 p-4">
+                <div>
+                  <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Dashboard Filters</h4>
+                  <div className="space-y-4">
+                    {(editedDashboard?.filters || []).map((filter, index) => (
+                      <div
+                        key={index}
+                        className="rounded border border-gray-200 bg-gray-50/50 p-3 space-y-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-sm font-medium text-gray-700">
+                            Filter {index + 1}
+                          </h5>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFilter(index)}
+                            className="h-6 w-6 p-0 text-gray-400 hover:text-red-500"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">
+                              Name
+                            </label>
+                            <input
+                              type="text"
+                              value={filter.name}
+                              onChange={(e) =>
+                                updateFilter(index, "name", e.target.value)
+                              }
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              placeholder="Filter name"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">
+                              Type
+                            </label>
+                            <select
+                              value={filter.type}
+                              onChange={(e) =>
+                                updateFilter(index, "type", e.target.value)
+                              }
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                            >
+                              {FILTER_TYPES.map((type) => (
+                                <option key={type.value} value={type.value}>
+                                  {type.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-700">
+                              Formula
+                            </label>
+                            <textarea
+                              value={unescapeFormula(filter.values_formula)}
+                              onChange={(e) =>
+                                updateFilter(index, "values_formula", e.target.value)
+                              }
+                              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none min-h-[80px] resize-none font-mono"
+                              placeholder="e.g., =unique(B2:B) or =unique(E2:E)"
+                            />
+                            <p className="text-xs text-gray-500">
+                              Use Excel-style formulas like =unique(B2:B) to get unique values from column B
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <button
+                      onClick={addFilter}
+                      className="w-full border border-dashed border-gray-300 rounded px-3 py-2 text-xs text-gray-600 hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center space-x-1"
+                    >
+                      <Plus className="h-3 w-3" />
+                      <span>Add Filter</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer - Sticky */}
+            <div className="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 flex-shrink-0">
+              <div className="flex space-x-3">
+                <SaveChangesButton onSave={handleSaveDashboard} className="flex-1" />
+                <Button onClick={handleCloseFilters} variant="outline" size="sm">
                   Cancel
                 </Button>
               </div>
@@ -2506,49 +3870,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
           </div>
         </div>
       )}
-
-      {/* Custom Currency Modal */}
-      {showCurrencyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96 max-h-96 overflow-hidden flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Select Currency</h3>
-              <button
-                onClick={() => setShowCurrencyModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
             </div>
-            
-            <div className="flex-1 overflow-y-auto">
-              <div className="space-y-1">
-                {CUSTOM_CURRENCIES.map((currency) => (
-                  <button
-                    key={currency.value}
-                    onClick={() => {
-                      updateKPIProperty("format_type", currency.value);
-                      setShowCurrencyModal(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded"
-                  >
-                    {currency.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="mt-4 pt-4 border-t">
-              <button
-                onClick={() => setShowCurrencyModal(false)}
-                className="w-full px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

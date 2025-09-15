@@ -184,10 +184,10 @@ class HTMLGenerator:
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
-                        <i class="fas {metadata['fa_icon']} text-2xl text-blue-600"></i>
+                        <i class="fas {metadata['fa_icon']} text-2xl text-blue-600" data-dashboard-icon></i>
                         <div>
-                            <h1 class="text-2xl font-bold text-gray-900">{metadata['name']}</h1>
-                            <p class="text-sm text-gray-600">{metadata['description']}</p>
+                            <h1 class="text-2xl font-bold text-gray-900" data-dashboard-name>{metadata['name']}</h1>
+                            <p class="text-sm text-gray-600" data-dashboard-description>{metadata['description']}</p>
                         </div>
                     </div>
                     <div class="flex items-center space-x-2 text-sm text-gray-500">
@@ -199,10 +199,9 @@ class HTMLGenerator:
         </header>"""
 
     def _generate_filters_section(self, filters: List[Dict[str, Any]]) -> str:
-        """Generate filters section"""
-        if not filters:
-            return ""
-
+        """Generate filters section - always create the section, JavaScript will show/hide it"""
+        # Always create the filters section, even if empty
+        # JavaScript will handle showing/hiding based on filter count
         filters_html = """
         <section class="bg-white shadow-sm border-b">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -217,6 +216,7 @@ class HTMLGenerator:
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">"""
 
+        # Add individual filter components if they exist
         for filter_config in filters:
             filters_html += self._generate_filter_component(filter_config)
 

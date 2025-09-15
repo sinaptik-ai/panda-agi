@@ -25,6 +25,7 @@ import ArtifactActions from "./artifact-actions";
 import { ArtifactData } from "@/types/artifact";
 import { useSavedArtifacts } from "@/contexts/saved-artifacts-context";
 import DashboardEditor from "./editor/dashboard-editor";
+import ChartRenderer from "./events/chart-renderer";
 
 export interface PreviewData {
   title?: string;
@@ -312,18 +313,27 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
    * - Shows when: hasUnsavedChanges OR !isSaved (never been saved)
    * - This allows saving original content as creation even without modifications
    */
-  const handleSaveContent = async () => {
+
+  
+  const handleSaveContent = async (directContent?: string) => {
     if (isSaving) return;
 
     // Skip if already saved and no changes
-    if (isSaved && !hasUnsavedChanges) return;
+    if (!directContent && !hasUnsavedChanges) return;
+
+    
 
     // FIRST TIME SAVE: No creation exists yet
     if (!isSaved || !savedArtifact) {
       // Update preview data with current editor content before opening dialog
       if (previewData) {
-        const markdownContent = await htmlToMarkdown(editorContent);
-        previewData.content = markdownContent;
+
+        const savedContent =
+          getFileType(artifact.filepath) === "markdown"
+            ? await htmlToMarkdown(editorContent)
+            : fileContent || "";
+  
+        previewData.content = savedContent;
 
         // Trigger the SaveArtifactButton dialog to create new creation
         // Note: handleArtifactSaved will handle any unsaved changes after creation
@@ -336,16 +346,22 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     setIsSaving(true);
     try {
       // Convert HTML back to markdown
-      const markdownContent = await htmlToMarkdown(editorContent);
-
+      let savedContent = "";
+      if (directContent) {
+        savedContent = directContent
+      } else {
+        savedContent = getFileType(artifact.filepath) === "markdown"
+          ? await htmlToMarkdown(editorContent)
+          : fileContent || "";
+      }
       // Update the existing creation file
       await updateArtifactFile(
         savedArtifact.id,
         savedArtifact.filepath,
-        markdownContent
+        savedContent
       );
 
-      setFileContent(markdownContent);
+      setFileContent(savedContent);
       setHasUnsavedChanges(false);
       setJustSaved(true);
       toast.success("Creation updated successfully");
@@ -557,6 +573,15 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       case "iframe":
         return renderIframe(previewData.url!, previewData.title);
       case "pxml":
+        // Check if this is a chart PXML file
+        const pxmlContent = content as string;
+        if (pxmlContent && pxmlContent.trim().startsWith('<chart')) {
+          return (
+            <div className="h-full p-4 overflow-auto">
+              <ChartRenderer pxmlContent={pxmlContent} conversationId={conversationId} />
+            </div>
+          );
+        }
         // Render DashboardEditor if artifact exists, otherwise render iframe
         if (savedArtifact) {
           return (
@@ -571,6 +596,8 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
             />
           );
         }
+        
+        // For non-chart PXML files, use iframe
         return renderIframe(previewData.url!, previewData.title);
       case "markdown":
         return (
