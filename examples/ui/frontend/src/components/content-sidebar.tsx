@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FileImage, File, Loader2 } from "lucide-react";
+import { FileImage, File } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownEditor from "./markdown-editor";
@@ -10,6 +10,7 @@ import { Button } from "./ui/button";
 import ResizableSidebar from "./ui/resizable-sidebar";
 import FileIcon from "./ui/file-icon";
 import ExcelViewer from "./excel-viewer";
+import IframeRenderer from "./ui/iframe-renderer";
 import Papa from "papaparse";
 import { getApiHeaders } from "@/lib/api/common";
 import { config } from "@/lib/config";
@@ -80,9 +81,6 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // State for iframe loading
-  const [iframeLoading, setIframeLoading] = useState(true);
-  const [iframeLoaded, setIframeLoaded] = useState(false);
 
   // Saved state management
   const [isSaved, setIsSaved] = useState(false);
@@ -118,8 +116,6 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     setFileContent(null);
     setSuggestedName("");
     setShouldTriggerEdit(false);
-    setIframeLoading(true);
-    setIframeLoaded(false);
   };
 
   useEffect(() => {
@@ -249,9 +245,6 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       return;
     }
 
-    // Reset iframe loading state for new content
-    setIframeLoading(true);
-    setIframeLoaded(false);
 
     let filename = previewData.filename || "index.html";
 
@@ -567,46 +560,10 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       );
     }
 
-    // Helper function to render iframe content with loading state
-    const renderIframe = (url: string, title?: string) => {
-      const handleIframeLoad = () => {
-        setIframeLoaded(true);
-        // Add a small delay to ensure smooth transition
-        setTimeout(() => {
-          setIframeLoading(false);
-        }, 300);
-      };
-
-      return (
-        <div className="h-full rounded-md overflow-hidden border relative">
-          {/* Loading spinner */}
-          {iframeLoading && (
-            <div className="absolute inset-0 bg-white dark:bg-gray-900 flex items-center justify-center z-10 transition-opacity duration-300">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-            </div>
-          )}
-          
-          {/* Iframe content */}
-          <iframe
-            src={url}
-            className={`w-full h-full transition-opacity duration-300 ${
-              iframeLoaded ? 'opacity-100' : 'opacity-0'
-            }`}
-            title={title}
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
-            onLoad={handleIframeLoad}
-            onError={() => {
-              setIframeLoading(false);
-              setIframeLoaded(false);
-            }}
-          />
-        </div>
-      );
-    };
 
     switch (type) {
       case "iframe":
-        return renderIframe(previewData.url!, previewData.title);
+        return <IframeRenderer url={previewData.url!} title={previewData.title} />;
       case "pxml":
         // Check if this is a chart PXML file
         const pxmlContent = content as string;
@@ -630,7 +587,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         }
         
         // For non-chart PXML files without saved artifact, use iframe
-        return renderIframe(previewData.url!, previewData.title);
+        return <IframeRenderer url={previewData.url!} title={previewData.title} />;
       case "markdown":
         return (
           <MarkdownEditor
@@ -735,7 +692,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         );
       case "html":
         // Render HTML content in iframe instead of showing code
-        return renderIframe(content as string, previewData.title);
+        return <IframeRenderer url={content as string} title={previewData.title} />;
       case "image":
         if (!normalizedFilename || !conversationId) {
           return null;
