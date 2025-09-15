@@ -24,6 +24,7 @@ import {
 import ArtifactActions from "./artifact-actions";
 import { ArtifactData } from "@/types/artifact";
 import { useSavedArtifacts } from "@/contexts/saved-artifacts-context";
+import DashboardEditor from "./editor/dashboard-editor";
 
 export interface PreviewData {
   title?: string;
@@ -556,6 +557,20 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       case "iframe":
         return renderIframe(previewData.url!, previewData.title);
       case "pxml":
+        // Render DashboardEditor if artifact exists, otherwise render iframe
+        if (savedArtifact) {
+          return (
+            <DashboardEditor
+              content={typeof fileContent === 'string' ? fileContent : ""}
+              artifact={savedArtifact}
+              onChange={(newContent) => {
+                setFileContent(newContent);
+                setHasUnsavedChanges(true);
+              }}
+              onSave={handleSaveContent}
+            />
+          );
+        }
         return renderIframe(previewData.url!, previewData.title);
       case "markdown":
         return (
