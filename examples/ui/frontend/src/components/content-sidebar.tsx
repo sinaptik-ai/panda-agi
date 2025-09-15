@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FileImage, File } from "lucide-react";
+import { FileImage, File, Loader2 } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import MarkdownEditor from "./markdown-editor";
@@ -20,6 +20,7 @@ import {
   validateContentType,
   getFileUrl,
   getArtifactFileUrl,
+  getFileType,
 } from "@/lib/utils";
 import ArtifactActions from "./artifact-actions";
 import { ArtifactData } from "@/types/artifact";
@@ -78,6 +79,10 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // State for iframe loading
+  const [iframeLoading, setIframeLoading] = useState(true);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
 
   // Saved state management
   const [isSaved, setIsSaved] = useState(false);
@@ -113,6 +118,8 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     setFileContent(null);
     setSuggestedName("");
     setShouldTriggerEdit(false);
+    setIframeLoading(true);
+    setIframeLoaded(false);
   };
 
   useEffect(() => {
@@ -242,6 +249,10 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       return;
     }
 
+    // Reset iframe loading state for new content
+    setIframeLoading(true);
+    setIframeLoaded(false);
+
     let filename = previewData.filename || "index.html";
 
     if (!previewData.filename && previewData.type === "iframe" && previewData.url) {
@@ -329,11 +340,11 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       if (previewData) {
 
         const savedContent =
-          getFileType(artifact.filepath) === "markdown"
+          getFileType(previewData.filename as string) === "markdown"
             ? await htmlToMarkdown(editorContent)
             : fileContent || "";
   
-        previewData.content = savedContent;
+        previewData.content = savedContent as string;
 
         // Trigger the SaveArtifactButton dialog to create new creation
         // Note: handleArtifactSaved will handle any unsaved changes after creation
@@ -350,9 +361,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       if (directContent) {
         savedContent = directContent
       } else {
-        savedContent = getFileType(artifact.filepath) === "markdown"
+        savedContent = (getFileType(savedArtifact.filepath) === "markdown"
           ? await htmlToMarkdown(editorContent)
-          : fileContent || "";
+          : fileContent || "") as string;
       }
       // Update the existing creation file
       await updateArtifactFile(
@@ -392,7 +403,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     try {
       // Use getArtifactFileUrl if we have a saved artifact, otherwise use getFileUrl
       const fileUrl = existingArtifact && existingArtifact?.id
-        ? getArtifactFileUrl(filename, existingArtifact.id, true, previewData?.timestamp)
+        ? getArtifactFileUrl(filename, existingArtifact.id, true)
         : getFileUrl(filename, conversationId, true, previewData?.timestamp);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -556,20 +567,44 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       );
     }
 
-    // Helper function to render iframe content
-    const renderIframe = (url: string, title?: string) => (
-      <div className="h-full rounded-md overflow-hidden border">
-        <iframe
-          src={url}
-          className="w-full h-full"
-          title={title}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
-        />
-      </div>
-    );
+    // Helper function to render iframe content with loading state
+    const renderIframe = (url: string, title?: string) => {
+      const handleIframeLoad = () => {
+        setIframeLoaded(true);
+        // Add a small delay to ensure smooth transition
+        setTimeout(() => {
+          setIframeLoading(false);
+        }, 300);
+      };
+
+      return (
+        <div className="h-full rounded-md overflow-hidden border relative">
+          {/* Loading spinner */}
+          {iframeLoading && (
+            <div className="absolute inset-0 bg-white dark:bg-gray-900 flex items-center justify-center z-10 transition-opacity duration-300">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+          )}
+          
+          {/* Iframe content */}
+          <iframe
+            src={url}
+            className={`w-full h-full transition-opacity duration-300 ${
+              iframeLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+            title={title}
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
+            onLoad={handleIframeLoad}
+            onError={() => {
+              setIframeLoading(false);
+              setIframeLoaded(false);
+            }}
+          />
+        </div>
+      );
+    };
 
     switch (type) {
-      
       case "iframe":
         return renderIframe(previewData.url!, previewData.title);
       case "pxml":
@@ -583,21 +618,18 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           );
         }
         // Render DashboardEditor if artifact exists, otherwise render iframe
-        if (savedArtifact) {
-          return (
-            <DashboardEditor
-              content={typeof fileContent === 'string' ? fileContent : ""}
-              artifact={savedArtifact}
-              onChange={(newContent) => {
-                setFileContent(newContent);
-                setHasUnsavedChanges(true);
-              }}
-              onSave={handleSaveContent}
-            />
-          );
+        if (savedArtifact && fileContent) {
+            return (
+              <DashboardEditor
+                content={fileContent as string}
+                artifact={savedArtifact}
+                onSave={handleSaveContent}
+              />
+            );
+           
         }
         
-        // For non-chart PXML files, use iframe
+        // For non-chart PXML files without saved artifact, use iframe
         return renderIframe(previewData.url!, previewData.title);
       case "markdown":
         return (
@@ -702,47 +734,8 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           </div>
         );
       case "html":
-        const htmlFilename = normalizedFilename || previewData.url || "";
-        return (
-          <div className="editor-container bg-gray-900 text-gray-100 rounded overflow-hidden h-full flex flex-col">
-            {/* Editor Header - same style as other code files */}
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700 flex-shrink-0">
-              <div className="flex items-center space-x-2">
-                <div className="flex space-x-1">
-                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                </div>
-                <span className="text-xs text-gray-300 ml-2">
-                  {htmlFilename.split("/").pop()}
-                </span>
-              </div>
-              <div className="flex items-center space-x-3 text-xs text-gray-400">
-                <span>HTML</span>
-                <span>{(content as string).split("\n").length} lines</span>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-auto">
-              <SyntaxHighlighter
-                language="html"
-                style={vscDarkPlus}
-                showLineNumbers={true}
-                lineNumberStyle={getLineNumberStyle()}
-                customStyle={getCommonStyle()}
-                className="syntax-highlighter"
-                codeTagProps={{
-                  style: {
-                    fontFamily:
-                      'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-                  },
-                }}
-              >
-                {content as string}
-              </SyntaxHighlighter>
-            </div>
-          </div>
-        );
+        // Render HTML content in iframe instead of showing code
+        return renderIframe(content as string, previewData.title);
       case "image":
         if (!normalizedFilename || !conversationId) {
           return null;
@@ -750,7 +743,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         // For images, construct the URL from the filename
         // Use getArtifactFileUrl if we have a saved artifact, otherwise use getFileUrl
         const imageUrl = savedArtifact?.id 
-          ? getArtifactFileUrl(normalizedFilename, savedArtifact.id, false, previewData?.timestamp)
+          ? getArtifactFileUrl(normalizedFilename, savedArtifact.id, false)
           : getFileUrl(normalizedFilename, conversationId, false, previewData?.timestamp);
         
         return (
@@ -1048,7 +1041,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       {/* Save button for markdown editor - show when there are unsaved changes OR creation has never been saved */}
       {previewData.type === "markdown" && (hasUnsavedChanges || !isSaved) && (
         <Button
-          onClick={handleSaveContent}
+          onClick={() => handleSaveContent()}
           disabled={isSaving}
           size="sm"
           variant="default"
