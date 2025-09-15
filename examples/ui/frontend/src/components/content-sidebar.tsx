@@ -10,6 +10,7 @@ import { Button } from "./ui/button";
 import ResizableSidebar from "./ui/resizable-sidebar";
 import FileIcon from "./ui/file-icon";
 import ExcelViewer from "./excel-viewer";
+import IframeRenderer from "./ui/iframe-renderer";
 import Papa from "papaparse";
 import { getApiHeaders } from "@/lib/api/common";
 import { config } from "@/lib/config";
@@ -20,10 +21,12 @@ import {
   validateContentType,
   getFileUrl,
   getArtifactFileUrl,
+  getFileType,
 } from "@/lib/utils";
 import ArtifactActions from "./artifact-actions";
 import { ArtifactData } from "@/types/artifact";
 import { useSavedArtifacts } from "@/contexts/saved-artifacts-context";
+import DashboardEditor from "./editor/dashboard-editor";
 import ChartRenderer from "./events/chart-renderer";
 
 export interface PreviewData {
@@ -77,6 +80,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
 
   // Saved state management
   const [isSaved, setIsSaved] = useState(false);
@@ -241,6 +245,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       return;
     }
 
+
     let filename = previewData.filename || "index.html";
 
     if (!previewData.filename && previewData.type === "iframe" && previewData.url) {
@@ -312,18 +317,27 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
    * - Shows when: hasUnsavedChanges OR !isSaved (never been saved)
    * - This allows saving original content as creation even without modifications
    */
-  const handleSaveContent = async () => {
+
+  
+  const handleSaveContent = async (directContent?: string) => {
     if (isSaving) return;
 
     // Skip if already saved and no changes
-    if (isSaved && !hasUnsavedChanges) return;
+    if (!directContent && !hasUnsavedChanges) return;
+
+    
 
     // FIRST TIME SAVE: No creation exists yet
     if (!isSaved || !savedArtifact) {
       // Update preview data with current editor content before opening dialog
       if (previewData) {
-        const markdownContent = await htmlToMarkdown(editorContent);
-        previewData.content = markdownContent;
+
+        const savedContent =
+          getFileType(previewData.filename as string) === "markdown"
+            ? await htmlToMarkdown(editorContent)
+            : fileContent || "";
+  
+        previewData.content = savedContent as string;
 
         // Trigger the SaveArtifactButton dialog to create new creation
         // Note: handleArtifactSaved will handle any unsaved changes after creation
@@ -336,16 +350,22 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     setIsSaving(true);
     try {
       // Convert HTML back to markdown
-      const markdownContent = await htmlToMarkdown(editorContent);
-
+      let savedContent = "";
+      if (directContent) {
+        savedContent = directContent
+      } else {
+        savedContent = (getFileType(savedArtifact.filepath) === "markdown"
+          ? await htmlToMarkdown(editorContent)
+          : fileContent || "") as string;
+      }
       // Update the existing creation file
       await updateArtifactFile(
         savedArtifact.id,
         savedArtifact.filepath,
-        markdownContent
+        savedContent
       );
 
-      setFileContent(markdownContent);
+      setFileContent(savedContent);
       setHasUnsavedChanges(false);
       setJustSaved(true);
       toast.success("Creation updated successfully");
@@ -376,7 +396,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     try {
       // Use getArtifactFileUrl if we have a saved artifact, otherwise use getFileUrl
       const fileUrl = existingArtifact && existingArtifact?.id
-        ? getArtifactFileUrl(filename, existingArtifact.id, true, previewData?.timestamp)
+        ? getArtifactFileUrl(filename, existingArtifact.id, true)
         : getFileUrl(filename, conversationId, true, previewData?.timestamp);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -540,22 +560,10 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       );
     }
 
-    // Helper function to render iframe content
-    const renderIframe = (url: string, title?: string) => (
-      <div className="h-full rounded-md overflow-hidden border">
-        <iframe
-          src={url}
-          className="w-full h-full"
-          title={title}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
-        />
-      </div>
-    );
 
     switch (type) {
-      
       case "iframe":
-        return renderIframe(previewData.url!, previewData.title);
+        return <IframeRenderer url={previewData.url!} title={previewData.title} />;
       case "pxml":
         // Check if this is a chart PXML file
         const pxmlContent = content as string;
@@ -566,8 +574,20 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
             </div>
           );
         }
-        // For non-chart PXML files, use iframe
-        return renderIframe(previewData.url!, previewData.title);
+        // Render DashboardEditor if artifact exists, otherwise render iframe
+        if (savedArtifact && fileContent) {
+            return (
+              <DashboardEditor
+                content={fileContent as string}
+                artifact={savedArtifact}
+                onSave={handleSaveContent}
+              />
+            );
+           
+        }
+        
+        // For non-chart PXML files without saved artifact, use iframe
+        return <IframeRenderer url={previewData.url!} title={previewData.title} />;
       case "markdown":
         return (
           <MarkdownEditor
@@ -671,47 +691,8 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
           </div>
         );
       case "html":
-        const htmlFilename = normalizedFilename || previewData.url || "";
-        return (
-          <div className="editor-container bg-gray-900 text-gray-100 rounded overflow-hidden h-full flex flex-col">
-            {/* Editor Header - same style as other code files */}
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700 flex-shrink-0">
-              <div className="flex items-center space-x-2">
-                <div className="flex space-x-1">
-                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                </div>
-                <span className="text-xs text-gray-300 ml-2">
-                  {htmlFilename.split("/").pop()}
-                </span>
-              </div>
-              <div className="flex items-center space-x-3 text-xs text-gray-400">
-                <span>HTML</span>
-                <span>{(content as string).split("\n").length} lines</span>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-auto">
-              <SyntaxHighlighter
-                language="html"
-                style={vscDarkPlus}
-                showLineNumbers={true}
-                lineNumberStyle={getLineNumberStyle()}
-                customStyle={getCommonStyle()}
-                className="syntax-highlighter"
-                codeTagProps={{
-                  style: {
-                    fontFamily:
-                      'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-                  },
-                }}
-              >
-                {content as string}
-              </SyntaxHighlighter>
-            </div>
-          </div>
-        );
+        // Render HTML content in iframe instead of showing code
+        return <IframeRenderer url={content as string} title={previewData.title} />;
       case "image":
         if (!normalizedFilename || !conversationId) {
           return null;
@@ -719,7 +700,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         // For images, construct the URL from the filename
         // Use getArtifactFileUrl if we have a saved artifact, otherwise use getFileUrl
         const imageUrl = savedArtifact?.id 
-          ? getArtifactFileUrl(normalizedFilename, savedArtifact.id, false, previewData?.timestamp)
+          ? getArtifactFileUrl(normalizedFilename, savedArtifact.id, false)
           : getFileUrl(normalizedFilename, conversationId, false, previewData?.timestamp);
         
         return (
@@ -1017,7 +998,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       {/* Save button for markdown editor - show when there are unsaved changes OR creation has never been saved */}
       {previewData.type === "markdown" && (hasUnsavedChanges || !isSaved) && (
         <Button
-          onClick={handleSaveContent}
+          onClick={() => handleSaveContent()}
           disabled={isSaving}
           size="sm"
           variant="default"

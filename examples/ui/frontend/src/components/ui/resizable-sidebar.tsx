@@ -310,10 +310,7 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   // Render loading state
   const renderLoadingState = () => (
     <div className="flex items-center justify-center h-full">
-      <div className="flex flex-col items-center gap-3">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">Loading content...</p>
-      </div>
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
     </div>
   );
 
