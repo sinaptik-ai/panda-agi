@@ -456,10 +456,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
           <DashboardEditor
             content={fileContent || ""}
             artifact={artifact}
-            onChange={(newContent) => {
-              setFileContent(newContent);
-              setHasUnsavedChanges(true);
-            }}
             onSave={handleSaveContent}
           />
         );
