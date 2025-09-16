@@ -8,12 +8,11 @@ from .registry import ToolRegistry
     "user_send_message",
     xml_tag="user_send_message",
     required_params=["text"],
-    optional_params=["attachments", "completed"],
+    optional_params=["attachments"],
     content_param="text",
     attribute_mappings={
         "text": "text",
         "attachments": "attachments",
-        "completed": "completed",
     },
     is_breaking=False,
 )
@@ -21,9 +20,17 @@ class UserNotificationHandler(ToolHandler):
     """Handler for user notification messages"""
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
+        print(f"User message: {params}")
+
+        if not params.get("text"):
+            return ToolResult(
+                success=False,
+                error="Missing text parameter. Please provide a message.",
+            )
+
         return ToolResult(
             success=True,
-            data="Message received successfully, continue with your task or complete the task.",
+            data="Message received successfully, continue with your task or set idle.",
         )
 
 

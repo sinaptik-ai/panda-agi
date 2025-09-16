@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import (
     Any,
     AsyncGenerator,
@@ -8,7 +8,6 @@ from typing import (
     Dict,
     List,
     Optional,
-    Tuple,
     Union,
 )
 
@@ -301,14 +300,12 @@ class Agent:
     async def run_stream(
         self,
         query: str,
-        execute_tools_at_end: bool = True,
-        execute_tools_immediately: bool = True,
+        execute_tools: bool = True,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Send a request and stream tool execution events
 
         Args:
             query: The query to send to the agent
-            execute_tools_at_end: Whether to execute tools at the end of the stream
             execute_tools_immediately: Whether to execute tools immediately when detected during streaming
 
         Yields:
@@ -344,21 +341,7 @@ class Agent:
                 self.token_processor.reset()
 
                 # Set execution modes based on parameters
-                if execute_tools_immediately:
-                    # Enable both collection and immediate execution
-                    self.token_processor.set_execution_modes(
-                        collect_mode=True, immediate_execution_mode=True
-                    )
-                elif execute_tools_at_end:
-                    # Enable only collection for end-of-stream execution
-                    self.token_processor.set_execution_modes(
-                        collect_mode=True, immediate_execution_mode=False
-                    )
-                else:
-                    # Legacy immediate execution mode (no collection)
-                    self.token_processor.set_execution_modes(
-                        collect_mode=False, immediate_execution_mode=False
-                    )
+                self.token_processor.set_immediate_execution_mode(execute_tools)
 
                 # Send streaming request and process tokens
                 token_stream = self.client.send_streaming_request(current_request)
@@ -367,98 +350,108 @@ class Agent:
                 async for processed_event in self.token_processor.process_token_stream(
                     token_stream
                 ):
+                    print(f"Processed event: {processed_event.get('type')}")
                     if processed_event.get("type") == "conversation_id":
                         logger.debug(
                             f"Received conversation_id: {processed_event.get('conversation_id')}"
                         )
                         self.conversation_id = processed_event.get("conversation_id")
-                    elif processed_event.get("type") == "tool_detected":
-                        tool_status = processed_event.get(
-                            "status", "end"
-                        )  # Default to "end" for backward compatibility
 
-                        if tool_status == "start":
-                            # Handle tool start event - just yield the start event and trigger callbacks
-                            start_timestamp = datetime.utcnow().isoformat() + "Z"
-                            function_name = processed_event.get("function_name")
-                            arguments = processed_event.get("arguments", {})
+                    # Processed event: conversation_id
+                    # Processed event: tool_call_start
 
-                            # Yield tool start event
-                            yield {
-                                "event_type": "tool_start",
-                                "timestamp": start_timestamp,
-                                "data": {
-                                    "tool_name": function_name,
-                                    "input_params": arguments,
-                                },
-                            }
+                    # Processed event: tool_function_detected
 
-                            # Trigger start callbacks
-                            self._trigger_callbacks(function_name, arguments, "start")
+                    # Processed event: tool_parameter_start
 
-                        elif tool_status == "end":
-                            # Handle tool end event - execute the tool if immediate execution is enabled
-                            if execute_tools_immediately:
-                                logger.info(
-                                    "Executing tool immediately: "
-                                    + processed_event.get("function_name")
-                                )
-                                # Execute the tool and yield tool events (but skip the start event since it was already emitted)
-                                async for tool_event in self._handle_tool_execution(
-                                    processed_event, skip_start_event=True
-                                ):
-                                    logger.debug(
-                                        "Yielding tool event: " + str(tool_event)
+                    # Processed event: tool_parameter_stream
+
+                    # Processed event: tool_parameter_complete
+
+                    # Processed event: tool_function_complete
+
+                    # Processed event: tool_call_complete
+
+                    elif processed_event.get("type") == "tool_function_detected":
+                        print("TOOL FUNCTION DETECTED:", processed_event)
+                        start_timestamp = datetime.now(timezone.utc).isoformat()
+                        function_name = processed_event.get("function_name")
+                        input_params = processed_event.get("input_params", {})
+
+                        # Yield tool start event
+                        yield {
+                            "event_type": "tool_start",
+                            "timestamp": start_timestamp,
+                            "data": {
+                                "tool_name": function_name,
+                                "input_params": input_params,
+                            },
+                        }
+                        self._trigger_callbacks(function_name, input_params, "start")
+
+                    elif processed_event.get("type") == "tool_parameter_start":
+                        print("TOOL PARAMETER START:", processed_event)
+
+                    elif processed_event.get("type") == "tool_parameter_complete":
+                        print("TOOL PARAMETER COMPLETE:", processed_event)
+
+                    elif processed_event.get("type") == "tool_function_complete":
+                        print("TOOL FUNCTION COMPLETE:", processed_event)
+
+                    elif processed_event.get("type") == "tool_call_complete":
+                        print("TOOL CALL COMPLETE:", processed_event)
+
+                        # Handle tool end event - execute the tool if immediate execution is enabled
+                        if execute_tools:
+                            logger.info(
+                                "Executing tool immediately: "
+                                + processed_event.get("function_name")
+                            )
+                            # Execute the tool and yield tool events (but skip the start event since it was already emitted)
+                            async for tool_event in self._handle_tool_execution(
+                                processed_event, skip_start_event=True
+                            ):
+                                logger.debug("Yielding tool event: " + str(tool_event))
+                                yield tool_event
+
+                                # Store the result if it's a completion or error event
+                                if tool_event.get("event_type") == "tool_end":
+                                    logger.info(
+                                        "Storing tool result: " + str(tool_event)
                                     )
-                                    yield tool_event
-
-                                    # Store the result if it's a completion or error event
-                                    if tool_event.get("event_type") == "tool_end":
-                                        logger.debug(
-                                            "Storing tool result: " + str(tool_event)
-                                        )
-                                        immediate_tool_results.append(
-                                            {
-                                                "tool_call_id": processed_event.get(
-                                                    "tool_call_id"
-                                                ),
-                                                "function_name": processed_event.get(
-                                                    "function_name"
-                                                ),
-                                                "status": "completed",
-                                                "result": tool_event["data"].get(
-                                                    "output_params"
-                                                ),
-                                                "arguments": tool_event["data"].get(
-                                                    "input_params"
-                                                ),
-                                            }
-                                        )
-                                    elif tool_event.get("event_type") == "error":
-                                        immediate_tool_results.append(
-                                            {
-                                                "tool_call_id": processed_event.get(
-                                                    "tool_call_id"
-                                                ),
-                                                "function_name": processed_event.get(
-                                                    "function_name"
-                                                ),
-                                                "status": "failed",
-                                                "error": tool_event["data"].get(
-                                                    "error"
-                                                ),
-                                            }
-                                        )
-                            elif not execute_tools_at_end:
-                                # Original immediate execution mode (legacy) - handle complete tools without start/end status
-                                async for tool_event in self._handle_tool_execution(
-                                    processed_event
-                                ):
-                                    yield tool_event
-                    # Skip other event types - only yield tool events
+                                    immediate_tool_results.append(
+                                        {
+                                            "tool_call_id": processed_event.get(
+                                                "tool_call_id"
+                                            ),
+                                            "function_name": processed_event.get(
+                                                "function_name"
+                                            ),
+                                            "status": "completed",
+                                            "result": tool_event["data"].get(
+                                                "output_params"
+                                            ),
+                                            "arguments": tool_event["data"].get(
+                                                "input_params"
+                                            ),
+                                        }
+                                    )
+                                elif tool_event.get("event_type") == "error":
+                                    immediate_tool_results.append(
+                                        {
+                                            "tool_call_id": processed_event.get(
+                                                "tool_call_id"
+                                            ),
+                                            "function_name": processed_event.get(
+                                                "function_name"
+                                            ),
+                                            "status": "failed",
+                                            "error": tool_event["data"].get("error"),
+                                        }
+                                    )
 
                 # After the stream ends, handle tool execution based on mode
-                if execute_tools_immediately:
+                if execute_tools:
                     # Use the immediately executed tool results
                     if immediate_tool_results:
                         logger.debug(
@@ -466,9 +459,13 @@ class Agent:
                         )
 
                         # Check for breaking tools in the immediate results
+                        print("Checking for breaking tools in immediate results...")
                         breaking_tool_executed = self._check_breaking_tools_in_results(
                             immediate_tool_results
                         )
+
+                        # Clear collected tools
+                        self.token_processor.clear_collected_tools()
 
                         # If no breaking tool was executed, continue the agentic loop
                         if not breaking_tool_executed:
@@ -479,52 +476,21 @@ class Agent:
                             # Clear the immediate results for the next iteration
                             immediate_tool_results = []
                         else:
-                            logger.debug("Breaking tool executed, exiting loop...")
+                            logger.info("Breaking tool executed, exiting loop...")
                             # Breaking tool executed, exit loop
                             break
                     else:
                         # No tools executed, exit the loop
                         breaking_tool_executed = True
 
-                elif execute_tools_at_end:
-                    # Execute all collected tools at the end
-                    collected_tools = self.token_processor.get_collected_tools()
-                    if collected_tools:
-                        logger.debug(
-                            f"Stream ended. Executing {len(collected_tools)} collected tools..."
-                        )
-
-                        # Execute all collected tools and yield their events
-                        async for (
-                            tool_event
-                        ) in self._execute_collected_tools_and_yield_events():
-                            yield tool_event
-
-                        # Check for breaking tools and get results
-                        (
-                            tool_results,
-                            breaking_tool_executed,
-                        ) = await self._execute_collected_tools_with_breaking_check()
-
-                        # Clear collected tools
-                        self.token_processor.clear_collected_tools()
-
-                        # If no breaking tool was executed, continue the agentic loop
-                        if not breaking_tool_executed and tool_results:
-                            # Send tool results back to endpoint and get the response for next iteration
-                            current_request = await self._send_tool_results_to_endpoint_and_get_next_request(
-                                tool_results
-                            )
-                        else:
-                            # Either breaking tool executed or no tools to execute
-                            breaking_tool_executed = True
-                    else:
-                        # No tools collected, exit the loop
-                        breaking_tool_executed = True
+                # If no breaking tool was executed, continue the agentic loop
+                if not breaking_tool_executed:
+                    # Not breaking tool executed, continue loop (create a new request)
+                    # TODO: current_request = self._create_new_request_dummy()
+                    pass
                 else:
-                    # Neither execute_tools_at_end nor execute_tools_immediately
-                    # This is the legacy immediate mode - tools were already executed in the stream
-                    breaking_tool_executed = True
+                    # Breaking tool executed, exit loop
+                    break
 
         # if All connection attempts failed (httpx.ConnectError)
         except httpx.ConnectError as e:
@@ -547,7 +513,7 @@ class Agent:
             # Only emit start event if not already emitted
             if not skip_start_event:
                 # Generate timestamp for tool start
-                start_timestamp = datetime.utcnow().isoformat() + "Z"
+                start_timestamp = datetime.now(timezone.utc).isoformat() + "Z"
 
                 # Yield tool start event
                 yield {
@@ -568,7 +534,7 @@ class Agent:
                 error_msg = f"No handler found for function: {function_name}"
                 logger.error(error_msg)
                 # Yield error event
-                error_timestamp = datetime.utcnow().isoformat() + "Z"
+                error_timestamp = datetime.now(timezone.utc).isoformat() + "Z"
                 yield {
                     "event_type": "error",
                     "timestamp": error_timestamp,
@@ -583,7 +549,7 @@ class Agent:
             # Validate the tool arguments
             validation_error = handler.validate_input(arguments)
             if validation_error:
-                error_timestamp = datetime.utcnow().isoformat() + "Z"
+                error_timestamp = datetime.now(timezone.utc).isoformat() + "Z"
                 yield {
                     "event_type": "error",
                     "timestamp": error_timestamp,
@@ -596,22 +562,37 @@ class Agent:
                 return
 
             # Execute the tool
+            print(f"Executing tool: {function_name} with args: {arguments}")
             result = await handler.execute(arguments)
 
             # Generate timestamp for tool end
-            end_timestamp = datetime.utcnow().isoformat() + "Z"
+            end_timestamp = datetime.now(timezone.utc).isoformat()
 
             # Yield tool end event or error event
             if result.success:
-                yield {
-                    "event_type": "tool_end",
-                    "timestamp": end_timestamp,
-                    "data": {
-                        "tool_name": function_name,
-                        "input_params": arguments,
-                        "output_params": result.data,
-                    },
-                }
+                # web_visit_page yields multiple tool_end events
+                if function_name != "web_visit_page":
+                    yield {
+                        "event_type": "tool_end",
+                        "timestamp": end_timestamp,
+                        "data": {
+                            "tool_name": function_name,
+                            "input_params": arguments,
+                            "output_params": result.data,
+                        },
+                    }
+                else:
+                    for event in result.data:
+                        print(f"Yielding tool_end event for web_visit_page: {event}")
+                        yield {
+                            "event_type": "tool_end",
+                            "timestamp": end_timestamp,
+                            "data": {
+                                "tool_name": function_name,
+                                "input_params": arguments,
+                                "output_params": event,
+                            },
+                        }
                 # Trigger callbacks after tool execution
                 self._trigger_callbacks(function_name, arguments, "end", result.data)
             else:
@@ -632,7 +613,7 @@ class Agent:
         except Exception as e:
             logger.error(f"Error executing tool {tool_event.get('function_name')}: {e}")
             # Yield error event
-            error_timestamp = datetime.utcnow().isoformat() + "Z"
+            error_timestamp = datetime.now(timezone.utc).isoformat() + "Z"
             yield {
                 "event_type": "error",
                 "timestamp": error_timestamp,
@@ -642,148 +623,6 @@ class Agent:
                     "error": str(e),
                 },
             }
-
-    async def _execute_collected_tools_and_yield_events(
-        self,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        """Execute all collected tools and yield their start/end events"""
-        collected_tools = self.token_processor.get_collected_tools()
-
-        if not collected_tools:
-            return
-
-        logger.info(f"Executing {len(collected_tools)} collected tools")
-
-        for tool_call in collected_tools:
-            try:
-                function_name = tool_call["function_name"]
-                arguments = tool_call["arguments"]
-                xml_tag_name = tool_call.get("xml_tag_name")
-
-                # Check if this tool is breaking
-                is_breaking = False
-                if xml_tag_name:
-                    xml_tool_def = self.tool_registry.get_xml_tool_definition(
-                        xml_tag_name
-                    )
-                    if xml_tool_def:
-                        is_breaking = xml_tool_def.is_breaking
-
-                # Generate timestamp for tool start
-                start_timestamp = datetime.utcnow().isoformat() + "Z"
-
-                # Yield tool start event
-                yield {
-                    "event_type": "tool_start",
-                    "timestamp": start_timestamp,
-                    "data": {
-                        "tool_name": function_name,
-                        "input_params": arguments,
-                    },
-                }
-
-                # Trigger callbacks before tool execution
-                self._trigger_callbacks(function_name, arguments, "start")
-
-                # Get the appropriate handler
-                handler = self.tool_handlers.get(function_name)
-                if not handler:
-                    error_msg = f"No handler found for function: {function_name}"
-                    logger.error(error_msg)
-
-                    # Yield error event
-                    error_timestamp = datetime.utcnow().isoformat() + "Z"
-                    yield {
-                        "event_type": "error",
-                        "timestamp": error_timestamp,
-                        "data": {
-                            "tool_name": function_name,
-                            "input_params": arguments,
-                            "error": error_msg,
-                        },
-                    }
-
-                    # If this was a breaking tool, stop execution even if it failed
-                    if is_breaking:
-                        logger.info(
-                            f"Breaking tool {function_name} encountered. Stopping execution."
-                        )
-                        break
-
-                    continue
-
-                # Execute the tool
-                result = await handler.execute(arguments)
-
-                # Generate timestamp for tool end
-                end_timestamp = datetime.utcnow().isoformat() + "Z"
-
-                if result.success:
-                    yield {
-                        "event_type": "tool_end",
-                        "timestamp": end_timestamp,
-                        "data": {
-                            "tool_name": function_name,
-                            "input_params": arguments,
-                            "output_params": result.data,
-                        },
-                    }
-                    logger.info(f"Tool {function_name} executed successfully")
-                    # Trigger callbacks after tool execution
-                    self._trigger_callbacks(
-                        function_name, arguments, "end", result.data
-                    )
-                else:
-                    yield {
-                        "event_type": "error",
-                        "timestamp": end_timestamp,
-                        "data": {
-                            "tool_name": function_name,
-                            "input_params": arguments,
-                            "error": result.error,
-                        },
-                    }
-                    logger.error(f"Tool {function_name} failed: {result.error}")
-                    # Trigger callbacks on error
-                    self._trigger_callbacks(
-                        function_name, arguments, "error", result.error
-                    )
-
-                # If this was a breaking tool, stop execution after executing it
-                if is_breaking:
-                    logger.info(
-                        f"Breaking tool {function_name} executed. Stopping execution."
-                    )
-                    break
-
-            except Exception as e:
-                logger.error(
-                    f"Error executing tool {tool_call.get('function_name')}: {e}"
-                )
-
-                # Yield error event
-                error_timestamp = datetime.utcnow().isoformat() + "Z"
-                yield {
-                    "event_type": "error",
-                    "timestamp": error_timestamp,
-                    "data": {
-                        "tool_name": tool_call.get("function_name", "unknown"),
-                        "input_params": tool_call.get("arguments", {}),
-                        "error": str(e),
-                    },
-                }
-
-                # Check if this was a breaking tool even if it failed
-                xml_tag_name = tool_call.get("xml_tag_name")
-                if xml_tag_name:
-                    xml_tool_def = self.tool_registry.get_xml_tool_definition(
-                        xml_tag_name
-                    )
-                    if xml_tool_def and xml_tool_def.is_breaking:
-                        logger.info(
-                            f"Breaking tool {tool_call.get('function_name')} encountered (failed). Stopping execution."
-                        )
-                        break
 
     def _check_breaking_tools_in_results(
         self, tool_results: List[Dict[str, Any]]
@@ -811,31 +650,15 @@ class Agent:
             for tool_call in tool_results
         )
         break_agent = any_breaking_tool or user_send_message_completed
+
+        print(
+            f"Break agent: {break_agent}, any_breaking_tool: {any_breaking_tool}, user_send_message_completed: {user_send_message_completed}"
+        )
         return break_agent
-
-    async def _execute_collected_tools_with_breaking_check(
-        self,
-    ) -> Tuple[List[Dict[str, Any]], bool]:
-        """Execute all collected tools and return their results along with breaking tool status."""
-        tool_results = await self._execute_collected_tools()
-
-        # Check if any breaking tool was executed by examining the collected tools
-        collected_tools = self.token_processor.get_collected_tools()
-        breaking_tool_executed = False
-
-        for tool_call in collected_tools:
-            xml_tag_name = tool_call.get("xml_tag_name")
-            if xml_tag_name:
-                xml_tool_def = self.tool_registry.get_xml_tool_definition(xml_tag_name)
-                if xml_tool_def and xml_tool_def.is_breaking:
-                    breaking_tool_executed = True
-                    break
-
-        return tool_results, breaking_tool_executed
 
     async def _execute_collected_tools(self) -> List[Dict[str, Any]]:
         """Execute all collected tools and return their results. Stop execution when a breaking tool is encountered."""
-        collected_tools = self.token_processor.get_collected_tools()
+        collected_tools = self.token_processor.get_completed_tools()
         tool_results = []
 
         if not collected_tools:
@@ -973,11 +796,11 @@ class Agent:
                 if isinstance(result_data, dict):
                     result_data = str(result_data)
                 tool_summary.append(
-                    f"<tool_result name={function_name}>\n{result_data}\n</tool_result>"
+                    f"<tool_response tool_name={function_name}>\n{result_data}\n</tool_response>"
                 )
             else:
                 tool_summary.append(
-                    f"<tool_result name={function_name}>\n{result.get('error', 'Failed')}\n</tool_result>"
+                    f"<tool_response tool_name={function_name}>\n{result.get('error', 'Failed')}\n</tool_response>"
                 )
 
         # Create a summary message as the new query
@@ -1045,11 +868,11 @@ class Agent:
                 if isinstance(result_data, dict):
                     result_data = str(result_data)
                 tool_summary.append(
-                    f"<tool_result name={function_name}>\n{result_data}\n</tool_result>"
+                    f"<tool_response tool_name={function_name}>\n{result_data}\n</tool_response>"
                 )
             else:
                 tool_summary.append(
-                    f"<tool_result name={function_name}>\n{result.get('error', 'Failed')}\n</tool_result>"
+                    f"<tool_response tool_name={function_name}>\n{result.get('error', 'Failed')}\n</tool_response>"
                 )
 
         # Create a summary message as the new query
@@ -1140,7 +963,7 @@ class Agent:
 
         # Run and collect all events
         async for event in self.run_stream(
-            query, execute_tools_immediately=execute_tools_immediately
+            query, execute_tools=execute_tools_immediately
         ):
             # Process the event with the appropriate handlers if they exist
             if event_handlers:
