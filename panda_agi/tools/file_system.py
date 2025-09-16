@@ -1,4 +1,5 @@
 from typing import Any, Dict, Optional
+import xml
 
 from ..client.models import EventType
 from .base import ToolHandler, ToolResult
@@ -11,6 +12,7 @@ from .file_system_ops.file_ops import (
     file_write,
 )
 from .registry import ToolRegistry
+from .xml_validator import validate_xml_parser
 
 
 @ToolRegistry.register(
@@ -73,6 +75,307 @@ class FileWriteHandler(ToolHandler):
         file_extension = "." + params.get("file", "").split(".")[-1]
         if file_extension not in self.VALID_FILE_EXTENSIONS:
             return f"Invalid file extension: {file_extension}. Valid extensions: {', '.join(self.VALID_FILE_EXTENSIONS)}"
+
+        if file_extension == ".pxml" and params.get("content", "").strip() != "":
+            # Use the comprehensive XML parser validation
+            content = """<?pxml version="1.0" encoding="UTF-8"?>
+<dashboard>
+  <name>Walmart Sales & Performance Dashboard</name>
+  <description>Comprehensive analysis of Walmart's weekly sales performance across stores, tracking key metrics like total sales volume, holiday impacts, and correlations with external factors such as temperature and fuel prices.</description>
+  <file_path>Walmart_Sales.csv</file_path>
+  <fa_icon>fa-store</fa_icon>
+
+  <!-- Define transformations to enhance analysis capabilities -->
+  <transformations>
+    <define_column name="Month_Year">
+      <formula>=TEXT(B:B,"MMM YYYY")</formula>
+    </define_column>
+  </transformations>
+
+  <!-- Create filters for interactive data exploration -->
+  <filters>
+    <filter type="list">
+      <name>Store</name>
+      <values>
+        <formula>=unique(A2:A)</formula>
+      </values>
+    </filter>
+    <filter type="date_range">
+      <name>Date Range</name>
+      <values>
+        <formula>=unique(B2:B)</formula>
+      </values>
+    </filter>
+    <filter type="list">
+      <name>Holiday Status</name>
+      <values>
+        <formula>=unique(D2:D)</formula>
+      </values>
+    </filter>
+  </filters>
+
+  <!-- Organize dashboard content in logical grid layout -->
+  <grid>
+    <!-- Row 1: Key Performance Indicators -->
+    <row>
+      <column size="1">
+        <kpi>
+          <fa_icon>fa-dollar-sign</fa_icon>
+          <name>Total Sales</name>
+          <value>
+            <formula>=SUM(C2:C)</formula>
+            <format>currency:usd</format>
+            <unit>USD</unit>
+          </value>
+        </kpi>
+      </column>
+      <column size="1">
+        <kpi>
+          <fa_icon>fa-chart-line</fa_icon>
+          <name>Average Weekly Sales</name>
+          <value>
+            <formula>=AVERAGE(C2:C)</formula>
+            <format>currency:usd</format>
+            <unit>USD</unit>
+          </value>
+        </kpi>
+      </column>
+      <column size="1">
+        <kpi>
+          <fa_icon>fa-trophy</fa_icon>
+          <name>Highest Single Week Sales</name>
+          <value>
+            <formula>=MAX(C2:C)</formula>
+            <format>currency:usd</format>
+            <unit>USD</unit>
+          </value>
+        </kpi>
+      </column>
+      <column size="1">
+        <kpi>
+          <fa_icon>fa-store-alt</fa_icon>
+          <name>Number of Stores</name>
+          <value>
+            <formula>=COUNTA(unique(A2:A))</formula>
+            <format>number</format>
+            <unit>Stores</unit>
+          </value>
+        </kpi>
+      </column>
+    </row>
+
+    <!-- Row 2: Sales trend and store comparison -->
+    <row>
+      <column size="2">
+        <chart type="line" area="true">
+          <name>Weekly Sales Trend Over Time</name>
+          <x_axis>
+            <name>Date</name>
+            <column>B</column>
+            <group_by>B</group_by>
+          </x_axis>
+          <series_list>
+            <series>
+              <name>Sales</name>
+              <column>C</column>
+              <aggregation>sum</aggregation>
+              <format>currency</format>
+              <unit>USD</unit>
+            </series>
+          </series_list>
+        </chart>
+      </column>
+      <column size="2">
+        <chart type="bar">
+          <name>Sales by Store</name>
+          <x_axis>
+            <name>Store</name>
+            <column>A</column>
+            <group_by>A</group_by>
+          </x_axis>
+          <series_list>
+            <series>
+              <name>Total Sales</name>
+              <column>C</column>
+              <aggregation>sum</aggregation>
+              <format>currency</format>
+              <unit>USD</unit>
+            </series>
+          </series_list>
+        </chart>
+      </column>
+    </row>
+
+    <!-- Row 3: Holiday impact and external factors analysis -->
+    <row>
+      <column size="2">
+        <chart type="horizontal_bar">
+          <name>Sales During Holidays vs Non-Holidays</name>
+          <x_axis>
+            <name>Holiday Status</name>
+            <column>D</column>
+            <group_by>D</group_by>
+          </x_axis>
+          <series_list>
+            <series>
+              <name>Sales</name>
+              <column>C</column>
+              <aggregation>sum</aggregation>
+              <format>currency</format>
+              <unit>USD</unit>
+            </series>
+          </series_list>
+        </chart>
+      </column>
+      <column size="2">
+        <chart type="scatter">
+          <name>Sales vs Temperature Correlation</name>
+          <x_axis>
+            <name>Temperature (°F)</name>
+            <column>E</column>
+            <group_by>E</group_by>
+          </x_axis>
+          <series_list>
+            <series>
+              <name>Temperature</name>
+              <column>E</column>
+              <aggregation>avg</aggregation>
+              <format>number</format>
+              <unit>°F</unit>
+            </series>
+            <series>
+              <name>Sales</name>
+              <column>C</column>
+              <aggregation>avg</aggregation>
+              <format>currency</format>
+              <unit>USD</unit>
+            </series>
+          </series_list>
+        </chart>
+      </column>
+    </row>
+
+    <!-- Row 4: Multi-factor analysis and distribution visualization -->
+    <row>
+      <column size="2">
+        <chart type="combo_chart">
+          <name>External Factors Impact on Sales</name>
+          <x_axis>
+            <name>Temperature</name>
+            <column>E</column>
+            <group_by>E</group_by>
+          </x_axis>
+          <series_list>
+            <series>
+              <name>Temperature</name>
+              <column>E</column>
+              <aggregation>avg</aggregation>
+              <format>number</format>
+              <unit>°F</unit>
+            </series>
+            <series>
+              <name>Fuel Price</name>
+              <column>F</column>
+              <aggregation>avg</aggregation>
+              <format>currency</format>
+              <unit>USD</unit>
+            </series>
+          </series_list>
+        </chart>
+      </column>
+      <column size="2">
+        <chart type="pie">
+          <name>Sales Distribution by Store</name>
+          <x_axis>
+            <name>Store</name>
+            <column>A</column>
+            <group_by>A</group_by>
+          </x_axis>
+          <series_list>
+            <series>
+              <name>Sales Share</name>
+              <column>C</column>
+              <aggregation>sum</aggregation>
+              <format>currency</format>
+              <unit>USD</unit>
+            </series>
+          </series_list>
+        </chart>
+      </column>
+    </row>
+
+    <!-- Row 5: Monthly trend and detailed data view -->
+    <row>
+      <column size="2">
+        <chart type="line">
+          <name>Monthly Sales Trend</name>
+          <x_axis>
+            <name>Month</name>
+            <column>Month_Year</column>
+            <group_by>Month_Year</group_by>
+          </x_axis>
+          <series_list>
+            <series>
+              <name>Sales</name>
+              <column>C</column>
+              <aggregation>sum</aggregation>
+              <format>currency</format>
+              <unit>USD</unit>
+            </series>
+          </series_list>
+        </chart>
+      </column>
+      <column size="2">
+        <table>
+          <name>Detail View</name>
+          <fields>
+            <field>
+              <name>Date</name>
+              <column>B</column>
+              <format>date</format>
+            </field>
+            <field>
+              <name>Store</name>
+              <column>A</column>
+              <format>text</format>
+            </field>
+            <field>
+              <name>Sales</name>
+              <column>C</column>
+              <format>currency</format>
+              <unit>USD</unit>
+            </field>
+            <field>
+              <name>Weekday</name>
+              <column>B</column>
+              <format>text</format>
+            </field>
+            <field>
+              <name>Temperature</name>
+              <column>E</column>
+              <format>number</format>
+              <unit>°F</unit>
+            </field>
+            <field>
+              <name>Fuel Price</name>
+              <column>F</column>
+              <format>currency</format>
+              <unit>USD</unit>
+            </field>
+            <field>
+              <name>Holiday</name>
+              <column>D</column>
+              <format>text</format>
+            </field>
+          </fields>
+        </table>
+      </column>
+    </row>
+  </grid>
+</dashboard>"""
+            is_valid, error_message = validate_xml_parser(content, file_extension)
+            if not is_valid:
+                return f"Invalid pxml file: {error_message}. \n Please check the file and rewrite the file again with the fix."
 
         return None
 
