@@ -104,37 +104,33 @@ class XMLParser:
             '"': "&quot;",
         }
 
+    def _escape_operators_in_content(self, content: str) -> str:
+        """Helper method to escape operators in content, processing longer operators first"""
+        for operator, escaped in sorted(
+            self.formula_operators.items(), key=lambda pair: len(pair[0]), reverse=True
+        ):
+            content = content.replace(operator, escaped)
+        return content
+
     def _preprocess_xml_content(self, content: str) -> str:
         """Preprocess XML content to escape comparison operators in formula tags, attributes, and {{}} expressions"""
 
         # Find all formula tags and escape operators within them
         def escape_formula_content(match):
             formula_content = match.group(1)
-            # Escape operators in order of specificity (longer operators first)
-            for operator, escaped in sorted(
-                self.formula_operators.items(), key=len, reverse=True
-            ):
-                formula_content = formula_content.replace(operator, escaped)
+            formula_content = self._escape_operators_in_content(formula_content)
             return f"<formula>{formula_content}</formula>"
 
         # Find all {{}} expressions and escape operators within them
         def escape_curly_brace_formula(match):
             formula_content = match.group(1)
-            # Escape operators in order of specificity (longer operators first)
-            for operator, escaped in sorted(
-                self.formula_operators.items(), key=len, reverse=True
-            ):
-                formula_content = formula_content.replace(operator, escaped)
+            formula_content = self._escape_operators_in_content(formula_content)
             return f"{{{{{formula_content}}}}}"
 
         # Find all name tags and escape operators within them
         def escape_name_content(match):
             name_content = match.group(1)
-            # Escape operators in order of specificity (longer operators first)
-            for operator, escaped in sorted(
-                self.formula_operators.items(), key=len, reverse=True
-            ):
-                name_content = name_content.replace(operator, escaped)
+            name_content = self._escape_operators_in_content(name_content)
             return f"<name>{name_content}</name>"
 
         # Pattern to match content within formula tags
@@ -174,10 +170,9 @@ class XMLParser:
 
                     def escape_line_formula(match):
                         formula_content = match.group(1)
-                        for operator, escaped in sorted(
-                            self.formula_operators.items(), key=len, reverse=True
-                        ):
-                            formula_content = formula_content.replace(operator, escaped)
+                        formula_content = self._escape_operators_in_content(
+                            formula_content
+                        )
                         return f'formula="{formula_content}"'
 
                     line = re.sub(pattern, escape_line_formula, line)
