@@ -2547,7 +2547,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   useEffect(() => {
     const hasArtifact = !!artifact;
 
-
     // Skip recompilation if this is an internal update from saving
     const isSameAsLastSaved = lastSavedContentRef.current && content === lastSavedContentRef.current;
     const shouldSkip = saveInProgressRef.current || isSameAsLastSaved;

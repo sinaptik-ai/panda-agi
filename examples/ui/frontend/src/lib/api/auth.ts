@@ -175,7 +175,9 @@ export function storeAuthToken(token: string | AuthToken): void {
   }
 
   // Store in cookies
-  setCookie(COOKIE_NAME, JSON.stringify(tokenData), COOKIE_EXPIRY_DAYS);
+  // Remove user key from token data if it exists
+  const { user, ...tokenDataWithoutUser } = tokenData;
+  setCookie(COOKIE_NAME, JSON.stringify(tokenDataWithoutUser), COOKIE_EXPIRY_DAYS);
 
   // Identify the user
   if (tokenData?.user) {

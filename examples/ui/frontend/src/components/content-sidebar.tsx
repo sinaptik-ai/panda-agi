@@ -323,9 +323,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     if (isSaving) return;
 
     // Skip if already saved and no changes
-    if (!directContent && !hasUnsavedChanges) return;
-
-    
+    if (!directContent && !hasUnsavedChanges && savedArtifact) return;
 
     // FIRST TIME SAVE: No creation exists yet
     if (!isSaved || !savedArtifact) {
@@ -998,7 +996,10 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       {/* Save button for markdown editor - show when there are unsaved changes OR creation has never been saved */}
       {previewData.type === "markdown" && (hasUnsavedChanges || !isSaved) && (
         <Button
-          onClick={() => handleSaveContent()}
+          onClick={(e) => {
+            e.preventDefault();
+            handleSaveContent();
+          }}
           disabled={isSaving}
           size="sm"
           variant="default"
