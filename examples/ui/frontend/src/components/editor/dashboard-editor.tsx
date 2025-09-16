@@ -207,6 +207,9 @@ const FILTER_TYPES = [
   { value: "date_range", label: "Date Range" },
 ];
 
+const PXML_FILE_START_TAG = "<?pxml"
+const PXML_COMPILED_START_TAG = "<!DOCTYPE html>"
+
 const DashboardEditor: React.FC<DashboardEditorProps> = ({
   content,
   artifact,
@@ -312,7 +315,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   const parseChartsFromPXML = useCallback((pxmlContent: string): ChartConfig[] => {
     // Check if content is HTML instead of PXML
     if (
-      pxmlContent.trim().startsWith("<!DOCTYPE html>") ||
+      pxmlContent.trim().startsWith(PXML_COMPILED_START_TAG) ||
       pxmlContent.trim().startsWith("<html")
     ) {
       return [];
@@ -384,7 +387,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   const parseKPIsFromPXML = useCallback((pxmlContent: string): KPIConfig[] => {
     // Check if content is HTML instead of PXML
     if (
-      pxmlContent.trim().startsWith("<!DOCTYPE html>") ||
+      pxmlContent.trim().startsWith(PXML_COMPILED_START_TAG) ||
       pxmlContent.trim().startsWith("<html")
     ) {
       return [];
@@ -571,7 +574,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   const parseDashboardFromPXML = useCallback((pxmlContent: string): DashboardMetadata => {
     // Check if content is HTML instead of PXML
     if (
-      pxmlContent.trim().startsWith("<!DOCTYPE html>") ||
+      pxmlContent.trim().startsWith(PXML_COMPILED_START_TAG) ||
       pxmlContent.trim().startsWith("<html")
     ) {
       return parseDashboardFromHTML(pxmlContent);
@@ -1194,6 +1197,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       }
 
       if (event.data.type === "kpi-edit" && event.data.kpiId) {
+        
         // Use raw PXML content for parsing if available, otherwise fall back to current content
         const contentToParse = rawPXMLContent || content;
 
@@ -2520,6 +2524,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       const { getApiHeaders } = await import("../../lib/api/common");
       const apiHeaders = await getApiHeaders();
 
+
       const response = await fetch(rawUrl, {
         headers: {
           ...apiHeaders,
@@ -2534,7 +2539,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       const rawPXML = await response.text();
 
       // Verify it's actually PXML before storing
-      if (!rawPXML.trim().startsWith("<dashboard>")) {
+      if (!rawPXML.trim().startsWith(PXML_FILE_START_TAG)) {
         return;
       }
 
@@ -2556,11 +2561,12 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       return;
     }
 
-    if (content.trim().startsWith("<dashboard>") && hasArtifact) {
+    if (content.trim().startsWith(PXML_FILE_START_TAG) && hasArtifact) {
       // We have raw PXML - store it and get the compiled version for display
       setRawPXMLContent(content);
       fetchCompiledVersion();
-    } else if (content.trim().startsWith("<!DOCTYPE html>") && hasArtifact) {
+    } else if (content.trim().startsWith(PXML_COMPILED_START_TAG) && hasArtifact) {
+
       // We have compiled HTML - use it directly but also fetch raw PXML for editing
       setCompiledContent(content);
       fetchRawPXMLForEditing();
