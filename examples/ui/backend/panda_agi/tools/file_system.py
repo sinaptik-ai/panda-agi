@@ -42,6 +42,10 @@ class FileReadHandler(ToolHandler):
         if file and file.endswith(".csv"):
             params["end_line"] = min(params["end_line"], 20)
 
+        # Map the XML parameter names to the function parameter names
+        params["file"] = params["file_name"]
+        del params["file_name"]
+
         result = await file_read(self.environment, **params)
         return ToolResult(
             success=result.get("status") == "success",
@@ -119,6 +123,10 @@ class FileReplaceHandler(ToolHandler):
             "old_str": params["find_str"],
             "new_str": params["replace_str"],
         }
+
+        # Map the XML parameter names to the function parameter names TODO: improve this
+        mapped_params["file"] = mapped_params["file_name"]
+        del mapped_params["file_name"]
         result = await file_str_replace(self.environment, **mapped_params)
         await self.add_event(EventType.FILE_REPLACE, params)
 
