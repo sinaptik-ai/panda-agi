@@ -12,6 +12,7 @@ import { storeAuthToken, removeAuthToken, refreshAuthToken } from "@/lib/api/aut
 import { getServerURL } from "@/lib/server";
 import { notifyAuthChange } from "@/hooks/useAuth";
 import { SavedArtifactsProvider } from "@/contexts/saved-artifacts-context";
+import { setGlobalResetConversation } from "@/hooks/useLogout";
 
 
 export default function Home() {
@@ -28,6 +29,7 @@ export default function Home() {
 
   // Use the inactivity timer hook
   const { showInactivityPopup, trackUserMessage } = useInactivityTimer();
+  
 
   const handlePreviewClick = (data: PreviewData) => {
 
@@ -88,6 +90,17 @@ export default function Home() {
     setSidebarOpen(false);
     setPreviewData(undefined);
   };
+
+  // Register the reset conversation function globally for logout
+  useEffect(() => {
+    setGlobalResetConversation(startNewConversation);
+    
+    // Cleanup on unmount
+    return () => {
+      setGlobalResetConversation(null);
+    };
+  }, []);
+
 
   useEffect(() => {
     // Extract query parameter directly from window.location

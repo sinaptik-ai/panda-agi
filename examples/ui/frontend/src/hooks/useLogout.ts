@@ -10,9 +10,17 @@ import { useGlobalModals } from "@/contexts/global-modals-context";
 let globalShowLogoutModal = false;
 const globalSetters: Set<(show: boolean) => void> = new Set();
 
+// Global function to reset conversation state
+let globalResetConversation: (() => void) | null = null;
+
 function setGlobalLogoutModal(show: boolean) {
   globalShowLogoutModal = show;
   globalSetters.forEach(setter => setter(show));
+}
+
+// Function to set the global reset conversation function
+export function setGlobalResetConversation(resetFn: (() => void) | null) {
+  globalResetConversation = resetFn;
 }
 
 export function useLogout() {
@@ -43,6 +51,12 @@ export function useLogout() {
     // Notify all components about auth change
     notifyAuthChange();
     setGlobalLogoutModal(false);
+    
+    // Reset conversation state before redirect
+    if (globalResetConversation) {
+      globalResetConversation();
+    }
+    
     // Redirect to home page after logout
     router.push("/");
     // Open login modal after successful logout
