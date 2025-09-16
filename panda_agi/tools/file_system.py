@@ -12,7 +12,7 @@ from .file_system_ops.file_ops import (
     file_write,
 )
 from .registry import ToolRegistry
-from .xml_validator import validate_xml_parser
+from .xml_validator import validate_xml_content
 
 
 @ToolRegistry.register(
@@ -78,7 +78,7 @@ class FileWriteHandler(ToolHandler):
 
         if file_extension == ".pxml" and params.get("content", "").strip() != "":
             # Use the comprehensive XML parser validation
-            is_valid, error_message = validate_xml_parser(
+            is_valid, error_message = validate_xml_content(
                 params.get("content", ""), file_extension
             )
             if not is_valid:

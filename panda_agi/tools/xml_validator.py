@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 import re
 
 
-def validate_xml_parser(
+def validate_xml_content(
     content: str, file_extension: str = ".pxml"
 ) -> Tuple[bool, Optional[str]]:
     """
