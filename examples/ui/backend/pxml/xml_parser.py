@@ -127,10 +127,26 @@ class XMLParser:
                 formula_content = formula_content.replace(operator, escaped)
             return f"{{{{{formula_content}}}}}"
 
+        # Find all name tags and escape operators within them
+        def escape_name_content(match):
+            name_content = match.group(1)
+            # Escape operators in order of specificity (longer operators first)
+            for operator, escaped in sorted(
+                self.formula_operators.items(), key=len, reverse=True
+            ):
+                name_content = name_content.replace(operator, escaped)
+            return f"<name>{name_content}</name>"
+
         # Pattern to match content within formula tags
         formula_pattern = r"<formula>(.*?)</formula>"
         processed_content = re.sub(
             formula_pattern, escape_formula_content, content, flags=re.DOTALL
+        )
+
+        # Pattern to match content within name tags
+        name_pattern = r"<name>(.*?)</name>"
+        processed_content = re.sub(
+            name_pattern, escape_name_content, processed_content, flags=re.DOTALL
         )
 
         # Pattern to match content within {{ }} expressions
@@ -144,29 +160,32 @@ class XMLParser:
 
         # Handle formula attributes - use a more targeted approach
         # Process each line individually to avoid greedy matching across the entire file
-        # IMPORTANT: This is needed because LLMs often generate formula="" with nested quotes like "Q1", "Q2" 
+        # IMPORTANT: This is needed because LLMs often generate formula="" with nested quotes like "Q1", "Q2"
         # which breaks standard XML parsing without proper escaping
         def process_formula_attributes_line_by_line(content):
-            lines = content.split('\n')
+            lines = content.split("\n")
             result = []
-            
+
             for line in lines:
                 # Look for formula attributes in this line only
                 if 'formula="' in line:
                     # Use a simpler approach for single-line formulas
                     pattern = r'formula="([^"]*(?:"[^"]*"[^"]*)*)"'
+
                     def escape_line_formula(match):
                         formula_content = match.group(1)
-                        for operator, escaped in sorted(self.formula_operators.items(), key=len, reverse=True):
+                        for operator, escaped in sorted(
+                            self.formula_operators.items(), key=len, reverse=True
+                        ):
                             formula_content = formula_content.replace(operator, escaped)
                         return f'formula="{formula_content}"'
-                    
+
                     line = re.sub(pattern, escape_line_formula, line)
-                
+
                 result.append(line)
-            
-            return '\n'.join(result)
-        
+
+            return "\n".join(result)
+
         processed_content = process_formula_attributes_line_by_line(processed_content)
 
         return processed_content
@@ -251,7 +270,7 @@ class XMLParser:
         if transformations_elem is not None:
             for define_col in transformations_elem.findall("define_column"):
                 name = define_col.get("name", "")
-                
+
                 # Check for formula as attribute first, then as element
                 formula = define_col.get("formula", "")
                 if not formula:
