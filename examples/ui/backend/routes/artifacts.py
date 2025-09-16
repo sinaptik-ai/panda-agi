@@ -28,7 +28,10 @@ from models.agent import (
     ArtifactNameUpdateRequest,
     ArtifactFileUpdateRequest,
 )
+from services.agent import get_or_create_agent
+from services.files import FilesService
 import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -376,11 +379,23 @@ async def save_artifact(
 
     artifact_id = None
     try:
+        # TODO - remove these fixes after the model is improved
+        # LLM hallucination with path 
+        # validate and correct file path before saving
+        local_agent = await get_or_create_agent(conversation_id, api_key=api_key)
+        env = local_agent[0].environment
+        base = Path(env.base_path).resolve()
+        # Check existence via sandbox API
+        file_path: str | None = await FilesService.validate_and_correct_file_path(
+            env, payload.filepath, str(base)
+        )
+        file_path = FilesService.relative_from_base(base, file_path)
+
         async with aiohttp.ClientSession() as session:
             payload_dict = payload.dict()
             payload_dict["conversation_id"] = conversation_id
             payload_dict["filepath"] = ArtifactsService.get_relative_filepath(
-                payload.type, payload.filepath
+                payload.type, file_path
             )
             headers = {"X-API-KEY": f"{api_key}"}
             async with session.post(
@@ -420,7 +435,7 @@ async def save_artifact(
         # Get files for artifact
         files_generator = ArtifactsService.get_files_for_artifact(
             payload.type,
-            payload.filepath,
+            file_path,
             conversation_id,
             artifact_id,
             conversation_messages,
