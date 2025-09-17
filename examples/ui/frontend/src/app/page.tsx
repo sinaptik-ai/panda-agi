@@ -8,12 +8,15 @@ import Header, { HeaderRef } from "@/components/header";
 import SessionExpiredPopup from "@/components/session-expired-popup";
 import { getFileType, getFileUrl } from "@/lib/utils";
 import { useInactivityTimer } from "@/hooks/useInactivityTimer";
-import { storeAuthToken, removeAuthToken, refreshAuthToken } from "@/lib/api/auth";
+import {
+  storeAuthToken,
+  removeAuthToken,
+  refreshAuthToken,
+} from "@/lib/api/auth";
 import { getServerURL } from "@/lib/server";
 import { notifyAuthChange } from "@/hooks/useAuth";
 import { SavedArtifactsProvider } from "@/contexts/saved-artifacts-context";
 import { setGlobalResetConversation } from "@/hooks/useLogout";
-
 
 export default function Home() {
   const router = useRouter();
@@ -23,16 +26,14 @@ export default function Home() {
   const [initialQuery, setInitialQuery] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarWidth, setSidebarWidth] = useState(900); // Default sidebar width (match initial in ContentSidebar)
+  const [sidebarWidth, setSidebarWidth] = useState(1100);
   const [previewData, setPreviewData] = useState<PreviewData>();
   const [conversationId, setConversationId] = useState<string | undefined>();
 
   // Use the inactivity timer hook
   const { showInactivityPopup, trackUserMessage } = useInactivityTimer();
-  
 
   const handlePreviewClick = (data: PreviewData) => {
-
     if (data.type === "pxml" && data.filename && conversationId) {
       handlePxmlClick(data.filename, conversationId);
     } else {
@@ -46,7 +47,11 @@ export default function Home() {
     setPreviewData(undefined);
   };
 
-  const handlePxmlClick = (filename: string, conversationId: string, timestamp?: string) => {
+  const handlePxmlClick = (
+    filename: string,
+    conversationId: string,
+    timestamp?: string
+  ) => {
     if (!conversationId) {
       console.error("DEBUG: No conversation ID");
       return;
@@ -84,7 +89,7 @@ export default function Home() {
   const startNewConversation = () => {
     // Stop current conversation if one is ongoing
     chatBoxRef.current?.stopCurrentConversation();
-    
+
     // Clear conversation state
     setConversationId(undefined);
     setSidebarOpen(false);
@@ -94,13 +99,12 @@ export default function Home() {
   // Register the reset conversation function globally for logout
   useEffect(() => {
     setGlobalResetConversation(startNewConversation);
-    
+
     // Cleanup on unmount
     return () => {
       setGlobalResetConversation(null);
     };
   }, []);
-
 
   useEffect(() => {
     // Extract query parameter directly from window.location
@@ -172,7 +176,7 @@ export default function Home() {
                 notifyAuthChange();
 
                 if (authData.refresh_token) {
-                 await refreshAuthToken(authData.refresh_token);
+                  await refreshAuthToken(authData.refresh_token);
                 }
               } else {
                 console.error("Token validation failed");

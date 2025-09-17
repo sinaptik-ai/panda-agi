@@ -1,5 +1,5 @@
 "use client";
-import React, { forwardRef, useImperativeHandle } from "react";
+import React, { forwardRef, useImperativeHandle, useRef } from "react";
 import { Plus, Coins, Edit3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import UserMenu from "@/components/user-menu";
@@ -55,6 +55,8 @@ const Header = forwardRef<HeaderRef, HeaderProps>(
     const { handleShowLogout } = useLogout();
     const { showUpgradeModal, showLoginModal } = useGlobalModals();
     const { isAuthenticated } = useAuth();
+    const [isCompact, setIsCompact] = useState(false);
+    const headerRef = useRef<HTMLDivElement>(null);
 
     // Default handlers
     const handleNewConversation = onNewConversation || (() => router.push("/"));
@@ -169,9 +171,35 @@ const Header = forwardRef<HeaderRef, HeaderProps>(
       }
     }, [refreshCredits]);
 
+    useEffect(() => {
+      const checkHeaderWidth = () => {
+        if (headerRef.current) {
+          const headerWidth = headerRef.current.offsetWidth;
+          setIsCompact(headerWidth < 500);
+        }
+      };
+
+      // Check on mount
+      checkHeaderWidth();
+
+      // Check on resize and when sidebar changes
+      const resizeObserver = new ResizeObserver(checkHeaderWidth);
+      if (headerRef.current) {
+        resizeObserver.observe(headerRef.current);
+      }
+
+      window.addEventListener('resize', checkHeaderWidth);
+      
+      return () => {
+        resizeObserver.disconnect();
+        window.removeEventListener('resize', checkHeaderWidth);
+      };
+    }, []);
+
     return (
       <TooltipProvider>
         <div
+          ref={headerRef}
           className={`glass-header p-6 fixed top-0 left-0 right-0 z-10 backdrop-blur-3xl bg-white/60 ${
             variant === "page" ? "border-b border-border/20" : ""
           }`}
@@ -204,8 +232,8 @@ const Header = forwardRef<HeaderRef, HeaderProps>(
             </div>
 
             <div className="flex items-center space-x-3">
-              {/* Credits Display - Hidden on mobile, shown on desktop */}
-              {PLATFORM_MODE && isAuthenticated && userCredits && (
+              {/* Credits Display - Hidden on mobile or when compact, shown on desktop */}
+              {PLATFORM_MODE && isAuthenticated && userCredits && !isCompact && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
@@ -256,11 +284,13 @@ const Header = forwardRef<HeaderRef, HeaderProps>(
                 <Button
                   onClick={handleNewConversation}
                   variant="default"
-                  className="px-2 py-1.5 sm:px-5 sm:py-2.5 h-8 sm:h-auto text-sm rounded-lg"
+                  className={`px-2 py-1.5 sm:px-5 sm:py-2.5 h-8 sm:h-auto text-sm rounded-lg ${
+                    isCompact ? "px-2 py-1.5" : ""
+                  }`}
                 >
-                  <Edit3 className="w-4 h-4 sm:hidden" />
-                  <Plus className="hidden sm:inline w-4 h-4" />
-                  <span className="hidden sm:inline">New Chat</span>
+                  <Edit3 className={`w-4 h-4 ${isCompact ? "" : "sm:hidden"}`} />
+                  <Plus className={`${isCompact ? "hidden" : "hidden sm:inline"} w-4 h-4`} />
+                  <span className={`${isCompact ? "hidden" : "hidden sm:inline"}`}>New Chat</span>
                 </Button>
               )}
 

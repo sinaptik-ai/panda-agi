@@ -125,6 +125,7 @@ class Agent:
             api_key=self.api_key,
             conversation_id=self.conversation_id,
             state=self.state,
+            timeout=300,  # 5 mins of timeout for response from pangaagi-server
         )
         self.token_processor = TokenProcessor(
             tool_registry=self.tool_registry, collect_mode=False
@@ -356,21 +357,6 @@ class Agent:
                         )
                         self.conversation_id = processed_event.get("conversation_id")
 
-                    # Processed event: conversation_id
-                    # Processed event: tool_call_start
-
-                    # Processed event: tool_function_detected
-
-                    # Processed event: tool_parameter_start
-
-                    # Processed event: tool_parameter_stream
-
-                    # Processed event: tool_parameter_complete
-
-                    # Processed event: tool_function_complete
-
-                    # Processed event: tool_call_complete
-
                     elif processed_event.get("type") == "tool_function_detected":
                         print("TOOL FUNCTION DETECTED:", processed_event)
                         start_timestamp = datetime.now(timezone.utc).isoformat()
@@ -389,16 +375,16 @@ class Agent:
                         self._trigger_callbacks(function_name, input_params, "start")
 
                     elif processed_event.get("type") == "tool_parameter_start":
-                        print("TOOL PARAMETER START:", processed_event)
+                        logger.debug("TOOL PARAMETER START:", processed_event)
 
                     elif processed_event.get("type") == "tool_parameter_complete":
-                        print("TOOL PARAMETER COMPLETE:", processed_event)
+                        logger.debug("TOOL PARAMETER COMPLETE:", processed_event)
 
                     elif processed_event.get("type") == "tool_function_complete":
-                        print("TOOL FUNCTION COMPLETE:", processed_event)
+                        logger.debug("TOOL FUNCTION COMPLETE:", processed_event)
 
                     elif processed_event.get("type") == "tool_call_complete":
-                        print("TOOL CALL COMPLETE:", processed_event)
+                        logger.debug("TOOL CALL COMPLETE:", processed_event)
 
                         # Handle tool end event - execute the tool if immediate execution is enabled
                         if execute_tools:

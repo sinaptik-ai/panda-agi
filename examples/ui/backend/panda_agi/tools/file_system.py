@@ -87,7 +87,9 @@ class FileWriteHandler(ToolHandler):
                 # Validation if parsing is successful
                 xml_parser.parse(params["content"])
             except Exception as e:
-                logger.error(f"Invalid PXML content provided for file write: {params['content']} | Exception: {e}")
+                logger.error(
+                    f"Invalid PXML content provided for file write: {params['content']} | Exception: {e}"
+                )
                 return f"Invalid PXML file: {e}. Failed to write the file. Please verify the file content and try again after correcting any issues."
             return
 
@@ -136,10 +138,6 @@ class FileReplaceHandler(ToolHandler):
             "old_str": params["find_str"],
             "new_str": params["replace_str"],
         }
-
-        # Map the XML parameter names to the function parameter names TODO: improve this
-        mapped_params["file"] = mapped_params["file_name"]
-        del mapped_params["file_name"]
         result = await file_str_replace(self.environment, **mapped_params)
         await self.add_event(EventType.FILE_REPLACE, params)
 
