@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 import re
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from xml.sax.saxutils import escape
 
 
 @dataclass
@@ -112,47 +113,99 @@ class XMLParser:
             content = content.replace(operator, escaped)
         return content
 
+    def remove_xml_comments(self, xml_string: str) -> str:
+        """
+        Remove all XML comments <!-- comment --> from the input string.
+        """
+        result = ""
+        i = 0
+        while i < len(xml_string):
+            comment_start = xml_string.find("<!--", i)
+            if comment_start == -1:
+                # No more comments; append the rest
+                result += xml_string[i:]
+                break
+            # Append text before comment
+            result += xml_string[i:comment_start]
+
+            # Find the end of the comment
+            comment_end = xml_string.find("-->", comment_start)
+            if comment_end == -1:
+                # Malformed comment: remove till the end
+                break
+
+            # Skip over the comment
+            i = comment_end + 3
+
+        return result
+
+    def process_xml(self, xml_string: str) -> str:
+        """Process XML string to escape operators in content"""
+
+        def extract_tag_name(tag_str: str) -> str:
+            return tag_str.strip("<>/ ").split()[0]
+
+        i = 0
+        result = ""
+
+        while i < len(xml_string):
+
+            opening_tag_start = xml_string.find("<", i)
+            if opening_tag_start == -1:
+                result += escape(xml_string[i:])
+                break
+
+            result += escape(xml_string[i:opening_tag_start])
+
+            opening_tag_end = xml_string.find(">", opening_tag_start)
+            if opening_tag_end == -1:
+                result += escape(xml_string[opening_tag_start:])
+                break
+
+            tag_name = extract_tag_name(xml_string[opening_tag_start:opening_tag_end])
+
+            # Find the correct closing tag by tracking nested same-name tags
+            pos = opening_tag_end + 1
+            depth = 1
+            while depth > 0:
+                next_open = xml_string.find(f"<{tag_name}", pos)
+                next_close = xml_string.find(f"</{tag_name}>", pos)
+
+                if next_close == -1:
+                    # Malformed XML
+                    next_close = len(xml_string)
+                    break
+
+                if next_open != -1 and next_open < next_close:
+                    depth += 1
+                    pos = next_open + 1
+                else:
+                    depth -= 1
+                    pos = next_close + len(f"</{tag_name}>")
+
+            closing_tag_start = pos - len(f"</{tag_name}>")
+
+            # Extract inner content
+            inner_content = xml_string[opening_tag_end + 1 : closing_tag_start]
+
+            # Recursively process inner content
+            processed_inner = self.process_xml(inner_content)
+
+            # Reconstruct the tag
+            result += f"<{tag_name}>{processed_inner}</{tag_name}>"
+
+            # Move index past the closing tag
+            i = closing_tag_start + len(f"</{tag_name}>")
+
+        return result
+
     def _preprocess_xml_content(self, content: str) -> str:
         """Preprocess XML content to escape comparison operators in formula tags, attributes, and {{}} expressions"""
+        # Remove any XML declaration (<?xml version="..." encoding="..."?>)
+        content = re.sub(r"<\?pxml[^>]*\?>", "", content)
 
-        # Find all formula tags and escape operators within them
-        def escape_formula_content(match):
-            formula_content = match.group(1)
-            formula_content = self._escape_operators_in_content(formula_content)
-            return f"<formula>{formula_content}</formula>"
-
-        # Find all {{}} expressions and escape operators within them
-        def escape_curly_brace_formula(match):
-            formula_content = match.group(1)
-            formula_content = self._escape_operators_in_content(formula_content)
-            return f"{{{{{formula_content}}}}}"
-
-        # Find all name tags and escape operators within them
-        def escape_name_content(match):
-            name_content = match.group(1)
-            name_content = self._escape_operators_in_content(name_content)
-            return f"<name>{name_content}</name>"
-
-        # Pattern to match content within formula tags
-        formula_pattern = r"<formula>(.*?)</formula>"
-        processed_content = re.sub(
-            formula_pattern, escape_formula_content, content, flags=re.DOTALL
-        )
-
-        # Pattern to match content within name tags
-        name_pattern = r"<name>(.*?)</name>"
-        processed_content = re.sub(
-            name_pattern, escape_name_content, processed_content, flags=re.DOTALL
-        )
-
-        # Pattern to match content within {{ }} expressions
-        curly_brace_pattern = r"\{\{(.*?)\}\}"
-        processed_content = re.sub(
-            curly_brace_pattern,
-            escape_curly_brace_formula,
-            processed_content,
-            flags=re.DOTALL,
-        )
+        xml_input = self.remove_xml_comments(content)
+        content = self.process_xml(xml_input)
 
         # Handle formula attributes - use a more targeted approach
         # Process each line individually to avoid greedy matching across the entire file
