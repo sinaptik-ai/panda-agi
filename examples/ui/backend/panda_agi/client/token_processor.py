@@ -316,6 +316,70 @@ class TokenProcessor:
         """Get the currently processing tool call"""
         return self.current_tool_call.copy() if self.current_tool_call else None
 
+    def _extract_tool_calls_from_message_content(
+        self, message_content: str
+    ) -> List[Dict[str, Any]]:
+        """Extract tool calls from a message content string.
+
+        Parses the new format:
+        <tool_call>
+            <function=function_name>
+                <parameter=param1>value1</parameter>
+                <parameter=param2>value2</parameter>
+            </function>
+        </tool_call>
+
+        Returns a list of dictionaries with 'function_name' and 'arguments' keys.
+        """
+        tool_calls = []
+
+        # Find all tool_call blocks
+        tool_call_pattern = r"<tool_call>(.*?)</tool_call>"
+        tool_call_matches = re.findall(tool_call_pattern, message_content, re.DOTALL)
+
+        for tool_call_content in tool_call_matches:
+            # Extract function blocks within this tool call
+            function_pattern = r"<function=([^>]+)>(.*?)</function>"
+            function_matches = re.findall(
+                function_pattern, tool_call_content, re.DOTALL
+            )
+
+            for function_name, function_content in function_matches:
+                # Initialize the tool call structure
+                tool_call = {"function_name": function_name.strip(), "arguments": {}}
+
+                # Extract all parameters within this function
+                parameter_pattern = r"<parameter=([^>]+)>(.*?)</parameter>"
+                parameter_matches = re.findall(
+                    parameter_pattern, function_content, re.DOTALL
+                )
+
+                for param_name, param_value in parameter_matches:
+                    param_name = param_name.strip()
+                    param_value = param_value.strip()
+
+                    # Try to parse the parameter value as JSON for arrays/objects
+                    try:
+                        # Check if it looks like JSON (starts with { or [)
+                        if param_value and param_value[0] in ("{", "["):
+                            parsed_value = json.loads(param_value)
+                        else:
+                            # Try to parse as JSON anyway in case it's a number or boolean
+                            try:
+                                parsed_value = json.loads(param_value)
+                            except (json.JSONDecodeError, ValueError):
+                                # Keep as string if not valid JSON
+                                parsed_value = param_value
+                    except (json.JSONDecodeError, ValueError, IndexError):
+                        # If JSON parsing fails, keep as string
+                        parsed_value = param_value
+
+                    tool_call["arguments"][param_name] = parsed_value
+
+                tool_calls.append(tool_call)
+
+        return tool_calls
+
     def create_tool_execution_event(
         self,
         tool_call: Dict[str, Any],

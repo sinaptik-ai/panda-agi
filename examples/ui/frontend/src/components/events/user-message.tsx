@@ -1,10 +1,5 @@
 import React from "react";
-import {
-  AlertCircle,
-  Eye,
-  Globe,
-  ExternalLink,
-} from "lucide-react";
+import { AlertCircle, Eye, Globe, ExternalLink } from "lucide-react";
 import MarkdownRenderer from "../ui/markdown-renderer";
 import { getBackendServerURL } from "@/lib/server";
 import { toast } from "react-hot-toast";
@@ -133,7 +128,6 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
     return Array.from(urls);
   };
 
-
   const renderErrorContent = () => {
     return (
       <div>
@@ -197,9 +191,8 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
 
   // TODO - Temporary fix for attachments
   let attachments: string[] = [];
-  if (payload.attachments && typeof payload.attachments === "string") {
-    const attachmentsString = payload.attachments as string;
-    attachments = attachmentsString.split(",");
+  if (payload.attachments && Array.isArray(payload.attachments)) {
+    attachments = payload.attachments as string[];
   }
 
   const getAttachmentName = (filename: string): string => {
@@ -210,7 +203,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
         return artifact.name;
       }
     }
-    
+
     // Return the original filename if no saved artifact found
     return filename;
   };
