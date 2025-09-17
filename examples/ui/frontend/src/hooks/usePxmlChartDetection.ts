@@ -40,7 +40,10 @@ export const usePxmlChartDetection = (
         }
         
         const fileContent = await response.text();
-        const isChartContent = fileContent.trim().startsWith('<chart');
+        const lines = fileContent.trim().split('\n');
+        const firstLine = lines[0]?.trim() || '';
+        const lineToCheck = firstLine.startsWith('<?pxml') ? (lines[1]?.trim() || '') : firstLine;
+        const isChartContent = lineToCheck.startsWith('<chart');
         setContent(fileContent);
         setIsChart(isChartContent);
       } catch (err) {
