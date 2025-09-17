@@ -297,7 +297,7 @@ class XMLParser:
         grid_data = (
             self._parse_grid(root)
             if root.tag == "dashboard"
-            else self._parse_sandalone_chart(root)
+            else self._parse_standalone_chart(root)
         )
 
         dashboard_data = {
@@ -311,7 +311,7 @@ class XMLParser:
 
         return dashboard_data
 
-    def _parse_sandalone_chart(self, root: ET.Element) -> ChartSpec:
+    def _parse_standalone_chart(self, root: ET.Element) -> ChartSpec:
         """Parse standalone chart element"""
         grid_data = {
             "rows": [
