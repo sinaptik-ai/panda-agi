@@ -140,6 +140,7 @@ class XMLParser:
         return result
 
     def process_xml(self, xml_string: str) -> str:
+        """Process XML string to escape operators in content"""
         i = 0
         result = ""
 
