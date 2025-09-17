@@ -307,7 +307,6 @@ class XMLParser:
             "grid": grid_data,
             "insights": self._parse_insights(root),
             "table": self._parse_table(root),
-            "chart": self._parse_sandalone_chart(root),
         }
 
         return dashboard_data
