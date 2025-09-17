@@ -95,7 +95,8 @@ async def event_stream(
 
 Here the first rows of the CSV:
 ```
-{content}
+{header.strip()}
+{content.strip()}
 ```
 
 Mapping of the columns to the Excel letters:

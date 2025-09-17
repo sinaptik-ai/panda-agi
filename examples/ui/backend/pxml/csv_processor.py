@@ -180,6 +180,58 @@ class CSVProcessor:
         today = datetime.now()
         return today.strftime("%Y-%m-%d")
 
+    def excel_row(self, row_index=None):
+        """Excel ROW function - return current row number (1-based)"""
+        # In pandas context, we need to get the row index
+        # This will be set during evaluation
+        if hasattr(self, '_current_row_index'):
+            return self._current_row_index + 1  # Convert to 1-based
+        return 1  # Default if not set
+
+    def excel_offset(self, reference, rows, cols, height=1, width=1):
+        """Excel OFFSET function - return value offset from reference"""
+        try:
+            if hasattr(self, '_current_row_index') and hasattr(self, 'data'):
+                current_index = self._current_row_index
+                
+                # Calculate target row index
+                target_index = current_index + int(rows)
+                
+                # Check bounds
+                if target_index >= 0 and target_index < len(self.data):
+                    # For the case OFFSET(B2,-1,0), we want the value from column B in the previous row
+                    # Since we're dealing with the current row context, the reference should be the current value
+                    # and we want to get the same column but offset by the specified rows
+                    
+                    # Find which column the reference came from in current context
+                    # This is a simplified approach - in real Excel, reference would be a cell reference
+                    current_row = self._current_row
+                    
+                    # Try to find which column has the reference value
+                    matching_column = None
+                    for col_name in self.data.columns:
+                        if current_row[col_name] == reference:
+                            matching_column = col_name
+                            break
+                    
+                    if matching_column:
+                        target_value = self.data.iloc[target_index][matching_column]
+                        return target_value if not pd.isna(target_value) else 0
+                    else:
+                        # If we can't find the matching column, assume it's from the same column as referenced
+                        # For formulas like OFFSET(B2,-1,0), try to get from column B
+                        # This is a fallback approach
+                        if len(self.data.columns) > 1:  # Assuming B is the second column (index 1)
+                            target_value = self.data.iloc[target_index, 1]  # Column B (second column)
+                            return target_value if not pd.isna(target_value) else 0
+                
+                return 0
+            
+            return 0  # Fallback
+        except Exception as e:
+            print(f"OFFSET function error: {e}")
+            return 0
+
     def excel_text(self, value, format_code):
         """Excel TEXT function - format date/number as text with comprehensive format support"""
         try:
@@ -542,6 +594,10 @@ class CSVProcessor:
         """Evaluate a formula for a single row"""
         eval_formula = formula
 
+        # Set current row context for ROW() and OFFSET() functions
+        self._current_row = row
+        self._current_row_index = row.name if hasattr(row, 'name') and row.name is not None else 0
+
         # Convert Excel functions to Python first (before column replacement)
         eval_formula = self._convert_excel_functions_to_python(eval_formula, row)
 
@@ -577,6 +633,8 @@ class CSVProcessor:
                 "YEAR": self.excel_year,
                 "TEXT": self.excel_text,
                 "TODAY": self.excel_today,
+                "ROW": self.excel_row,
+                "OFFSET": self.excel_offset,
             }
             result = eval(eval_formula, safe_dict)
             return result

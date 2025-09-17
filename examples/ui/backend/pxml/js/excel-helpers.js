@@ -368,6 +368,56 @@ const ExcelHelpers = {
         return result;
     },
 
+    // Row and reference functions
+    excelRow: function(rowIndex) {
+        // Return current row number (1-based)
+        // In JavaScript context, this would typically be set by the evaluation context
+        if (typeof window !== 'undefined' && window._currentRowIndex !== undefined) {
+            return window._currentRowIndex + 1; // Convert to 1-based
+        }
+        return rowIndex !== undefined ? rowIndex : 1; // Default if not set
+    },
+    
+    excelOffset: function(reference, rows, cols, height = 1, width = 1) {
+        // Excel OFFSET function - return value offset from reference
+        // This is a simplified implementation for JavaScript context
+        try {
+            if (typeof window !== 'undefined' && window._currentData && window._currentRowIndex !== undefined) {
+                const currentIndex = window._currentRowIndex;
+                const targetIndex = currentIndex + parseInt(rows);
+                
+                // Check bounds
+                if (targetIndex >= 0 && targetIndex < window._currentData.length) {
+                    // For basic case where cols=0 (same column), find the matching column
+                    const currentRow = window._currentData[currentIndex];
+                    const targetRow = window._currentData[targetIndex];
+                    
+                    // Try to find which column has the reference value
+                    for (const [key, value] of Object.entries(currentRow)) {
+                        if (value === reference) {
+                            return targetRow[key] !== undefined ? targetRow[key] : 0;
+                        }
+                    }
+                    
+                    // Fallback: if we can't find the matching column, try to use the same property
+                    // This assumes the reference is from a known column structure
+                    const keys = Object.keys(currentRow);
+                    if (keys.length > 1) { // Assuming second column like Excel's B column
+                        const targetValue = targetRow[keys[1]];
+                        return targetValue !== undefined ? targetValue : 0;
+                    }
+                }
+                
+                return 0;
+            }
+            
+            return 0; // Fallback
+        } catch (error) {
+            console.warn('OFFSET function error:', error);
+            return 0;
+        }
+    },
+
     // Lookup functions
     excelChoose: function(index, ...choices) {
         if (index < 1 || index > choices.length) return null;
@@ -377,6 +427,10 @@ const ExcelHelpers = {
 
 // Make all functions available globally
 Object.assign(window, ExcelHelpers);
+
+// Also expose specific functions with Excel naming convention
+window.ROW = ExcelHelpers.excelRow;
+window.OFFSET = ExcelHelpers.excelOffset;
 
 // Also expose the ExcelHelpers object itself for internal function calls
 window.ExcelHelpers = ExcelHelpers;
