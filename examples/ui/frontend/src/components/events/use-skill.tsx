@@ -60,6 +60,8 @@ const ToolUseEvent: React.FC<ToolUseEventProps> = ({ payload }) => {
     );
   };
 
+  if (!payload.tool_name || payload.tool_name === "set_idle") return null;
+
   return (
     <>
       <div className="flex justify-start mb-2">
