@@ -219,7 +219,7 @@ class XMLParser:
 
         return line_number, context
 
-    def _construct_parse_error_message(self, e: ET.ParseError) -> str:
+    def _construct_parse_error_message(self, e: ET.ParseError) -> None:
         # Use ET.ParseError's position attribute for accurate line/column info
         if hasattr(e, "position") and e.position:
             line_number, column_number = e.position
