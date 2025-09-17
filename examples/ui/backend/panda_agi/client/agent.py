@@ -763,67 +763,8 @@ class Agent:
 
         return tool_results
 
-    async def _send_tool_results_to_endpoint(
-        self, tool_results: List[Dict[str, Any]]
-    ) -> None:
-        """Send tool execution results back to the endpoint as a new interaction"""
-        if not tool_results:
-            return
-
-        # Format tool results as a message
-        tool_summary = []
-        for result in tool_results:
-            function_name = result["function_name"]
-            status = result["status"]
-
-            if status == "completed":
-                result_data = result.get("result", "Success")
-                if isinstance(result_data, dict):
-                    result_data = str(result_data)
-                tool_summary.append(
-                    f"<tool_response tool_name={function_name}>\n{result_data}\n</tool_response>"
-                )
-            else:
-                tool_summary.append(
-                    f"<tool_response tool_name={function_name}>\n{result.get('error', 'Failed')}\n</tool_response>"
-                )
-
-        # Create a summary message as the new query
-        tool_message = Message(
-            role="user",
-            content="\n".join(tool_summary),
-        )
-
-        # Create a new request with the tool results as a query
-        tool_results_request = AgentRequestModel(
-            conversation_id=self.conversation_id,
-            # system_prompt=self.system_prompt,
-            messages=[tool_message],
-            model=self.model,
-            tools_config=self.state.tools_config,
-            # tools=self.tools,
-        )
-
-        try:
-            # Send the tool results as a new streaming interaction using the existing endpoint
-            logger.info(
-                f"Sending tool results as new query for conversation {self.conversation_id}"
-            )
-
-            # Use the existing streaming endpoint that we know works
-            token_stream = self.client.send_streaming_request(tool_results_request)
-
-            # Process the response stream but don't yield events (this is just sending results)
-            response_tokens = []
-            async for token in token_stream:
-                response_tokens.append(token)
-
-            logger.info(
-                f"Tool results sent successfully as new interaction (received {len(response_tokens)} response tokens)"
-            )
-
-        except Exception as e:
-            logger.error(f"Failed to send tool results to endpoint: {e}")
+    def _structure_tool_response(self, tool_name: str, result_data: str) -> str:
+        return f"<tool_response tool_name={tool_name}>{result_data}</tool_response>"
 
     async def _send_tool_results_to_endpoint_and_get_next_request(
         self, tool_results: List[Dict[str, Any]]
@@ -853,11 +794,18 @@ class Agent:
                 if isinstance(result_data, dict):
                     result_data = str(result_data)
                 tool_summary.append(
-                    f"<tool_response tool_name={function_name}>\n{result_data}\n</tool_response>"
+                    self._structure_tool_response(function_name, result_data)
                 )
             else:
+                error_message = f"""ERROR OCCURRED WHEN CALLING THIS TOOL.
+
+Error:
+```
+{result.get("error", "Failed")}
+```
+"""
                 tool_summary.append(
-                    f"<tool_response tool_name={function_name}>\n{result.get('error', 'Failed')}\n</tool_response>"
+                    self._structure_tool_response(function_name, error_message)
                 )
 
         # Create a summary message as the new query
@@ -914,8 +862,8 @@ class Agent:
             self.environment, path="/", max_depth=max_depth
         )
 
-        available_ports = self.environment.get_available_ports()
-        file_system_info["available_ports_for_deployments"] = available_ports
+        # available_ports = self.environment.get_available_ports()
+        # file_system_info["available_ports_for_deployments"] = available_ports
         return file_system_info
 
     async def run(

@@ -96,16 +96,28 @@ class FileWriteHandler(ToolHandler):
         return None
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
-        # await self.add_event(EventType.FILE_WRITE, params)
         params["append"] = params.get("append", "false") == "true"  # Convert to boolean
         params["file"] = params["file_name"]
         del params["file_name"]
         result = await file_write(self.environment, **params)
-        await self.add_event(EventType.FILE_WRITE, params)
+
+        message = ""
+
+        if result.get("status") == "success":
+            mode = result.get("mode", "overwrite")
+            if mode == "append":
+                message = "Successfully appended content to file."
+            else:
+                message = "Successfully created and wrote content to new file."
+
+        file_write_result = {
+            "message": message,
+            "path": result["path"],
+        }
 
         return ToolResult(
             success=result.get("status") == "success",
-            data=result,
+            data=file_write_result,
             error=result.get("message") if result.get("status") != "success" else None,
         )
 

@@ -134,7 +134,7 @@ async def file_str_replace(
         if old_str not in content:
             return {
                 "status": "error",
-                "message": f"String not found in file: {old_str}",
+                "message": f"find_str not found in file {file}. Replace operation aborted.",
                 "file": result["path"],
             }
 
