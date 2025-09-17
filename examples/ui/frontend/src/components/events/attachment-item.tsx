@@ -86,7 +86,7 @@ const AttachmentItem: React.FC<AttachmentItemProps> = ({
       return <FileText className="w-4 h-4 text-green-600" />;
     }
     if (extension === "pdf") {
-      return <File className="w-4 h-4 text-red-500" />;
+      return <File className="w-4 h-4 text-orange-500" />;
     }
     if (extension && ["txt", "doc", "docx"].includes(extension)) {
       return <FileText className="w-4 h-4 text-gray-500" />;

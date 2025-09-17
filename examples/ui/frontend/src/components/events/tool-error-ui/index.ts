@@ -9,6 +9,7 @@ export { default as ShellOperationError } from './shell-operation-error';
 export { default as ErrorDisplayHeader } from './error-display-header';
 export { default as ErrorExpandableContent } from './error-expandable-content';
 export { default as ErrorMessageDisplay } from './error-message-display';
+export { default as UserFriendlyError } from './user-friendly-error';
 
 // Export registry system
 export * from './tool-error-registry'; 

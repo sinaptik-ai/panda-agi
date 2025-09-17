@@ -104,7 +104,7 @@ const getFileTypeIcon = (filename: string) => {
 
   // Video
   if (["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"].includes(extension)) {
-    return <FileVideo className={cn(iconClass, "text-red-500")} />;
+    return <FileVideo className={cn(iconClass, "text-orange-500")} />;
   }
 
   return <File className={cn(iconClass, "text-slate-500")} />;

@@ -1,11 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { 
-  ErrorDisplayHeader, 
-  ErrorExpandableContent, 
-  ErrorMessageDisplay 
-} from "./index";
+import UserFriendlyError from "./user-friendly-error";
+import { ErrorMessageDisplay } from "./index";
 
 interface DefaultErrorProps {
   payload: {
@@ -18,51 +15,40 @@ interface DefaultErrorProps {
 }
 
 const DefaultError: React.FC<DefaultErrorProps> = ({ payload }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-  };
-
-  const { input_params, error } = payload;
+  const { input_params, error, tool_name } = payload;
 
   return (
-    <>
-      <ErrorDisplayHeader 
-        payload={payload}
-        isExpanded={isExpanded}
-        onToggleExpanded={toggleExpanded}
-      />
-
-      <ErrorExpandableContent isExpanded={isExpanded}>
-        {input_params && Object.keys(input_params).length > 0 && (
-          <div className="mb-3">
-            <div className="text-xs text-gray-400 mb-1">Input Parameters:</div>
-            <div 
-              className="max-h-64 overflow-y-auto"
-              style={{
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#4B5563 #1F2937'
+    <UserFriendlyError
+      toolName={tool_name}
+      error={error}
+    >
+      {input_params && Object.keys(input_params).length > 0 && (
+        <div className="mb-3">
+          <div className="text-xs text-gray-400 mb-1">Input Parameters:</div>
+          <div 
+            className="max-h-64 overflow-y-auto"
+            style={{
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#4B5563 #1F2937'
+            }}
+          >
+            <SyntaxHighlighter
+              language="json"
+              style={vscDarkPlus}
+              customStyle={{
+                margin: 0,
+                borderRadius: "0.375rem",
+                fontSize: "0.875rem",
               }}
+              showLineNumbers
             >
-              <SyntaxHighlighter
-                language="json"
-                style={vscDarkPlus}
-                customStyle={{
-                  margin: 0,
-                  borderRadius: "0.375rem",
-                  fontSize: "0.875rem",
-                }}
-                showLineNumbers
-              >
-                {JSON.stringify(input_params, null, 2)}
-              </SyntaxHighlighter>
-            </div>
+              {JSON.stringify(input_params, null, 2)}
+            </SyntaxHighlighter>
           </div>
-        )}
-        <ErrorMessageDisplay error={error} />
-      </ErrorExpandableContent>
-    </>
+        </div>
+      )}
+      <ErrorMessageDisplay error={error} />
+    </UserFriendlyError>
   );
 };
 

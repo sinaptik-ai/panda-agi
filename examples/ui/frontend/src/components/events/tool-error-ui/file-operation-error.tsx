@@ -1,10 +1,7 @@
-import React, { useState } from "react";
+import React from "react";
 import { FileText } from "lucide-react";
-import { 
-  ErrorDisplayHeader, 
-  ErrorExpandableContent, 
-  ErrorMessageDisplay 
-} from "./index";
+import UserFriendlyError from "./user-friendly-error";
+import { ErrorMessageDisplay } from "./index";
 
 interface FileOperationErrorProps {
   payload: {
@@ -16,27 +13,21 @@ interface FileOperationErrorProps {
 }
 
 const FileOperationError: React.FC<FileOperationErrorProps> = ({ payload }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const toggleExpanded = () => {
-    setIsExpanded(!isExpanded);
-  };
-
-  const { input_params, error } = payload;
+  const { input_params, error, tool_name } = payload;
   const filePath = input_params?.file_path as string || 
                   input_params?.path as string || 
-                  input_params?.filename as string || 
-                  "Unknown file";
+                  input_params?.filename as string;
+  
+  // For file_write operations that failed, don't show the file path since the file wasn't created
+  const isFileWriteOperation = tool_name?.toLowerCase().includes('write') || tool_name?.toLowerCase().includes('file_write');
+  const shouldShowFilePath = !isFileWriteOperation && filePath;
 
   return (
-    <>
-      <ErrorDisplayHeader 
-        payload={payload}
-        isExpanded={isExpanded}
-        onToggleExpanded={toggleExpanded}
-      />
-
-      <ErrorExpandableContent isExpanded={isExpanded}>
+    <UserFriendlyError
+      toolName={tool_name}
+      error={error}
+    >
+      {shouldShowFilePath && (
         <div className="mb-3">
           <div className="text-xs text-gray-400 mb-1 flex items-center">
             <FileText className="w-3 h-3 mr-1" />
@@ -52,9 +43,9 @@ const FileOperationError: React.FC<FileOperationErrorProps> = ({ payload }) => {
             {filePath}
           </div>
         </div>
-        <ErrorMessageDisplay error={error} />
-      </ErrorExpandableContent>
-    </>
+      )}
+      <ErrorMessageDisplay error={error} />
+    </UserFriendlyError>
   );
 };
 

@@ -132,7 +132,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
     return (
       <div>
         <div className="flex items-start">
-          <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+          <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5 mr-3 flex-shrink-0" />
           <div className="flex-1">
             <h4 className="font-semibold text-gray-900 text-sm">Error</h4>
             <MarkdownRenderer onPreviewClick={onPreviewClick}>
@@ -182,7 +182,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
   };
 
   const cardColor = isError
-    ? "bg-red-50/80 border-red-200/50"
+    ? "bg-orange-50/80 border-orange-200/50"
     : "bg-white/90 border-slate-200/50";
   const content = isError ? renderErrorContent() : renderStandardContent();
 

@@ -18,7 +18,7 @@ const ErrorExpandableContent: React.FC<ErrorExpandableContentProps> = ({
       }`}
     >
       <div className="overflow-hidden">
-        <div className="mx-3 mb-4 bg-slate-900 text-white rounded-xl overflow-hidden shadow-sm border border-red-200/20">
+        <div className="mx-3 mb-4 bg-slate-900 text-white rounded-xl overflow-hidden shadow-sm border border-orange-200/20">
           <div className="p-3">
             {children}
           </div>
