@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, Dict, Optional
 
 from ..tools.web_ops.beautifulsoup import beautiful_soup_navigation
@@ -61,33 +62,38 @@ class WebSearchHandler(ToolHandler):
 @ToolRegistry.register(
     "web_visit_page",
     xml_tag="web_visit_page",
-    required_params=["url"],
-    content_param="url",
-    attribute_mappings={"url": "url"},
+    required_params=["urls"],
+    content_param="urls",
+    attribute_mappings={"urls": "urls"},
 )
 class WebNavigationHandler(ToolHandler):
     """Handler for web navigation messages"""
 
     def validate_input(self, params: Dict[str, Any]) -> Optional[str]:
-        if "url" not in params:
-            return "Missing required parameter: url"
+        if "urls" not in params:
+            return "Missing required parameter: urls"
         return None
 
     try:
 
         async def execute(self, params: Dict[str, Any]) -> ToolResult:
-            # await self.add_event(EventType.WEB_NAVIGATION, params)
-            result = await beautiful_soup_navigation(**params)
-            # await self.add_event(EventType.WEB_NAVIGATION_RESULT, result)
+            print("Executing web_visit_page tool...")
 
-            success = result.pop("success", True)
+            # parallelize the navigation
+            tasks = [beautiful_soup_navigation(url=url) for url in params["urls"]]
+            results = await asyncio.gather(*tasks)
 
-            result = ToolResult(
-                success=success,
-                data=result,
-                error=result.get("content") if not result.get("success") else None,
+            all_success = True
+
+            for result in results:
+                success = result.pop("success", True)
+                all_success = all_success and success
+
+            return ToolResult(
+                success=all_success,
+                data=results,
+                error="Some pages could not be visited" if not all_success else None,
             )
-            return result
 
     except Exception as e:
         import traceback
