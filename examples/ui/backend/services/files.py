@@ -89,7 +89,7 @@ class FilesService:
             read_res = await env.read_file(file_path, mode="rb")
             if read_res.get("status") != "success":
                 detail = read_res.get("message", "Unknown error")
-                raise Exception(status_code=500, detail=f"Error reading file: {detail}")
+                raise Exception(f"Error reading file: {detail}")
 
             content = read_res.get("content", b"")
             # content may be bytes or str; ensure bytes for binary
