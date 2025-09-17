@@ -8,11 +8,10 @@ import logging
 import uuid
 from typing import AsyncGenerator, List, Optional, Tuple
 
-from utils.event_processing import should_render_event
-
 from panda_agi import Agent
 from panda_agi.envs import E2BEnv
 from panda_agi.envs.local_env import LocalEnv
+from utils.event_processing import should_render_event
 
 from .chat_env import get_env
 
@@ -91,7 +90,7 @@ async def event_stream(
                     column_mapping = ""
                     for idx, col in enumerate(header.split(",")):
                         letter = chr(65 + idx)  # A, B, C, ...
-                        column_mapping += f"{col} -> Column {letter}\n"
+                        column_mapping += f"{col.strip()} -> Column {letter}\n"
                     query = f"""{query}
 
 Here the first rows of the CSV:
@@ -131,21 +130,25 @@ Mapping of the columns to the Excel letters:
 
             # Log every tool and its params and content when fully streamed
             try:
-                if hasattr(event, 'to_dict'):
+                if hasattr(event, "to_dict"):
                     event_dict = event.to_dict()
-                    event_type = getattr(event, 'type', None)
+                    event_type = getattr(event, "type", None)
                     if event_type:
-                        event_type_str = event_type.value if hasattr(event_type, 'value') else str(event_type)
-                        logger.info(f"=== TOOL EVENT STREAMED ===")
+                        event_type_str = (
+                            event_type.value
+                            if hasattr(event_type, "value")
+                            else str(event_type)
+                        )
+                        logger.info("=== TOOL EVENT STREAMED ===")
                         logger.info(f"Event Type: {event_type_str}")
                         logger.info(f"Event Data: {json.dumps(event_dict, indent=2)}")
                         logger.info(f"Timestamp: {getattr(event, 'timestamp', 'N/A')}")
                         logger.info(f"Event ID: {getattr(event, 'id', 'N/A')}")
-                        logger.info(f"=== END TOOL EVENT ===")
+                        logger.info("=== END TOOL EVENT ===")
                 else:
-                    logger.info(f"=== RAW EVENT STREAMED ===")
+                    logger.info("=== RAW EVENT STREAMED ===")
                     logger.info(f"Event: {json.dumps(event, indent=2)}")
-                    logger.info(f"=== END RAW EVENT ===")
+                    logger.info("=== END RAW EVENT ===")
             except Exception as log_error:
                 logger.error(f"Error logging event: {log_error}")
 
