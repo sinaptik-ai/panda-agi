@@ -306,7 +306,7 @@ class Agent:
 
         Args:
             query: The query to send to the agent
-            execute_tools_immediately: Whether to execute tools immediately when detected during streaming
+            execute_tools: Whether to execute tools immediately when detected during streaming
 
         Yields:
             Dict with format: {"event_type": "tool_start"|"tool_end", "timestamp": "...", "data": {...}}
