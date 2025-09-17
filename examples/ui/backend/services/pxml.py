@@ -2,7 +2,9 @@ from typing import Callable, Optional, Tuple
 from services.files import FilesService
 from panda_agi.envs.base_env import BaseEnv
 from pxml import DashboardCompiler
+from utils.exceptions import PXMLParsingError, CSVFileError
 import logging
+import os
 import re
 
 logger = logging.getLogger(__name__)
@@ -63,7 +65,26 @@ class PXMLService:
                         )
                         return csv_files[0]["relative_path"]
                     else:
-                        raise FileNotFoundError(f"File path {file_path} does not exist")
+                        # Try to match filename from the requested path
+                        # Patch if multiple csv files exist
+                        requested_filename = os.path.basename(file_path)
+
+                        # Check if the requested filename matches any CSV file
+                        matching_csv = None
+                        for csv_file in csv_files:
+                            if csv_file["name"] == requested_filename:
+                                matching_csv = csv_file
+                                break
+
+                        if matching_csv:
+                            logger.info(
+                                f"Found matching CSV file by name: {matching_csv['relative_path']}"
+                            )
+                            return matching_csv["relative_path"]
+                        else:
+                            raise FileNotFoundError(
+                                f"File path {file_path} does not exist. Available CSV files: {[f['name'] for f in csv_files]}"
+                            )
 
                 raise FileNotFoundError(f"File path {file_path} does not exist")
 
@@ -71,21 +92,27 @@ class PXMLService:
             return file_path
 
         except FileNotFoundError as e:
-            raise e
-
+            raise CSVFileError(f"CSV file not found: {str(e)}") from e
         except Exception as e:
-            raise Exception(f"Failed to extract file path from PXML: {str(e)}")
+            raise CSVFileError(f"Failed to validate CSV file path: {str(e)}")
 
     @staticmethod
     async def get_csv_file_path_from_xml_content(xml_content: str) -> str:
         """
         Get the CSV file path from the XML content.
         """
-        pattern = r"<file_path>(.*?)</file_path>"
-        match = re.search(pattern, xml_content, re.DOTALL)
-        if not match:
-            raise Exception("file_path element not found in XML content")
-        return match.group(1)
+        try:
+            pattern = r"<file_path>(.*?)</file_path>"
+            match = re.search(pattern, xml_content, re.DOTALL)
+            if not match:
+                raise PXMLParsingError("file_path element not found in XML content")
+            return match.group(1)
+        except re.error as e:
+            raise PXMLParsingError(
+                f"Invalid regex pattern for parsing XML content: {str(e)}"
+            )
+        except Exception as e:
+            raise PXMLParsingError(f"Error parsing XML content: {str(e)}")
 
     @staticmethod
     async def process_xml_content_for_csv_file_path(
@@ -94,25 +121,32 @@ class PXMLService:
         """
         Get the fixed CSV file path from the XML content.
         """
-        # Get the original file path from the XML content
-        original_file_path = await PXMLService.get_csv_file_path_from_xml_content(
-            xml_content
-        )
-        logger.info(f"Original file path: {original_file_path}")
+        try:
+            # Get the original file path from the XML content
+            original_file_path = await PXMLService.get_csv_file_path_from_xml_content(
+                xml_content
+            )
+            logger.info(f"Original file path: {original_file_path}")
 
-        # Get the corrected file path
-        csv_file_path = await PXMLService.validate_and_get_fixed_path(
-            original_file_path.strip(), env
-        )
+            # Get the corrected file path
+            csv_file_path = await PXMLService.validate_and_get_fixed_path(
+                original_file_path.strip(), env
+            )
 
-        logger.info(f"Corrected file path: {csv_file_path}")
-        # Replace the original path with the corrected path in XML content
-        xml_content = xml_content.replace(
-            f"<file_path>{original_file_path}</file_path>",
-            f"<file_path>{csv_file_path}</file_path>",
-        )
+            logger.info(f"Corrected file path: {csv_file_path}")
+            # Replace the original path with the corrected path in XML content
+            xml_content = xml_content.replace(
+                f"<file_path>{original_file_path}</file_path>",
+                f"<file_path>{csv_file_path}</file_path>",
+            )
 
-        return xml_content
+            return xml_content
+        except (PXMLParsingError, CSVFileError) as e:
+            raise e
+        except Exception as e:
+            raise PXMLParsingError(
+                f"Failed to process XML content for CSV file path: {str(e)}"
+            )
 
     @staticmethod
     async def compile(
@@ -141,12 +175,14 @@ class PXMLService:
             return html_content
 
         except FileNotFoundError as e:
-            logger.exception(f"File not found: {e}")
-            raise
-
+            logger.exception(f"CSV file not found: {e}")
+            raise CSVFileError(f"CSV file not found: {str(e)}")
+        except UnicodeDecodeError as e:
+            logger.exception(f"Failed to decode CSV file: {e}")
+            raise CSVFileError(f"Failed to decode CSV file as UTF-8: {str(e)}")
         except Exception as e:
             logger.exception(f"Error compiling PXML file: {e}")
-            raise Exception(f"Failed to compile PXML file")
+            raise PXMLParsingError(f"Failed to compile PXML file: {str(e)}")
 
     @staticmethod
     async def compile_pxml(
@@ -166,13 +202,12 @@ class PXMLService:
 
             return await PXMLService.compile(xml_content, get_file, artifact_id)
 
-        except FileNotFoundError as e:
-            logger.exception(f"File not found: {e}")
-            raise
-
+        except (PXMLParsingError, CSVFileError) as e:
+            logger.exception(f"PXML compilation error: {e}")
+            raise e
         except Exception as e:
-            logger.exception(f"Error compiling PXML file: {e}")
-            raise Exception(f"Failed to compile PXML file")
+            logger.exception(f"Unexpected error compiling PXML file: {e}")
+            raise PXMLParsingError(f"Failed to compile PXML file: {str(e)}")
 
     @staticmethod
     async def get_csv_files_for_pxml(xml_content: str, env: BaseEnv):
@@ -194,6 +229,9 @@ class PXMLService:
             # Yield the CSV content and filepath
             yield csv_content_bytes, csv_file_path
 
+        except FileNotFoundError as e:
+            logger.exception(f"CSV file not found: {e}")
+            raise CSVFileError(f"CSV file not found: {str(e)}")
         except Exception as e:
             logger.exception(f"Error getting CSV files for PXML: {e}")
-            raise Exception(f"Failed to get CSV files for PXML")
+            raise PXMLParsingError(f"Failed to get CSV files for PXML: {str(e)}")
