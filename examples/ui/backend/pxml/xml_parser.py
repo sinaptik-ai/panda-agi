@@ -291,19 +291,47 @@ class XMLParser:
 
     def parse_dashboard(self, root: ET.Element) -> Dict[str, Any]:
         """Parse dashboard XML element into structured data"""
-        if root.tag != "dashboard":
-            raise ValueError("Root element must be 'dashboard'")
+        if root.tag != "dashboard" and root.tag != "chart":
+            raise ValueError('Root element must be either "dashboard" or "chart"')
+
+        grid_data = (
+            self._parse_grid(root)
+            if root.tag == "dashboard"
+            else self._parse_standalone_chart(root)
+        )
 
         dashboard_data = {
             "metadata": self._parse_metadata(root),
             "transformations": self._parse_transformations(root),
             "filters": self._parse_filters(root),
-            "grid": self._parse_grid(root),
+            "grid": grid_data,
             "insights": self._parse_insights(root),
             "table": self._parse_table(root),
         }
 
         return dashboard_data
+
+    def _parse_standalone_chart(self, root: ET.Element) -> ChartSpec:
+        """Parse standalone chart element"""
+        grid_data = {
+            "rows": [
+                {
+                    "columns": [
+                        {
+                            "size": "1",
+                            "content": [
+                                {
+                                    "type": "chart",
+                                    "spec": self._parse_chart(root, is_standalone=True),
+                                }
+                            ],
+                        }
+                    ]
+                }
+            ]
+        }
+
+        return grid_data
 
     def _parse_metadata(self, root: ET.Element) -> DashboardMetadata:
         """Parse dashboard metadata"""
@@ -432,10 +460,16 @@ class XMLParser:
             unit=unit,
         )
 
-    def _parse_chart(self, chart_elem: ET.Element) -> ChartSpec:
+    def _parse_chart(
+        self, chart_elem: ET.Element, is_standalone: bool = False
+    ) -> ChartSpec:
         """Parse individual chart element"""
         chart_type = chart_elem.get("type", "bar")
-        name = self._get_text(chart_elem, "name", "Untitled Chart")
+        name = (
+            self._get_text(chart_elem, "name", "Untitled Chart")
+            if not is_standalone
+            else ""
+        )
         style = chart_elem.get("style", "")
         area = chart_elem.get("area", "false").lower() == "true"
         cumulative = chart_elem.get("cumulative", "false").lower() == "true"

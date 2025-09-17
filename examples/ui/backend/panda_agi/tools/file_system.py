@@ -1,7 +1,5 @@
 from typing import Any, Dict, Optional
-
 from pxml.xml_parser import XMLParser
-
 from ..client.models import EventType
 from .base import ToolHandler, ToolResult
 from .file_system_ops.file_ops import (
@@ -13,6 +11,9 @@ from .file_system_ops.file_ops import (
     file_write,
 )
 from .registry import ToolRegistry
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @ToolRegistry.register(
@@ -86,6 +87,9 @@ class FileWriteHandler(ToolHandler):
                 # Validation if parsing is successful
                 xml_parser.parse(params["content"])
             except Exception as e:
+                logger.error(
+                    f"Invalid PXML content provided for file write: {params['content']} | Exception: {e}"
+                )
                 return f"Invalid PXML file: {e}. Failed to write the file. Please verify the file content and try again after correcting any issues."
             return
 
