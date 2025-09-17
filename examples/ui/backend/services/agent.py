@@ -93,7 +93,12 @@ async def event_stream(
                         column_mapping += f"{col.strip()} -> Column {letter}\n"
                     query = f"""{query}
 
-Here the first rows of the CSV:
+CSV File: 
+```
+<file_path>{file_names[0]}</file_path>
+```
+
+First rows of the CSV:
 ```
 {header.strip()}
 {content.strip()}

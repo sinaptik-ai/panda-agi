@@ -507,20 +507,12 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         }
       }
 
-      // Create file references for pending files
-      const fileReferences = pendingFiles
-        .map((file) => `[./${file.original_filename || file.filename}]`)
-        .join(" ");
-
-      // Combine input value with file references
-      const messageContent = fileReferences
-        ? `${inputValue.trim()} ${fileReferences}`
-        : inputValue;
+      const messageContent = inputValue.trim();
 
       const userMessage: Message = {
         id: Date.now(),
         type: "user",
-        content: inputValue.trim(),
+        content: messageContent,
         timestamp: new Date().toISOString(),
       };
 
