@@ -69,7 +69,7 @@ class FileWriteHandler(ToolHandler):
 
     def validate_input(self, params: Dict[str, Any]) -> Optional[str]:
         if "file_name" not in params:
-            return "Missing required parameter: file"
+            return "Missing required parameter: file_name"
         if "content" not in params:
             return "Missing required parameter: content"
 
