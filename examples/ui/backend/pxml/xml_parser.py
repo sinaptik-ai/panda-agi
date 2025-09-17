@@ -292,7 +292,7 @@ class XMLParser:
     def parse_dashboard(self, root: ET.Element) -> Dict[str, Any]:
         """Parse dashboard XML element into structured data"""
         if root.tag != "dashboard" and root.tag != "chart":
-            raise ValueError("Root element must be 'dashboard' or 'chart'")
+            raise ValueError('Root element must be either "dashboard" or "chart"')
 
         grid_data = (
             self._parse_grid(root)
