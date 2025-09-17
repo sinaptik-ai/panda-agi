@@ -1,18 +1,18 @@
+import logging
 import mimetypes
 import os
 from pathlib import Path
 
-from .conversation_message_parser import ConversationMessageParser
 from models.agent import ConversationMessage
 from panda_agi.envs.base_env import BaseEnv
 from utils.exceptions import FileNotFoundError, RestrictedAccessError
-import logging
+
+from .conversation_message_parser import ConversationMessageParser
 
 logger = logging.getLogger(__name__)
 
 
 class FilesService:
-
     @staticmethod
     def relative_from_base(base_path: str, file_path: str) -> str:
         base_path = os.path.normpath(base_path)
@@ -104,7 +104,7 @@ class FilesService:
                 mime_type = "application/octet-stream"
 
             return content_bytes, mime_type
-        except Exception as e:
+        except Exception:
             raise
 
     @staticmethod
@@ -126,11 +126,10 @@ class FilesService:
         logger.debug("Total tool calls: ", len(tool_calls))
 
         for tool_call in tool_calls:
-
             #  handle file write
             if (
                 tool_call["function_name"] == "file_write"
-                and tool_call["arguments"]["file"] == file_path
+                and tool_call["arguments"]["file_name"] == file_path
             ):
                 content = tool_call["arguments"]["content"]
                 file_write_content = content
@@ -139,7 +138,7 @@ class FilesService:
             #  handle file replace
             elif (
                 tool_call["function_name"] == "file_replace"
-                and tool_call["arguments"]["file"] == file_path
+                and tool_call["arguments"]["file_name"] == file_path
             ):
                 old_str = tool_call["arguments"].get("find_str", None)
                 new_str = tool_call["arguments"].get("replace_str", None)

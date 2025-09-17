@@ -2,10 +2,9 @@
 ConversationMessageParser for extracting tool calls from conversation messages.
 """
 
-import json
 import logging
-import re
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Union
+
 from panda_agi.client.token_processor import TokenProcessor
 from panda_agi.tools.registry import ToolRegistry
 
@@ -33,10 +32,7 @@ class ConversationMessageParser:
         Returns:
             List of tool call dictionaries
         """
-        tool_calls = []
-        xml_chunks = self.token_processor._extract_xml_chunks(message_content)
-        for chunk in xml_chunks:
-            tool_call = self.token_processor._parse_xml_tool_call(chunk)
-            if tool_call:
-                tool_calls.append(tool_call)
+        tool_calls = self.token_processor._extract_tool_calls_from_message_content(
+            message_content
+        )
         return tool_calls
