@@ -16,10 +16,10 @@ from .registry import ToolRegistry
 @ToolRegistry.register(
     "file_read",
     xml_tag="file_read",
-    required_params=["file"],
+    required_params=["file_name"],
     optional_params=["start_line", "end_line"],
     attribute_mappings={
-        "file": "file",
+        "file_name": "file_name",
         "start_line": "start_line",
         "end_line": "end_line",
     },
@@ -28,8 +28,8 @@ class FileReadHandler(ToolHandler):
     """Handler for file read operations"""
 
     def validate_input(self, params: Dict[str, Any]) -> Optional[str]:
-        if "file" not in params:
-            return "Missing required parameter: file"
+        if "file_name" not in params:
+            return "Missing required parameter: file_name"
         return None
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
@@ -37,10 +37,14 @@ class FileReadHandler(ToolHandler):
         params["start_line"] = int(params.get("start_line", 1))
         params["end_line"] = int(params.get("end_line", 1))
 
-        file = params.get("file", None)
+        file = params.get("file_name", None)
         # check if extension is csv set end_line
         if file and file.endswith(".csv"):
             params["end_line"] = min(params["end_line"], 20)
+
+        # Map the XML parameter names to the function parameter names
+        params["file"] = params["file_name"]
+        del params["file_name"]
 
         result = await file_read(self.environment, **params)
         return ToolResult(
@@ -53,10 +57,10 @@ class FileReadHandler(ToolHandler):
 @ToolRegistry.register(
     "file_write",
     xml_tag="file_write",
-    required_params=["file", "content"],
+    required_params=["file_name", "content"],
     optional_params=["append"],
     content_param="content",
-    attribute_mappings={"file": "file", "append": "append"},
+    attribute_mappings={"file_name": "file_name", "append": "append"},
 )
 class FileWriteHandler(ToolHandler):
     """Handler for file write operations"""
@@ -64,13 +68,13 @@ class FileWriteHandler(ToolHandler):
     VALID_FILE_EXTENSIONS = [".pxml", ".csv", ".md"]
 
     def validate_input(self, params: Dict[str, Any]) -> Optional[str]:
-        if "file" not in params:
-            return "Missing required parameter: file"
+        if "file_name" not in params:
+            return "Missing required parameter: file_name"
         if "content" not in params:
             return "Missing required parameter: content"
 
         # Validate file extension
-        file_extension = "." + params.get("file", "").split(".")[-1]
+        file_extension = "." + params.get("file_name", "").split(".")[-1]
         if file_extension not in self.VALID_FILE_EXTENSIONS:
             return f"Invalid file extension: {file_extension}. Valid extensions: {', '.join(self.VALID_FILE_EXTENSIONS)}"
 
@@ -79,6 +83,8 @@ class FileWriteHandler(ToolHandler):
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         # await self.add_event(EventType.FILE_WRITE, params)
         params["append"] = params.get("append", "false") == "true"  # Convert to boolean
+        params["file"] = params["file_name"]
+        del params["file_name"]
         result = await file_write(self.environment, **params)
         await self.add_event(EventType.FILE_WRITE, params)
 
@@ -92,9 +98,9 @@ class FileWriteHandler(ToolHandler):
 @ToolRegistry.register(
     "file_replace",
     xml_tag="file_replace",
-    required_params=["file", "find_str", "replace_str"],
+    required_params=["file_name", "find_str", "replace_str"],
     attribute_mappings={
-        "file": "file",
+        "file_name": "file_name",
         "find_str": "find_str",
         "replace_str": "replace_str",
     },
@@ -103,7 +109,7 @@ class FileReplaceHandler(ToolHandler):
     """Handler for file string replacement operations"""
 
     def validate_input(self, params: Dict[str, Any]) -> Optional[str]:
-        required_params = ["file", "find_str", "replace_str"]
+        required_params = ["file_name", "find_str", "replace_str"]
         missing = [param for param in required_params if param not in params]
         if missing:
             return f"Missing required parameters: {', '.join(missing)}"
@@ -113,10 +119,14 @@ class FileReplaceHandler(ToolHandler):
         # await self.add_event(EventType.FILE_REPLACE, params)
         # Map the XML parameter names to the function parameter names
         mapped_params = {
-            "file": params["file"],
+            "file": params["file_name"],
             "old_str": params["find_str"],
             "new_str": params["replace_str"],
         }
+
+        # Map the XML parameter names to the function parameter names TODO: improve this
+        mapped_params["file"] = mapped_params["file_name"]
+        del mapped_params["file_name"]
         result = await file_str_replace(self.environment, **mapped_params)
         await self.add_event(EventType.FILE_REPLACE, params)
 
