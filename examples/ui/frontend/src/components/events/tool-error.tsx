@@ -1,5 +1,6 @@
 import React from "react";
 import { UpgradeMessage } from "./tool-error-ui";
+import PremiumUpgradeInvitation from "./tool-error-ui/premium-upgrade-invitation";
 import {
   findToolErrorComponent,
   ToolErrorPayload,
@@ -16,11 +17,11 @@ const ToolErrorEvent: React.FC<ToolErrorEventProps> = ({
 }) => {
   if (!payload) return null;
 
-  const { isUpgradeErrorMessage } = payload;
+  const { isUpgradeErrorMessage, type } = payload;
 
-  // Always show upgrade message if it's an upgrade error
-  if (isUpgradeErrorMessage) {
-    return <UpgradeMessage openUpgradeModal={openUpgradeModal} />;
+  // Always show premium upgrade invitation if it's an upgrade error or upgrade-required type
+  if (isUpgradeErrorMessage || type === "upgrade_required") {
+    return <PremiumUpgradeInvitation openUpgradeModal={openUpgradeModal} />;
   }
 
   // Find the appropriate component using the registry

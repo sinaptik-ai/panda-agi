@@ -80,9 +80,21 @@ export function generatePayload(eventType: string, eventData: any) {
       output: eventData.output_params.output,
     };
   } else if (eventType === "exception") {
+    const error = eventData.data.error;
+    const isUpgrade = isUpgradeErrorMessage(error);
+    
+    // For upgrade errors, return upgrade-specific payload instead of error payload
+    if (isUpgrade) {
+      return {
+        type: "upgrade_required",
+        message: error,
+        isUpgradeErrorMessage: true,
+      };
+    }
+    
     return {
-      error: eventData.data.error,
-      isUpgradeErrorMessage: isUpgradeErrorMessage(eventData.data.error),
+      error: error,
+      isUpgradeErrorMessage: false,
     };
   } else if (eventType === "error") {
     return {

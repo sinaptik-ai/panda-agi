@@ -11,6 +11,9 @@ export interface ToolErrorPayload {
   error?: string;
   isUpgradeErrorMessage?: boolean;
   timestamp?: string | number;
+  // Support for upgrade-required payload format
+  type?: string;
+  message?: string;
 }
 
 export interface ToolErrorComponentProps {

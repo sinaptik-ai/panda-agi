@@ -146,6 +146,12 @@ const EventList: React.FC<EventListProps> = ({
 
   const payload = generatePayload(eventType, eventData);
 
+  // Check if this is an upgrade-required message and treat it as an upgrade message
+  if (payload && typeof payload === 'object' && 'type' in payload && payload.type === "upgrade_required") {
+    // Show upgrade message directly instead of treating as error
+    return <ToolErrorEvent payload={payload} openUpgradeModal={openUpgradeModal} />;
+  }
+
   // Handle special cases first
   if (eventType in SPECIAL_EVENT_HANDLERS) {
     const userMessagePayload = payload as unknown as UserMessagePayload;
