@@ -92,7 +92,7 @@ class PXMLService:
             return file_path
 
         except FileNotFoundError as e:
-            raise CSVFileError(f"CSV file not found: {str(e)}")
+            raise CSVFileError(f"CSV file not found: {str(e)}") from e
         except Exception as e:
             raise CSVFileError(f"Failed to validate CSV file path: {str(e)}")
 
