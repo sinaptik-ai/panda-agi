@@ -13,3 +13,6 @@ e2b-code-interpreter>=1.0.0,<2.0.0
 cloudscraper
 anthropic
 openai>=1.0.0
+litellm
+asyncio
+python-dotenv
