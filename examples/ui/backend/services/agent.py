@@ -95,6 +95,7 @@ async def event_stream(
 
 Here the first rows of the CSV:
 ```
+{header}
 {content}
 ```
 
