@@ -88,7 +88,7 @@ class FileWriteHandler(ToolHandler):
                 # Validation if parsing is successful
                 xml_parser.parse(params["content"])
             except Exception as e:
-                return f"Invalid pxml file: {e}. \n Please check the file and rewrite the file again with the fix."
+                return f"Invalid pxml file: {e}. \n Failed to write the file. Please verify the file content and rewrite the file again with the fix."
             return
 
         return None
