@@ -1,5 +1,4 @@
 from typing import Any, Dict, Optional
-import xml
 
 from pxml.xml_parser import XMLParser
 
@@ -14,7 +13,6 @@ from .file_system_ops.file_ops import (
     file_write,
 )
 from .registry import ToolRegistry
-import re
 
 
 @ToolRegistry.register(
@@ -136,10 +134,6 @@ class FileReplaceHandler(ToolHandler):
             "old_str": params["find_str"],
             "new_str": params["replace_str"],
         }
-
-        # Map the XML parameter names to the function parameter names TODO: improve this
-        mapped_params["file"] = mapped_params["file_name"]
-        del mapped_params["file_name"]
         result = await file_str_replace(self.environment, **mapped_params)
         await self.add_event(EventType.FILE_REPLACE, params)
 
