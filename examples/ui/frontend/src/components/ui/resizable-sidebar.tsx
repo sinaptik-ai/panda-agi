@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, ReactNode } from "react";
 import {
   X,
-  Loader2,
   Maximize2,
   Minimize2,
   Share2,
@@ -51,14 +50,13 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   isOpen,
   onClose,
   title,
-  subtitle,
   icon,
   actions,
   children,
   width,
   onResize,
-  minWidth = 400,
-  maxWidth = 1100,
+  minWidth = 900,
+  maxWidth = 1400,
   loading = false,
   error = null,
   className,
@@ -73,13 +71,15 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
   onToggleFullMode,
 }) => {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
-    if (typeof window === "undefined") return width || 1100;
+    if (typeof window === "undefined") return Math.max(minWidth, width || 1100);
 
     // On mobile (screen width < 768px), always use full width
     const isMobile = window.innerWidth < 768;
     if (isMobile) return window.innerWidth;
 
-    return width || 1200;
+    const defaultWidth = width || 1100;
+    const maxAllowedWidth = Math.min(maxWidth, window.innerWidth);
+    return Math.max(minWidth, Math.min(maxAllowedWidth, defaultWidth));
   });
   const [isResizing, setIsResizing] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -198,7 +198,12 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
     }
 
     if (width && width !== sidebarWidth) {
-      setSidebarWidth(width);
+      const maxAllowedWidth = Math.min(maxWidth, window.innerWidth);
+      const constrainedWidth = Math.max(
+        minWidth,
+        Math.min(maxAllowedWidth, width)
+      );
+      setSidebarWidth(constrainedWidth);
     }
   }, [width, sidebarWidth]);
 
@@ -391,7 +396,7 @@ const ResizableSidebar: React.FC<ResizableSidebarProps> = ({
                     onKeyDown={handleTitleKeyDown}
                     disabled={isSavingTitle}
                     className="bg-transparent border-none outline-none font-semibold text-foreground w-full min-w-[300px] max-w-[600px] px-2 py-1 -mx-2 -my-1 rounded focus:bg-accent"
-                    style={{ width: 'max(300px, min(600px, 100%))' }}
+                    style={{ width: "max(300px, min(600px, 100%))" }}
                   />
                 ) : (
                   <div
