@@ -350,7 +350,6 @@ class Agent:
                 async for processed_event in self.token_processor.process_token_stream(
                     token_stream
                 ):
-                    print(f"Processed event: {processed_event.get('type')}")
                     if processed_event.get("type") == "conversation_id":
                         logger.debug(
                             f"Received conversation_id: {processed_event.get('conversation_id')}"

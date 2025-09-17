@@ -1,4 +1,7 @@
 from typing import Any, Dict, Optional
+import xml
+
+from pxml.xml_parser import XMLParser
 
 from ..client.models import EventType
 from .base import ToolHandler, ToolResult
@@ -11,6 +14,7 @@ from .file_system_ops.file_ops import (
     file_write,
 )
 from .registry import ToolRegistry
+import re
 
 
 @ToolRegistry.register(
@@ -77,6 +81,15 @@ class FileWriteHandler(ToolHandler):
         file_extension = "." + params.get("file_name", "").split(".")[-1]
         if file_extension not in self.VALID_FILE_EXTENSIONS:
             return f"Invalid file extension: {file_extension}. Valid extensions: {', '.join(self.VALID_FILE_EXTENSIONS)}"
+
+        if file_extension == ".pxml":
+            try:
+                xml_parser = XMLParser()
+                # Validation if parsing is successful
+                xml_parser.parse(params["content"])
+            except Exception as e:
+                return f"Invalid PXML file: {e}. Failed to write the file. Please verify the file content and try again after correcting any issues."
+            return
 
         return None
 

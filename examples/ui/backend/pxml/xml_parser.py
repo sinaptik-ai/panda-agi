@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 import re
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from xml.sax.saxutils import escape
 
 
 @dataclass
@@ -104,69 +105,141 @@ class XMLParser:
             '"': "&quot;",
         }
 
+    def _escape_operators_in_content(self, content: str) -> str:
+        """Helper method to escape operators in content, processing longer operators first"""
+        for operator, escaped in sorted(
+            self.formula_operators.items(), key=lambda pair: len(pair[0]), reverse=True
+        ):
+            content = content.replace(operator, escaped)
+        return content
+
+    def remove_xml_comments(self, xml_string: str) -> str:
+        """
+        Remove all XML comments <!-- comment --> from the input string.
+        """
+        result = ""
+        i = 0
+        while i < len(xml_string):
+            comment_start = xml_string.find("<!--", i)
+            if comment_start == -1:
+                # No more comments; append the rest
+                result += xml_string[i:]
+                break
+            # Append text before comment
+            result += xml_string[i:comment_start]
+
+            # Find the end of the comment
+            comment_end = xml_string.find("-->", comment_start)
+            if comment_end == -1:
+                # Malformed comment: remove till the end
+                break
+
+            # Skip over the comment
+            i = comment_end + 3
+
+        return result
+
+    def process_xml(self, xml_string: str) -> str:
+        """Process XML string to escape operators in content"""
+        i = 0
+        result = ""
+
+        while i < len(xml_string):
+
+            # Find next tag
+            opening_tag_start = xml_string.find("<", i)
+            if opening_tag_start == -1:
+                result += escape(xml_string[i:])
+                break
+
+            # Escape text before tag
+            result += escape(xml_string[i:opening_tag_start])
+
+            opening_tag_end = xml_string.find(">", opening_tag_start)
+            if opening_tag_end == -1:
+                result += escape(xml_string[opening_tag_start:])
+                break
+
+            # Preserve the full opening tag (with attributes)
+            full_opening_tag = xml_string[opening_tag_start : opening_tag_end + 1]
+            tag_name = full_opening_tag.strip("<>/ ").split()[0]
+
+            # Check if this is a self-closing tag
+            if full_opening_tag.endswith("/>"):
+                # Self-closing tag - no inner content to process
+                result += full_opening_tag
+                i = opening_tag_end + 1
+                continue
+
+            # Find matching closing tag, handling nested same-name tags
+            pos = opening_tag_end + 1
+            depth = 1
+            while depth > 0:
+                next_open = xml_string.find(f"<{tag_name}", pos)
+                next_close = xml_string.find(f"</{tag_name}>", pos)
+
+                if next_close == -1:
+                    # Malformed XML
+                    next_close = len(xml_string)
+                    break
+
+                if next_open != -1 and next_open < next_close:
+                    depth += 1
+                    pos = next_open + 1
+                else:
+                    depth -= 1
+                    pos = next_close + len(f"</{tag_name}>")
+
+            closing_tag_start = pos - len(f"</{tag_name}>")
+            inner_content = xml_string[opening_tag_end + 1 : closing_tag_start]
+
+            # Recursively process inner content
+            processed_inner = self.process_xml(inner_content)
+
+            # Reconstruct full tag using the preserved opening tag
+            full_closing_tag = f"</{tag_name}>"
+            result += f"{full_opening_tag}{processed_inner}{full_closing_tag}"
+
+            # Move index past closing tag
+            i = closing_tag_start + len(full_closing_tag)
+
+        return result
+
     def _preprocess_xml_content(self, content: str) -> str:
         """Preprocess XML content to escape comparison operators in formula tags, attributes, and {{}} expressions"""
+        # Remove any XML declaration (<?xml version="..." encoding="..."?>)
+        content = re.sub(r"<\?pxml[^>]*\?>", "", content)
 
-        # Find all formula tags and escape operators within them
-        def escape_formula_content(match):
-            formula_content = match.group(1)
-            # Escape operators in order of specificity (longer operators first)
-            for operator, escaped in sorted(
-                self.formula_operators.items(), key=len, reverse=True
-            ):
-                formula_content = formula_content.replace(operator, escaped)
-            return f"<formula>{formula_content}</formula>"
-
-        # Find all {{}} expressions and escape operators within them
-        def escape_curly_brace_formula(match):
-            formula_content = match.group(1)
-            # Escape operators in order of specificity (longer operators first)
-            for operator, escaped in sorted(
-                self.formula_operators.items(), key=len, reverse=True
-            ):
-                formula_content = formula_content.replace(operator, escaped)
-            return f"{{{{{formula_content}}}}}"
-
-        # Pattern to match content within formula tags
-        formula_pattern = r"<formula>(.*?)</formula>"
-        processed_content = re.sub(
-            formula_pattern, escape_formula_content, content, flags=re.DOTALL
-        )
-
-        # Pattern to match content within {{ }} expressions
-        curly_brace_pattern = r"\{\{(.*?)\}\}"
-        processed_content = re.sub(
-            curly_brace_pattern,
-            escape_curly_brace_formula,
-            processed_content,
-            flags=re.DOTALL,
-        )
+        xml_input = self.remove_xml_comments(content)
+        processed_content = self.process_xml(xml_input)
 
         # Handle formula attributes - use a more targeted approach
         # Process each line individually to avoid greedy matching across the entire file
-        # IMPORTANT: This is needed because LLMs often generate formula="" with nested quotes like "Q1", "Q2" 
+        # IMPORTANT: This is needed because LLMs often generate formula="" with nested quotes like "Q1", "Q2"
         # which breaks standard XML parsing without proper escaping
         def process_formula_attributes_line_by_line(content):
-            lines = content.split('\n')
+            lines = content.split("\n")
             result = []
-            
+
             for line in lines:
                 # Look for formula attributes in this line only
                 if 'formula="' in line:
                     # Use a simpler approach for single-line formulas
                     pattern = r'formula="([^"]*(?:"[^"]*"[^"]*)*)"'
+
                     def escape_line_formula(match):
                         formula_content = match.group(1)
-                        for operator, escaped in sorted(self.formula_operators.items(), key=len, reverse=True):
-                            formula_content = formula_content.replace(operator, escaped)
+                        formula_content = self._escape_operators_in_content(
+                            formula_content
+                        )
                         return f'formula="{formula_content}"'
-                    
+
                     line = re.sub(pattern, escape_line_formula, line)
-                
+
                 result.append(line)
-            
-            return '\n'.join(result)
-        
+
+            return "\n".join(result)
+
         processed_content = process_formula_attributes_line_by_line(processed_content)
 
         return processed_content
@@ -251,7 +324,7 @@ class XMLParser:
         if transformations_elem is not None:
             for define_col in transformations_elem.findall("define_column"):
                 name = define_col.get("name", "")
-                
+
                 # Check for formula as attribute first, then as element
                 formula = define_col.get("formula", "")
                 if not formula:
