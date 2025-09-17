@@ -1,9 +1,5 @@
-import imp
 from typing import Any, Dict, Optional
-import xml
-
 from pxml.xml_parser import XMLParser
-
 from ..client.models import EventType
 from .base import ToolHandler, ToolResult
 from .file_system_ops.file_ops import (
