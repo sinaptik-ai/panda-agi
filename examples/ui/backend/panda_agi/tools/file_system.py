@@ -87,7 +87,7 @@ class FileWriteHandler(ToolHandler):
                 # Validation if parsing is successful
                 xml_parser.parse(params["content"])
             except Exception as e:
-                logger.error(f"Invalid PXML file write: {params['content']}")
+                logger.error(f"Invalid PXML content provided for file write: {params['content']} | Exception: {e}")
                 return f"Invalid PXML file: {e}. Failed to write the file. Please verify the file content and try again after correcting any issues."
             return
 
