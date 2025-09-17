@@ -109,6 +109,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
       filename: string;
       content: string;
     } | null>(null);
+    const [lastEventType, setLastEventType] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -209,6 +210,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         setPendingFiles([]);
         setUploadingFilesPreviews([]);
         setHasSubmittedInitialQuery(false);
+        setLastEventType(null);
       }
     }, [conversationId]);
 
@@ -724,6 +726,8 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                   };
 
                   setMessages((prev) => [...prev, message]);
+                  const newEventType = eventData.event_type || null;
+                  setLastEventType(newEventType);
                 } else {
                   console.warn("Received malformed event data:", eventData);
                 }
@@ -1021,23 +1025,16 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
             ))}
 
             {(() => {
-              // Only show "Annie is thinking..." when actively processing AND the last message
-              // wasn't from the assistant. This prevents showing the thinking indicator
-              // immediately after Annie has just responded or completed a task.
-              //
-              // Assistant messages are identified by:
-              // - user_send_message: When Annie sends a response to the user
-              // - completed_task: When Annie indicates a task has been completed
-              const lastMessage = messages[messages.length - 1];
-              const isLastMessageFromAssistant =
-                lastMessage?.type === "event" &&
-                (lastMessage.event?.data?.tool_name === "user_send_message" ||
-                  lastMessage.event?.event_type === "user_send_message" ||
-                  lastMessage.event?.data?.tool_name === "completed_task" ||
-                  lastMessage.event?.event_type === "completed_task");
+              // Hide thinking indicator if:
+              // 1. lastEventType is tool_end AND currentActivity is user_send_message, OR
+              // 2. currentActivity is set_idle (anytime)
+              const shouldHideThinking =
+                (lastEventType === "tool_start" &&
+                  currentActivity !== "user_send_message") ||
+                currentActivity === "set_idle";
 
-              return (isLoading || uploadingFiles) &&
-                !isLastMessageFromAssistant ? (
+              const shouldShowThinking = isLoading && !shouldHideThinking;
+              return shouldShowThinking ? (
                 <div className="flex justify-start mb-4">
                   <div className="flex items-center space-x-2 px-4 py-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
