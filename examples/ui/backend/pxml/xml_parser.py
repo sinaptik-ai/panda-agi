@@ -205,7 +205,7 @@ class XMLParser:
         content = re.sub(r"<\?pxml[^>]*\?>", "", content)
 
         xml_input = self.remove_xml_comments(content)
-        content = self.process_xml(xml_input)
+        processed_content = self.process_xml(xml_input)
 
         # Handle formula attributes - use a more targeted approach
         # Process each line individually to avoid greedy matching across the entire file
