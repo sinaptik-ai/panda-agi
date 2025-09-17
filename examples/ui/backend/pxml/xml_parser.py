@@ -140,21 +140,18 @@ class XMLParser:
         return result
 
     def process_xml(self, xml_string: str) -> str:
-        """Process XML string to escape operators in content"""
-
-        def extract_tag_name(tag_str: str) -> str:
-            return tag_str.strip("<>/ ").split()[0]
-
         i = 0
         result = ""
 
         while i < len(xml_string):
 
+            # Find next tag
             opening_tag_start = xml_string.find("<", i)
             if opening_tag_start == -1:
                 result += escape(xml_string[i:])
                 break
 
+            # Escape text before tag
             result += escape(xml_string[i:opening_tag_start])
 
             opening_tag_end = xml_string.find(">", opening_tag_start)
@@ -162,9 +159,11 @@ class XMLParser:
                 result += escape(xml_string[opening_tag_start:])
                 break
 
-            tag_name = extract_tag_name(xml_string[opening_tag_start:opening_tag_end])
+            # Preserve the full opening tag (with attributes)
+            full_opening_tag = xml_string[opening_tag_start : opening_tag_end + 1]
+            tag_name = full_opening_tag.strip("<>/ ").split()[0]
 
-            # Find the correct closing tag by tracking nested same-name tags
+            # Find matching closing tag, handling nested same-name tags
             pos = opening_tag_end + 1
             depth = 1
             while depth > 0:
@@ -184,18 +183,17 @@ class XMLParser:
                     pos = next_close + len(f"</{tag_name}>")
 
             closing_tag_start = pos - len(f"</{tag_name}>")
-
-            # Extract inner content
             inner_content = xml_string[opening_tag_end + 1 : closing_tag_start]
 
             # Recursively process inner content
             processed_inner = self.process_xml(inner_content)
 
-            # Reconstruct the tag
-            result += f"<{tag_name}>{processed_inner}</{tag_name}>"
+            # Reconstruct full tag using the preserved opening tag
+            full_closing_tag = f"</{tag_name}>"
+            result += f"{full_opening_tag}{processed_inner}{full_closing_tag}"
 
-            # Move index past the closing tag
-            i = closing_tag_start + len(f"</{tag_name}>")
+            # Move index past closing tag
+            i = closing_tag_start + len(full_closing_tag)
 
         return result
 
