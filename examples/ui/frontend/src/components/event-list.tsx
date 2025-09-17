@@ -15,6 +15,7 @@ import ShellWriteEvent from "./events/shell-write";
 import ExecuteScriptEvent from "./events/execute-script";
 import ToolUseEvent from "./events/use-skill";
 import ToolErrorEvent from "./events/tool-error";
+import PlanningEvent from "./events/planning";
 import { Message } from "@/lib/types/event-message";
 import { generatePayload } from "@/lib/utils";
 
@@ -111,6 +112,10 @@ const EVENT_COMPONENTS: Record<string, EventComponentConfig> = {
   error: {
     component: ToolErrorEvent,
     props: ["payload", "openUpgradeModal"],
+  },
+  planning: {
+    component: PlanningEvent,
+    props: ["payload"],
   }
 };
 
@@ -170,7 +175,7 @@ const EventList: React.FC<EventListProps> = ({
       timestamp:message.event.timestamp
     };
     return <Component {...componentProps} />;
-  } else if (!["completed_task", "planning"].includes(eventType)) {
+  } else if (!["completed_task"].includes(eventType)) {
     // Use ToolUseEvent as fallback for any unknown tool
     const toolPayload = {
       tool_name: eventType,
