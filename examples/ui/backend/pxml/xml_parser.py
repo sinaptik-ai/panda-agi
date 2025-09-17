@@ -7,9 +7,45 @@ Handles comparison operators in formulas without requiring manual escaping.
 
 import xml.etree.ElementTree as ET
 import re
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 from xml.sax.saxutils import escape
+import logging
+
+
+logger = logging.getLogger(__name__)
+
+
+class DetailedXMLError(Exception):
+    """Custom exception for detailed XML parsing errors with line numbers and context"""
+
+    def __init__(
+        self,
+        message: str,
+        line_number: int = None,
+        column_number: int = None,
+        context: str = None,
+        original_error: Exception = None,
+    ):
+        self.message = message
+        self.line_number = line_number
+        self.column_number = column_number
+        self.context = context
+        self.original_error = original_error
+
+        # Build detailed error message
+        error_parts = [message]
+
+        if line_number is not None:
+            error_parts.append(f"Line: {line_number}")
+
+        if column_number is not None:
+            error_parts.append(f"Column: {column_number}")
+
+        if context:
+            error_parts.append(f"Context: {context}")
+
+        super().__init__(" | ".join(error_parts))
 
 
 @dataclass
@@ -104,6 +140,110 @@ class XMLParser:
             "&": "&amp;",
             '"': "&quot;",
         }
+        # Store original content for error reporting
+        self.original_content = ""
+        self.content_lines = []
+
+    def _set_content_for_error_reporting(self, content: str):
+        """Store content for error reporting with line tracking"""
+        self.original_content = content
+        self.content_lines = content.split("\n")
+
+    def _get_line_context(self, line_number: int, context_lines: int = 2) -> str:
+        """Get context around a specific line number"""
+        if (
+            not self.content_lines
+            or line_number < 1
+            or line_number > len(self.content_lines)
+        ):
+            return "No context available"
+
+        start_line = max(1, line_number - context_lines)
+        end_line = min(len(self.content_lines), line_number + context_lines)
+
+        context_parts = []
+        for i in range(start_line, end_line + 1):
+            line_content = self.content_lines[i - 1]
+            marker = ">>> " if i == line_number else "    "
+            context_parts.append(f"{marker}{i:3d}: {line_content}")
+
+        return "\n".join(context_parts)
+
+    def _find_line_number_at_position(self, position) -> int:
+        """Find line number for a given character position in the original content"""
+        if not self.original_content:
+            return 1
+
+        # Handle both int and tuple positions
+        if isinstance(position, tuple):
+            position = position[0]  # Use the first element of the tuple (line number)
+            return position if position > 0 else 1
+        elif isinstance(position, int):
+            if position < 0:
+                return 1
+        else:
+            return 1
+
+        # Count newlines up to the position
+        line_number = 1
+        for i in range(min(position, len(self.original_content))):
+            if self.original_content[i] == "\n":
+                line_number += 1
+
+        return line_number
+
+    def _extract_error_context(
+        self, error_msg: str, position: int = None
+    ) -> Tuple[int, str]:
+        """Extract line number and context from error message or position
+        Note: This method is kept for backward compatibility but is no longer used
+        for ET.ParseError since we use the built-in SyntaxError attributes directly.
+        """
+        line_number = 1
+        context = ""
+
+        # Try to extract line number from error message
+        if "line" in error_msg.lower():
+            import re
+
+            line_match = re.search(r"line\s+(\d+)", error_msg, re.IGNORECASE)
+            if line_match:
+                line_number = int(line_match.group(1))
+
+        # If position is provided, use it to find line number
+        elif position is not None:
+            line_number = self._find_line_number_at_position(position)
+
+        # Get context around the error line
+        context = self._get_line_context(line_number)
+
+        return line_number, context
+
+    def _construct_parse_error_message(self, e: ET.ParseError) -> str:
+        # Use ET.ParseError's position attribute for accurate line/column info
+        if hasattr(e, "position") and e.position:
+            line_number, column_number = e.position
+        else:
+            line_number = 1
+            column_number = None
+
+        # Get context around the error line
+        context = self._get_line_context(line_number)
+
+        # Build detailed error message
+        error_msg = f"Invalid XML format: {str(e)}"
+        if line_number and column_number:
+            error_msg += f" (line {line_number}, column {column_number})"
+        elif line_number:
+            error_msg += f" (line {line_number})"
+
+        raise DetailedXMLError(
+            message=error_msg,
+            line_number=line_number,
+            column_number=column_number,
+            context=context,
+            original_error=e,
+        )
 
     def _escape_operators_in_content(self, content: str) -> str:
         """Helper method to escape operators in content, processing longer operators first"""
@@ -190,7 +330,22 @@ class XMLParser:
                     depth -= 1
                     pos = next_close + len(f"</{tag_name}>")
 
+            # means no closing tag found
+            if pos == opening_tag_end + 1:
+                raise DetailedXMLError(
+                    message=f"Closing tag not found for {tag_name}",
+                    context=f"Opening tag: {full_opening_tag}",
+                )
+
             closing_tag_start = pos - len(f"</{tag_name}>")
+
+            # check if the closing tag is found
+            if closing_tag_start == -1 or closing_tag_start > len(xml_string):
+                raise DetailedXMLError(
+                    message=f"Closing tag not found for {tag_name}",
+                    context=f"Opening tag: {full_opening_tag}",
+                )
+
             inner_content = xml_string[opening_tag_end + 1 : closing_tag_start]
 
             # Recursively process inner content
@@ -211,7 +366,6 @@ class XMLParser:
         content = re.sub(r"<\?pxml[^>]*\?>", "", content)
 
         xml_input = self.remove_xml_comments(content)
-        processed_content = self.process_xml(xml_input)
 
         # Handle formula attributes - use a more targeted approach
         # Process each line individually to avoid greedy matching across the entire file
@@ -240,7 +394,9 @@ class XMLParser:
 
             return "\n".join(result)
 
-        processed_content = process_formula_attributes_line_by_line(processed_content)
+        processed_content = process_formula_attributes_line_by_line(xml_input)
+
+        processed_content = self.process_xml(processed_content)
 
         return processed_content
 
@@ -257,6 +413,9 @@ class XMLParser:
 
     def parse(self, file_content: str) -> Dict[str, Any]:
         try:
+            # Store content for error reporting
+            self._set_content_for_error_reporting(file_content)
+
             # Preprocess to handle comparison operators
             processed_content = self._preprocess_xml_content(file_content)
 
@@ -264,7 +423,16 @@ class XMLParser:
             root = ET.fromstring(processed_content)
             return self.parse_dashboard(root)
         except ET.ParseError as e:
-            raise ValueError(f"Invalid XML format: {e}")
+            self._construct_parse_error_message(e)
+        except Exception as e:
+            # For other exceptions, provide basic context
+            line_number, context = self._extract_error_context(str(e))
+            raise DetailedXMLError(
+                message=f"XML parsing error: {str(e)}",
+                line_number=line_number,
+                context=context,
+                original_error=e,
+            )
 
     def parse_file(self, xml_file_path: str) -> Dict[str, Any]:
         """Parse XML file and return structured dashboard data"""
@@ -276,10 +444,23 @@ class XMLParser:
             return self.parse(content)
         except FileNotFoundError:
             raise FileNotFoundError(f"XML file not found: {xml_file_path}")
+        except DetailedXMLError:
+            # Re-raise our detailed errors as-is
+            raise
+        except Exception as e:
+            # For other file-related errors, provide context
+            raise DetailedXMLError(
+                message=f"Error reading XML file: {str(e)}",
+                context=f"File: {xml_file_path}",
+                original_error=e,
+            )
 
     def parse_string(self, xml_string: str) -> Dict[str, Any]:
         """Parse XML string and return structured dashboard data"""
         try:
+            # Store content for error reporting
+            self._set_content_for_error_reporting(xml_string)
+
             # Preprocess to handle comparison operators
             processed_content = self._preprocess_xml_content(xml_string)
 
@@ -287,12 +468,24 @@ class XMLParser:
             root = ET.fromstring(processed_content)
             return self.parse_dashboard(root)
         except ET.ParseError as e:
-            raise ValueError(f"Invalid XML format: {e}")
+            self._construct_parse_error_message(e)
+        except Exception as e:
+            # For other exceptions, provide basic context
+            line_number, context = self._extract_error_context(str(e))
+            raise DetailedXMLError(
+                message=f"XML parsing error: {str(e)}",
+                line_number=line_number,
+                context=context,
+                original_error=e,
+            )
 
     def parse_dashboard(self, root: ET.Element) -> Dict[str, Any]:
         """Parse dashboard XML element into structured data"""
         if root.tag != "dashboard" and root.tag != "chart":
-            raise ValueError('Root element must be either "dashboard" or "chart"')
+            raise DetailedXMLError(
+                message=f'Root element must be either "dashboard" or "chart", got "{root.tag}"',
+                context=f"Found root element: <{root.tag}>",
+            )
 
         grid_data = (
             self._parse_grid(root)
