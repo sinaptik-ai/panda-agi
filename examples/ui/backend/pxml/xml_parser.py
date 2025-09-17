@@ -164,6 +164,13 @@ class XMLParser:
             full_opening_tag = xml_string[opening_tag_start : opening_tag_end + 1]
             tag_name = full_opening_tag.strip("<>/ ").split()[0]
 
+            # Check if this is a self-closing tag
+            if full_opening_tag.endswith("/>"):
+                # Self-closing tag - no inner content to process
+                result += full_opening_tag
+                i = opening_tag_end + 1
+                continue
+
             # Find matching closing tag, handling nested same-name tags
             pos = opening_tag_end + 1
             depth = 1
