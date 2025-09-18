@@ -11,7 +11,6 @@ interface SavedArtifact {
 interface SuggestedName {
   name: string;
   filename: string;
-  timestamp: string;
   conversationId: string;
 }
 
@@ -22,11 +21,11 @@ interface SavedArtifactsContextType {
   clearArtifacts: (conversationId?: string) => void;
   removeArtifact: (filename: string, timestamp: string) => void;
   // Suggested names functionality
-  suggestedNames: Map<string, SuggestedName>; // key: `${filename}-${timestamp}`
-  saveSuggestedName: (name: string, filename: string, timestamp: string, conversationId: string) => void;
-  getSuggestedName: (filename: string, timestamp: string) => string | null;
+  suggestedNames: Map<string, SuggestedName>; // key: filename only
+  saveSuggestedName: (name: string, filename: string, conversationId: string) => void;
+  getSuggestedName: (filename: string) => string | null;
   clearSuggestedNames: (conversationId?: string) => void;
-  removeSuggestedName: (filename: string, timestamp: string) => void;
+  removeSuggestedName: (filename: string) => void;
 }
 
 const SavedArtifactsContext = createContext<SavedArtifactsContextType | undefined>(undefined);
@@ -132,14 +131,12 @@ export const SavedArtifactsProvider: React.FC<SavedArtifactsProviderProps> = ({
   const saveSuggestedName = (
     name: string, 
     filename: string, 
-    timestamp: string, 
     conversationId: string
   ) => {
-    const key = `${filename}-${timestamp}`;
+    const key = filename;
     const suggestedName: SuggestedName = {
       name,
       filename,
-      timestamp,
       conversationId,
     };
 
@@ -150,8 +147,8 @@ export const SavedArtifactsProvider: React.FC<SavedArtifactsProviderProps> = ({
     });
   };
 
-  const getSuggestedName = (filename: string, timestamp: string): string | null => {
-    const key = `${filename}-${timestamp}`;
+  const getSuggestedName = (filename: string): string | null => {
+    const key = filename;
     const suggestedName = suggestedNames.get(key);
     return suggestedName ? suggestedName.name : null;
   };
@@ -174,8 +171,8 @@ export const SavedArtifactsProvider: React.FC<SavedArtifactsProviderProps> = ({
     }
   };
 
-  const removeSuggestedName = (filename: string, timestamp: string) => {
-    const key = `${filename}-${timestamp}`;
+  const removeSuggestedName = (filename: string) => {
+    const key = filename;
     setSuggestedNames(prev => {
       const newMap = new Map(prev);
       newMap.delete(key);
@@ -223,13 +220,13 @@ export const useArtifact = (filename?: string, timestamp?: string): ArtifactData
   return getArtifact(filename, timestamp);
 };
 
-// Helper hook for getting suggested name by filename and timestamp
-export const useSuggestedName = (filename?: string, timestamp?: string): string | null => {
+// Helper hook for getting suggested name by filename
+export const useSuggestedName = (filename?: string): string | null => {
   const { getSuggestedName } = useSavedArtifacts();
   
-  if (!filename || !timestamp) {
+  if (!filename) {
     return null;
   }
   
-  return getSuggestedName(filename, timestamp);
+  return getSuggestedName(filename);
 };

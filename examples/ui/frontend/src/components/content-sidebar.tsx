@@ -154,12 +154,11 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
   // Function to check for existing suggested name
   const checkExistingSuggestedName = () => {
-
-    if (!previewData?.filename || !previewData?.timestamp) {
+    if (!previewData?.filename) {
       return;
     }
 
-    const existingSuggestedName = getSuggestedNameFromContext(previewData.filename, previewData.timestamp);
+    const existingSuggestedName = getSuggestedNameFromContext(previewData.filename);
     if (existingSuggestedName) {
       setSuggestedName(existingSuggestedName);
       return existingSuggestedName; // Found existing suggested name
@@ -194,11 +193,10 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
         setSuggestedName(response.suggested_name);
         
         // Save suggested name to context for future use
-        if (previewData.filename && previewData.timestamp) {
+        if (previewData.filename) {
           saveSuggestedNameToContext(
             response.suggested_name,
             previewData.filename,
-            previewData.timestamp,
             conversationId
           );
         }
