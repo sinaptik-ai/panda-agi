@@ -169,7 +169,7 @@ class FileReplaceHandler(ToolHandler):
                     xml_parser.parse(file_content["content"])
                 except Exception as e:
                     logger.error(
-                        f"""Exception: {e} | Invalid PXML content provided for file write: {file_content["content"]}"""
+                        f"""Exception: {e} | Invalid PXML content provided for file replace: {file_content["content"]}"""
                     )
                     return ToolResult(
                         success=False,
