@@ -1,4 +1,5 @@
 import logging
+import re
 import traceback
 from typing import AsyncGenerator, Dict, List, Optional, Union
 
@@ -118,10 +119,7 @@ class PandaAgiClient:
                 response.raise_for_status()
 
                 # Process the streaming response events
-                buffer = ""
                 async for chunk in response.aiter_text():
-                    buffer += chunk
-
                     # check if chunk is conversation_id
                     if self.is_chunk_conversation_id(chunk):
                         self.conversation_id = self._extract_conversation_id(chunk)
@@ -226,5 +224,7 @@ class PandaAgiClient:
         return chunk.split("<conversation_id>")[1].split("</conversation_id>")[0]
 
     def _extract_data(self, chunk: str) -> str:
-        """Extract the data from a chunk"""
-        return chunk.split("<data>")[1].split("</data>")[0]
+        """Extract all data from a chunk"""
+        data_regex = r"<data>(.*?)</data>"
+        matches = re.findall(data_regex, chunk, re.DOTALL)
+        return "".join(matches)
