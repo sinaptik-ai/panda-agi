@@ -279,126 +279,185 @@ class XMLParser:
 
         return result
 
+    def is_valid_opening_tag(self, tag: str) -> bool:
+        """
+        Check if a string is a valid XML opening or self-closing tag.
+        Supports both single and double quoted attributes.
+        """
+        TAG_PATTERN = re.compile(
+            r"^<([A-Za-z_][\w\-.]*)(\s+[A-Za-z_:][\w:.\-]*(\s*=\s*(\"[^\"]*\"|'[^']*'))?)*\s*/?>$"
+        )
+        return bool(TAG_PATTERN.match(tag.strip()))
+
     def process_xml(self, xml_string: str) -> str:
         """Process XML string to escape operators in content"""
-        i = 0
-        result = ""
+        try:
+            i = 0
+            result = ""
 
-        while i < len(xml_string):
+            while i < len(xml_string):
 
-            # Find next tag
-            opening_tag_start = xml_string.find("<", i)
-            if opening_tag_start == -1:
-                result += escape(xml_string[i:])
-                break
+                # Find next tag
+                opening_tag_start = xml_string.find("<", i)
 
-            # Escape text before tag
-            result += escape(xml_string[i:opening_tag_start])
-
-            opening_tag_end = xml_string.find(">", opening_tag_start)
-            if opening_tag_end == -1:
-                result += escape(xml_string[opening_tag_start:])
-                break
-
-            # Preserve the full opening tag (with attributes)
-            full_opening_tag = xml_string[opening_tag_start : opening_tag_end + 1]
-            tag_name = full_opening_tag.strip("<>/ ").split()[0]
-
-            # Check if this is a self-closing tag
-            if full_opening_tag.endswith("/>"):
-                # Self-closing tag - no inner content to process
-                result += full_opening_tag
-                i = opening_tag_end + 1
-                continue
-
-            # Find matching closing tag, handling nested same-name tags
-            pos = opening_tag_end + 1
-            depth = 1
-            while depth > 0:
-                next_open = xml_string.find(f"<{tag_name}", pos)
-                next_close = xml_string.find(f"</{tag_name}>", pos)
-
-                if next_close == -1:
-                    # Malformed XML
-                    next_close = len(xml_string)
+                # no more tags return the string as it is
+                if opening_tag_start == -1:
+                    result += escape(xml_string[i:])
                     break
 
-                if next_open != -1 and next_open < next_close:
-                    depth += 1
-                    pos = next_open + 1
-                else:
-                    depth -= 1
-                    pos = next_close + len(f"</{tag_name}>")
+                # Escape text before tag
+                result += escape(xml_string[i:opening_tag_start])
 
-            # means no closing tag found
-            if pos == opening_tag_end + 1:
-                raise DetailedXMLError(
-                    message=f"Closing tag not found for {tag_name}",
-                    context=f"Opening tag: {full_opening_tag}",
-                )
+                opening_tag_end = xml_string.find(">", opening_tag_start)
+                if opening_tag_end == -1:
+                    result += escape(xml_string[opening_tag_start:])
+                    break
 
-            closing_tag_start = pos - len(f"</{tag_name}>")
+                # Preserve the full opening tag (with attributes)
+                full_opening_tag = xml_string[opening_tag_start : opening_tag_end + 1]
+                if not self.is_valid_opening_tag(full_opening_tag):
+                    # treat it as text and return
+                    result += escape(xml_string[i:])
+                    break
 
-            # check if the closing tag is found
-            if closing_tag_start == -1 or closing_tag_start > len(xml_string):
-                raise DetailedXMLError(
-                    message=f"Closing tag not found for {tag_name}",
-                    context=f"Opening tag: {full_opening_tag}",
-                )
+                tag_name = full_opening_tag.strip("<>/ ").split()[0]
 
-            inner_content = xml_string[opening_tag_end + 1 : closing_tag_start]
+                # Check if this is a self-closing tag
+                if full_opening_tag.endswith("/>"):
+                    # Self-closing tag - no inner content to process
+                    result += full_opening_tag
+                    i = opening_tag_end + 1
+                    continue
 
-            # Recursively process inner content
-            processed_inner = self.process_xml(inner_content)
+                # Find matching closing tag, handling nested same-name tags
+                pos = opening_tag_end + 1
+                depth = 1
+                while depth > 0:
+                    next_open = xml_string.find(f"<{tag_name}", pos)
+                    next_close = xml_string.find(f"</{tag_name}>", pos)
 
-            # Reconstruct full tag using the preserved opening tag
-            full_closing_tag = f"</{tag_name}>"
-            result += f"{full_opening_tag}{processed_inner}{full_closing_tag}"
+                    if next_close == -1:
+                        # Malformed XML
+                        next_close = len(xml_string)
+                        break
 
-            # Move index past closing tag
-            i = closing_tag_start + len(full_closing_tag)
+                    if next_open != -1 and next_open < next_close:
+                        depth += 1
+                        pos = next_open + 1
+                    else:
+                        depth -= 1
+                        pos = next_close + len(f"</{tag_name}>")
 
-        return result
+                # means no closing tag found
+                if pos == opening_tag_end + 1:
+                    raise DetailedXMLError(
+                        message=f"Closing tag not found for {full_opening_tag}",
+                        line_number=None,
+                        context=xml_string[i:],
+                    )
+
+                closing_tag_start = pos - len(f"</{tag_name}>")
+
+                # check if the closing tag is found
+                if closing_tag_start == -1 or closing_tag_start > len(xml_string):
+                    raise DetailedXMLError(
+                        message=f"Closing tag not found for {full_opening_tag}",
+                        line_number=None,
+                        context=xml_string[i:],
+                    )
+
+                inner_content = xml_string[opening_tag_end + 1 : closing_tag_start]
+
+                # Recursively process inner content
+                processed_inner = self.process_xml(inner_content)
+
+                # Reconstruct full tag using the preserved opening tag
+                full_closing_tag = f"</{tag_name}>"
+                result += f"{full_opening_tag}{processed_inner}{full_closing_tag}"
+
+                # Move index past closing tag
+                i = closing_tag_start + len(full_closing_tag)
+
+            return result
+        except DetailedXMLError:
+            # Re-raise our detailed errors as-is
+            raise
+        except Exception as e:
+            raise DetailedXMLError(
+                message=f"Error processing XML content: {str(e)}",
+                context=xml_string[i:],
+                original_error=e,
+            )
 
     def _preprocess_xml_content(self, content: str) -> str:
         """Preprocess XML content to escape comparison operators in formula tags, attributes, and {{}} expressions"""
-        # Remove any XML declaration (<?xml version="..." encoding="..."?>)
-        content = re.sub(r"<\?pxml[^>]*\?>", "", content)
 
-        xml_input = self.remove_xml_comments(content)
+        try:
+            xml_input = self.remove_xml_comments(content)
 
-        # Handle formula attributes - use a more targeted approach
-        # Process each line individually to avoid greedy matching across the entire file
-        # IMPORTANT: This is needed because LLMs often generate formula="" with nested quotes like "Q1", "Q2"
-        # which breaks standard XML parsing without proper escaping
-        def process_formula_attributes_line_by_line(content):
-            lines = content.split("\n")
-            result = []
+            # Find all {{}} expressions and escape operators within them
+            def escape_curly_brace_formula(match):
+                formula_content = match.group(1)
+                # Escape operators in order of specificity (longer operators first)
+                for operator, escaped in sorted(
+                    self.formula_operators.items(), key=len, reverse=True
+                ):
+                    formula_content = formula_content.replace(operator, escaped)
+                return f"{{{{{formula_content}}}}}"
 
-            for line in lines:
-                # Look for formula attributes in this line only
-                if 'formula="' in line:
-                    # Use a simpler approach for single-line formulas
-                    pattern = r'formula="([^"]*(?:"[^"]*"[^"]*)*)"'
+            # Pattern to match content within {{ }} expressions
+            # Extra safety for no surprises
+            curly_brace_pattern = r"\{\{(.*?)\}\}"
+            processed_content = re.sub(
+                curly_brace_pattern,
+                escape_curly_brace_formula,
+                xml_input,
+                flags=re.DOTALL,
+            )
 
-                    def escape_line_formula(match):
-                        formula_content = match.group(1)
-                        formula_content = self._escape_operators_in_content(
-                            formula_content
-                        )
-                        return f'formula="{formula_content}"'
+            # Handle formula attributes - use a more targeted approach
+            # Process each line individually to avoid greedy matching across the entire file
+            # IMPORTANT: This is needed because LLMs often generate formula="" with nested quotes like "Q1", "Q2"
+            # which breaks standard XML parsing without proper escaping
+            def process_formula_attributes_line_by_line(content):
+                lines = content.split("\n")
+                result = []
 
-                    line = re.sub(pattern, escape_line_formula, line)
+                for line in lines:
+                    # Look for formula attributes in this line only
+                    if 'formula="' in line:
+                        # Use a simpler approach for single-line formulas
+                        pattern = r'formula="([^"]*(?:"[^"]*"[^"]*)*)"'
 
-                result.append(line)
+                        def escape_line_formula(match):
+                            formula_content = match.group(1)
+                            formula_content = self._escape_operators_in_content(
+                                formula_content
+                            )
+                            return f'formula="{formula_content}"'
 
-            return "\n".join(result)
+                        line = re.sub(pattern, escape_line_formula, line)
 
-        processed_content = process_formula_attributes_line_by_line(xml_input)
+                    result.append(line)
 
-        processed_content = self.process_xml(processed_content)
+                return "\n".join(result)
 
-        return processed_content
+            processed_content = process_formula_attributes_line_by_line(
+                processed_content
+            )
+
+            processed_content = self.process_xml(processed_content)
+
+            return processed_content
+        except DetailedXMLError:
+            # Re-raise our detailed errors as-is
+            raise
+
+        except Exception as e:
+            raise DetailedXMLError(
+                message=f"Error preprocessing XML content: {str(e)}",
+                original_error=e,
+            )
 
     def _unescape_formula(self, formula: str) -> str:
         """Unescape comparison operators in formula strings"""
@@ -413,6 +472,8 @@ class XMLParser:
 
     def parse(self, file_content: str) -> Dict[str, Any]:
         try:
+            # Remove any XML declaration (<?xml version="..." encoding="..."?>)
+            file_content = re.sub(r"<\?pxml[^>]*\?>", "", file_content).strip()
             # Store content for error reporting
             self._set_content_for_error_reporting(file_content)
 
@@ -422,6 +483,9 @@ class XMLParser:
             # Parse the processed XML
             root = ET.fromstring(processed_content)
             return self.parse_dashboard(root)
+        except DetailedXMLError:
+            # Re-raise our detailed errors as-is
+            raise
         except ET.ParseError as e:
             self._construct_parse_error_message(e)
         except Exception as e:
