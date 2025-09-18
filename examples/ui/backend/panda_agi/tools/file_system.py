@@ -15,6 +15,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Global error message for file validation failures
+FILE_VALIDATION_ERROR_MSG = "File saved successfully but content validation failed: {e}. Please verify and correct the file content before continuing."
+
 
 @ToolRegistry.register(
     "file_read",
@@ -81,18 +84,6 @@ class FileWriteHandler(ToolHandler):
         if file_extension not in self.VALID_FILE_EXTENSIONS:
             return f"Invalid file extension: {file_extension}. Valid extensions: {', '.join(self.VALID_FILE_EXTENSIONS)}"
 
-        if file_extension == ".pxml":
-            try:
-                xml_parser = XMLParser()
-                # Validation if parsing is successful
-                xml_parser.parse(params["content"])
-            except Exception as e:
-                logger.error(
-                    f"Invalid PXML content provided for file write: {params['content']} | Exception: {e}"
-                )
-                return f"Invalid PXML file: {e}. Failed to write the file. Please verify the file content and try again after correcting any issues."
-            return
-
         return None
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
@@ -104,6 +95,24 @@ class FileWriteHandler(ToolHandler):
         message = ""
 
         if result.get("status") == "success":
+
+            file_extension = "." + params.get("file", "").split(".")[-1]
+
+            if file_extension == ".pxml":
+                try:
+                    xml_parser = XMLParser()
+                    # Validation if parsing is successful
+                    xml_parser.parse(params["content"])
+                except Exception as e:
+                    logger.error(
+                        f"Exception: {e} | Invalid PXML content provided for file write: {params['content']}"
+                    )
+                    return ToolResult(
+                        success=False,
+                        data=None,
+                        error=FILE_VALIDATION_ERROR_MSG.format(e=e),
+                    )
+
             mode = result.get("mode", "overwrite")
             if mode == "append":
                 message = "Successfully appended content to file."
@@ -151,6 +160,23 @@ class FileReplaceHandler(ToolHandler):
             "new_str": params["replace_str"],
         }
         result = await file_str_replace(self.environment, **mapped_params)
+        if result.get("status") == "success":
+            file_content = await file_read(self.environment, file=params["file_name"])
+            file_extension = "." + params.get("file_name", "").split(".")[-1]
+            if file_extension == ".pxml":
+                try:
+                    xml_parser = XMLParser()
+                    xml_parser.parse(file_content["content"])
+                except Exception as e:
+                    logger.error(
+                        f"""Exception: {e} | Invalid PXML content provided for file replace: {file_content["content"]}"""
+                    )
+                    return ToolResult(
+                        success=False,
+                        data=None,
+                        error=FILE_VALIDATION_ERROR_MSG.format(e=e),
+                    )
+
         await self.add_event(EventType.FILE_REPLACE, params)
 
         return ToolResult(
