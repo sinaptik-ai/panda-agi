@@ -58,8 +58,14 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   // Define iframe-like content types that should be treated similarly
   const IFRAME_LIKE_TYPES = ["iframe", "pxml"] as const;
   
-  // Get saved artifacts context
-  const { saveArtifact: saveArtifactToContext, getArtifact, removeArtifact } = useSavedArtifacts();
+  // Get saved artifacts context (now includes suggested names functionality)
+  const { 
+    saveArtifact: saveArtifactToContext, 
+    getArtifact, 
+    removeArtifact,
+    saveSuggestedName: saveSuggestedNameToContext, 
+    getSuggestedName: getSuggestedNameFromContext 
+  } = useSavedArtifacts();
   
   // Utility function to normalize filenames (remove leading './' or '/' if present)
   const normalizeFilename = (filename: string): string => {
@@ -143,6 +149,21 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       return existingArtifact; // Found existing artifact
     }
     return; // No existing artifact
+    
+  };
+
+  // Function to check for existing suggested name
+  const checkExistingSuggestedName = () => {
+    if (!previewData?.filename) {
+      return;
+    }
+
+    const existingSuggestedName = getSuggestedNameFromContext(previewData.filename);
+    if (existingSuggestedName) {
+      setSuggestedName(existingSuggestedName);
+      return existingSuggestedName; // Found existing suggested name
+    }
+    return; // No existing suggested name
   };
 
   // Function to get suggested name
@@ -170,6 +191,15 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
       if (response.suggested_name) {
         setSuggestedName(response.suggested_name);
+        
+        // Save suggested name to context for future use
+        if (previewData.filename) {
+          saveSuggestedNameToContext(
+            response.suggested_name,
+            previewData.filename,
+            conversationId
+          );
+        }
       }
     } catch (error) {
       console.error("Name suggestion error:", error);
@@ -183,9 +213,14 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       // First check if there's an existing saved artifact
       const hasExistingArtifact = checkExistingArtifact();
       
-      // If no existing artifact and we have the required data, get suggested name
-      if (!hasExistingArtifact && fileContent && ["markdown", "pxml"].includes(previewData?.type || "") && conversationId) {
-        getSuggestedName();
+      // If no existing artifact, check for existing suggested name
+      if (fileContent && ["markdown", "pxml"].includes(previewData?.type || "") && conversationId) {
+        const hasExistingSuggestedName = checkExistingSuggestedName();
+        
+        // If no existing suggested name and we have the required data, get suggested name from API
+        if (!hasExistingSuggestedName) {
+          getSuggestedName();
+        }
       }
     }
   }, [isOpen, previewData, fileContent, conversationId]);
