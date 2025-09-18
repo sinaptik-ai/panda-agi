@@ -111,7 +111,7 @@ Mapping of the columns to the Excel letters:
 """
             except Exception as e:
                 logger.error(
-                    f"Error reading conversation({conversation_id}) csv file : ", e
+                    f"Error reading conversation({conversation_id}) csv file:", e
                 )
 
         # Send conversation ID as first event
