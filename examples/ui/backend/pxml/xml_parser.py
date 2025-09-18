@@ -351,7 +351,7 @@ class XMLParser:
                 # means no closing tag found
                 if pos == opening_tag_end + 1:
                     raise DetailedXMLError(
-                        message=f"Closing tag not found for {full_opening_tag}",
+                        message=f"The closing tag for {full_opening_tag} was not found.",
                         line_number=None,
                         context=xml_string[i:],
                     )
