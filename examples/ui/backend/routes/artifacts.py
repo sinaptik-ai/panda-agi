@@ -262,7 +262,7 @@ async def get_artifact_upload_credentials(artifact_id: str, api_key: str) -> dic
         raise e
     except Exception as e:
         logger.error(
-            f"Error getting upload credentials artifact:{artifact_id}: {traceback.format_exc()}"
+            f"Error getting upload credentials for artifact: {artifact_id}: {traceback.format_exc()}"
         )
         raise HTTPException(status_code=500, detail="internal server error")
 
