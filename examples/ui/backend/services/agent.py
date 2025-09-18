@@ -87,9 +87,19 @@ async def event_stream(
                     lines = result["content"].splitlines(keepends=True)
                     header = lines[0]
                     content = "".join(lines[1:6])
+                    def index_to_excel_column(index):
+                        """Convert 0-based index to Excel column name (A, B, ..., Z, AA, AB, ...)"""
+                        column = ""
+                        index += 1  # Excel columns are 1-based
+                        while index > 0:
+                            index -= 1  # Adjust for 0-based calculation
+                            column = chr(65 + (index % 26)) + column
+                            index //= 26
+                        return column
+                    
                     column_mapping = ""
                     for idx, col in enumerate(header.split(",")):
-                        letter = chr(65 + idx)  # A, B, C, ...
+                        letter = index_to_excel_column(idx)
                         column_mapping += f"{col.strip()} -> Column {letter}\n"
                     query = f"""{query}
 
