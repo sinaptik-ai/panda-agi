@@ -159,6 +159,7 @@ Mapping of the columns to the Excel letters:
                 logger.error(f"Error logging event: {log_error}")
 
             # Format as SSE
+            await asyncio.sleep(0.01)
             yield f"<event>{json.dumps(event)}</event>"
 
     except Exception as e:
