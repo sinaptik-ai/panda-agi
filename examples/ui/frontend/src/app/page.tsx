@@ -35,7 +35,7 @@ export default function Home() {
 
   const handlePreviewClick = (data: PreviewData) => {
     if (data.type === "pxml" && data.filename && conversationId) {
-      handlePxmlClick(data.filename, conversationId);
+      handlePxmlClick(data.filename, conversationId, data?.timestamp);
     } else {
       setPreviewData(data);
     }

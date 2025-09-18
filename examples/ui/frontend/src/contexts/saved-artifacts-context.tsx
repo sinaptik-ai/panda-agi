@@ -8,12 +8,25 @@ interface SavedArtifact {
   conversationId: string;
 }
 
+interface SuggestedName {
+  name: string;
+  filename: string;
+  timestamp: string;
+  conversationId: string;
+}
+
 interface SavedArtifactsContextType {
   savedArtifacts: Map<string, SavedArtifact>; // key: `${filename}-${timestamp}`
   saveArtifact: (artifact: ArtifactData, filename: string, timestamp: string, conversationId: string) => void;
   getArtifact: (filename: string, timestamp: string) => ArtifactData | null;
   clearArtifacts: (conversationId?: string) => void;
   removeArtifact: (filename: string, timestamp: string) => void;
+  // Suggested names functionality
+  suggestedNames: Map<string, SuggestedName>; // key: `${filename}-${timestamp}`
+  saveSuggestedName: (name: string, filename: string, timestamp: string, conversationId: string) => void;
+  getSuggestedName: (filename: string, timestamp: string) => string | null;
+  clearSuggestedNames: (conversationId?: string) => void;
+  removeSuggestedName: (filename: string, timestamp: string) => void;
 }
 
 const SavedArtifactsContext = createContext<SavedArtifactsContextType | undefined>(undefined);
@@ -28,8 +41,9 @@ export const SavedArtifactsProvider: React.FC<SavedArtifactsProviderProps> = ({
   conversationId 
 }) => {
   const [savedArtifacts, setSavedArtifacts] = useState<Map<string, SavedArtifact>>(new Map());
+  const [suggestedNames, setSuggestedNames] = useState<Map<string, SuggestedName>>(new Map());
 
-  // Clear artifacts when conversation changes
+  // Clear artifacts and suggested names when conversation changes
   useEffect(() => {
     if (conversationId) {
       // Clear artifacts from previous conversations
@@ -42,9 +56,21 @@ export const SavedArtifactsProvider: React.FC<SavedArtifactsProviderProps> = ({
         });
         return filtered;
       });
+      
+      // Clear suggested names from previous conversations
+      setSuggestedNames(prev => {
+        const filtered = new Map();
+        prev.forEach((suggestedName, key) => {
+          if (suggestedName.conversationId === conversationId) {
+            filtered.set(key, suggestedName);
+          }
+        });
+        return filtered;
+      });
     } else {
-      // Clear all artifacts when no conversation
+      // Clear all artifacts and suggested names when no conversation
       setSavedArtifacts(new Map());
+      setSuggestedNames(new Map());
     }
   }, [conversationId]);
 
@@ -102,12 +128,73 @@ export const SavedArtifactsProvider: React.FC<SavedArtifactsProviderProps> = ({
     });
   };
 
+  // Suggested names functions
+  const saveSuggestedName = (
+    name: string, 
+    filename: string, 
+    timestamp: string, 
+    conversationId: string
+  ) => {
+    const key = `${filename}-${timestamp}`;
+    const suggestedName: SuggestedName = {
+      name,
+      filename,
+      timestamp,
+      conversationId,
+    };
+
+    setSuggestedNames(prev => {
+      const newMap = new Map(prev);
+      newMap.set(key, suggestedName);
+      return newMap;
+    });
+  };
+
+  const getSuggestedName = (filename: string, timestamp: string): string | null => {
+    const key = `${filename}-${timestamp}`;
+    const suggestedName = suggestedNames.get(key);
+    return suggestedName ? suggestedName.name : null;
+  };
+
+  const clearSuggestedNames = (conversationId?: string) => {
+    if (conversationId) {
+      // Clear suggested names for specific conversation
+      setSuggestedNames(prev => {
+        const filtered = new Map();
+        prev.forEach((suggestedName, key) => {
+          if (suggestedName.conversationId !== conversationId) {
+            filtered.set(key, suggestedName);
+          }
+        });
+        return filtered;
+      });
+    } else {
+      // Clear all suggested names
+      setSuggestedNames(new Map());
+    }
+  };
+
+  const removeSuggestedName = (filename: string, timestamp: string) => {
+    const key = `${filename}-${timestamp}`;
+    setSuggestedNames(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(key);
+      return newMap;
+    });
+  };
+
   const value: SavedArtifactsContextType = {
     savedArtifacts,
     saveArtifact,
     getArtifact,
     clearArtifacts,
     removeArtifact,
+    // Suggested names functionality
+    suggestedNames,
+    saveSuggestedName,
+    getSuggestedName,
+    clearSuggestedNames,
+    removeSuggestedName,
   };
 
   return (
@@ -134,4 +221,15 @@ export const useArtifact = (filename?: string, timestamp?: string): ArtifactData
   }
   
   return getArtifact(filename, timestamp);
+};
+
+// Helper hook for getting suggested name by filename and timestamp
+export const useSuggestedName = (filename?: string, timestamp?: string): string | null => {
+  const { getSuggestedName } = useSavedArtifacts();
+  
+  if (!filename || !timestamp) {
+    return null;
+  }
+  
+  return getSuggestedName(filename, timestamp);
 };
