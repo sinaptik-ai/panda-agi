@@ -44,7 +44,7 @@ def before_sentry_send(event, hint):
 
 def init_sentry():
     sentry_dsn = os.getenv("SENTRY_DSN")
-    environment = os.getenv("ENV", "development")
+    environment = os.getenv("ENVIRONMENT", "development")
     if sentry_dsn:
         logging_integration = LoggingIntegration(
             level=logging.INFO,
