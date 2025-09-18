@@ -441,27 +441,10 @@ class CSVLoader {
         });
 
         try {
-            // Use the Excel helpers if available
+            // Use the centralized Excel function mappings from ExcelHelpers
             if (window.ExcelHelpers) {
-                // Create a context with Excel functions
-                const context = {
-                    LEFT: window.ExcelHelpers.excelLeft,
-                    MONTH: window.ExcelHelpers.getMonth,
-                    CHOOSE: window.ExcelHelpers.excelChoose,
-                    IF: window.ExcelHelpers.excelIf,
-                    SUM: window.ExcelHelpers.excelSum,
-                    AVERAGE: window.ExcelHelpers.excelAvg,
-                    COUNT: window.ExcelHelpers.excelCount,
-                    COUNTA: window.ExcelHelpers.excelCountA,
-                    MAX: window.ExcelHelpers.excelMax,
-                    MIN: window.ExcelHelpers.excelMin,
-                    COUNTIF: window.ExcelHelpers.arrayCountIf,
-                    COUNTIFS: window.ExcelHelpers.arrayCountIfs,
-                    SUMIF: window.ExcelHelpers.arraySumIf,
-                    AVERAGEIF: window.ExcelHelpers.arrayAverageIf,
-                    UNIQUE: window.ExcelHelpers.arrayUnique,
-                };
-                
+                // Get all Excel functions from the centralized mapping
+                const context = window.ExcelHelpers.getFunctionMappings();
                 
                 // Evaluate the formula with Excel functions
                 const result = this.evaluateWithContext(processedFormula, context);

@@ -473,6 +473,7 @@ Suggested name:"""
             yield pxml_content.encode("utf-8"), filepath
 
         except Exception as e:
-            logger.error(f"Error getting files for PXML {filepath}: {e}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logger.error(
+                f"Error getting files for PXML {filepath}: Traceback: {traceback.format_exc()}"
+            )
             raise

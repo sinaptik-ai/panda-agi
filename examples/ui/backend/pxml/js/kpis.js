@@ -390,44 +390,43 @@ function transitionAllKPIsToData() {
   });
 }
 
+function formatCurrency(value, currencyCode) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currencyCode,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 function formatKPIValue(value, formatType) {
-  if (value === null || value === undefined || isNaN(value)) {
+  if (value === null || value === undefined) {
+    return "--";
+  }
+  
+  // For text format type, don't check isNaN as strings are expected
+  if (formatType !== "text" && isNaN(value)) {
     return "--";
   }
 
+  // Handle currency formats generically
+  if (formatType.startsWith("currency")) {
+    const currencyCode = formatType === "currency" ? "USD" : formatType.split(":")[1]?.toUpperCase();
+    return formatCurrency(value, currencyCode || "USD");
+  }
+
   switch (formatType) {
+    case "text":
+      return value.toString();
     case "number":
       return new Intl.NumberFormat("en-US").format(Math.round(value));
-    case "currency":
-    case "currency:usd":
+    case "percentage":
       return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      }).format(value);
-    case "currency:eur":
-      return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "EUR",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      }).format(value);
-    case "currency:gbp":
-      return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "GBP",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      }).format(value);
-    case "currency:jpy":
-      return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "JPY",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
-      }).format(value);
-    case "currency:cad":
+        style: "percent",
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }).format(value / 100);
+    case "decimal":
       return new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "CAD",
