@@ -15,6 +15,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Global error message for file validation failures
+FILE_VALIDATION_ERROR_MSG = "File saved successfully, but validation failed: \n{e}. \n\n Please verify and correct the file content before continuing."
+
 
 @ToolRegistry.register(
     "file_read",
@@ -102,12 +105,12 @@ class FileWriteHandler(ToolHandler):
                     xml_parser.parse(params["content"])
                 except Exception as e:
                     logger.error(
-                        f"Invalid PXML content provided for file write: {params['content']} | Exception: {e}"
+                        f"Exception: {e} | Invalid PXML content provided for file write: {params['content']}"
                     )
                     return ToolResult(
                         success=False,
                         data=None,
-                        error=f"The provided PXML content is invalid: {e}. Please verify the file content and try again after correcting any issues.",
+                        error=FILE_VALIDATION_ERROR_MSG.format(e=e),
                     )
 
             mode = result.get("mode", "overwrite")
@@ -157,6 +160,23 @@ class FileReplaceHandler(ToolHandler):
             "new_str": params["replace_str"],
         }
         result = await file_str_replace(self.environment, **mapped_params)
+        if result.get("status") == "success":
+            file_content = await file_read(self.environment, file=params["file_name"])
+            file_extension = "." + params.get("file_name", "").split(".")[-1]
+            if file_extension == ".pxml":
+                try:
+                    xml_parser = XMLParser()
+                    xml_parser.parse(file_content["content"])
+                except Exception as e:
+                    logger.error(
+                        f"""Exception: {e} | Invalid PXML content provided for file write: {file_content["content"]}"""
+                    )
+                    return ToolResult(
+                        success=False,
+                        data=None,
+                        error=FILE_VALIDATION_ERROR_MSG.format(e=e),
+                    )
+
         await self.add_event(EventType.FILE_REPLACE, params)
 
         return ToolResult(
