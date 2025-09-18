@@ -91,7 +91,7 @@ class DynamicFilters {
                 return [];
             }
         } catch (error) {
-            console.error('Error computing filter values:', error);
+            console.error(`[DynamicFilters] Error computing filter values for formula: ${formula}`, error);
             return [];
         }
     }
@@ -162,42 +162,16 @@ class DynamicFilters {
      * @returns {string} Processed expression
      */
     replaceExcelFunctions(expression) {
-        const excelToJsFunctions = {
-            "SUM": "arraySum",
-            "AVG": "arrayAvg",
-            "AVERAGE": "arrayAvg",
-            "COUNT": "arrayCount",
-            "COUNTA": "arrayCountA",
-            "MAX": "arrayMax",
-            "MIN": "arrayMin",
-            "SUMIF": "arraySumIf",
-            "COUNTIF": "arrayCountIf",
-            "COUNTIFS": "arrayCountIfs",
-            "UNIQUE": "arrayUnique",
-            "IF": "excelIf",
-            "AND": "excelAnd",
-            "OR": "excelOr",
-            "ROUND": "Math.round",
-            "ABS": "Math.abs",
-            "MONTH": "getMonth",
-            "TODAY": "excelToday",
-            "INDEX": "arrayIndex",
-            "MATCH": "arrayMatch",
-            "TIME": "excelTime",
-            "RIGHT": "excelRight",
-            "MID": "excelMid",
-            "LEFT": "excelLeft",
-            "VALUE": "parseFloat",
-            "ISNUMBER": "excelIsNumber",
-            "SEARCH": "excelSearch",
-            "HOUR": "excelHour",
-            "TIMEVALUE": "excelTimeValue",
-            "INT": "Math.floor",
-            "YEAR": "arrayMapYear",
-            "TEXT": "excelText",
-            "CHOOSE": "excelChoose",
-        };
+        // Get function names directly from ExcelHelpers
+        const excelFunctionMappings = window.ExcelHelpers.getFunctionMappings();
+        
+        // All functions map to themselves since they're available in the evaluation context
+        const excelToJsFunctions = {};
+        Object.keys(excelFunctionMappings).forEach(funcName => {
+            excelToJsFunctions[funcName] = funcName;
+        });
 
+        // Replace Excel function names with JavaScript equivalents
         for (const [excelFunc, jsFunc] of Object.entries(excelToJsFunctions)) {
             const pattern = new RegExp(`\\b${excelFunc}\\s*\\(`, 'gi');
             expression = expression.replace(pattern, `${jsFunc}(`);
@@ -240,17 +214,13 @@ class DynamicFilters {
         return expression;
     }
 
-    /**
-     * Create a safe evaluation context for formula evaluation
-     * @returns {Object} Evaluation context
-     */
     createEvaluationContext() {
         return {
             // Data access functions
             getColumnData: (columnName, startRow = 1) => this.getColumnData(columnName, startRow),
             getCellValue: (columnName, rowIndex) => this.getCellValue(columnName, rowIndex),
             
-            // Array functions
+            // Array functions (legacy support)
             arrayUnique: (arr) => this.arrayUnique(arr),
             arraySum: (arr) => this.arraySum(arr),
             arrayAvg: (arr) => this.arrayAvg(arr),
@@ -264,31 +234,14 @@ class DynamicFilters {
             arrayIndex: (arr, index) => this.arrayIndex(arr, index),
             arrayMatch: (arr, value) => this.arrayMatch(arr, value),
             
-            // Excel functions
-            excelIf: (condition, trueValue, falseValue) => condition ? trueValue : falseValue,
-            excelAnd: (...conditions) => conditions.every(c => c),
-            excelOr: (...conditions) => conditions.some(c => c),
-            excelToday: () => new Date().toISOString().split('T')[0],
-            excelTime: (hour, minute, second) => `${hour}:${minute}:${second}`,
-            excelRight: (text, numChars) => String(text).slice(-numChars),
-            excelMid: (text, start, numChars) => String(text).slice(start - 1, start - 1 + numChars),
-            excelLeft: (text, numChars) => String(text).slice(0, numChars),
-            excelIsNumber: (value) => !isNaN(parseFloat(value)) && isFinite(value),
-            excelSearch: (findText, withinText) => String(withinText).indexOf(findText),
-            excelHour: (timeValue) => new Date(timeValue).getHours(),
-            excelTimeValue: (timeString) => new Date(`1970-01-01T${timeString}`).getTime(),
-            excelText: (value, format) => this.excelText(value, format),
-            excelChoose: (index, ...values) => values[index - 1],
-            
-            // Date functions
-            getMonth: (dateValue) => new Date(dateValue).getMonth() + 1,
-            arrayMapYear: (arr) => arr.map(val => new Date(val).getFullYear()),
-            
             // Math functions
             Math: Math,
             
             // Percentage growth function
-            arrayPercentageGrowth: (current, previous) => this.arrayPercentageGrowth(current, previous)
+            arrayPercentageGrowth: (current, previous) => this.arrayPercentageGrowth(current, previous),
+            
+            // Excel functions - use centralized mappings from ExcelHelpers
+            ...window.ExcelHelpers.getFunctionMappings()
         };
     }
 
@@ -299,9 +252,15 @@ class DynamicFilters {
      * @returns {*} Evaluation result
      */
     safeEval(code, context) {
-        // Create a function with the context as its scope
-        const func = new Function(...Object.keys(context), `return ${code}`);
-        return func(...Object.values(context));
+        try {
+            // Create a function with the context as its scope
+            const func = new Function(...Object.keys(context), `return ${code}`);
+            return func(...Object.values(context));
+        } catch (error) {
+            console.error('[DynamicFilters] safeEval error for code:', code);
+            console.error('[DynamicFilters] Error:', error);
+            throw error;
+        }
     }
 
     /**
