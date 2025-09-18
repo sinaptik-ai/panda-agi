@@ -99,5 +99,5 @@ def process_event_for_frontend(event) -> Optional[Dict]:
                 },
             }
     except Exception as e:
-        logger.error(f"Error processing even for frontend: {e}")
+        logger.error(f"Error processing event for frontend: {e}")
         return None
