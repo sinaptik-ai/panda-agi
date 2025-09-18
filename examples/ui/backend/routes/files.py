@@ -396,47 +396,7 @@ async def read_file(
         import traceback
 
         error_trace = traceback.format_exc()
-        logger.error(f"Error in read_file: {e}\n{error_trace}")
-        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
-
-
-@router.get("/files/test-download")
-async def test_download_file(
-    file_path: str = Query(..., description="Path to the file to download"),
-):
-    """
-    Test download endpoint.
-
-    Args:
-        file_path: Path to the file to download
-
-    Returns:
-        FileResponse or dict: The file to download or error message
-    """
-    try:
-        print(f"TEST DEBUG: Download request for file_path: '{file_path}'")
-        print(f"TEST DEBUG: WORKSPACE_PATH: {WORKSPACE_PATH}")
-
-        # Resolve the file path relative to workspace
-        workspace_path = Path(WORKSPACE_PATH)
-        print(f"TEST DEBUG: Resolved workspace_path: {workspace_path.resolve()}")
-
-        resolved_path = workspace_path / file_path
-        print(f"TEST DEBUG: Resolved file path: {resolved_path.resolve()}")
-        print(f"TEST DEBUG: File exists: {resolved_path.exists()}")
-
-        if not resolved_path.exists():
-            return {"error": "File not found", "path": str(resolved_path.resolve())}
-
-        return FileResponse(
-            path=resolved_path,
-            filename=resolved_path.name,
-            media_type="application/octet-stream",
-            headers={
-                "Content-Disposition": f"attachment; filename={resolved_path.name}"
-            },
+        logger.error(
+            f"Error in read_file conversation({conversation_id}) file({file_path}): {e}\n{error_trace}"
         )
-
-    except Exception as e:
-        print(f"TEST DEBUG: Error: {e}")
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")

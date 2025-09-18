@@ -89,12 +89,16 @@ async def get_conversation_messages(
                     )
 
     except aiohttp.ClientError as e:
-        logger.error(f"Network error fetching conversation messages: {str(e)}")
+        logger.error(
+            f"Network error fetching conversation messages conversation({conversation_id}): {str(e)}"
+        )
         raise HTTPException(
             status_code=500, detail="Network error while fetching conversation messages"
         )
     except Exception as e:
-        logger.error(f"Unexpected error fetching conversation messages: {str(e)}")
+        logger.error(
+            f"Unexpected error fetching conversation messages conversation({conversation_id}): {str(e)}"
+        )
         raise HTTPException(
             status_code=500,
             detail="Internal server error while fetching conversation messages",

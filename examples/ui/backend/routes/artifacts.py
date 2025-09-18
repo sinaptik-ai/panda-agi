@@ -152,7 +152,9 @@ async def process_artifact_pxml_to_html(
                         f"Failed to fetch file from {file_url}: {resp.status}"
                     )
         except Exception as e:
-            logger.error(f"Error fetching file {file_path}: {e}")
+            logger.error(
+                f"Error fetching file /artifacts/serve/{artifact_id}/{file_path}: {e}"
+            )
             raise e
 
     try:
@@ -178,7 +180,9 @@ async def process_artifact_pxml_to_html(
             return None
 
     except Exception as e:
-        logger.error(f"Error converting PXML to HTML: {e}")
+        logger.error(
+            f"Error converting PXML to HTML artifact:{artifact_id} file:{file_path}: {e}"
+        )
         # Fall back to regular PXML response if conversion fails
         logger.debug("HTML conversion failed, falling back to PXML response")
         return None
@@ -257,7 +261,9 @@ async def get_artifact_upload_credentials(artifact_id: str, api_key: str) -> dic
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.error(f"Error getting upload credentials: {traceback.format_exc()}")
+        logger.error(
+            f"Error getting upload credentials artifact:{artifact_id}: {traceback.format_exc()}"
+        )
         raise HTTPException(status_code=500, detail="internal server error")
 
 
@@ -283,7 +289,9 @@ async def cleanup_artifact(artifact_id: str, api_key: str):
                 else:
                     logger.info(f"Successfully cleaned up creation {artifact_id}")
     except Exception as cleanup_error:
-        logger.error(f"Error during creation cleanup: {cleanup_error}")
+        logger.error(
+            f"Error during creation cleanup artifact:{artifact_id}: {cleanup_error}"
+        )
 
 
 async def upload_file_to_gcs(
@@ -335,7 +343,7 @@ async def upload_file_to_gcs(
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.error(f"Error uploading file: {e}")
+        logger.error(f"Error uploading file to GCS artifact({upload_url}): {e}")
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
 
 
@@ -360,7 +368,9 @@ async def suggest_artifact_name(
         )
         return NameSuggestionResponse(suggested_name=suggested_name)
     except Exception as e:
-        logger.error(f"Error suggesting artifact name: {traceback.format_exc()}")
+        logger.error(
+            f"Error suggesting artifact name conversation({conversation_id}): {traceback.format_exc()}"
+        )
         # Return a default name if there's an error
         return NameSuggestionResponse(suggested_name=DEFAULT_ARTIFACT_NAME)
 
@@ -380,7 +390,7 @@ async def save_artifact(
     artifact_id = None
     try:
         # TODO - remove these fixes after the model is improved
-        # LLM hallucination with path 
+        # LLM hallucination with path
         # validate and correct file path before saving
         local_agent = await get_or_create_agent(conversation_id, api_key=api_key)
         env = local_agent[0].environment
@@ -467,7 +477,9 @@ async def save_artifact(
     except Exception as e:
         if artifact_id:
             await cleanup_artifact(artifact_id, api_key)
-        logger.error(f"Error saving creations: {traceback.format_exc()}")
+        logger.error(
+            f"Error saving creations conversation({conversation_id}) {traceback.format_exc()}"
+        )
         raise HTTPException(status_code=500, detail="Failed to save creations")
 
 
@@ -547,7 +559,9 @@ async def serve_artifact_file(
 
             async with session.get(url, headers=headers) as resp:
                 if resp.status != 200:
-                    logger.error(f"Error getting creation file: {resp.status}")
+                    logger.error(
+                        f"Error getting creation file /artifacts/serve/{artifact_id}/{file_path}: {resp.status}"
+                    )
                     response = await resp.json()
                     error_detail = (
                         response["detail"]
@@ -660,7 +674,9 @@ async def delete_artifact(request: Request, artifact_id: str):
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.error(f"Error deleting creation: {traceback.format_exc()}")
+        logger.error(
+            f"Error deleting creation artifact({artifact_id}): {traceback.format_exc()}"
+        )
         raise HTTPException(status_code=500, detail="internal server error")
 
 
@@ -699,7 +715,9 @@ async def update_artifact(
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.error(f"Error updating creation: {traceback.format_exc()}")
+        logger.error(
+            f"Error updating creation artifact({artifact_id}): {traceback.format_exc()}"
+        )
         raise HTTPException(status_code=500, detail="internal server error")
 
 
@@ -742,5 +760,7 @@ async def update_artifact_file(
     except HTTPException as e:
         raise e
     except Exception as e:
-        logger.error(f"Error updating artifact file: {traceback.format_exc()}")
+        logger.error(
+            f"Error updating artifact({artifact_id}) file({update_data.file_path}): {traceback.format_exc()}"
+        )
         raise HTTPException(status_code=500, detail="internal server error")
