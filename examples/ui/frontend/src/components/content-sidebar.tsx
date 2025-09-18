@@ -352,8 +352,6 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
    * - Shows when: hasUnsavedChanges OR !isSaved (never been saved)
    * - This allows saving original content as creation even without modifications
    */
-
-  
   const handleSaveContent = async (directContent?: string) => {
     if (isSaving) return;
 
@@ -429,7 +427,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     try {
       // Use getArtifactFileUrl if we have a saved artifact, otherwise use getFileUrl
       const fileUrl = existingArtifact && existingArtifact?.id
-        ? getArtifactFileUrl(filename, existingArtifact.id, true)
+        ? getArtifactFileUrl(existingArtifact.filepath, existingArtifact.id, true)
         : getFileUrl(filename, conversationId, true, previewData?.timestamp);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -26,8 +26,13 @@ const AttachmentItem: React.FC<AttachmentItemProps> = ({
 }) => {
   const filename = attachment.split("/").pop() || "";
   const extension = filename.split(".").pop()?.toLowerCase();
-  const attachmentName = getAttachmentName(filename);
-  const isSavedArtifact = attachmentName !== filename;
+  let attachmentName = getAttachmentName(attachment);
+  const isSavedArtifact = attachmentName !== attachment;
+
+  if (!isSavedArtifact) {
+    attachmentName = filename;
+  }
+
   const isPxmlFile = extension === 'pxml';
 
   // Use the hook to detect if this PXML file contains chart content
