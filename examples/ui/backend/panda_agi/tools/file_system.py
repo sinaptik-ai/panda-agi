@@ -107,7 +107,7 @@ class FileWriteHandler(ToolHandler):
                     return ToolResult(
                         success=False,
                         data=None,
-                        error=f"Invalid PXML file: {e}. Failed to write the file. Please verify the file content and try again after correcting any issues.",
+                        error=f"The provided PXML content is invalid: {e}. Please verify the file content and try again after correcting any issues.",
                     )
 
             mode = result.get("mode", "overwrite")
