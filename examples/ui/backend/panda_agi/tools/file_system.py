@@ -16,7 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Global error message for file validation failures
-FILE_VALIDATION_ERROR_MSG = "File saved successfully, but validation failed: \n{e}. \n\n Please verify and correct the file content before continuing."
+FILE_VALIDATION_ERROR_MSG = "File saved successfully but content validation failed: {e}. Please verify and correct the file content before continuing."
 
 
 @ToolRegistry.register(
