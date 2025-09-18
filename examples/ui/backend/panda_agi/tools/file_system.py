@@ -81,18 +81,6 @@ class FileWriteHandler(ToolHandler):
         if file_extension not in self.VALID_FILE_EXTENSIONS:
             return f"Invalid file extension: {file_extension}. Valid extensions: {', '.join(self.VALID_FILE_EXTENSIONS)}"
 
-        if file_extension == ".pxml":
-            try:
-                xml_parser = XMLParser()
-                # Validation if parsing is successful
-                xml_parser.parse(params["content"])
-            except Exception as e:
-                logger.error(
-                    f"Invalid PXML content provided for file write: {params['content']} | Exception: {e}"
-                )
-                return f"Invalid PXML file: {e}. Failed to write the file. Please verify the file content and try again after correcting any issues."
-            return
-
         return None
 
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
@@ -104,6 +92,24 @@ class FileWriteHandler(ToolHandler):
         message = ""
 
         if result.get("status") == "success":
+
+            file_extension = "." + params.get("file", "").split(".")[-1]
+
+            if file_extension == ".pxml":
+                try:
+                    xml_parser = XMLParser()
+                    # Validation if parsing is successful
+                    xml_parser.parse(params["content"])
+                except Exception as e:
+                    logger.error(
+                        f"Invalid PXML content provided for file write: {params['content']} | Exception: {e}"
+                    )
+                    return ToolResult(
+                        success=False,
+                        data=None,
+                        error=f"Invalid PXML file: {e}. Failed to write the file. Please verify the file content and try again after correcting any issues.",
+                    )
+
             mode = result.get("mode", "overwrite")
             if mode == "append":
                 message = "Successfully appended content to file."
