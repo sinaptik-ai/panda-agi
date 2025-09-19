@@ -68,7 +68,6 @@ function UpgradeModal({
     if (isOpen) {
       // Handle URL replacement for modal mode
       if (!standalone && typeof window !== "undefined") {
-        console.log("setting original url", window.location.href);
         setOriginalUrl(window.location.href);
         const newUrl = new URL("/upgrade", window.location.origin);
         // Preserve any existing status parameter
