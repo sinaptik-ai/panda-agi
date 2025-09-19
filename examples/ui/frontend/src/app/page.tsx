@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import ContentSidebar, { PreviewData } from "@/components/content-sidebar";
+import DashboardModalPreview from "@/components/dashboard-modal-preview";
 import ChatBox, { ChatBoxRef } from "@/components/chatbox";
 import Header, { HeaderRef } from "@/components/header";
 import SessionExpiredPopup from "@/components/session-expired-popup";
@@ -29,6 +30,9 @@ export default function Home() {
   const [sidebarWidth, setSidebarWidth] = useState(1100);
   const [previewData, setPreviewData] = useState<PreviewData>();
   const [conversationId, setConversationId] = useState<string | undefined>();
+  // New state for dashboard modal
+  const [dashboardModalOpen, setDashboardModalOpen] = useState(false);
+  const [dashboardPreviewData, setDashboardPreviewData] = useState<PreviewData>();
 
   // Use the inactivity timer hook
   const { showInactivityPopup, trackUserMessage } = useInactivityTimer();
@@ -38,13 +42,18 @@ export default function Home() {
       handlePxmlClick(data.filename, conversationId, data?.timestamp);
     } else {
       setPreviewData(data);
+      setSidebarOpen(true);
     }
-    setSidebarOpen(true);
   };
 
   const closeSidebar = () => {
     setSidebarOpen(false);
     setPreviewData(undefined);
+  };
+
+  const closeDashboardModal = () => {
+    setDashboardModalOpen(false);
+    setDashboardPreviewData(undefined);
   };
 
   const handlePxmlClick = (
@@ -56,15 +65,22 @@ export default function Home() {
       console.error("DEBUG: No conversation ID");
       return;
     }
+    
+    // Check if this is a dashboard PXML file by examining filename or content
+    // For now, we'll assume all PXML files with <dashboard> should open in modal
     const fileUrl = getFileUrl(filename, conversationId, false, timestamp);
-    setPreviewData({
+    const dashboardData = {
       url: fileUrl,
       content: "",
       title: filename,
-      type: "pxml",
+      type: "pxml" as const,
       filename: filename,
       timestamp: timestamp,
-    });
+    };
+    
+    // Open dashboard in modal instead of sidebar
+    setDashboardPreviewData(dashboardData);
+    setDashboardModalOpen(true);
   };
 
   // Function to open file in sidebar - content fetching is handled by ContentSidebar
@@ -82,8 +98,8 @@ export default function Home() {
         type: fileType,
         timestamp: timestamp,
       });
+      setSidebarOpen(true);
     }
-    setSidebarOpen(true);
   };
 
   const startNewConversation = () => {
@@ -94,6 +110,8 @@ export default function Home() {
     setConversationId(undefined);
     setSidebarOpen(false);
     setPreviewData(undefined);
+    setDashboardModalOpen(false);
+    setDashboardPreviewData(undefined);
   };
 
   // Register the reset conversation function globally for logout
@@ -257,6 +275,7 @@ export default function Home() {
               headerRef.current?.refreshCredits();
             }}
             onUserMessage={trackUserMessage}
+            dashboardModalOpen={dashboardModalOpen}
           />
         </div>
 
@@ -268,6 +287,14 @@ export default function Home() {
           conversationId={conversationId}
           width={sidebarWidth}
           onResize={setSidebarWidth}
+        />
+
+        {/* Dashboard Modal */}
+        <DashboardModalPreview
+          isOpen={dashboardModalOpen}
+          onClose={closeDashboardModal}
+          previewData={dashboardPreviewData}
+          conversationId={conversationId}
         />
 
         {/* Session Expired Popup */}

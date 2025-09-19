@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import FileIcon from "./ui/file-icon";
 import { Button } from "./ui/button";
 import { getApiHeaders } from "@/lib/api/common";
 import { updateArtifact, updateArtifactFile } from "@/lib/api/artifacts";
 import { ArtifactData, ArtifactViewerCallbacks } from "@/types/artifact";
 import ArtifactActions from "./artifact-actions";
-import { X, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import MarkdownEditor from "./markdown-editor";
 import DashboardEditor from "./editor/dashboard-editor";
+import ModalWrapper from "./ui/modal-wrapper";
 
 // Re-export from types for backward compatibility
 export type { ArtifactData };
@@ -110,13 +111,10 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [titleEditJustTriggered, setTitleEditJustTriggered] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [editorContent, setEditorContent] = useState("");
-  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const fileBaseUrl = `${window.location.origin}/creations/${artifact?.id}/`;
 
@@ -186,26 +184,9 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     }
   };
 
-  // Handle edit title
-  const handleEditTitle = () => {
-    setTitleEditJustTriggered(true);
-    setIsEditingTitle(true);
-    // Clear the flag after a short delay and focus the input
-    setTimeout(() => {
-      setTitleEditJustTriggered(false);
-      if (titleInputRef.current) {
-        titleInputRef.current.focus();
-      }
-    }, 200);
-  };
-
-  const handleSaveTitle = async (newTitle: string) => {
+  // Handle save title for modal
+  const handleModalTitleChange = async (newTitle: string) => {
     await handleTitleChange(newTitle);
-    setIsEditingTitle(false);
-  };
-
-  const handleCancelTitleEdit = () => {
-    setIsEditingTitle(false);
   };
 
   // Handle close with confirmation
@@ -455,11 +436,13 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
         );
       case "dashboard":
         return (
-          <DashboardEditor
-            content={fileContent || ""}
-            artifact={artifact}
-            onSave={handleSaveContent}
-          />
+          <div className="h-full">
+            <DashboardEditor
+              content={fileContent || ""}
+              artifact={artifact}
+              onSave={handleSaveContent}
+            />
+          </div>
         );
       case "iframe":
         return (
@@ -487,129 +470,66 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     }
   };
 
-  return (
+  // Create modal actions
+  const modalActions = (
     <>
-      {/* Backdrop */}
-      <div
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity duration-300 ${
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
-        onClick={handleClose}
-      />
-
-      {/* Full-screen editor modal */}
-      <div
-        className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-300 ${
-          isOpen
-            ? "opacity-100 scale-100"
-            : "opacity-0 scale-95 pointer-events-none"
-        }`}
-      >
-        <div
-          className="w-full h-full max-w-[99vw] max-h-[98vh] mx-auto bg-white dark:bg-gray-900 rounded-lg shadow-2xl flex flex-col overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
+      {justSaved && !hasUnsavedChanges ? (
+        <span className="text-sm text-gray-600 dark:text-gray-400 px-3 py-1">
+          Saved
+        </span>
+      ) : hasUnsavedChanges ? (
+        <Button
+          onClick={() => handleSaveContent()}
+          size="sm"
+          title="Save changes"
+          disabled={isSaving}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <div className="flex items-center space-x-3 flex-1 min-w-0">
-              <FileIcon
-                filepath={artifact.filepath}
-                className="w-5 h-5 text-blue-500 flex-shrink-0"
-              />
-              {isEditingTitle ? (
-                <input
-                  ref={titleInputRef}
-                  type="text"
-                  defaultValue={artifact.name}
-                  className="flex-1 px-2 py-1 text-lg font-semibold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-gray-200 dark:focus:ring-gray-600 focus:border-gray-400 dark:focus:border-gray-500"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleSaveTitle(e.currentTarget.value);
-                    } else if (e.key === "Escape") {
-                      handleCancelTitleEdit();
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (!titleEditJustTriggered) {
-                      handleSaveTitle(e.currentTarget.value);
-                    }
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <h1
-                  className="text-lg font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-1 min-w-0"
-                  onClick={handleEditTitle}
-                  title="Click to edit title"
-                >
-                  {artifact.name}
-                </h1>
-              )}
-            </div>
+          {isSaving && (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          )}
+          {isSaving ? "Saving..." : "Save"}
+        </Button>
+      ) : null}
 
-            <div className="flex items-center space-x-2 ml-4">
-              {justSaved && !hasUnsavedChanges ? (
-                <span className="text-sm text-gray-600 dark:text-gray-400 px-3 py-1">
-                  Saved
-                </span>
-              ) : hasUnsavedChanges ? (
-                <Button
-                  onClick={() => handleSaveContent()}
-                  size="sm"
-                  title="Save changes"
-                  disabled={isSaving}
-                >
-                  {isSaving && (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  )}
-                  {isSaving ? "Saving..." : "Save"}
-                </Button>
-              ) : null}
-
-              <ArtifactActions
-                artifact={artifact}
-                onArtifactUpdated={onArtifactUpdated}
-                onArtifactDeleted={onArtifactDeleted}
-                onClose={onClose}
-                onEditName={handleEditTitle}
-                isSaved={true}
-                previewData={{
-                  type: "markdown",
-                  filename: artifact.filepath,
-                  content: fileContent || "",
-                }}
-                conversationId={artifact.id}
-              />
-              <button
-                onClick={handleClose}
-                className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors cursor-pointer"
-                title="Close editor"
-              >
-                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-              </button>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-auto">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-              </div>
-            ) : error ? (
-              <div className="flex items-center justify-center h-full p-8">
-                <div className="text-center">
-                  <div className="text-red-500 text-lg mb-2">⚠️ Error</div>
-                  <p className="text-gray-600 dark:text-gray-400">{error}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="h-full">{renderContent()}</div>
-            )}
-          </div>
-        </div>
-      </div>
+      <ArtifactActions
+        artifact={artifact}
+        onArtifactUpdated={onArtifactUpdated}
+        onArtifactDeleted={onArtifactDeleted}
+        onClose={onClose}
+        onEditName={undefined} // Will be handled by modal wrapper
+        isSaved={true}
+        previewData={{
+          type: "markdown",
+          filename: artifact.filepath,
+          content: fileContent || "",
+        }}
+        conversationId={artifact.id}
+      />
     </>
+  );
+
+  return (
+    <ModalWrapper
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={artifact.name}
+      subtitle={{
+        text: artifact.filepath,
+      }}
+      icon={
+        <FileIcon
+          filepath={artifact.filepath}
+          className="w-5 h-5 text-blue-500 flex-shrink-0"
+        />
+      }
+      actions={modalActions}
+      loading={isLoading}
+      error={error}
+      editableTitle={true}
+      onTitleChange={handleModalTitleChange}
+    >
+      {renderContent()}
+    </ModalWrapper>
   );
 };
 

@@ -61,6 +61,7 @@ interface ChatBoxProps {
   initialQuery?: string | null;
   onCreditsRefetch?: () => Promise<void>;
   onUserMessage?: () => void;
+  dashboardModalOpen?: boolean;
 }
 
 const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
@@ -77,6 +78,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
       initialQuery = null,
       onCreditsRefetch,
       onUserMessage,
+      dashboardModalOpen = false,
     }: ChatBoxProps,
     ref
   ) => {
@@ -929,7 +931,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
           }}
         >
           {/* Drag overlay */}
-          {isDragging && (
+          {isDragging && !dashboardModalOpen && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 backdrop-blur-xl z-10">
               <div className="text-center p-8 rounded-2xl bg-white/90 shadow-2xl border border-slate-200/50 backdrop-blur-sm">
                 <Paperclip className="w-16 h-16 text-slate-700 mx-auto mb-4" />

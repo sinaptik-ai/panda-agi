@@ -2581,8 +2581,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       return `
         <html>
           <body style="font-family: system-ui; padding: 20px; text-align: center;">
-            <h2>📊 Compiling Dashboard...</h2>
-            <p>Please wait while we prepare your dashboard for editing.</p>
           </body>
         </html>
       `;

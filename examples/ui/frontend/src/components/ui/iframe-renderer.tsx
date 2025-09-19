@@ -44,17 +44,17 @@ const IframeRenderer: React.FC<IframeRendererProps> = ({
   };
 
   return (
-    <div className={className}>
+    <div className={`${className} relative`}>
       {/* Loading spinner */}
       {iframeLoading && !iframeError && (
-        <div className="absolute inset-0 bg-white dark:bg-gray-900 flex items-center justify-center z-10 transition-opacity duration-300">
+        <div className="absolute inset-0 bg-white dark:bg-gray-900 flex items-center justify-center transition-opacity duration-300">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
         </div>
       )}
       
       {/* Error state */}
       {iframeError && (
-        <div className="absolute inset-0 bg-white dark:bg-gray-900 flex items-center justify-center z-10 transition-opacity duration-300">
+        <div className="absolute inset-0 bg-white dark:bg-gray-900 flex items-center justify-center transition-opacity duration-300">
           <div className="text-center p-6 max-w-md">
             <div className="text-4xl mb-4">⚠️</div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
