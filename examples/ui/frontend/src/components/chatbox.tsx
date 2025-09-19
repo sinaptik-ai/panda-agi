@@ -962,7 +962,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                     })()}
                   </h3>
                   <p className="text-slate-500 text-lg font-light mb-10">
-                    What do you want to see?
+                    What do you want to create?
                   </p>
 
                   {/* Clean Dashboard Options */}
@@ -1094,10 +1094,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                       "name" in firstFile ? firstFile.name : firstFile.filename;
                     const shouldShowCSVPreview =
                       allFiles.length === 1 &&
-                      fileName.toLowerCase().endsWith(".csv") &&
-                      (uploadingFilesPreviews[0]?.content ||
-                        !("status" in firstFile) ||
-                        firstFile.status !== "uploading");
+                      fileName.toLowerCase().endsWith(".csv");
 
                     if (shouldShowCSVPreview) {
                       const csvFile = allFiles[0];
@@ -1116,13 +1113,11 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                               handleExpandCSV(csvFileName, csvContent)
                             }
                             onRemove={handleRemoveCSV}
+                            isUploading={csvStatus === "uploading"}
+                            uploadProgress={
+                              uploadingFilesPreviews[0]?.progress || 0
+                            }
                           />
-                          {csvStatus === "uploading" && (
-                            <div className="flex items-center justify-center space-x-2 text-sm text-slate-600">
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              <span>Uploading...</span>
-                            </div>
-                          )}
                         </div>
                       );
                     }
@@ -1169,13 +1164,6 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                                 key={`preview-${file.id}`}
                                 className="relative group flex items-center space-x-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 rounded-xl px-3 py-2 text-sm transition-all duration-200 overflow-hidden hover:bg-white hover:shadow-md"
                               >
-                                {/* Progress background for uploading files */}
-                                {file.status === "uploading" && (
-                                  <div
-                                    className="absolute inset-0 bg-slate-100/40 transition-all duration-300"
-                                    style={{ width: `${file.progress}%` }}
-                                  />
-                                )}
                                 {/* Completed background */}
                                 {file.status === "completed" && (
                                   <div className="absolute inset-0 bg-slate-50/60" />
@@ -1331,7 +1319,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                         : uploadingFilesPreviews.some(
                             (f) => f.status === "uploading"
                           )
-                        ? "Uploading files..."
+                        ? "Files uploading... You can type while we process them"
                         : "How can I help you?"
                     }
                     className={`w-full bg-transparent text-slate-900 placeholder-slate-500/70 resize-none border-none outline-none text-base leading-relaxed font-medium py-1 selection:bg-blue-100/50 transition-colors duration-200 ${
@@ -1340,13 +1328,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                         : ""
                     }`}
                     rows={1}
-                    disabled={
-                      isLoading ||
-                      isInitialLoading ||
-                      uploadingFilesPreviews.some(
-                        (f) => f.status === "uploading"
-                      )
-                    }
+                    disabled={isLoading || isInitialLoading}
                     style={{ minHeight: "32px", maxHeight: "120px" }}
                     autoFocus
                     spellCheck

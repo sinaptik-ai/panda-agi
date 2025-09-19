@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { ChevronRight, Database, X } from "lucide-react";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface CSVPreviewProps {
@@ -9,6 +10,8 @@ interface CSVPreviewProps {
   maxColumns?: number;
   onExpand?: () => void;
   onRemove?: () => void;
+  isUploading?: boolean;
+  uploadProgress?: number;
 }
 
 const CSVPreview: React.FC<CSVPreviewProps> = ({
@@ -18,25 +21,28 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
   maxColumns = 8,
   onExpand,
   onRemove,
+  isUploading = false,
+  uploadProgress = 0,
 }) => {
-
   const csvData = useMemo(() => {
-    if (!content) return { headers: [], rows: [], totalRows: 0, totalColumns: 0 };
+    if (!content)
+      return { headers: [], rows: [], totalRows: 0, totalColumns: 0 };
 
     try {
       // Simple CSV parsing (handles basic cases)
-      const lines = content.trim().split('\n');
-      if (lines.length === 0) return { headers: [], rows: [], totalRows: 0, totalColumns: 0 };
+      const lines = content.trim().split("\n");
+      if (lines.length === 0)
+        return { headers: [], rows: [], totalRows: 0, totalColumns: 0 };
 
       // Parse CSV - simple implementation for basic cases
       const parseCSVLine = (line: string): string[] => {
         const result: string[] = [];
-        let current = '';
+        let current = "";
         let inQuotes = false;
-        
+
         for (let i = 0; i < line.length; i++) {
           const char = line[i];
-          
+
           if (char === '"' && !inQuotes) {
             inQuotes = true;
           } else if (char === '"' && inQuotes) {
@@ -47,21 +53,24 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
             } else {
               inQuotes = false;
             }
-          } else if (char === ',' && !inQuotes) {
+          } else if (char === "," && !inQuotes) {
             result.push(current.trim());
-            current = '';
+            current = "";
           } else {
             current += char;
           }
         }
-        
+
         result.push(current.trim());
         return result;
       };
 
       const headers = parseCSVLine(lines[0]);
-      const dataRows = lines.slice(1).map(line => parseCSVLine(line)).filter(row => row.some(cell => cell.length > 0));
-      
+      const dataRows = lines
+        .slice(1)
+        .map((line) => parseCSVLine(line))
+        .filter((row) => row.some((cell) => cell.length > 0));
+
       return {
         headers,
         rows: dataRows,
@@ -69,19 +78,19 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
         totalColumns: headers.length,
       };
     } catch (error) {
-      console.error('Error parsing CSV:', error);
+      console.error("Error parsing CSV:", error);
       return { headers: [], rows: [], totalRows: 0, totalColumns: 0 };
     }
   }, [content]);
 
   // Use fewer columns/rows on mobile
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
   const mobileMaxColumns = 3;
   const mobileMaxRows = 1;
-  
+
   const effectiveMaxColumns = isMobile ? mobileMaxColumns : maxColumns;
   const effectiveMaxRows = isMobile ? mobileMaxRows : maxRows;
-  
+
   const displayHeaders = csvData.headers.slice(0, effectiveMaxColumns);
   const displayRows = csvData.rows.slice(0, effectiveMaxRows);
   const hasMoreColumns = csvData.headers.length > effectiveMaxColumns;
@@ -111,16 +120,49 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
   }
 
   return (
-    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/50 rounded-2xl shadow-sm overflow-hidden">
+    <div className="relative bg-white/95 backdrop-blur-sm border border-slate-200/50 rounded-2xl shadow-sm overflow-hidden">
+      {/* Continuous wave overlay */}
+      {isUploading && (
+        <div className="absolute inset-0 z-30 overflow-hidden rounded-2xl pointer-events-none">
+          {/* Sweeping wave effect */}
+          <motion.div
+            className="absolute inset-0"
+            style={{ 
+              background: "linear-gradient(90deg, transparent 0%, rgba(148, 163, 184, 0.15) 50%, transparent 100%)",
+              width: "150%"
+            }}
+            animate={{
+              x: ["-150%", "100%"],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: "linear",
+            }}
+          />
+          
+          {/* Progress indicator */}
+          <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-medium text-slate-600 pointer-events-auto">
+            {Math.round(uploadProgress)}%
+          </div>
+        </div>
+      )}
       {/* Header */}
-      <div className="sm:px-4 sm:py-3 px-3 py-2 border-b border-slate-200/50 bg-slate-50/50">
+      <div className="sm:px-4 sm:py-3 px-3 py-2 border-b border-slate-200/50 bg-slate-50/50 relative z-20">
         <div className="flex items-center justify-between">
           <div className="flex items-center sm:space-x-2 space-x-1">
             <Database className="sm:w-4 sm:h-4 w-3 h-3 text-slate-500" />
-            <span className="font-medium text-slate-800 truncate sm:text-sm text-xs">{filename}</span>
+            <span className="font-medium text-slate-800 truncate sm:text-sm text-xs">
+              {filename}
+            </span>
             <span className="text-slate-400 sm:text-sm text-xs hidden sm:inline">
               {csvData.totalRows} rows × {csvData.totalColumns} columns
             </span>
+            {isUploading && (
+              <span className="text-slate-600 sm:text-sm text-xs font-medium">
+                Uploading {Math.round(uploadProgress)}%
+              </span>
+            )}
           </div>
           <div className="flex items-center space-x-1">
             {hasMoreRows && onExpand && (
@@ -146,7 +188,7 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
 
       {/* Table */}
       <div className="relative overflow-x-auto">
-        <table className="w-full sm:text-sm text-xs">
+        <table className="w-full sm:text-sm text-xs relative z-20">
           {/* Headers */}
           <thead>
             <tr className="border-b border-slate-200/50">
@@ -185,8 +227,11 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
                     key={cellIndex}
                     className="sm:px-3 sm:py-2 px-2 py-1 border-r border-slate-200/30 last:border-r-0"
                   >
-                    <div className="truncate sm:max-w-32 max-w-16" title={row[cellIndex] || ''}>
-                      {row[cellIndex] || ''}
+                    <div
+                      className="truncate sm:max-w-32 max-w-16"
+                      title={row[cellIndex] || ""}
+                    >
+                      {row[cellIndex] || ""}
                     </div>
                   </td>
                 ))}
@@ -199,13 +244,12 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
             ))}
           </tbody>
         </table>
-        
+
         {/* Gradient fade overlay */}
         {hasMoreRows && (
           <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none" />
         )}
       </div>
-
     </div>
   );
 };
