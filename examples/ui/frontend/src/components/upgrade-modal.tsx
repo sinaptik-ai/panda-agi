@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Card,
@@ -61,13 +61,14 @@ function UpgradeModal({
   const [userSubscription, setUserSubscription] =
     useState<UserSubscriptionResponse | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [hasShownToast, setHasShownToast] = useState(false);
   const [originalUrl, setOriginalUrl] = useState<string | null>(null);
+  const lastProcessedStatus = useRef<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       // Handle URL replacement for modal mode
       if (!standalone && typeof window !== "undefined") {
+        console.log("setting original url", window.location.href);
         setOriginalUrl(window.location.href);
         const newUrl = new URL("/upgrade", window.location.origin);
         // Preserve any existing status parameter
@@ -94,29 +95,33 @@ function UpgradeModal({
         }
       };
       checkAuth();
-      // Reset toast flag when modal opens
-      setHasShownToast(false);
+      // Reset status processing flag when modal opens
+      lastProcessedStatus.current = null;
     }
   }, [isOpen, standalone]);
 
   // Handle URL parameters for success/cancel messages
   useEffect(() => {
-    const status = searchParams.get("status");
-    if (status && !hasShownToast) {
+    if (typeof window === "undefined") return;
+  
+    const url = new URL(window.location.href);
+    const status = url.searchParams.get("status");
+  
+    if (status && lastProcessedStatus.current !== status) {
+      lastProcessedStatus.current = status;
+  
       if (status === "success") {
-        toast.success(
-          "Payment successful! Your subscription has been updated."
-        );
-        // Refresh subscription data
-        if (isAuthenticated) {
-          fetchUserSubscription();
-        }
+        toast.success("Payment successful! Your subscription has been updated.");
+        if (isAuthenticated) fetchUserSubscription();
       } else if (status === "cancel") {
         toast.error("Payment was cancelled.");
       }
-      setHasShownToast(true);
+  
+      // Clear status
+      url.searchParams.delete("status");
+      window.history.replaceState({}, "", url.toString());
     }
-  }, [searchParams, isAuthenticated, hasShownToast]);
+  }, [isAuthenticated]);
 
   // Cleanup effect to restore URL when component unmounts
   useEffect(() => {
@@ -218,9 +223,7 @@ function UpgradeModal({
           success_url: successUrl,
         });
         toast.success("Subscription updated successfully!");
-        setTimeout(async () => {
-          await fetchUserSubscription();
-        }, 5000);
+        await fetchUserSubscription();
       } else {
         response = await createPaymentSession({
           package_name: planId,
