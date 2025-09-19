@@ -5,13 +5,12 @@ Parses XML dashboard files and extracts metadata, transformations, filters, and 
 Handles comparison operators in formulas without requiring manual escaping.
 """
 
-import xml.etree.ElementTree as ET
-import re
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass
-from xml.sax.saxutils import escape
 import logging
-
+import re
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+from xml.sax.saxutils import escape
 
 logger = logging.getLogger(__name__)
 
@@ -296,7 +295,6 @@ class XMLParser:
             result = ""
 
             while i < len(xml_string):
-
                 # Find next tag
                 opening_tag_start = xml_string.find("<", i)
 
