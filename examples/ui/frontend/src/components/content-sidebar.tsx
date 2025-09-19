@@ -912,6 +912,11 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       );
     }
 
+    // Save suggested name to context
+    if (conversationId && previewData?.filename) {
+      saveSuggestedNameToContext(artifactData.artifact.name, previewData.filename, conversationId);
+    }
+
     // CRITICAL: Check if user made changes before first save
     // If yes, we need to update the creation with current editor content
     if (hasUnsavedChanges) {
@@ -985,6 +990,11 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   // Handle title change - update both suggestedName and potentially the saved artifact
   const handleTitleChange = async (newTitle: string) => {
     setSuggestedName(newTitle);
+
+    // Save suggested name to context
+    if (conversationId && previewData?.filename) {
+      saveSuggestedNameToContext(newTitle, previewData.filename, conversationId);
+    }
     
     // If we have a saved artifact, update it as well
     if (savedArtifact) {
