@@ -169,6 +169,7 @@ function UpgradeModal({
         { text: "Remove Branding", included: false },
         { text: "Premium Support", included: false },
       ],
+      popular: true,
       cta: "Upgrade to Plus",
     },
     {
@@ -184,7 +185,6 @@ function UpgradeModal({
         { text: "Remove Branding", included: true },
         { text: "Premium Support", included: true },
       ],
-      popular: true,
       cta: "Upgrade to Pro",
     },
   ];
@@ -304,7 +304,7 @@ function UpgradeModal({
               Choose your plan
             </h2>
             <p className="text-muted-foreground">
-              Unlock the full potential of PandaAGI with our flexible
+              Unlock the full potential of Annie with our flexible
               subscription plans
             </p>
           </div>
@@ -320,7 +320,7 @@ function UpgradeModal({
                     ? "ring-2 ring-primary shadow-md"
                     : userSubscription?.subscription?.current_package ===
                       plan.id
-                    ? "ring-2 ring-green-500 shadow-md"
+                    ? "ring-2 ring-blue-500 shadow-md"
                     : plan.id === "free" && !userSubscription?.has_subscription
                     ? "ring-2 ring-blue-500 shadow-md"
                     : "hover:shadow-md"
@@ -342,7 +342,7 @@ function UpgradeModal({
                     <div
                       className={`px-3 py-1 rounded-full text-xs font-medium ${
                         userSubscription.subscription.status === "active"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
                           : "bg-muted text-muted-foreground"
                       }`}
                     >
@@ -377,16 +377,27 @@ function UpgradeModal({
                     plan.id &&
                     userSubscription.subscription.status === "active" && (
                       <div className="mt-3 text-xs text-muted-foreground space-y-1">
-                        <p>
-                          {userSubscription.subscription.cancel_at_period_end
-                            ? "Access until:"
-                            : "Next billing:"}{" "}
-                          {new Date(userSubscription.subscription.current_period_end).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
-                        </p>
+                        {userSubscription.subscription.cancel_at_period_end ? (
+                          <p>
+                            Access until:{" "}
+                            {new Date(userSubscription.subscription.current_period_end).toLocaleDateString("en-US", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
+                          </p>
+                        ) : (
+                          <div>
+                            <p>Credits Refill & Next Billing Date</p>
+                            <p>
+                              {new Date(userSubscription.subscription.current_period_end).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })}
+                            </p>
+                          </div>
+                        )}
                         {userSubscription.subscription.cancel_at_period_end && (
                           <p className="text-orange-600 dark:text-orange-400 font-medium">
                             Subscription will end on this date
