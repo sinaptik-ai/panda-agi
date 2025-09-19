@@ -38,7 +38,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("AgentClient")
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 
 
 # Constants
@@ -355,7 +355,7 @@ class Agent:
                         self.conversation_id = processed_event.get("conversation_id")
 
                     elif processed_event.get("type") == "tool_function_detected":
-                        print("TOOL FUNCTION DETECTED:", processed_event)
+                        logger.info("TOOL FUNCTION DETECTED:", processed_event)
                         start_timestamp = datetime.now(timezone.utc).isoformat()
                         function_name = processed_event.get("function_name")
                         input_params = processed_event.get("input_params", {})
@@ -372,16 +372,26 @@ class Agent:
                         self._trigger_callbacks(function_name, input_params, "start")
 
                     elif processed_event.get("type") == "tool_parameter_start":
-                        logger.debug("TOOL PARAMETER START:", processed_event)
+                        logger.debug(f"TOOL PARAMETER START: {processed_event}")
+
+                    elif processed_event.get("type") == "tool_parameter_stream":
+                        yield {
+                            "event_type": "tool_parameter_stream",
+                            "data": {
+                                "tool_name": function_name,
+                                "parameter_name": processed_event.get("parameter_name"),
+                                "partial_value": processed_event.get("partial_value"),
+                            },
+                        }
 
                     elif processed_event.get("type") == "tool_parameter_complete":
-                        logger.debug("TOOL PARAMETER COMPLETE:", processed_event)
+                        logger.debug(f"TOOL PARAMETER COMPLETE: {processed_event}")
 
                     elif processed_event.get("type") == "tool_function_complete":
-                        logger.debug("TOOL FUNCTION COMPLETE:", processed_event)
+                        logger.debug(f"TOOL FUNCTION COMPLETE: {processed_event}")
 
                     elif processed_event.get("type") == "tool_call_complete":
-                        logger.debug("TOOL CALL COMPLETE:", processed_event)
+                        logger.debug(f"TOOL CALL COMPLETE: {processed_event}")
 
                         # Handle tool end event - execute the tool if immediate execution is enabled
                         if execute_tools:

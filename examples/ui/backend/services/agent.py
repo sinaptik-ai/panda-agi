@@ -16,6 +16,7 @@ from utils.event_processing import should_render_event
 from .chat_env import get_env
 
 logger = logging.getLogger("panda_agi_api")
+logger.setLevel(logging.WARNING)
 
 MODEL = "annie-lite"
 
@@ -87,6 +88,7 @@ async def event_stream(
                     lines = result["content"].splitlines(keepends=True)
                     header = lines[0]
                     content = "".join(lines[1:6])
+
                     def index_to_excel_column(index):
                         """Convert 0-based index to Excel column name (A, B, ..., Z, AA, AB, ...)"""
                         column = ""
@@ -96,7 +98,7 @@ async def event_stream(
                             column = chr(65 + (index % 26)) + column
                             index //= 26
                         return column
-                    
+
                     column_mapping = ""
                     for idx, col in enumerate(header.split(",")):
                         letter = index_to_excel_column(idx)
