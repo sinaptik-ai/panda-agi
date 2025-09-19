@@ -161,7 +161,7 @@ function UpgradeModal({
       id: "plus",
       name: "Plus Plan",
       description: "For individuals and small teams getting started.",
-      price: "€20/mo",
+      price: "€19.99/mo",
       features: [
         { text: "1,000 credits per month (~100 dashboards)", included: true },
         { text: "Data Analysis (Python)", included: true },
@@ -176,7 +176,7 @@ function UpgradeModal({
       id: "pro",
       name: "Pro Plan",
       description: "For professionals who need more power and support.",
-      price: "€100/mo",
+      price: "€99.99/mo",
       features: [
         { text: "2,500 credits per month (~250 dashboards)", included: true },
         { text: "Data Analysis (Python)", included: true },
