@@ -2810,7 +2810,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       >
           {/* Clean Canvas Area */}
           <div className="h-full overflow-auto bg-gray-100">
-            <div className="h-full flex justify-center py-8 px-4">
+            <div className="h-full flex justify-center py-0 px-0 md:py-6 md:px-4">
               <div className="relative w-full max-w-7xl h-full group">
               {/* Canvas container */}
               <div className="w-full h-full rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-all duration-200">
@@ -2837,7 +2837,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       <div
         className={`bg-white border-l border-gray-200 overflow-hidden transition-all duration-300 ease-out h-full ${
           isEditorOpen && (editedChart || editedKPI) || isDashboardSettingsOpen || isFiltersOpen
-            ? "w-80 opacity-100"
+            ? "w-full md:w-80 opacity-100"
             : "w-0 opacity-0"
         }`}
         style={{
@@ -2849,7 +2849,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         {isEditorOpen && (editedChart || editedKPI) && (
           <div className="h-full flex flex-col">
             {/* Clean Header */}
-            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-4 bg-gray-50 flex-shrink-0">
+            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-2 md:px-4 bg-gray-50 flex-shrink-0">
               <div className="flex items-center space-x-2">
                 <h3 className="text-sm font-medium text-gray-700">
                   {editedChart ? "Chart Settings" : "KPI Settings"}
@@ -2875,7 +2875,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
             {/* Clean Content */}
             <div className="flex-1 overflow-y-auto bg-white min-h-0">
-              <div className="p-4 space-y-6">
+              <div className="p-2 md:p-4 space-y-6">
                 {editedDashboard && (
                   <>
                     {/* Clean Dashboard Metadata */}
@@ -3602,7 +3602,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             </div>
 
             {/* Clean Actions */}
-            <div className="border-t border-gray-200 bg-gray-50 p-4">
+            <div className="border-t border-gray-200 bg-gray-50 p-2 md:p-4">
               <div className="flex space-x-3">
                 <SaveChangesButton
                   onSave={editedChart ? handleSaveChart : editedKPI ? handleSaveKPI : handleSaveDashboard}
@@ -3620,7 +3620,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         {isDashboardSettingsOpen && editedDashboard && (
           <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-4 bg-gray-50 flex-shrink-0">
+            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-2 md:px-4 bg-gray-50 flex-shrink-0">
               <div className="flex items-center space-x-2">
                 <h3 className="text-sm font-medium text-gray-700">
                   Dashboard Settings
@@ -3706,7 +3706,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             </div>
 
             {/* Footer - Sticky */}
-            <div className="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 flex-shrink-0">
+            <div className="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-2 md:p-4 flex-shrink-0">
               <div className="flex space-x-3">
                 <SaveChangesButton onSave={handleSaveDashboard} className="flex-1" />
                 <Button onClick={handleCloseDashboardSettings} variant="outline" size="sm">
@@ -3721,7 +3721,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         {isFiltersOpen && (
           <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-4 bg-gray-50 flex-shrink-0">
+            <div className="flex h-10 items-center justify-between border-b border-gray-200 px-2 md:px-4 bg-gray-50 flex-shrink-0">
               <div className="flex items-center space-x-2">
                 <h3 className="text-sm font-medium text-gray-700">
                   Filters
@@ -3829,7 +3829,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
             </div>
 
             {/* Footer - Sticky */}
-            <div className="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 flex-shrink-0">
+            <div className="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-2 md:p-4 flex-shrink-0">
               <div className="flex space-x-3">
                 <SaveChangesButton onSave={handleSaveDashboard} className="flex-1" />
                 <Button onClick={handleCloseFilters} variant="outline" size="sm">

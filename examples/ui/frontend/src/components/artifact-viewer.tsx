@@ -19,76 +19,82 @@ interface ArtifactViewerProps extends ArtifactViewerCallbacks {
   artifact?: ArtifactData;
 }
 
-import { unified } from "unified"
+import { unified } from "unified";
 
 // Markdown → HTML
-import remarkParse from "remark-parse"
-import remarkRehype from "remark-rehype"
-import rehypeStringify from "rehype-stringify"
+import remarkParse from "remark-parse";
+import remarkRehype from "remark-rehype";
+import rehypeStringify from "rehype-stringify";
 
 // HTML → Markdown
-import rehypeParse from "rehype-parse"
-import rehypeRemark from "rehype-remark"
+import rehypeParse from "rehype-parse";
+import rehypeRemark from "rehype-remark";
 import remarkGfm from "remark-gfm";
-import remarkStringify from "remark-stringify"
+import remarkStringify from "remark-stringify";
 
 // Markdown → HTML with empty line preservation
 export async function markdownToHtml(markdown: string): Promise<string> {
   if (!markdown) return "";
-  
+
   // Pre-process markdown to preserve multiple consecutive empty lines
   // We'll convert multiple consecutive newlines to a special placeholder
   const processedMarkdown = markdown.replace(/\n\n\n+/g, (match) => {
     const emptyLineCount = match.length - 2; // subtract the first two newlines
-    return '\n\n' + '<!---EMPTY-LINE-PLACEHOLDER--->\n'.repeat(emptyLineCount);
+    return "\n\n" + "<!---EMPTY-LINE-PLACEHOLDER--->\n".repeat(emptyLineCount);
   });
-  
+
   const file = await unified()
     .use(remarkParse)
     .use(remarkGfm)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeStringify, { allowDangerousHtml: true })
     .process(processedMarkdown);
-  
+
   let html = String(file);
-  
+
   // Convert placeholders back to empty paragraphs - note the 3 dashes!
-  html = html.replace(/<!---EMPTY-LINE-PLACEHOLDER--->/g, '<p></p>');
+  html = html.replace(/<!---EMPTY-LINE-PLACEHOLDER--->/g, "<p></p>");
   return html;
 }
 
 // HTML → Markdown with empty line preservation
 export async function htmlToMarkdown(html: string): Promise<string> {
   if (!html) return "";
-  
+
   // Better approach: Replace all empty paragraphs with special markers before unified processing
   let processedHtml = html;
-  
+
   // Replace empty paragraphs with a special marker that unified won't collapse
-  processedHtml = processedHtml.replace(/<p><\/p>/g, '<div data-empty-line="true">EMPTY_LINE_MARKER</div>');
-  
+  processedHtml = processedHtml.replace(
+    /<p><\/p>/g,
+    '<div data-empty-line="true">EMPTY_LINE_MARKER</div>'
+  );
+
   const file = await unified()
     .use(rehypeParse, { fragment: true })
     .use(rehypeRemark)
     .use(remarkGfm)
     .use(remarkStringify)
     .process(processedHtml);
-  
+
   let markdown = String(file);
-  
+
   // Post-process: Convert markers back to empty lines
   // Each marker should add just one newline: \n\nMARKER\n\n becomes \n\n\n
   // Use a simple iterative approach since global replace doesn't work well with overlapping patterns
-  while (markdown.includes('EMPTY_LINE_MARKER') || markdown.includes('EMPTY\\_LINE\\_MARKER')) {
+  while (
+    markdown.includes("EMPTY_LINE_MARKER") ||
+    markdown.includes("EMPTY\\_LINE\\_MARKER")
+  ) {
     const beforeReplace = markdown;
-    markdown = markdown.replace(/\n\nEMPTY\\_LINE\\_MARKER\n\n/, '\n\n\n');
-    markdown = markdown.replace(/\n\nEMPTY_LINE_MARKER\n\n/, '\n\n\n');
+    markdown = markdown.replace(/\n\nEMPTY\\_LINE\\_MARKER\n\n/, "\n\n\n");
+    markdown = markdown.replace(/\n\nEMPTY_LINE_MARKER\n\n/, "\n\n\n");
     // Safety check to prevent infinite loop
     if (beforeReplace === markdown) break;
   }
-  
+
   // Clean up any extra newlines at the end
-  markdown = markdown.replace(/\n+$/, '\n');
+  markdown = markdown.replace(/\n+$/, "\n");
   return markdown;
 }
 
@@ -132,10 +138,10 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
 
       try {
         // For PXML files, fetch compiled version by default (not raw)
-        const isPXMLFile = artifact.filepath.toLowerCase().endsWith('.pxml');
-        const fileUrl = `${fileBaseUrl}${encodeURIComponent(artifact.filepath)}${
-          isPXMLFile ? '' : '?raw=true'
-        }`;
+        const isPXMLFile = artifact.filepath.toLowerCase().endsWith(".pxml");
+        const fileUrl = `${fileBaseUrl}${encodeURIComponent(
+          artifact.filepath
+        )}${isPXMLFile ? "" : "?raw=true"}`;
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const apiHeaders: any = await getApiHeaders();
@@ -238,7 +244,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       setJustSaved(false);
     }
   };
-
 
   // Custom markdown parser that preserves empty lines (fallback)
   const parseMarkdownWithEmptyLines = (markdown: string): string => {
@@ -359,11 +364,10 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
           setHasUnsavedChanges(false);
         }
       };
-      
+
       convertContent();
     }
   }, [fileContent]);
-
 
   const handleSaveContent = async (directContent?: string) => {
     if (!artifact || isSaving) return;
@@ -385,12 +389,12 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
             ? await htmlToMarkdown(editorContent)
             : fileContent || "";
       }
-      
+
       await updateArtifactFile(artifact.id, artifact.filepath, content);
 
       // Always update fileContent with the saved content
       setFileContent(content);
-      
+
       setHasUnsavedChanges(false);
       setJustSaved(true);
 
@@ -412,7 +416,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     }
   };
 
-
   if (!artifact) return null;
 
   // Get file extension and determine type
@@ -433,7 +436,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       return "markdown"; // Default to markdown for other file types
     }
   };
-
 
   // Render content based on type
   const renderContent = () => {
@@ -468,7 +470,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
               title={artifact.name}
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
             />
-            
           </div>
         );
       default:
@@ -498,14 +499,14 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
 
       {/* Full-screen editor modal */}
       <div
-        className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
+        className={`fixed inset-0 z-50 flex items-center justify-center transition-all duration-300 ${
           isOpen
             ? "opacity-100 scale-100"
             : "opacity-0 scale-95 pointer-events-none"
         }`}
       >
         <div
-          className="w-full h-full max-w-[95vw] max-h-[95vh] mx-auto bg-white dark:bg-gray-900 rounded-lg shadow-2xl flex flex-col overflow-hidden"
+          className="w-full h-full max-w-[99vw] max-h-[98vh] mx-auto bg-white dark:bg-gray-900 rounded-lg shadow-2xl flex flex-col overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -575,7 +576,7 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
                 previewData={{
                   type: "markdown",
                   filename: artifact.filepath,
-                  content: fileContent || ""
+                  content: fileContent || "",
                 }}
                 conversationId={artifact.id}
               />
