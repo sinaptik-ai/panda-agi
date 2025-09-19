@@ -516,7 +516,25 @@ class Agent:
             # Get the appropriate handler
             handler = self.tool_handlers.get(function_name)
             if not handler:
-                error_msg = f"No handler found for function: {function_name}"
+                error_msg = f"""This tool is not supported: {function_name}. 
+Make sure you are calling the right tool with the right parameter and format:
+
+<tool_call>
+<function=example_function_name_1>
+<parameter=example_parameter_1>
+value_1
+</parameter>
+<parameter=example_parameter_2>
+This is the value for the second parameter
+that can span. 
+Multiple lines.
+</parameter>
+</function>
+</tool_call>
+<tool_call>
+<function=example_function_name_2_without_parameters>
+</function>
+</tool_call>"""
                 logger.error(error_msg)
                 # Yield error event
                 error_timestamp = datetime.now(timezone.utc).isoformat() + "Z"
@@ -640,128 +658,6 @@ class Agent:
             f"Break agent: {break_agent}, any_breaking_tool: {any_breaking_tool}, user_send_message_completed: {user_send_message_completed}"
         )
         return break_agent
-
-    async def _execute_collected_tools(self) -> List[Dict[str, Any]]:
-        """Execute all collected tools and return their results. Stop execution when a breaking tool is encountered."""
-        collected_tools = self.token_processor.get_completed_tools()
-        tool_results = []
-
-        if not collected_tools:
-            return tool_results
-
-        logger.info(f"Executing {len(collected_tools)} collected tools")
-
-        for tool_call in collected_tools:
-            logger.info(f"tool_call: {tool_call}")
-            try:
-                function_name = tool_call["function_name"]
-                arguments = tool_call["arguments"]
-                tool_call_id = tool_call["id"]
-                xml_tag_name = tool_call.get("xml_tag_name")
-
-                # Check if this tool is breaking
-                is_breaking = False
-                if xml_tag_name:
-                    xml_tool_def = self.tool_registry.get_xml_tool_definition(
-                        xml_tag_name
-                    )
-                    if xml_tool_def:
-                        is_breaking = xml_tool_def.is_breaking
-
-                # Trigger callbacks before tool execution
-                logger.info(
-                    f"Triggering callbacks for tool {function_name} with arguments {arguments}"
-                )
-                self._trigger_callbacks(function_name, arguments, "start")
-
-                # Get the appropriate handler
-                handler = self.tool_handlers.get(function_name)
-                if not handler:
-                    error_msg = f"No handler found for function: {function_name}"
-                    logger.error(error_msg)
-                    tool_results.append(
-                        {
-                            "tool_call_id": tool_call_id,
-                            "function_name": function_name,
-                            "status": "failed",
-                            "error": error_msg,
-                        }
-                    )
-
-                    # If this was a breaking tool, stop execution even if it failed
-                    if is_breaking:
-                        logger.info(
-                            f"Breaking tool {function_name} encountered. Stopping execution."
-                        )
-                        break
-
-                    continue
-
-                # Execute the tool
-                result = await handler.execute(arguments)
-
-                if result.success:
-                    tool_results.append(
-                        {
-                            "tool_call_id": tool_call_id,
-                            "function_name": function_name,
-                            "status": "completed",
-                            "result": result.data,
-                        }
-                    )
-                    logger.info(f"Tool {function_name} executed successfully")
-                    # Trigger callbacks after tool execution
-                    self._trigger_callbacks(
-                        function_name, arguments, "end", result.data
-                    )
-                else:
-                    tool_results.append(
-                        {
-                            "tool_call_id": tool_call_id,
-                            "function_name": function_name,
-                            "status": "failed",
-                            "error": result.error,
-                        }
-                    )
-                    logger.error(f"Tool {function_name} failed: {result.error}")
-                    # Trigger callbacks on error
-                    self._trigger_callbacks(
-                        function_name, arguments, "error", result.error
-                    )
-
-                # If this was a breaking tool, stop execution after executing it
-                if is_breaking:
-                    logger.info(
-                        f"Breaking tool {function_name} executed. Stopping execution."
-                    )
-                    break
-
-            except Exception as e:
-                logger.error(
-                    f"Error executing tool {tool_call.get('function_name')}: {e}"
-                )
-                tool_results.append(
-                    {
-                        "tool_call_id": tool_call.get("id", "unknown"),
-                        "function_name": tool_call.get("function_name", "unknown"),
-                        "status": "failed",
-                        "error": str(e),
-                    }
-                )
-
-                # Check if this was a breaking tool even if it failed
-                xml_tag_name = tool_call.get("xml_tag_name")
-                if xml_tag_name:
-                    xml_tool_def = self.tool_registry.get_xml_tool_definition(
-                        xml_tag_name
-                    )
-                    if xml_tool_def and xml_tool_def.is_breaking:
-                        logger.info(
-                            f"Breaking tool {tool_call.get('function_name')} encountered (failed). Stopping execution."
-                        )
-                        break
-
-        return tool_results
 
     def _structure_tool_response(self, tool_name: str, result_data: str) -> str:
         return f"<tool_response tool_name={tool_name}>{result_data}</tool_response>"
