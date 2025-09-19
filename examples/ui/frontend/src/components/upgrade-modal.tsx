@@ -25,7 +25,7 @@ interface Plan {
   name: string;
   description: string;
   price: string;
-  features: string[];
+  features: { text: string; included: boolean }[];
   popular?: boolean;
   cta: string;
 }
@@ -89,6 +89,8 @@ function UpgradeModal({
           }
         } else {
           setIsAuthenticated(true);
+          // Even without auth, try to fetch subscription data
+          await fetchUserSubscription();
         }
       };
       checkAuth();
@@ -136,43 +138,50 @@ function UpgradeModal({
 
   const plans: Plan[] = [
     {
-      id: "standard",
-      name: "Standard",
-      description: "For individuals and small teams getting started.",
-      price: "€19.99/mo",
+      id: "free",
+      name: "Free Plan",
+      description: "Perfect for getting started with basic features.",
+      price: "€0",
       features: [
-        "2,000 credits per month",
-        "Access to all standard models",
-        "Email support",
+        { text: "500 credits on signup (~50 dashboards)", included: true },
+        { text: "Data Analysis (Python)", included: true },
+        { text: "Create Dashboards", included: true },
+        { text: "Create Charts/Graphs", included: true },
+        { text: "Remove Branding", included: false },
+        { text: "Premium Support", included: false },
       ],
-      cta: "Upgrade to Standard",
+      cta: "Get Started",
     },
     {
-      id: "premium",
-      name: "Premium",
-      description: "For professionals who need more power and support.",
-      price: "€99.99/mo",
+      id: "plus",
+      name: "Plus Plan",
+      description: "For individuals and small teams getting started.",
+      price: "€20/mo",
       features: [
-        "12,000 credits per month",
-        "Access to premium models",
-        "Priority email support",
-        "Early access to new features",
+        { text: "1,000 credits per month (~100 dashboards)", included: true },
+        { text: "Data Analysis (Python)", included: true },
+        { text: "Create Dashboards", included: true },
+        { text: "Create Charts/Graphs", included: true },
+        { text: "Remove Branding", included: false },
+        { text: "Premium Support", included: false },
+      ],
+      cta: "Upgrade to Plus",
+    },
+    {
+      id: "pro",
+      name: "Pro Plan",
+      description: "For professionals who need more power and support.",
+      price: "€100/mo",
+      features: [
+        { text: "2,500 credits per month (~250 dashboards)", included: true },
+        { text: "Data Analysis (Python)", included: true },
+        { text: "Create Dashboards", included: true },
+        { text: "Create Charts/Graphs", included: true },
+        { text: "Remove Branding", included: true },
+        { text: "Premium Support", included: true },
       ],
       popular: true,
-      cta: "Upgrade to Premium",
-    },
-    {
-      id: "enterprise",
-      name: "Enterprise",
-      description: "For organizations requiring advanced features and support.",
-      price: "Custom",
-      features: [
-        "Unlimited credits",
-        "Private cloud or on-premise deployment",
-        "Dedicated support & account manager",
-        "Custom SLAs and security reviews",
-      ],
-      cta: "Contact Sales",
+      cta: "Upgrade to Pro",
     },
   ];
 
@@ -187,11 +196,9 @@ function UpgradeModal({
       return;
     }
 
-    if (planId === "enterprise") {
-      window.open(
-        "mailto:sales@example.com?subject=Enterprise Plan Inquiry",
-        "_blank"
-      );
+    if (planId === "free") {
+      // Free plan doesn't require payment
+      toast.success("You're already on the free plan!");
       return;
     }
 
@@ -211,7 +218,9 @@ function UpgradeModal({
           success_url: successUrl,
         });
         toast.success("Subscription updated successfully!");
-        fetchUserSubscription();
+        setTimeout(async () => {
+          await fetchUserSubscription();
+        }, 5000);
       } else {
         response = await createPaymentSession({
           package_name: planId,
@@ -233,16 +242,23 @@ function UpgradeModal({
 
     setLoading(true);
     try {
+      const isCurrentlyCancelled = userSubscription.subscription?.cancel_at_period_end;
       const success = await cancelSubscription("user_123");
+      
       if (success) {
         await fetchUserSubscription();
-        toast.success("Subscription canceled successfully");
+        if (isCurrentlyCancelled) {
+          toast.success("Subscription reactivated successfully");
+        } else {
+          toast.success("Subscription canceled successfully");
+        }
       } else {
-        throw new Error("Failed to cancel subscription");
+        throw new Error(`Failed to ${isCurrentlyCancelled ? 'reactivate' : 'cancel'} subscription`);
       }
     } catch (error) {
-      console.error("Cancel error:", error);
-      toast.error("Failed to cancel subscription. Please try again.");
+      console.error("Subscription action error:", error);
+      const isCurrentlyCancelled = userSubscription.subscription?.cancel_at_period_end;
+      toast.error(`Failed to ${isCurrentlyCancelled ? 'reactivate' : 'cancel'} subscription. Please try again.`);
     } finally {
       setLoading(false);
     }
@@ -303,6 +319,8 @@ function UpgradeModal({
                     : userSubscription?.subscription?.current_package ===
                       plan.id
                     ? "ring-2 ring-green-500 shadow-md"
+                    : plan.id === "free" && !userSubscription?.has_subscription
+                    ? "ring-2 ring-blue-500 shadow-md"
                     : "hover:shadow-md"
                 }`}
               >
@@ -333,6 +351,14 @@ function UpgradeModal({
                   </div>
                 )}
 
+                {plan.id === "free" && !userSubscription?.has_subscription && (
+                  <div className="absolute -top-2.5 left-1/2 transform -translate-x-1/2">
+                    <div className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 px-3 py-1 rounded-full text-xs font-medium">
+                      Current Plan
+                    </div>
+                  </div>
+                )}
+
                 <CardHeader className="text-center pb-4">
                   <CardTitle className="text-xl font-semibold">
                     {plan.name}
@@ -350,15 +376,18 @@ function UpgradeModal({
                     userSubscription.subscription.status === "active" && (
                       <div className="mt-3 text-xs text-muted-foreground space-y-1">
                         <p>
-                          Next billing:{" "}
-                          {new Date(
-                            userSubscription.subscription.current_period_end *
-                              1000
-                          ).toLocaleDateString()}
+                          {userSubscription.subscription.cancel_at_period_end
+                            ? "Access until:"
+                            : "Next billing:"}{" "}
+                          {new Date(userSubscription.subscription.current_period_end).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })}
                         </p>
                         {userSubscription.subscription.cancel_at_period_end && (
-                          <p className="text-orange-600 dark:text-orange-400">
-                            Will cancel at period end
+                          <p className="text-orange-600 dark:text-orange-400 font-medium">
+                            Subscription will end on this date
                           </p>
                         )}
                       </div>
@@ -369,22 +398,29 @@ function UpgradeModal({
                   <ul className="space-y-2 mb-6">
                     {plan.features.map((feature, index) => (
                       <li key={index} className="flex items-center gap-3">
-                        <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                        <span className="text-sm text-foreground">
-                          {feature}
+                        {feature.included ? (
+                          <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        ) : (
+                          <X className="h-4 w-4 text-red-500 flex-shrink-0" />
+                        )}
+                        <span className={`text-sm ${feature.included ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          {feature.text}
                         </span>
                       </li>
                     ))}
                   </ul>
 
-                  {userSubscription?.subscription?.current_package ===
+                  {(userSubscription?.subscription?.current_package ===
                     plan.id &&
-                  userSubscription?.subscription?.status === "active" ? (
+                  userSubscription?.subscription?.status === "active") ||
+                  (plan.id === "free" && !userSubscription?.has_subscription) ? (
                     <div className="space-y-2">
                       <Button disabled className="w-full" variant="secondary">
                         Current Plan
                       </Button>
-                      {!userSubscription.subscription.cancel_at_period_end && (
+                      {userSubscription?.subscription?.current_package === plan.id &&
+                        userSubscription?.subscription?.status === "active" &&
+                        !userSubscription.subscription.cancel_at_period_end && (
                         <Button
                           onClick={handleCancelSubscription}
                           disabled={loading}
@@ -394,6 +430,18 @@ function UpgradeModal({
                           {loading ? "Processing..." : "Cancel Subscription"}
                         </Button>
                       )}
+                      {userSubscription?.subscription?.current_package === plan.id &&
+                        userSubscription?.subscription?.status === "active" &&
+                        userSubscription.subscription.cancel_at_period_end && (
+                        <Button
+                          onClick={() => handleUpgrade(plan.id)}
+                          disabled={loading}
+                          variant="default"
+                          className="w-full"
+                        >
+                          {loading ? "Processing..." : "Reactivate Subscription"}
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <Button
@@ -401,8 +449,14 @@ function UpgradeModal({
                       disabled={
                         loading ||
                         (userSubscription?.subscription?.current_package ===
-                          "premium" &&
-                          plan.id === "standard")
+                          "pro" &&
+                          plan.id === "plus") ||
+                        (userSubscription?.subscription?.current_package ===
+                          "pro" &&
+                          plan.id === "free") ||
+                        (userSubscription?.subscription?.current_package ===
+                          "plus" &&
+                          plan.id === "free")
                       }
                       className="w-full"
                       variant={plan.popular ? "default" : "outline"}
