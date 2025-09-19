@@ -1,5 +1,8 @@
+import logging
 from typing import Any, Dict, Optional
+
 from pxml.xml_parser import XMLParser
+
 from ..client.models import EventType
 from .base import ToolHandler, ToolResult
 from .file_system_ops.file_ops import (
@@ -11,12 +14,13 @@ from .file_system_ops.file_ops import (
     file_write,
 )
 from .registry import ToolRegistry
-import logging
 
 logger = logging.getLogger(__name__)
 
 # Global error message for file validation failures
-FILE_VALIDATION_ERROR_MSG = "File saved successfully but content validation failed: {e}. Please verify and correct the file content before continuing."
+FILE_VALIDATION_ERROR_MSG = "File saved successfully but content validation failed: {e}. Correct the file content."
+STOP_FILE_CORRECTION_MSG = "You have exceeded the maximum number of file correction attempts. Abort the correction process."
+MAX_FILE_CORRECTION_ATTEMPTS = 3
 
 
 @ToolRegistry.register(
@@ -95,7 +99,6 @@ class FileWriteHandler(ToolHandler):
         message = ""
 
         if result.get("status") == "success":
-
             file_extension = "." + params.get("file", "").split(".")[-1]
 
             if file_extension == ".pxml":
@@ -107,6 +110,16 @@ class FileWriteHandler(ToolHandler):
                     logger.error(
                         f"Exception: {e} | Invalid PXML content provided for file write: {params['content']}"
                     )
+                    if (
+                        self.get_file_error_count(params["file"])
+                        >= MAX_FILE_CORRECTION_ATTEMPTS
+                    ):
+                        return ToolResult(
+                            success=False,
+                            data=None,
+                            error=STOP_FILE_CORRECTION_MSG,
+                        )
+                    self.increment_file_error_count(params["file"])
                     return ToolResult(
                         success=False,
                         data=None,
@@ -171,6 +184,16 @@ class FileReplaceHandler(ToolHandler):
                     logger.error(
                         f"""Exception: {e} | Invalid PXML content provided for file replace: {file_content["content"]}"""
                     )
+                    if (
+                        self.get_file_error_count(params["file_name"])
+                        >= MAX_FILE_CORRECTION_ATTEMPTS
+                    ):
+                        return ToolResult(
+                            success=False,
+                            data=None,
+                            error=STOP_FILE_CORRECTION_MSG,
+                        )
+                    self.increment_file_error_count(params["file_name"])
                     return ToolResult(
                         success=False,
                         data=None,
