@@ -79,6 +79,13 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     return filename;
   };
 
+  // Helper function to save suggested name to context if conditions are met
+  const saveSuggestedNameIfValid = (name: string) => {
+    if (conversationId && previewData?.filename) {
+      saveSuggestedNameToContext(name, previewData.filename, conversationId);
+    }
+  };
+
   // State for normalized filename and content
   const [normalizedFilename, setNormalizedFilename] = useState("");
   const [fileContent, setFileContent] = useState<string | ArrayBuffer | null>(
@@ -913,9 +920,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
 
     // Save suggested name to context
-    if (conversationId && previewData?.filename) {
-      saveSuggestedNameToContext(artifactData.artifact.name, previewData.filename, conversationId);
-    }
+    saveSuggestedNameIfValid(artifactData.artifact.name);
 
     // CRITICAL: Check if user made changes before first save
     // If yes, we need to update the creation with current editor content
@@ -992,9 +997,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     setSuggestedName(newTitle);
 
     // Save suggested name to context
-    if (conversationId && previewData?.filename) {
-      saveSuggestedNameToContext(newTitle, previewData.filename, conversationId);
-    }
+    saveSuggestedNameIfValid(newTitle);
     
     // If we have a saved artifact, update it as well
     if (savedArtifact) {
