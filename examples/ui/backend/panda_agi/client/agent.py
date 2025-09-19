@@ -110,8 +110,6 @@ class Agent:
             use_image_generation=use_image_generation,
         )
 
-        # self.event_manager = EventManager()
-
         # Initialize tool registry and create handlers
         self.tool_registry = ToolRegistry()
         self.tool_handlers = self._create_handlers()
@@ -150,7 +148,6 @@ class Agent:
         for handler in handlers.values():
             handler.set_agent(self)
             handler.set_environment(self.environment)
-            # handler.set_event_manager(self.event_manager)
 
         return handlers
 

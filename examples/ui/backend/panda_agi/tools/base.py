@@ -49,6 +49,36 @@ class ToolHandler(ABC):
 
         await self.event_manager.add_event(event_type, data)
 
+    def increment_file_error_count(
+        self, filename: str, operation_type: str = "file_operation"
+    ):
+        """Increment error count for a file operation."""
+        if not self.agent:
+            return
+        self.agent.state.tools_state.setdefault("file_errors", {})
+        file_state = self.agent.state.tools_state["file_errors"].setdefault(
+            filename, {"num_errors": 0}
+        )
+        file_state["num_errors"] += 1
+
+    def get_file_error_count(self, filename: str) -> int:
+        """Get the current error count for a file."""
+        if not self.agent:
+            return 0
+        return (
+            self.agent.state.tools_state.get("file_errors", {})
+            .get(filename, {"num_errors": 0})
+            .get("num_errors", 0)
+        )
+
+    def reset_file_error_count(self, filename: str):
+        """Reset error count for a file."""
+        if not self.agent:
+            return
+        self.agent.state.tools_state.setdefault("file_errors", {}).setdefault(
+            filename, {"num_errors": 0}
+        )["num_errors"] = 0
+
     def validate_input(self, params: Dict[str, Any]) -> Optional[str]:
         """Validate input parameters. Return error message if invalid, None if valid"""
         return None
