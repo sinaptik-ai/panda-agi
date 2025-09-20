@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 interface CSVPreviewProps {
   filename: string;
   content?: string;
+  fileSize?: number;
   maxRows?: number;
   maxColumns?: number;
   onExpand?: () => void;
@@ -17,6 +18,7 @@ interface CSVPreviewProps {
 const CSVPreview: React.FC<CSVPreviewProps> = ({
   filename,
   content,
+  fileSize,
   maxRows = 3,
   maxColumns = 8,
   onExpand,
@@ -25,14 +27,40 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
   uploadProgress = 0,
 }) => {
   const csvData = useMemo(() => {
-    if (!content)
-      return { headers: [], rows: [], totalRows: 0, totalColumns: 0 };
+    if (!content) {
+      return {
+        headers: [],
+        rows: [],
+        totalRows: 0,
+        totalColumns: 0,
+        isLargeFile: false,
+      };
+    }
 
     try {
-      // Simple CSV parsing (handles basic cases)
-      const lines = content.trim().split("\n");
-      if (lines.length === 0)
-        return { headers: [], rows: [], totalRows: 0, totalColumns: 0 };
+      // Check if file is large based on original file size, not content length
+      const isLargeFile = (fileSize || content.length) > 1024 * 1024;
+
+      // For large files, find complete lines within first chunk for preview
+      let previewContent = content;
+      if (isLargeFile) {
+        const chunk = content.substring(0, 50000);
+        // Find the last complete line to avoid cutting off in the middle
+        const lastNewlineIndex = chunk.lastIndexOf('\n');
+        previewContent = lastNewlineIndex > 0 ? chunk.substring(0, lastNewlineIndex) : chunk;
+      }
+
+      const lines = previewContent.trim().split("\n").filter(line => line.trim().length > 0);
+      
+      if (lines.length === 0) {
+        return {
+          headers: [],
+          rows: [],
+          totalRows: 0,
+          totalColumns: 0,
+          isLargeFile,
+        };
+      }
 
       // Parse CSV - simple implementation for basic cases
       const parseCSVLine = (line: string): string[] => {
@@ -66,22 +94,65 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
       };
 
       const headers = parseCSVLine(lines[0]);
-      const dataRows = lines
-        .slice(1)
+      
+      // Fallback: if no headers detected, try to show at least some content
+      if (headers.length === 0 || headers.every(h => h.trim() === '')) {
+        // Try to parse first line as data and create generic headers
+        const firstDataLine = parseCSVLine(lines[0]);
+        if (firstDataLine.length > 0) {
+          const genericHeaders = firstDataLine.map((_, index) => `Column ${index + 1}`);
+          const previewRows = [firstDataLine];
+          
+          return {
+            headers: genericHeaders,
+            rows: previewRows,
+            totalRows: isLargeFile ? Math.max(1, content.split("\n").length - 1) : 1,
+            totalColumns: genericHeaders.length,
+            isLargeFile,
+          };
+        }
+      }
+
+      // Only parse rows needed for preview + a few extra for accurate count
+      const maxLinesToParse = Math.min(lines.length - 1, 20);
+      const previewRows = lines
+        .slice(1, maxLinesToParse + 1)
         .map((line) => parseCSVLine(line))
         .filter((row) => row.some((cell) => cell.length > 0));
 
+      // Calculate total rows
+      let estimatedTotalRows;
+      if (isLargeFile) {
+        // For large files, we can't accurately count rows from partial content
+        // So we'll just indicate it's a large file without a specific count
+        estimatedTotalRows = "many";
+      } else {
+        // For small files, count all data rows (excluding header)
+        const allDataRows = lines
+          .slice(1)
+          .map((line) => parseCSVLine(line))
+          .filter((row) => row.some((cell) => cell.length > 0));
+        estimatedTotalRows = allDataRows.length;
+      }
+
       return {
         headers,
-        rows: dataRows,
-        totalRows: dataRows.length,
+        rows: previewRows,
+        totalRows: estimatedTotalRows,
         totalColumns: headers.length,
+        isLargeFile,
       };
     } catch (error) {
       console.error("Error parsing CSV:", error);
-      return { headers: [], rows: [], totalRows: 0, totalColumns: 0 };
+      return {
+        headers: [],
+        rows: [],
+        totalRows: 0,
+        totalColumns: 0,
+        isLargeFile: false,
+      };
     }
-  }, [content]);
+  }, [content, fileSize]);
 
   // Use fewer columns/rows on mobile
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
@@ -127,9 +198,10 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
           {/* Sweeping wave effect */}
           <motion.div
             className="absolute inset-0"
-            style={{ 
-              background: "linear-gradient(90deg, transparent 0%, rgba(148, 163, 184, 0.15) 50%, transparent 100%)",
-              width: "150%"
+            style={{
+              background:
+                "linear-gradient(90deg, transparent 0%, rgba(148, 163, 184, 0.15) 50%, transparent 100%)",
+              width: "150%",
             }}
             animate={{
               x: ["-150%", "100%"],
@@ -140,7 +212,7 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
               ease: "linear",
             }}
           />
-          
+
           {/* Progress indicator */}
           <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-medium text-slate-600 pointer-events-auto">
             {Math.round(uploadProgress)}%
@@ -156,7 +228,9 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
               {filename}
             </span>
             <span className="text-slate-400 sm:text-sm text-xs hidden sm:inline">
-              {csvData.totalRows} rows × {csvData.totalColumns} columns
+              {csvData.isLargeFile
+                ? `${csvData.totalColumns} columns`
+                : `${csvData.totalRows} rows × ${csvData.totalColumns} columns`}
             </span>
             {isUploading && (
               <span className="text-slate-600 sm:text-sm text-xs font-medium">

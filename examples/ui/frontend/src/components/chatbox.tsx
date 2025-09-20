@@ -174,7 +174,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    // Helper function to read CSV file content
+    // Helper function to read CSV file content (with support for large files)
     const readCSVFile = (file: File): Promise<string> => {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -184,7 +184,14 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         reader.onerror = () => {
           reject(new Error("Failed to read file"));
         };
-        reader.readAsText(file);
+
+        // For large files, read only first chunk for preview
+        if (file.size > 1024 * 1024) {
+          const blob = file.slice(0, 100000); // First 100KB
+          reader.readAsText(blob);
+        } else {
+          reader.readAsText(file);
+        }
       });
     };
 
@@ -281,13 +288,10 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
             let content = undefined;
 
             // Read CSV files for preview
-            if (file.size < 1024 * 1024) {
-              // Only read CSV files under 1MB
-              try {
-                content = await readCSVFile(file);
-              } catch (error) {
-                console.warn("Failed to read CSV file:", error);
-              }
+            try {
+              content = await readCSVFile(file);
+            } catch (error) {
+              console.warn("Failed to read CSV file:", error);
             }
 
             return {
@@ -1109,6 +1113,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                           <CSVPreview
                             filename={csvFileName}
                             content={csvContent}
+                            fileSize={csvFile.size}
                             onExpand={() =>
                               handleExpandCSV(csvFileName, csvContent)
                             }
