@@ -1,0 +1,198 @@
+import React, { useMemo, useRef, useEffect } from "react";
+import { Chart as ChartJS } from "chart.js";
+import {
+  BaseChartProps,
+  colors,
+  processCSVData,
+  getCommonTooltipConfig,
+  getCommonScalesConfig,
+} from "./base-chart";
+
+const MAX_LINE_ENTRIES = 25;
+
+const sampleLineData = (
+  labels: string[],
+  datasets: any[],
+  maxEntries: number
+) => {
+  if (labels.length <= maxEntries)
+    return { labels, datasets, wasLimited: false };
+
+  const sampledIndices = [0];
+
+  if (maxEntries > 2) {
+    const step = Math.floor((labels.length - 2) / (maxEntries - 2));
+    for (let i = 1; i < maxEntries - 1; i++) {
+      const index = Math.min(step * i, labels.length - 2);
+      if (!sampledIndices.includes(index)) {
+        sampledIndices.push(index);
+      }
+    }
+  }
+
+  sampledIndices.push(labels.length - 1);
+
+  const uniqueIndices = [...new Set(sampledIndices)].sort((a, b) => a - b);
+
+  const sampledLabels = uniqueIndices.map((i) => labels[i]);
+  const sampledDatasets = datasets.map((dataset) => ({
+    ...dataset,
+    data: uniqueIndices.map((i) => dataset.data[i]),
+  }));
+
+  return {
+    labels: sampledLabels,
+    datasets: sampledDatasets,
+    wasLimited: true,
+  };
+};
+
+export const LineChart: React.FC<BaseChartProps> = ({
+  chartData,
+  csvData,
+  chartTypeOverride,
+  showAllData = false,
+  onDataLimitedChange,
+}) => {
+  const { config, wasLimited } = useMemo(() => {
+    const { labels, groupedData, seriesData } = processCSVData(chartData, csvData);
+
+    const datasets = seriesData.map((series, index) => {
+      const data = labels.map((label) => {
+        const groupValues = groupedData.get(label) || [];
+        return groupValues[index] || 0;
+      });
+
+      const colorScheme = colors[index % colors.length];
+
+      return {
+        label: series.name,
+        data,
+        backgroundColor: "transparent",
+        borderColor: colorScheme.border,
+        borderWidth: 3,
+        hoverBorderColor: colorScheme.border,
+        hoverBorderWidth: 4,
+        fill: false,
+        tension: 0.3,
+        pointBackgroundColor: "#ffffff",
+        pointBorderColor: colorScheme.border,
+        pointBorderWidth: 3,
+        pointHoverBackgroundColor: "#ffffff",
+        pointHoverBorderColor: colorScheme.border,
+        pointHoverBorderWidth: 4,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        shadowOffsetX: 0,
+        shadowOffsetY: 2,
+        shadowBlur: 4,
+        shadowColor: colorScheme.border + "40",
+      };
+    });
+
+    let finalLabels = labels;
+    let finalDatasets = datasets;
+    let wasLimited = false;
+
+    if (!showAllData) {
+      const result = sampleLineData(labels, datasets, MAX_LINE_ENTRIES);
+      finalLabels = result.labels;
+      finalDatasets = result.datasets;
+      wasLimited = result.wasLimited;
+    } else {
+      wasLimited = labels.length > MAX_LINE_ENTRIES;
+    }
+
+
+    const config = {
+      type: "line" as const,
+      data: {
+        labels: finalLabels,
+        datasets: finalDatasets,
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          intersect: false,
+          mode: "index" as const,
+        },
+        animation: {
+          duration: finalLabels.length > 10 ? 600 : 1000,
+          easing: "easeOutCubic" as const,
+          delay: (context: any) => {
+            const baseDelay = finalLabels.length > 10 ? 20 : 50;
+            return context.dataIndex * baseDelay;
+          },
+          animateRotate: true,
+          animateScale: true,
+        },
+        plugins: {
+          title: {
+            display: false,
+          },
+          legend: {
+            display: chartData.series.length > 1,
+            position: "top" as const,
+            align: "center" as const,
+            labels: {
+              usePointStyle: true,
+              pointStyle: "rect",
+              padding: 20,
+              font: {
+                size: 13,
+                weight: "600" as const,
+                family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+              },
+              color: "#1e293b",
+              boxWidth: 14,
+              boxHeight: 14,
+            },
+          },
+          tooltip: {
+            ...getCommonTooltipConfig(),
+            callbacks: {
+              label: function (context: any) {
+                const value = context.parsed.y;
+                return `${context.dataset.label}: ${value.toLocaleString()}`;
+              },
+            },
+          },
+        },
+        scales: getCommonScalesConfig(),
+      },
+    };
+
+    return { config, wasLimited };
+  }, [JSON.stringify(chartData), JSON.stringify(csvData), chartTypeOverride, showAllData]);
+
+  const chartRef = useRef<HTMLCanvasElement>(null);
+  const chartInstanceRef = useRef<ChartJS | null>(null);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.destroy();
+    }
+
+    chartInstanceRef.current = new ChartJS(chartRef.current, config);
+
+    // Notify parent component about data limitation
+    if (onDataLimitedChange) {
+      onDataLimitedChange(wasLimited);
+    }
+
+    return () => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.destroy();
+      }
+    };
+  }, [config, wasLimited, onDataLimitedChange]);
+
+  return (
+    <div className="relative h-64 sm:h-80">
+      <canvas ref={chartRef} className="w-full h-full" />
+    </div>
+  );
+};
