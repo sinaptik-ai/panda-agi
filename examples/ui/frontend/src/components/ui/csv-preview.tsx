@@ -62,7 +62,31 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
         };
       }
 
-      // Parse CSV - simple implementation for basic cases
+      // Detect CSV delimiter (comma or semicolon)
+      const detectDelimiter = (sampleLine: string): string => {
+        // Count occurrences of potential delimiters outside of quotes
+        let commaCount = 0;
+        let semicolonCount = 0;
+        let inQuotes = false;
+
+        for (let i = 0; i < sampleLine.length; i++) {
+          const char = sampleLine[i];
+          
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (!inQuotes) {
+            if (char === ',') commaCount++;
+            else if (char === ';') semicolonCount++;
+          }
+        }
+
+        // Return the delimiter with more occurrences, default to comma
+        return semicolonCount > commaCount ? ';' : ',';
+      };
+
+      const delimiter = detectDelimiter(lines[0]);
+
+      // Parse CSV - supports both comma and semicolon delimiters
       const parseCSVLine = (line: string): string[] => {
         const result: string[] = [];
         let current = "";
@@ -81,7 +105,7 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
             } else {
               inQuotes = false;
             }
-          } else if (char === "," && !inQuotes) {
+          } else if (char === delimiter && !inQuotes) {
             result.push(current.trim());
             current = "";
           } else {
