@@ -216,6 +216,10 @@ function decodeXmlEntities(str: string) {
   return txt.value;
 }
 
+const isPXMLContent = (content: string): boolean => {
+  return content.trim().startsWith(PXML_FILE_START_TAG) || content.trim().startsWith("<dashboard") || content.trim().startsWith("<chart");
+};
+
 const DashboardEditor: React.FC<DashboardEditorProps> = ({
   content,
   artifact,
@@ -1144,6 +1148,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === "chart-edit" && event.data.chartId) {
+
         // Use raw PXML content for parsing if available, otherwise fall back to current content
         const contentToParse = rawPXMLContent || content;
 
@@ -2548,7 +2553,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       const rawPXML = await response.text();
 
       // Verify it's actually PXML before storing
-      if (!rawPXML.trim().startsWith(PXML_FILE_START_TAG)) {
+      if (!isPXMLContent(rawPXML)) {
         return;
       }
 
@@ -2570,7 +2575,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       return;
     }
 
-    if ((content.trim().startsWith(PXML_FILE_START_TAG) || content.trim().startsWith("<dashboard>")) && hasArtifact) {
+    if ((isPXMLContent(content)) && hasArtifact) {
       // We have raw PXML - store it and get the compiled version for display
       setSanitizedRawPXMLContent(content);
       setRawPXMLContent(decodeXmlEntities(content));
