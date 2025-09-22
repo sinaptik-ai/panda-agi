@@ -1,0 +1,200 @@
+import React, { useMemo, useRef, useEffect } from "react";
+import { Chart as ChartJS } from "chart.js";
+import {
+  BaseChartProps,
+  colors,
+  processCSVData,
+  getCommonTooltipConfig,
+  getCommonScalesConfig,
+} from "./base-chart";
+
+const MAX_BAR_ENTRIES = 10;
+
+const limitBarData = (
+  labels: string[],
+  datasets: any[],
+  maxEntries: number
+) => {
+  if (labels.length <= maxEntries)
+    return { labels, datasets, wasLimited: false };
+
+  const indexedLabels = labels.map((label, index) => ({
+    label,
+    index,
+    totalValue: datasets.reduce(
+      (sum, dataset) => sum + (dataset.data[index] || 0),
+      0
+    ),
+  }));
+
+  const topEntries = indexedLabels
+    .sort((a, b) => b.totalValue - a.totalValue)
+    .slice(0, maxEntries);
+
+  const limitedLabels = topEntries.map((entry) => entry.label);
+  const limitedDatasets = datasets.map((dataset) => ({
+    ...dataset,
+    data: topEntries.map((entry) => dataset.data[entry.index]),
+    backgroundColor: Array.isArray(dataset.backgroundColor)
+      ? topEntries.map((entry) => dataset.backgroundColor[entry.index])
+      : dataset.backgroundColor,
+    borderColor: Array.isArray(dataset.borderColor)
+      ? topEntries.map((entry) => dataset.borderColor[entry.index])
+      : dataset.borderColor,
+    hoverBackgroundColor: Array.isArray(dataset.hoverBackgroundColor)
+      ? topEntries.map((entry) => dataset.hoverBackgroundColor[entry.index])
+      : dataset.hoverBackgroundColor,
+  }));
+
+  return { labels: limitedLabels, datasets: limitedDatasets, wasLimited: true };
+};
+
+export const BarChart: React.FC<BaseChartProps> = ({
+  chartData,
+  csvData,
+  chartTypeOverride,
+  showAllData = false,
+  onDataLimitedChange,
+  barChartLimit = 10,
+}) => {
+  const { config, wasLimited } = useMemo(() => {
+    const { labels, groupedData, seriesData } = processCSVData(chartData, csvData);
+
+    const datasets = seriesData.map((series, index) => {
+      const data = labels.map((label) => {
+        const groupValues = groupedData.get(label) || [];
+        return groupValues[index] || 0;
+      });
+
+      const colorScheme = colors[index % colors.length];
+
+      return {
+        label: series.name,
+        data,
+        backgroundColor: colorScheme.bg,
+        borderColor: colorScheme.border,
+        borderWidth: 2,
+        borderRadius: 12,
+        borderSkipped: false,
+        hoverBackgroundColor: colorScheme.hover,
+        hoverBorderColor: colorScheme.border,
+        hoverBorderWidth: 3,
+        shadowOffsetX: 0,
+        shadowOffsetY: 2,
+        shadowBlur: 4,
+        shadowColor: colorScheme.border + "40",
+      };
+    });
+
+    let finalLabels = labels;
+    let finalDatasets = datasets;
+    let wasLimited = false;
+
+    // Check if we should limit data based on barChartLimit
+    if (barChartLimit !== 'all') {
+      const limitEntries = barChartLimit === 5 ? 5 : 10;
+      const result = limitBarData(labels, datasets, limitEntries);
+      finalLabels = result.labels;
+      finalDatasets = result.datasets;
+      wasLimited = result.wasLimited;
+    } else {
+      // Show all data but still track if it would have been limited
+      wasLimited = labels.length >= MAX_BAR_ENTRIES;
+    }
+
+    const isHorizontal = chartData.type === "horizontal_bar";
+
+    const config = {
+      type: "bar" as const,
+      data: {
+        labels: finalLabels,
+        datasets: finalDatasets,
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: isHorizontal ? "y" : "x",
+        interaction: {
+          intersect: false,
+          mode: "index" as const,
+        },
+        animation: {
+          duration: finalLabels.length > 10 ? 600 : 1000,
+          easing: "easeOutCubic" as const,
+          delay: (context: any) => {
+            const baseDelay = finalLabels.length > 10 ? 20 : 50;
+            return context.dataIndex * baseDelay;
+          },
+          animateRotate: true,
+          animateScale: true,
+        },
+        plugins: {
+          title: {
+            display: false,
+          },
+          legend: {
+            display: chartData.series.length > 1,
+            position: "top" as const,
+            align: "center" as const,
+            labels: {
+              usePointStyle: true,
+              pointStyle: "rect",
+              padding: 20,
+              font: {
+                size: 13,
+                weight: "600" as const,
+                family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+              },
+              color: "#1e293b",
+              boxWidth: 14,
+              boxHeight: 14,
+            },
+          },
+          tooltip: {
+            ...getCommonTooltipConfig(),
+            callbacks: {
+              label: function (context: any) {
+                const value = context.parsed.y || context.parsed.x;
+                return `${context.dataset.label}: ${value.toLocaleString()}`;
+              },
+            },
+          },
+        },
+        scales: getCommonScalesConfig(),
+      },
+    };
+
+    return { config, wasLimited };
+  }, [JSON.stringify(chartData), JSON.stringify(csvData), chartTypeOverride, showAllData, barChartLimit]);
+
+
+  const chartRef = useRef<HTMLCanvasElement>(null);
+  const chartInstanceRef = useRef<ChartJS | null>(null);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.destroy();
+    }
+
+    chartInstanceRef.current = new ChartJS(chartRef.current, config);
+
+    // Notify parent component about data limitation
+    if (onDataLimitedChange) {
+      onDataLimitedChange(wasLimited);
+    }
+
+    return () => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.destroy();
+      }
+    };
+  }, [config, wasLimited, onDataLimitedChange]);
+
+  return (
+    <div className="relative h-64 sm:h-80">
+      <canvas ref={chartRef} className="w-full h-full" />
+    </div>
+  );
+};

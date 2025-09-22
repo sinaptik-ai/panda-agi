@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import FileIcon from "./ui/file-icon";
 import { Button } from "./ui/button";
 import { getApiHeaders } from "@/lib/api/common";
 import { updateArtifact, updateArtifactFile } from "@/lib/api/artifacts";
 import { ArtifactData, ArtifactViewerCallbacks } from "@/types/artifact";
 import ArtifactActions from "./artifact-actions";
-import { X, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import MarkdownEditor from "./markdown-editor";
 import DashboardEditor from "./editor/dashboard-editor";
+import ModalWrapper from "./ui/modal-wrapper";
 
 // Re-export from types for backward compatibility
 export type { ArtifactData };
@@ -19,76 +20,82 @@ interface ArtifactViewerProps extends ArtifactViewerCallbacks {
   artifact?: ArtifactData;
 }
 
-import { unified } from "unified"
+import { unified } from "unified";
 
 // Markdown → HTML
-import remarkParse from "remark-parse"
-import remarkRehype from "remark-rehype"
-import rehypeStringify from "rehype-stringify"
+import remarkParse from "remark-parse";
+import remarkRehype from "remark-rehype";
+import rehypeStringify from "rehype-stringify";
 
 // HTML → Markdown
-import rehypeParse from "rehype-parse"
-import rehypeRemark from "rehype-remark"
+import rehypeParse from "rehype-parse";
+import rehypeRemark from "rehype-remark";
 import remarkGfm from "remark-gfm";
-import remarkStringify from "remark-stringify"
+import remarkStringify from "remark-stringify";
 
 // Markdown → HTML with empty line preservation
 export async function markdownToHtml(markdown: string): Promise<string> {
   if (!markdown) return "";
-  
+
   // Pre-process markdown to preserve multiple consecutive empty lines
   // We'll convert multiple consecutive newlines to a special placeholder
   const processedMarkdown = markdown.replace(/\n\n\n+/g, (match) => {
     const emptyLineCount = match.length - 2; // subtract the first two newlines
-    return '\n\n' + '<!---EMPTY-LINE-PLACEHOLDER--->\n'.repeat(emptyLineCount);
+    return "\n\n" + "<!---EMPTY-LINE-PLACEHOLDER--->\n".repeat(emptyLineCount);
   });
-  
+
   const file = await unified()
     .use(remarkParse)
     .use(remarkGfm)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeStringify, { allowDangerousHtml: true })
     .process(processedMarkdown);
-  
+
   let html = String(file);
-  
+
   // Convert placeholders back to empty paragraphs - note the 3 dashes!
-  html = html.replace(/<!---EMPTY-LINE-PLACEHOLDER--->/g, '<p></p>');
+  html = html.replace(/<!---EMPTY-LINE-PLACEHOLDER--->/g, "<p></p>");
   return html;
 }
 
 // HTML → Markdown with empty line preservation
 export async function htmlToMarkdown(html: string): Promise<string> {
   if (!html) return "";
-  
+
   // Better approach: Replace all empty paragraphs with special markers before unified processing
   let processedHtml = html;
-  
+
   // Replace empty paragraphs with a special marker that unified won't collapse
-  processedHtml = processedHtml.replace(/<p><\/p>/g, '<div data-empty-line="true">EMPTY_LINE_MARKER</div>');
-  
+  processedHtml = processedHtml.replace(
+    /<p><\/p>/g,
+    '<div data-empty-line="true">EMPTY_LINE_MARKER</div>'
+  );
+
   const file = await unified()
     .use(rehypeParse, { fragment: true })
     .use(rehypeRemark)
     .use(remarkGfm)
     .use(remarkStringify)
     .process(processedHtml);
-  
+
   let markdown = String(file);
-  
+
   // Post-process: Convert markers back to empty lines
   // Each marker should add just one newline: \n\nMARKER\n\n becomes \n\n\n
   // Use a simple iterative approach since global replace doesn't work well with overlapping patterns
-  while (markdown.includes('EMPTY_LINE_MARKER') || markdown.includes('EMPTY\\_LINE\\_MARKER')) {
+  while (
+    markdown.includes("EMPTY_LINE_MARKER") ||
+    markdown.includes("EMPTY\\_LINE\\_MARKER")
+  ) {
     const beforeReplace = markdown;
-    markdown = markdown.replace(/\n\nEMPTY\\_LINE\\_MARKER\n\n/, '\n\n\n');
-    markdown = markdown.replace(/\n\nEMPTY_LINE_MARKER\n\n/, '\n\n\n');
+    markdown = markdown.replace(/\n\nEMPTY\\_LINE\\_MARKER\n\n/, "\n\n\n");
+    markdown = markdown.replace(/\n\nEMPTY_LINE_MARKER\n\n/, "\n\n\n");
     // Safety check to prevent infinite loop
     if (beforeReplace === markdown) break;
   }
-  
+
   // Clean up any extra newlines at the end
-  markdown = markdown.replace(/\n+$/, '\n');
+  markdown = markdown.replace(/\n+$/, "\n");
   return markdown;
 }
 
@@ -104,13 +111,10 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [titleEditJustTriggered, setTitleEditJustTriggered] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [editorContent, setEditorContent] = useState("");
-  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const fileBaseUrl = `${window.location.origin}/creations/${artifact?.id}/`;
 
@@ -132,10 +136,10 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
 
       try {
         // For PXML files, fetch compiled version by default (not raw)
-        const isPXMLFile = artifact.filepath.toLowerCase().endsWith('.pxml');
-        const fileUrl = `${fileBaseUrl}${encodeURIComponent(artifact.filepath)}${
-          isPXMLFile ? '' : '?raw=true'
-        }`;
+        const isPXMLFile = artifact.filepath.toLowerCase().endsWith(".pxml");
+        const fileUrl = `${fileBaseUrl}${encodeURIComponent(
+          artifact.filepath
+        )}${isPXMLFile ? "" : "?raw=true"}`;
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const apiHeaders: any = await getApiHeaders();
@@ -180,26 +184,9 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     }
   };
 
-  // Handle edit title
-  const handleEditTitle = () => {
-    setTitleEditJustTriggered(true);
-    setIsEditingTitle(true);
-    // Clear the flag after a short delay and focus the input
-    setTimeout(() => {
-      setTitleEditJustTriggered(false);
-      if (titleInputRef.current) {
-        titleInputRef.current.focus();
-      }
-    }, 200);
-  };
-
-  const handleSaveTitle = async (newTitle: string) => {
+  // Handle save title for modal
+  const handleModalTitleChange = async (newTitle: string) => {
     await handleTitleChange(newTitle);
-    setIsEditingTitle(false);
-  };
-
-  const handleCancelTitleEdit = () => {
-    setIsEditingTitle(false);
   };
 
   // Handle close with confirmation
@@ -238,7 +225,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       setJustSaved(false);
     }
   };
-
 
   // Custom markdown parser that preserves empty lines (fallback)
   const parseMarkdownWithEmptyLines = (markdown: string): string => {
@@ -359,11 +345,10 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
           setHasUnsavedChanges(false);
         }
       };
-      
+
       convertContent();
     }
   }, [fileContent]);
-
 
   const handleSaveContent = async (directContent?: string) => {
     if (!artifact || isSaving) return;
@@ -385,12 +370,12 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
             ? await htmlToMarkdown(editorContent)
             : fileContent || "";
       }
-      
+
       await updateArtifactFile(artifact.id, artifact.filepath, content);
 
       // Always update fileContent with the saved content
       setFileContent(content);
-      
+
       setHasUnsavedChanges(false);
       setJustSaved(true);
 
@@ -411,7 +396,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
       setIsSaving(false);
     }
   };
-
 
   if (!artifact) return null;
 
@@ -434,7 +418,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     }
   };
 
-
   // Render content based on type
   const renderContent = () => {
     const type = getFileType(artifact.filepath);
@@ -453,11 +436,13 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
         );
       case "dashboard":
         return (
-          <DashboardEditor
-            content={fileContent || ""}
-            artifact={artifact}
-            onSave={handleSaveContent}
-          />
+          <div className="h-full">
+            <DashboardEditor
+              content={fileContent || ""}
+              artifact={artifact}
+              onSave={handleSaveContent}
+            />
+          </div>
         );
       case "iframe":
         return (
@@ -468,7 +453,6 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
               title={artifact.name}
               sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads"
             />
-            
           </div>
         );
       default:
@@ -486,129 +470,66 @@ const ArtifactViewer: React.FC<ArtifactViewerProps> = ({
     }
   };
 
-  return (
+  // Create modal actions
+  const modalActions = (
     <>
-      {/* Backdrop */}
-      <div
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity duration-300 ${
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
-        onClick={handleClose}
-      />
-
-      {/* Full-screen editor modal */}
-      <div
-        className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ${
-          isOpen
-            ? "opacity-100 scale-100"
-            : "opacity-0 scale-95 pointer-events-none"
-        }`}
-      >
-        <div
-          className="w-full h-full max-w-[95vw] max-h-[95vh] mx-auto bg-white dark:bg-gray-900 rounded-lg shadow-2xl flex flex-col overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
+      {justSaved && !hasUnsavedChanges ? (
+        <span className="text-sm text-gray-600 dark:text-gray-400 px-3 py-1">
+          Saved
+        </span>
+      ) : hasUnsavedChanges ? (
+        <Button
+          onClick={() => handleSaveContent()}
+          size="sm"
+          title="Save changes"
+          disabled={isSaving}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <div className="flex items-center space-x-3 flex-1 min-w-0">
-              <FileIcon
-                filepath={artifact.filepath}
-                className="w-5 h-5 text-blue-500 flex-shrink-0"
-              />
-              {isEditingTitle ? (
-                <input
-                  ref={titleInputRef}
-                  type="text"
-                  defaultValue={artifact.name}
-                  className="flex-1 px-2 py-1 text-lg font-semibold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-gray-200 dark:focus:ring-gray-600 focus:border-gray-400 dark:focus:border-gray-500"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleSaveTitle(e.currentTarget.value);
-                    } else if (e.key === "Escape") {
-                      handleCancelTitleEdit();
-                    }
-                  }}
-                  onBlur={(e) => {
-                    if (!titleEditJustTriggered) {
-                      handleSaveTitle(e.currentTarget.value);
-                    }
-                  }}
-                  autoFocus
-                />
-              ) : (
-                <h1
-                  className="text-lg font-semibold text-gray-900 dark:text-white truncate cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-1 min-w-0"
-                  onClick={handleEditTitle}
-                  title="Click to edit title"
-                >
-                  {artifact.name}
-                </h1>
-              )}
-            </div>
+          {isSaving && (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          )}
+          {isSaving ? "Saving..." : "Save"}
+        </Button>
+      ) : null}
 
-            <div className="flex items-center space-x-2 ml-4">
-              {justSaved && !hasUnsavedChanges ? (
-                <span className="text-sm text-gray-600 dark:text-gray-400 px-3 py-1">
-                  Saved
-                </span>
-              ) : hasUnsavedChanges ? (
-                <Button
-                  onClick={() => handleSaveContent()}
-                  size="sm"
-                  title="Save changes"
-                  disabled={isSaving}
-                >
-                  {isSaving && (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  )}
-                  {isSaving ? "Saving..." : "Save"}
-                </Button>
-              ) : null}
-
-              <ArtifactActions
-                artifact={artifact}
-                onArtifactUpdated={onArtifactUpdated}
-                onArtifactDeleted={onArtifactDeleted}
-                onClose={onClose}
-                onEditName={handleEditTitle}
-                isSaved={true}
-                previewData={{
-                  type: "markdown",
-                  filename: artifact.filepath,
-                  content: fileContent || ""
-                }}
-                conversationId={artifact.id}
-              />
-              <button
-                onClick={handleClose}
-                className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors cursor-pointer"
-                title="Close editor"
-              >
-                <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-              </button>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-auto">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-              </div>
-            ) : error ? (
-              <div className="flex items-center justify-center h-full p-8">
-                <div className="text-center">
-                  <div className="text-red-500 text-lg mb-2">⚠️ Error</div>
-                  <p className="text-gray-600 dark:text-gray-400">{error}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="h-full">{renderContent()}</div>
-            )}
-          </div>
-        </div>
-      </div>
+      <ArtifactActions
+        artifact={artifact}
+        onArtifactUpdated={onArtifactUpdated}
+        onArtifactDeleted={onArtifactDeleted}
+        onClose={onClose}
+        onEditName={undefined} // Will be handled by modal wrapper
+        isSaved={true}
+        previewData={{
+          type: "markdown",
+          filename: artifact.filepath,
+          content: fileContent || "",
+        }}
+        conversationId={artifact.id}
+      />
     </>
+  );
+
+  return (
+    <ModalWrapper
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={artifact.name}
+      subtitle={{
+        text: artifact.filepath,
+      }}
+      icon={
+        <FileIcon
+          filepath={artifact.filepath}
+          className="w-5 h-5 text-blue-500 flex-shrink-0"
+        />
+      }
+      actions={modalActions}
+      loading={isLoading}
+      error={error}
+      editableTitle={true}
+      onTitleChange={handleModalTitleChange}
+    >
+      {renderContent()}
+    </ModalWrapper>
   );
 };
 

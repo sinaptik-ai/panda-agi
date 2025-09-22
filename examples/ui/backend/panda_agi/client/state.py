@@ -15,3 +15,6 @@ class AgentState:
 
         # environment
         self.filesystem: Dict = {}
+
+        # tools state
+        self.tools_state: Dict = {}

@@ -61,6 +61,7 @@ interface ChatBoxProps {
   initialQuery?: string | null;
   onCreditsRefetch?: () => Promise<void>;
   onUserMessage?: () => void;
+  dashboardModalOpen?: boolean;
 }
 
 const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
@@ -77,6 +78,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
       initialQuery = null,
       onCreditsRefetch,
       onUserMessage,
+      dashboardModalOpen = false,
     }: ChatBoxProps,
     ref
   ) => {
@@ -172,7 +174,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    // Helper function to read CSV file content
+    // Helper function to read CSV file content (with support for large files)
     const readCSVFile = (file: File): Promise<string> => {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -182,7 +184,14 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         reader.onerror = () => {
           reject(new Error("Failed to read file"));
         };
-        reader.readAsText(file);
+
+        // For large files, read only first chunk for preview
+        if (file.size > 1024 * 1024) {
+          const blob = file.slice(0, 100000); // First 100KB
+          reader.readAsText(blob);
+        } else {
+          reader.readAsText(file);
+        }
       });
     };
 
@@ -279,13 +288,10 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
             let content = undefined;
 
             // Read CSV files for preview
-            if (file.size < 1024 * 1024) {
-              // Only read CSV files under 1MB
-              try {
-                content = await readCSVFile(file);
-              } catch (error) {
-                console.warn("Failed to read CSV file:", error);
-              }
+            try {
+              content = await readCSVFile(file);
+            } catch (error) {
+              console.warn("Failed to read CSV file:", error);
             }
 
             return {
@@ -929,7 +935,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
           }}
         >
           {/* Drag overlay */}
-          {isDragging && (
+          {isDragging && !dashboardModalOpen && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-50/80 backdrop-blur-xl z-10">
               <div className="text-center p-8 rounded-2xl bg-white/90 shadow-2xl border border-slate-200/50 backdrop-blur-sm">
                 <Paperclip className="w-16 h-16 text-slate-700 mx-auto mb-4" />
@@ -960,7 +966,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                     })()}
                   </h3>
                   <p className="text-slate-500 text-lg font-light mb-10">
-                    What do you want to see?
+                    What do you want to create?
                   </p>
 
                   {/* Clean Dashboard Options */}
@@ -1092,10 +1098,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                       "name" in firstFile ? firstFile.name : firstFile.filename;
                     const shouldShowCSVPreview =
                       allFiles.length === 1 &&
-                      fileName.toLowerCase().endsWith(".csv") &&
-                      (uploadingFilesPreviews[0]?.content ||
-                        !("status" in firstFile) ||
-                        firstFile.status !== "uploading");
+                      fileName.toLowerCase().endsWith(".csv");
 
                     if (shouldShowCSVPreview) {
                       const csvFile = allFiles[0];
@@ -1110,17 +1113,16 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                           <CSVPreview
                             filename={csvFileName}
                             content={csvContent}
+                            fileSize={csvFile.size}
                             onExpand={() =>
                               handleExpandCSV(csvFileName, csvContent)
                             }
                             onRemove={handleRemoveCSV}
+                            isUploading={csvStatus === "uploading"}
+                            uploadProgress={
+                              uploadingFilesPreviews[0]?.progress || 0
+                            }
                           />
-                          {csvStatus === "uploading" && (
-                            <div className="flex items-center justify-center space-x-2 text-sm text-slate-600">
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              <span>Uploading...</span>
-                            </div>
-                          )}
                         </div>
                       );
                     }
@@ -1167,13 +1169,6 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                                 key={`preview-${file.id}`}
                                 className="relative group flex items-center space-x-2 bg-white/90 backdrop-blur-sm border border-slate-200/50 rounded-xl px-3 py-2 text-sm transition-all duration-200 overflow-hidden hover:bg-white hover:shadow-md"
                               >
-                                {/* Progress background for uploading files */}
-                                {file.status === "uploading" && (
-                                  <div
-                                    className="absolute inset-0 bg-slate-100/40 transition-all duration-300"
-                                    style={{ width: `${file.progress}%` }}
-                                  />
-                                )}
                                 {/* Completed background */}
                                 {file.status === "completed" && (
                                   <div className="absolute inset-0 bg-slate-50/60" />
@@ -1329,7 +1324,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                         : uploadingFilesPreviews.some(
                             (f) => f.status === "uploading"
                           )
-                        ? "Uploading files..."
+                        ? "Files uploading... You can type while we process them"
                         : "How can I help you?"
                     }
                     className={`w-full bg-transparent text-slate-900 placeholder-slate-500/70 resize-none border-none outline-none text-base leading-relaxed font-medium py-1 selection:bg-blue-100/50 transition-colors duration-200 ${
@@ -1338,13 +1333,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                         : ""
                     }`}
                     rows={1}
-                    disabled={
-                      isLoading ||
-                      isInitialLoading ||
-                      uploadingFilesPreviews.some(
-                        (f) => f.status === "uploading"
-                      )
-                    }
+                    disabled={isLoading || isInitialLoading}
                     style={{ minHeight: "32px", maxHeight: "120px" }}
                     autoFocus
                     spellCheck

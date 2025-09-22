@@ -169,6 +169,8 @@ class ExecuteScriptHandler(ToolHandler):
             "time",
             "random",
             "math",
+            "warnings",
+            "logging",
         ]
 
         # Search for import statements (import <lib_name> or from <lib_name> import <any>)

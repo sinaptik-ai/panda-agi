@@ -21,7 +21,7 @@ interface FileUploadEventProps {
     content?: string;
   };
   onPreviewClick?: (previewData: unknown) => void;
-  timestamp?:string;
+  timestamp?: string;
 }
 
 // File type icon utility function
@@ -164,7 +164,10 @@ const FileUploadEvent: React.FC<FileUploadEventProps> = ({
     <div className="flex justify-end mb-1">
       <div className="max-w-xs lg:max-w-md">
         <div className="flex justify-end">
-          <div className="flex items-center space-x-2 bg-slate-50/80 border border-slate-200/50 rounded-lg px-3 py-2 text-sm group hover:bg-slate-50 transition-colors min-w-0 cursor-pointer">
+          <div
+            className="flex items-center space-x-2 bg-slate-50/80 border border-slate-200/50 rounded-lg px-3 py-2 text-sm group hover:bg-slate-50 transition-colors min-w-0 cursor-pointer"
+            onClick={handlePreviewClick}
+          >
             {getFileTypeIcon(filename || "")}
             <div className="flex flex-col min-w-0 flex-1">
               <button
