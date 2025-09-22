@@ -622,19 +622,11 @@ async def serve_artifact_file(
                     else:
                         # Return the raw PXML content
                         xml_parser = XMLParser()
-                        import re
-
-                        file_content = content_bytes.decode("utf-8")
-                        file_content = re.sub(
-                            r"<\?pxml[^>]*\?>", "", file_content
-                        ).strip()
-                        preprocessed_content_bytes = xml_parser._preprocess_xml_content(
-                            file_content
-                        )
-
-                        print(preprocessed_content_bytes)
+                        preprocessed_content_bytes = xml_parser.preprocess_xml(
+                            content_bytes.decode("utf-8")
+                        ).encode("utf-8")
                         return Response(
-                            content=preprocessed_content_bytes.encode("utf-8"),
+                            content=preprocessed_content_bytes,
                             media_type="application/octet-stream",
                         )
 
