@@ -290,7 +290,7 @@ class XMLParser:
         return bool(TAG_PATTERN.match(tag.strip()))
 
     def process_xml(self, xml_string: str) -> str:
-        """Process XML string to escape operators in content"""
+        """Process XML string to escape operators in content using custom escape logic"""
         try:
             i = 0
             result = ""
@@ -300,7 +300,7 @@ class XMLParser:
                 # Find next tag
                 opening_tag_start = xml_string.find("<", i)
 
-                # no more tags return the string as it is
+                # No more tags: escape the rest
                 if opening_tag_start == -1:
                     result += escape(xml_string[i:])
                     break
@@ -316,15 +316,14 @@ class XMLParser:
                 # Preserve the full opening tag (with attributes)
                 full_opening_tag = xml_string[opening_tag_start : opening_tag_end + 1]
                 if not self.is_valid_opening_tag(full_opening_tag):
-                    # treat it as text and return
+                    # treat as plain text
                     result += escape(xml_string[i:])
                     break
 
                 tag_name = full_opening_tag.strip("<>/ ").split()[0]
 
-                # Check if this is a self-closing tag
+                # Self-closing tag
                 if full_opening_tag.endswith("/>"):
-                    # Self-closing tag - no inner content to process
                     result += full_opening_tag
                     i = opening_tag_end + 1
                     continue
@@ -337,7 +336,6 @@ class XMLParser:
                     next_close = xml_string.find(f"</{tag_name}>", pos)
 
                     if next_close == -1:
-                        # Malformed XML
                         next_close = len(xml_string)
                         break
 
@@ -348,7 +346,6 @@ class XMLParser:
                         depth -= 1
                         pos = next_close + len(f"</{tag_name}>")
 
-                # means no closing tag found
                 if pos == opening_tag_end + 1:
                     raise DetailedXMLError(
                         message=f"The closing tag for {full_opening_tag} was not found.",
@@ -358,7 +355,6 @@ class XMLParser:
 
                 closing_tag_start = pos - len(f"</{tag_name}>")
 
-                # check if the closing tag is found
                 if closing_tag_start == -1 or closing_tag_start > len(xml_string):
                     raise DetailedXMLError(
                         message=f"Closing tag not found for {full_opening_tag}",
@@ -368,19 +364,20 @@ class XMLParser:
 
                 inner_content = xml_string[opening_tag_end + 1 : closing_tag_start]
 
-                # Recursively process inner content
-                processed_inner = self.process_xml(inner_content)
+                # ✅ Special-case: formulas
+                if tag_name.lower() == "formula":
+                    processed_inner = self._escape_operators_in_content(inner_content)
+                else:
+                    processed_inner = self.process_xml(inner_content)
 
-                # Reconstruct full tag using the preserved opening tag
                 full_closing_tag = f"</{tag_name}>"
                 result += f"{full_opening_tag}{processed_inner}{full_closing_tag}"
 
-                # Move index past closing tag
                 i = closing_tag_start + len(full_closing_tag)
 
             return result
+
         except DetailedXMLError:
-            # Re-raise our detailed errors as-is
             raise
         except Exception as e:
             raise DetailedXMLError(
@@ -489,7 +486,6 @@ class XMLParser:
 
             # Preprocess to handle comparison operators
             processed_content = self._preprocess_xml_content(file_content)
-
             # Parse the processed XML
             root = ET.fromstring(processed_content)
             return self.parse_dashboard(root)
