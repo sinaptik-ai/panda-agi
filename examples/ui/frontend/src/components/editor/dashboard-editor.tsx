@@ -210,6 +210,16 @@ const FILTER_TYPES = [
 const PXML_FILE_START_TAG = "<?pxml"
 const PXML_COMPILED_START_TAG = "<!DOCTYPE html>"
 
+function decodeXmlEntities(str: string) {
+  const txt = document.createElement("textarea");
+  txt.innerHTML = str;
+  return txt.value;
+}
+
+const isPXMLContent = (content: string): boolean => {
+  return content.trim().startsWith(PXML_FILE_START_TAG) || content.trim().startsWith("<dashboard") || content.trim().startsWith("<chart");
+};
+
 const DashboardEditor: React.FC<DashboardEditorProps> = ({
   content,
   artifact,
@@ -271,6 +281,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   const [isCompiling, setIsCompiling] = useState(false);
   const [compilationError, setCompilationError] = useState<string | null>(null);
   const [rawPXMLContent, setRawPXMLContent] = useState<string | null>(null);
+  const [sanitizedRawPXMLContent, setSanitizedRawPXMLContent] = useState<string | null>(null);
 
   // Centralized XML sanitization utility
   const sanitizeXMLContent = (content: string): string => {
@@ -301,14 +312,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
   // Unescape formulas for display in text inputs
   const unescapeFormula = (formula: string): string => {
-    return formula
-      .replace(/&lt;&gt;/g, '<>')
-      .replace(/&lt;=/g, '<=')
-      .replace(/&gt;=/g, '>=')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
-      .replace(/&quot;/g, '"');
+    return decodeXmlEntities(formula);
   };
 
   // Parse PXML content to extract chart configurations
@@ -939,6 +943,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
     originalContent: string,
     kpiConfig: KPIConfig
   ): string => {
+    // Preprocess the original content
     const parser = new DOMParser();
     const serializer = new XMLSerializer();
 
@@ -1000,7 +1005,6 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
         if (formatEl) formatEl.textContent = kpiConfig.format_type;
         if (unitEl) unitEl.textContent = kpiConfig.unit;
       }
-
       return serializer.serializeToString(doc);
     } catch (error) {
       console.error("Error updating PXML with KPI:", error);
@@ -1144,6 +1148,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === "chart-edit" && event.data.chartId) {
+
         // Use raw PXML content for parsing if available, otherwise fall back to current content
         const contentToParse = rawPXMLContent || content;
 
@@ -1987,16 +1992,19 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       };
 
       // Use raw PXML content for updating if available
-      const contentToUpdate = rawPXMLContent || content;
+      const contentToUpdate = sanitizedRawPXMLContent || rawPXMLContent || content;
 
       const updatedContent = updatePXMLWithChart(contentToUpdate, chartToSave);
+
+      const decodedUpdatedContent = decodeXmlEntities(updatedContent);
       
       // Don't call onChange during save - the onSave callback will handle the content update
       // onChange(updatedContent);
 
       // Update the stored raw PXML content
       if (rawPXMLContent) {
-        setRawPXMLContent(updatedContent);
+        setSanitizedRawPXMLContent(updatedContent);
+        setRawPXMLContent(decodedUpdatedContent);
       }
 
       // Store the saved content for comparison
@@ -2004,7 +2012,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
       // Trigger save to server if onSave callback is provided
       if (onSave) {
-        await onSave(updatedContent);
+        await onSave(decodedUpdatedContent);
       }
 
       // Send message to iframe to refresh the chart after save
@@ -2070,16 +2078,19 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       };
 
       // Use raw PXML content for updating if available
-      const contentToUpdate = rawPXMLContent || content;
+      const contentToUpdate = sanitizedRawPXMLContent || rawPXMLContent || content;
 
       const updatedContent = updatePXMLWithKPI(contentToUpdate, kpiToSave);
       
+
+      const decodedUpdatedContent = decodeXmlEntities(updatedContent);
       // Don't call onChange during save - the onSave callback will handle the content update
       // onChange(updatedContent);
 
       // Update the stored raw PXML content
       if (rawPXMLContent) {
-        setRawPXMLContent(updatedContent);
+        setSanitizedRawPXMLContent(updatedContent);
+        setRawPXMLContent(decodedUpdatedContent);
       }
 
       // Store the saved content for comparison
@@ -2087,7 +2098,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
 
       // Trigger save to server if onSave callback is provided
       if (onSave) {
-        await onSave(updatedContent);
+        await onSave(decodedUpdatedContent);
       }
 
       // Send message to iframe to refresh the KPI after save
@@ -2150,10 +2161,13 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       const contentToUpdate = rawPXMLContent || content;
 
       const updatedContent = updatePXMLWithDashboard(contentToUpdate, editedDashboard);
+
+      const decodedUpdatedContent = decodeXmlEntities(updatedContent);
       
       // Update the stored raw PXML content
       if (rawPXMLContent) {
-        setRawPXMLContent(updatedContent);
+        setSanitizedRawPXMLContent(updatedContent);
+        setRawPXMLContent(decodedUpdatedContent);
       }
 
       // Store the saved content for comparison
@@ -2164,7 +2178,7 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       
       // Trigger save to server if onSave callback is provided
       if (onSave) {
-        await onSave(updatedContent);
+        await onSave(decodedUpdatedContent);
       }
 
       // Send message to iframe that dashboard was saved
@@ -2539,12 +2553,13 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       const rawPXML = await response.text();
 
       // Verify it's actually PXML before storing
-      if (!rawPXML.trim().startsWith(PXML_FILE_START_TAG)) {
+      if (!isPXMLContent(rawPXML)) {
         return;
       }
 
       // Store the raw PXML for chart editing
-      setRawPXMLContent(rawPXML);
+      setSanitizedRawPXMLContent(rawPXML);
+      setRawPXMLContent(decodeXmlEntities(rawPXML));
     } catch {}
   }, [artifact]);
 
@@ -2560,17 +2575,18 @@ const DashboardEditor: React.FC<DashboardEditorProps> = ({
       return;
     }
 
-    if (content.trim().startsWith(PXML_FILE_START_TAG) && hasArtifact) {
+    if ((isPXMLContent(content)) && hasArtifact) {
       // We have raw PXML - store it and get the compiled version for display
-      setRawPXMLContent(content);
+      setSanitizedRawPXMLContent(content);
+      setRawPXMLContent(decodeXmlEntities(content));
       fetchCompiledVersion();
     } else if (content.trim().startsWith(PXML_COMPILED_START_TAG) && hasArtifact) {
-
       // We have compiled HTML - use it directly but also fetch raw PXML for editing
       setCompiledContent(content);
       fetchRawPXMLForEditing();
     } else {
       setCompiledContent(content);
+      setSanitizedRawPXMLContent(null);
       setRawPXMLContent(null); // Clear raw PXML for non-PXML content
     }
   }, [content, artifact, fetchCompiledVersion, fetchRawPXMLForEditing]);

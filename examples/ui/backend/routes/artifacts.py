@@ -32,6 +32,7 @@ from services.agent import get_or_create_agent
 from services.files import FilesService
 import datetime
 from pathlib import Path
+from pxml.xml_parser import XMLParser
 
 logger = logging.getLogger(__name__)
 
@@ -607,15 +608,26 @@ async def serve_artifact_file(
                         return pdf_response
 
                 # Check if it's a pxml file and raw mode is not requested
-                if file_path.lower().endswith((".pxml")) and not raw:
-                    html_response = await process_artifact_pxml_to_html(
-                        file_path, content_bytes, artifact_id, session, headers
-                    )
-                    if html_response:
-                        return html_response
+                if file_path.lower().endswith((".pxml")):
+                    if not raw:
+                        html_response = await process_artifact_pxml_to_html(
+                            file_path, content_bytes, artifact_id, session, headers
+                        )
+                        if html_response:
+                            return html_response
+                        else:
+                            raise HTTPException(
+                                status_code=500, detail="Failed to convert PXML to HTML"
+                            )
                     else:
-                        raise HTTPException(
-                            status_code=500, detail="Failed to convert PXML to HTML"
+                        # Return the raw PXML content
+                        xml_parser = XMLParser()
+                        preprocessed_content_bytes = xml_parser.preprocess_xml(
+                            content_bytes.decode("utf-8")
+                        ).encode("utf-8")
+                        return Response(
+                            content=preprocessed_content_bytes,
+                            media_type="application/octet-stream",
                         )
 
                 # Determine MIME type for non-markdown files

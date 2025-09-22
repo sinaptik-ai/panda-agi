@@ -5,12 +5,13 @@ Parses XML dashboard files and extracts metadata, transformations, filters, and 
 Handles comparison operators in formulas without requiring manual escaping.
 """
 
-import logging
-import re
 import xml.etree.ElementTree as ET
+import re
+from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
 from xml.sax.saxutils import escape
+import logging
+
 
 logger = logging.getLogger(__name__)
 
@@ -295,6 +296,7 @@ class XMLParser:
             result = ""
 
             while i < len(xml_string):
+
                 # Find next tag
                 opening_tag_start = xml_string.find("<", i)
 
@@ -468,10 +470,20 @@ class XMLParser:
 
         return formula
 
+    def remove_xml_declaration(self, content: str) -> str:
+        """Remove any XML declaration (<?xml version="..." encoding="..."?>)"""
+        return re.sub(r"<\?pxml[^>]*\?>", "", content).strip()
+
+    def preprocess_xml(self, content: str) -> str:
+        """Preprocess XML content to escape comparison operators in formula tags, attributes, and {{}} expressions"""
+        # Remove any XML declaration (<?xml version="..." encoding="..."?>)
+        file_content = self.remove_xml_declaration(content)
+        return self._preprocess_xml_content(file_content)
+
     def parse(self, file_content: str) -> Dict[str, Any]:
         try:
             # Remove any XML declaration (<?xml version="..." encoding="..."?>)
-            file_content = re.sub(r"<\?pxml[^>]*\?>", "", file_content).strip()
+            file_content = self.remove_xml_declaration(file_content)
             # Store content for error reporting
             self._set_content_for_error_reporting(file_content)
 
