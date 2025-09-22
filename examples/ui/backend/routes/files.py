@@ -21,6 +21,7 @@ from utils.datetime_utils import parse_timestamp
 from utils.encoding_utils import convert_bytes_to_utf8
 from services.files import FilesService
 from services.agent import get_or_create_agent
+from pxml.xml_parser import XMLParser
 
 
 logger = logging.getLogger("panda_agi_api")
@@ -373,11 +374,28 @@ async def read_file(
             raise
 
         # Check if it's a PXML file and compile it (unless raw mode is requested)
-        if file_path.lower().endswith((".pxml")) and not raw:
-            content_bytes = content_bytes.decode("utf-8")
+        if file_path.lower().endswith((".pxml")):
+            if not raw:
+                content_bytes = content_bytes.decode("utf-8")
 
-            html_content = await PXMLService.compile_pxml(content_bytes, local_env)
-            return Response(content=html_content, media_type="text/html")
+                html_content = await PXMLService.compile_pxml(content_bytes, local_env)
+                return Response(content=html_content, media_type="text/html")
+            else:
+                # Return the raw PXML content
+                xml_parser = XMLParser()
+                import re
+
+                file_content = content_bytes.decode("utf-8")
+                file_content = re.sub(r"<\?pxml[^>]*\?>", "", file_content).strip()
+                preprocessed_content_bytes = xml_parser._preprocess_xml_content(
+                    file_content
+                )
+
+                print(preprocessed_content_bytes)
+                return Response(
+                    content=preprocessed_content_bytes.encode("utf-8"),
+                    media_type="application/octet-stream",
+                )
 
         # Check if it's a markdown file and raw mode is not requested
         if file_path.lower().endswith((".md", ".markdown")) and not raw:
