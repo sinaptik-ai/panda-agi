@@ -220,7 +220,7 @@ class PandaAgiClient:
         return chunk.split("<conversation_id>")[1].split("</conversation_id>")[0]
 
     def _extract_data(self, chunk: str) -> str:
-        """Extract all data from a chunk"""
+        """Extract all data between '__s_tkn__' and '__e_tkn__' tokens from a chunk"""
         data_regex = r"__s_tkn__(.*?)__e_tkn__"
         matches = re.findall(data_regex, chunk, re.DOTALL)
         return "".join(matches)
