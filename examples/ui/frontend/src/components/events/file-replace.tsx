@@ -1,5 +1,6 @@
 import React from "react";
 import { FileText, Eye } from "lucide-react";
+import { getFileType } from "@/lib/utils";
 
 interface FileReplaceEventProps {
   payload?: {
@@ -32,54 +33,14 @@ const FileReplaceEvent: React.FC<FileReplaceEventProps> = ({
 
   const handlePreviewClick = () => {
     if (onPreviewClick && filename) {
-      const getFileType = (filePath: string): string => {
-        if (!filePath) return "text";
-        const extension = filePath.split(".").pop()?.toLowerCase();
-        if (extension && ["csv", "xls", "xlsx"].includes(extension))
-          return "table";
-        if (extension && ["md", "markdown", "txt"].includes(extension))
-          return "markdown";
-        if (extension && ["html", "htm"].includes(extension)) return "html";
-        if (
-          extension &&
-          [
-            "js",
-            "jsx",
-            "ts",
-            "tsx",
-            "py",
-            "java",
-            "c",
-            "cpp",
-            "go",
-            "rb",
-            "php",
-            "css",
-            "scss",
-            "json",
-            "xml",
-            "yaml",
-            "yml",
-          ].includes(extension)
-        )
-          return "code";
-        if (
-          extension &&
-          ["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(
-            extension
-          )
-        )
-          return "image";
-        if (extension === "pdf") return "pdf";
-        return "text";
-      };
-
+    
       onPreviewClick({
         filename: filename,
         title: filename.split("/").pop(),
         type: getFileType(filename),
         timestamp: timestamp,
       });
+      
     }
   };
 
