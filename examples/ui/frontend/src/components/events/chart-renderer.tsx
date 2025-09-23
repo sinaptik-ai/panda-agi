@@ -30,7 +30,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { BarChart, LineChart, PieChart } from "./charts";
-import type { ChartData } from "./charts";
+import type { ChartData, Transformation } from "./charts";
+import { ExcelHelpers } from "@/lib/excel-helpers";
 
 // Register Chart.js components
 ChartJS.register(
@@ -73,6 +74,111 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
   const [shouldShowLineDropdown, setShouldShowLineDropdown] = useState(false);
   const [shouldShowBarDropdown, setShouldShowBarDropdown] = useState(false);
   const [barChartLimit, setBarChartLimit] = useState<5 | 10 | 'all'>(10);
+
+  // Set up Excel helpers in global context for formula evaluation
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // Make ExcelHelpers available
+      (window as any).ExcelHelpers = ExcelHelpers;
+      
+      // Create a comprehensive mapping of Excel function names to their implementations
+      const excelFunctionMap = {
+        // Core functions
+        IF: ExcelHelpers.excelIf,
+        INT: ExcelHelpers.excelInt,
+        SUM: ExcelHelpers.excelSum,
+        AVERAGE: ExcelHelpers.excelAvg,
+        AVG: ExcelHelpers.excelAvg, // Alias
+        COUNT: ExcelHelpers.excelCount,
+        COUNTA: ExcelHelpers.excelCountA,
+        MAX: ExcelHelpers.excelMax,
+        MIN: ExcelHelpers.excelMin,
+        
+        // Logical functions
+        AND: ExcelHelpers.excelAnd,
+        OR: ExcelHelpers.excelOr,
+        NOT: ExcelHelpers.excelNot,
+        IFS: ExcelHelpers.excelIfs,
+        
+        // Math functions
+        ABS: ExcelHelpers.excelAbs,
+        CEILING: ExcelHelpers.excelCeiling,
+        FLOOR: ExcelHelpers.excelFloor,
+        ROUND: ExcelHelpers.excelRound,
+        ROUNDUP: ExcelHelpers.excelRoundUp,
+        ROUNDDOWN: ExcelHelpers.excelRoundDown,
+        MOD: ExcelHelpers.excelMod,
+        POWER: ExcelHelpers.excelPower,
+        SQRT: ExcelHelpers.excelSqrt,
+        
+        // Text functions
+        LEFT: ExcelHelpers.excelLeft,
+        RIGHT: ExcelHelpers.excelRight,
+        MID: ExcelHelpers.excelMid,
+        LEN: ExcelHelpers.excelLen,
+        UPPER: ExcelHelpers.excelUpper,
+        LOWER: ExcelHelpers.excelLower,
+        TRIM: ExcelHelpers.excelTrim,
+        CONCATENATE: ExcelHelpers.excelConcatenate,
+        CONCAT: ExcelHelpers.excelConcat,
+        
+        // Date functions
+        YEAR: ExcelHelpers.getYear,
+        MONTH: ExcelHelpers.getMonth,
+        DAY: ExcelHelpers.getDay,
+        DATE: ExcelHelpers.excelDate,
+        TODAY: () => new Date(),
+        NOW: () => new Date(),
+        
+        // Lookup functions
+        VLOOKUP: ExcelHelpers.excelVlookup,
+        HLOOKUP: ExcelHelpers.excelHlookup,
+        INDEX: ExcelHelpers.arrayIndex,
+        MATCH: ExcelHelpers.excelMatch,
+        
+        // Statistical functions
+        STDEV: ExcelHelpers.excelStdev,
+        VAR: ExcelHelpers.excelVar,
+        MEDIAN: ExcelHelpers.excelMedian,
+        
+        // Conditional functions
+        SUMIF: ExcelHelpers.arraySumIf,
+        SUMIFS: ExcelHelpers.excelSumifs,
+        COUNTIF: ExcelHelpers.arrayCountIf,
+        COUNTIFS: ExcelHelpers.arrayCountIfs,
+        AVERAGEIF: ExcelHelpers.arrayAverageIf,
+        AVERAGEIFS: ExcelHelpers.excelAverageifs,
+        
+        // Information functions
+        ISNUMBER: ExcelHelpers.excelIsNumber,
+        ISTEXT: ExcelHelpers.excelIsText,
+        ISBLANK: ExcelHelpers.excelIsBlank,
+        ISERROR: ExcelHelpers.excelIsError,
+        
+        // Reference functions
+        ROW: ExcelHelpers.excelRow,
+        OFFSET: ExcelHelpers.excelOffset,
+        
+        // Financial functions
+        PMT: ExcelHelpers.excelPmt,
+        PV: ExcelHelpers.excelPv,
+        FV: ExcelHelpers.excelFv,
+        
+        // Additional functions
+        CHOOSE: ExcelHelpers.excelChoose,
+        RANK: ExcelHelpers.excelRank,
+        LARGE: ExcelHelpers.excelLarge,
+        SMALL: ExcelHelpers.excelSmall,
+        TEXT: ExcelHelpers.excelText,
+        VALUE: parseFloat,
+      };
+      
+      // Make all Excel functions available globally
+      Object.entries(excelFunctionMap).forEach(([name, func]) => {
+        (window as any)[name] = func;
+      });
+    }
+  }, []);
   
   const renderPieDataLimitDropdown = useCallback((isDataLimited: boolean, showAllData: boolean, onToggle: (showAll: boolean) => void) => {
     const MAX_PIE_ENTRIES = 15;
@@ -351,7 +457,107 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
   };
 
 
-  const parseChartFromPXML = (content: string): ChartData | null => {
+  // Formula evaluator for transformations using Excel helpers
+  const evaluateFormula = (formula: string, row: string[], headers: string[], rowIndex: number): any => {
+    if (!formula.startsWith("=")) {
+      return formula;
+    }
+
+    // Decode HTML entities in the formula
+    const decodedFormula = formula
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
+
+    // Remove the = sign
+    let jsExpression = decodedFormula.slice(1);
+
+    // Create a mapping of column references to values
+    const columnMap: { [key: string]: string } = {};
+    headers.forEach((header, index) => {
+      columnMap[header] = row[index] || "";
+      // Also support Excel-style column references (A, B, C, etc.)
+      const columnLetter = String.fromCharCode(65 + index);
+      columnMap[columnLetter] = row[index] || "";
+    });
+
+    // Replace column references with values
+    Object.keys(columnMap).forEach((columnRef) => {
+      const value = columnMap[columnRef];
+      const numericValue = isNaN(Number(value)) ? `"${value}"` : value;
+      // Handle both single column references (C) and full column references (C:C)
+      jsExpression = jsExpression.replace(new RegExp(`\\b${columnRef}:${columnRef}\\b`, 'g'), numericValue);
+      jsExpression = jsExpression.replace(new RegExp(`\\b${columnRef}\\b`, 'g'), numericValue);
+    });
+
+    // Handle Excel comparison operators
+    jsExpression = jsExpression.replace(/<=/g, '<=');
+    jsExpression = jsExpression.replace(/>=/g, '>=');
+    jsExpression = jsExpression.replace(/<>/g, '!=');
+
+    try {
+      // Set up context for Excel functions that need row information
+      const originalCurrentRowIndex = (window as any)._currentRowIndex;
+      const originalCurrentData = (window as any)._currentData;
+      
+      (window as any)._currentRowIndex = rowIndex;
+      (window as any)._currentData = [row];
+
+      // Create a safe evaluation environment with Excel functions
+      const safeEval = new Function('return ' + jsExpression);
+      const result = safeEval();
+
+      // Restore original context
+      (window as any)._currentRowIndex = originalCurrentRowIndex;
+      (window as any)._currentData = originalCurrentData;
+
+      return result;
+    } catch (error) {
+      console.warn(`Error evaluating formula: ${formula}`, error);
+      return null;
+    }
+  };
+
+  // Apply transformations to CSV data
+  const applyTransformations = useCallback((csvData: string[][], transformations: Transformation[]): string[][] => {
+    if (!transformations || transformations.length === 0 || csvData.length === 0) {
+      return csvData;
+    }
+
+    const headers = csvData[0];
+    const dataRows = csvData.slice(1);
+    const transformedData = [...dataRows];
+
+    // Apply each transformation
+    transformations.forEach((transformation) => {
+      const { name: columnName, formula } = transformation;
+      
+      // Add the new column to headers if it doesn't exist
+      if (!headers.includes(columnName)) {
+        headers.push(columnName);
+      }
+
+      // Calculate the column index for the new column
+      const columnIndex = headers.indexOf(columnName);
+
+      // Apply the transformation to each row
+      transformedData.forEach((row, rowIndex) => {
+        // Ensure the row has enough columns
+        while (row.length <= columnIndex) {
+          row.push("");
+        }
+        
+        const transformedValue = evaluateFormula(formula, row, headers, rowIndex);
+        row[columnIndex] = transformedValue !== null ? String(transformedValue) : "";
+      });
+    });
+
+    return [headers, ...transformedData];
+  }, []);
+
+  const parseChartFromPXML = useCallback((content: string): ChartData | null => {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(content, "text/xml");
@@ -374,7 +580,28 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
       const series = Array.from(seriesElements).map((seriesEl) => ({
         name: seriesEl.querySelector("name")?.textContent || "",
         column: seriesEl.querySelector("column")?.textContent || "",
+        aggregation: seriesEl.querySelector("aggregation")?.textContent || "sum",
       }));
+
+      // Parse transformations
+      const transformationsElement = chartElement.querySelector("transformations");
+      const transformations: Transformation[] = [];
+      
+      if (transformationsElement) {
+        const defineColumnElements = transformationsElement.querySelectorAll("define_column");
+        defineColumnElements.forEach((defineColEl) => {
+          const columnName = defineColEl.getAttribute("name");
+          const formulaElement = defineColEl.querySelector("formula");
+          const formula = formulaElement?.textContent || "";
+          
+          if (columnName && formula) {
+            transformations.push({
+              name: columnName,
+              formula: formula,
+            });
+          }
+        });
+      }
 
       return {
         type,
@@ -382,12 +609,13 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
         filePath,
         xAxis,
         series,
+        transformations: transformations.length > 0 ? transformations : undefined,
       };
     } catch (error) {
       console.error("Error parsing chart from PXML:", error);
       return null;
     }
-  };
+  }, []);
 
   const loadCSVData = useCallback(
     async (filePath: string) => {
@@ -414,7 +642,16 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
             if (results.errors.length > 0) {
               console.warn("CSV parsing warnings:", results.errors);
             }
-            setCsvData(results.data as string[][]);
+            
+            // Apply transformations if they exist
+            const chartData = parseChartFromPXML(pxmlContent);
+            let processedData = results.data as string[][];
+            
+            if (chartData?.transformations && chartData.transformations.length > 0) {
+              processedData = applyTransformations(processedData, chartData.transformations);
+            }
+            
+            setCsvData(processedData);
             setIsLoading(false);
           },
           error: (error: Error) => {
@@ -432,7 +669,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
         setIsLoading(false);
       }
     },
-    [conversationId]
+    [conversationId, applyTransformations, parseChartFromPXML, pxmlContent]
   );
 
 
@@ -442,7 +679,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
     if (chartData && chartData.filePath) {
       loadCSVData(chartData.filePath);
     }
-  }, [pxmlContent, conversationId, loadCSVData]);
+  }, [pxmlContent, conversationId, loadCSVData, parseChartFromPXML]);
 
 
 
@@ -462,7 +699,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
         setShouldShowBarDropdown(false);
       }
     }
-  }, [pxmlContent, chartTypeOverride]);
+  }, [pxmlContent, chartTypeOverride, parseChartFromPXML]);
 
   const renderChart = (chartData: ChartData) => {
     const effectiveType = chartTypeOverride || chartData.type;

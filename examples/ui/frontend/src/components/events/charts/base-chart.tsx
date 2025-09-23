@@ -1,6 +1,11 @@
 import { useRef, useEffect } from "react";
 import { Chart as ChartJS, ChartConfiguration } from "chart.js";
 
+export interface Transformation {
+  name: string;
+  formula: string;
+}
+
 export interface ChartData {
   type: string;
   name: string;
@@ -12,7 +17,9 @@ export interface ChartData {
   series: Array<{
     name: string;
     column: string;
+    aggregation?: string;
   }>;
+  transformations?: Transformation[];
 }
 
 export interface BaseChartProps {
@@ -113,8 +120,64 @@ export const processCSVData = (chartData: ChartData, csvData: string[][]) => {
     const groupValues = groupedData.get(xValue)!;
     seriesData.forEach((series, seriesIndex) => {
       const value = parseFloat(row[series.columnIndex] || "0");
-      if (!isNaN(value)) {
-        groupValues[seriesIndex] += value;
+      
+      switch (series.aggregation) {
+        case 'count':
+          // Count aggregation: increment counter for each row
+          groupValues[seriesIndex] += 1;
+          break;
+        case 'sum':
+          // Sum aggregation: add values
+          if (!isNaN(value)) {
+            groupValues[seriesIndex] += value;
+          }
+          break;
+        case 'avg':
+          // Average aggregation: we'll calculate this after processing all rows
+          if (!isNaN(value)) {
+            // Store sum and count for later average calculation
+            if (!groupValues[seriesIndex + '_count']) {
+              groupValues[seriesIndex + '_count'] = 0;
+            }
+            groupValues[seriesIndex] += value;
+            groupValues[seriesIndex + '_count'] += 1;
+          }
+          break;
+        case 'max':
+          // Max aggregation: keep track of maximum value
+          if (!isNaN(value)) {
+            if (groupValues[seriesIndex] === 0 || value > groupValues[seriesIndex]) {
+              groupValues[seriesIndex] = value;
+            }
+          }
+          break;
+        case 'min':
+          // Min aggregation: keep track of minimum value
+          if (!isNaN(value)) {
+            if (groupValues[seriesIndex] === 0 || value < groupValues[seriesIndex]) {
+              groupValues[seriesIndex] = value;
+            }
+          }
+          break;
+        default:
+          // Default to sum aggregation
+          if (!isNaN(value)) {
+            groupValues[seriesIndex] += value;
+          }
+      }
+    });
+  });
+
+  // Post-process average aggregations
+  groupedData.forEach((groupValues) => {
+    seriesData.forEach((series, seriesIndex) => {
+      if (series.aggregation === 'avg') {
+        const count = groupValues[seriesIndex + '_count'] || 0;
+        if (count > 0) {
+          groupValues[seriesIndex] = groupValues[seriesIndex] / count;
+        }
+        // Clean up the temporary count field
+        delete groupValues[seriesIndex + '_count'];
       }
     });
   });
