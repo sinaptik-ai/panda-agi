@@ -61,6 +61,7 @@ class ErrorHandler(ToolHandler):
 @ToolRegistry.register(
     "set_idle",
     aliases=[
+        "set_idle/",
         "set_idle /"
     ],  # This is to solve hallucination issue when calling set_idle tool
     xml_tag="set_idle",

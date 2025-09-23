@@ -639,8 +639,11 @@ Multiple lines.
         # Check if any of the tool results correspond to breaking tools
         list_breaking_tools = self.tool_registry.list_breaking_tools()
         tool_names = [tool_call.get("function_name") for tool_call in tool_results]
+        
+        # Check if any tool name matches a breaking tool (including aliases)
         any_breaking_tool = any(
-            tool_name in list_breaking_tools for tool_name in tool_names
+            self._is_breaking_tool(tool_name, list_breaking_tools) 
+            for tool_name in tool_names
         )
 
         # Check if <user_send_message completed="true"/>
@@ -655,6 +658,25 @@ Multiple lines.
             f"Break agent: {break_agent}, any_breaking_tool: {any_breaking_tool}, user_send_message_completed: {user_send_message_completed}"
         )
         return break_agent
+
+    def _is_breaking_tool(self, tool_name: str, breaking_tools: List[str]) -> bool:
+        """
+        Check if a tool name (including aliases) corresponds to a breaking tool.
+        
+        Args:
+            tool_name: The tool name to check (could be an alias)
+            breaking_tools: List of breaking tool names
+            
+        Returns:
+            True if the tool is breaking, False otherwise
+        """
+        # Check if the tool name itself is a breaking tool
+        if tool_name in breaking_tools:
+            return True
+            
+        # Check if the tool name is an alias for a breaking tool
+        actual_type = self.tool_registry._aliases.get(tool_name, tool_name)
+        return actual_type in breaking_tools
 
     def _structure_tool_response(self, tool_name: str, result_data: str) -> str:
         return f"<tool_response tool_name={tool_name}>{result_data}</tool_response>"
