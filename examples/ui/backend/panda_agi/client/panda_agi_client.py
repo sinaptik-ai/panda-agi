@@ -131,7 +131,7 @@ class PandaAgiClient:
                             "conversation_id": self.conversation_id,
                         }
 
-                    elif self.is_chunk_data(chunk):
+                    else:
                         yield self._extract_data(chunk)
 
         except httpx.HTTPStatusError as e:
@@ -215,16 +215,12 @@ class PandaAgiClient:
             "</conversation_id>"
         )
 
-    def is_chunk_data(self, chunk: str) -> bool:
-        """Check if the chunk is a data chunk"""
-        return chunk.startswith("<data>") and chunk.endswith("</data>")
-
     def _extract_conversation_id(self, chunk: str) -> str:
         """Extract the conversation ID from a chunk"""
         return chunk.split("<conversation_id>")[1].split("</conversation_id>")[0]
 
     def _extract_data(self, chunk: str) -> str:
         """Extract all data from a chunk"""
-        data_regex = r"<data>(.*?)</data>"
+        data_regex = r"__s_tkn__(.*?)__e_tkn__"
         matches = re.findall(data_regex, chunk, re.DOTALL)
         return "".join(matches)
