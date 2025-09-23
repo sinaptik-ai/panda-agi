@@ -107,14 +107,18 @@ export const processCSVData = (chartData: ChartData, csvData: string[][]) => {
     columnIndex: getColumnIndex(series.column, headers),
   }));
 
-  const groupedData = new Map<string, number[]>();
+  const groupedData = new Map<string, { [key: string]: number }>();
 
   dataRows.forEach((row) => {
     const xValue = row[xAxisColumnIndex] || "";
     if (!xValue) return;
 
     if (!groupedData.has(xValue)) {
-      groupedData.set(xValue, new Array(seriesData.length).fill(0));
+      const initialValues: { [key: string]: number } = {};
+      seriesData.forEach((_, index) => {
+        initialValues[index.toString()] = 0;
+      });
+      groupedData.set(xValue, initialValues);
     }
 
     const groupValues = groupedData.get(xValue)!;
@@ -124,12 +128,12 @@ export const processCSVData = (chartData: ChartData, csvData: string[][]) => {
       switch (series.aggregation) {
         case 'count':
           // Count aggregation: increment counter for each row
-          groupValues[seriesIndex] += 1;
+          groupValues[seriesIndex.toString()] += 1;
           break;
         case 'sum':
           // Sum aggregation: add values
           if (!isNaN(value)) {
-            groupValues[seriesIndex] += value;
+            groupValues[seriesIndex.toString()] += value;
           }
           break;
         case 'avg':
@@ -139,30 +143,30 @@ export const processCSVData = (chartData: ChartData, csvData: string[][]) => {
             if (!groupValues[seriesIndex + '_count']) {
               groupValues[seriesIndex + '_count'] = 0;
             }
-            groupValues[seriesIndex] += value;
+            groupValues[seriesIndex.toString()] += value;
             groupValues[seriesIndex + '_count'] += 1;
           }
           break;
         case 'max':
           // Max aggregation: keep track of maximum value
           if (!isNaN(value)) {
-            if (groupValues[seriesIndex] === 0 || value > groupValues[seriesIndex]) {
-              groupValues[seriesIndex] = value;
+            if (groupValues[seriesIndex.toString()] === 0 || value > groupValues[seriesIndex.toString()]) {
+              groupValues[seriesIndex.toString()] = value;
             }
           }
           break;
         case 'min':
           // Min aggregation: keep track of minimum value
           if (!isNaN(value)) {
-            if (groupValues[seriesIndex] === 0 || value < groupValues[seriesIndex]) {
-              groupValues[seriesIndex] = value;
+            if (groupValues[seriesIndex.toString()] === 0 || value < groupValues[seriesIndex.toString()]) {
+              groupValues[seriesIndex.toString()] = value;
             }
           }
           break;
         default:
           // Default to sum aggregation
           if (!isNaN(value)) {
-            groupValues[seriesIndex] += value;
+            groupValues[seriesIndex.toString()] += value;
           }
       }
     });
@@ -174,7 +178,7 @@ export const processCSVData = (chartData: ChartData, csvData: string[][]) => {
       if (series.aggregation === 'avg') {
         const count = groupValues[seriesIndex + '_count'] || 0;
         if (count > 0) {
-          groupValues[seriesIndex] = groupValues[seriesIndex] / count;
+          groupValues[seriesIndex.toString()] = groupValues[seriesIndex.toString()] / count;
         }
         // Clean up the temporary count field
         delete groupValues[seriesIndex + '_count'];
@@ -188,10 +192,13 @@ export const processCSVData = (chartData: ChartData, csvData: string[][]) => {
 
 const generateMockData = (chartData: ChartData) => {
   const categories = ["Branch A", "Branch B", "Branch C", "Branch D"];
-  const groupedData = new Map<string, number[]>();
+  const groupedData = new Map<string, { [key: string]: number }>();
   
   categories.forEach(category => {
-    const values = chartData.series.map(() => Math.floor(Math.random() * 100000) + 10000);
+    const values: { [key: string]: number } = {};
+    chartData.series.forEach((_, index) => {
+      values[index.toString()] = Math.floor(Math.random() * 100000) + 10000;
+    });
     groupedData.set(category, values);
   });
 

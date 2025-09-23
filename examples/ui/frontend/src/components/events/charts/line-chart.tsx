@@ -83,8 +83,8 @@ export const LineChart: React.FC<BaseChartProps> = ({
 
     const datasets = seriesData.map((series, index) => {
       const data = labels.map((label) => {
-        const groupValues = groupedData.get(label) || [];
-        return groupValues[index] || 0;
+        const groupValues = groupedData.get(label) || {};
+        return groupValues[index.toString()] || 0;
       });
 
       const colorScheme = colors[index % colors.length];

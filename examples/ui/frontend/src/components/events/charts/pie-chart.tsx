@@ -109,8 +109,8 @@ export const PieChart: React.FC<BaseChartProps & { isDoughnut?: boolean }> = ({
 
     const datasets = seriesData.map((series, index) => {
       const data = labels.map((label) => {
-        const groupValues = groupedData.get(label) || [];
-        return groupValues[index] || 0;
+        const groupValues = groupedData.get(label) || {};
+        return groupValues[index.toString()] || 0;
       });
 
       return {
