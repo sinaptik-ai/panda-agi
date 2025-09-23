@@ -43,7 +43,7 @@ const ErrorDisplayHeader: React.FC<ErrorDisplayHeaderProps> = ({
       if (lowerError.includes('permission') || lowerError.includes('access')) {
         return "Can't access this file or folder";
       }
-      if (lowerError.includes('not found') || lowerError.includes('no such file')) {
+      if ((lowerError.includes('not found') && !lowerError.includes('content validation failed')) || lowerError.includes('no such file')) {
         return "File or folder not found";
       }
       if (lowerError.includes('exists') || lowerError.includes('already')) {

@@ -39,7 +39,7 @@ const UserFriendlyError: React.FC<UserFriendlyErrorProps> = ({
         return "Can't access this file or folder";
       }
       if (
-        lowerError.includes("not found") ||
+        (lowerError.includes('not found') && !lowerError.includes('content validation failed')) ||
         lowerError.includes("no such file")
       ) {
         return "File or folder not found";
