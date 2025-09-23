@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from "react";
-import { Chart as ChartJS } from "chart.js";
+import { useRef, useEffect } from "react";
+import { Chart as ChartJS, ChartConfiguration } from "chart.js";
 
 export interface ChartData {
   type: string;
@@ -150,12 +150,12 @@ export const getCommonTooltipConfig = () => ({
   padding: 12,
   titleFont: {
     size: 13,
-    weight: "600" as const,
+    weight: "bold" as const,
     family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   bodyFont: {
     size: 12,
-    weight: "500" as const,
+    weight: "normal" as const,
     family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
 });
@@ -170,7 +170,7 @@ export const getCommonScalesConfig = () => ({
       color: "#64748b",
       font: {
         size: 12,
-        weight: "600" as const,
+        weight: "bold" as const,
         family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       },
       padding: 12,
@@ -191,11 +191,11 @@ export const getCommonScalesConfig = () => ({
       color: "#64748b",
       font: {
         size: 12,
-        weight: "500" as const,
+        weight: "normal" as const,
         family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       },
       padding: 16,
-      callback: function (value: any) {
+      callback: function (value: number | string) {
         return `${value.toLocaleString()}`;
       },
     },
@@ -208,7 +208,7 @@ export const getCommonScalesConfig = () => ({
 export const useBaseChart = (
   chartData: ChartData,
   csvData: string[][],
-  config: any
+  config: ChartConfiguration
 ) => {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<ChartJS | null>(null);

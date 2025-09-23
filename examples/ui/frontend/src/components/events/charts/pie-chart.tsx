@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect, useState } from "react";
-import { Chart as ChartJS } from "chart.js";
+import { Chart as ChartJS, TooltipItem, ChartConfiguration } from "chart.js";
 import {
   BaseChartProps,
   colors,
@@ -9,9 +9,22 @@ import {
 
 const MAX_PIE_ENTRIES = 15;
 
+interface PieDataset {
+  label: string;
+  data: number[];
+  backgroundColor: string[];
+  borderColor: string;
+  borderWidth: number;
+  borderRadius: number;
+  hoverBackgroundColor: string[];
+  hoverBorderColor: string;
+  hoverBorderWidth: number;
+  spacing: number;
+}
+
 const limitPieData = (
   labels: string[],
-  datasets: any[],
+  datasets: PieDataset[],
   maxEntries: number
 ) => {
   if (labels.length <= maxEntries)
@@ -47,21 +60,21 @@ const limitPieData = (
       backgroundColor: Array.isArray(dataset.backgroundColor)
         ? [
             ...topEntries.map(
-              (entry) => dataset.backgroundColor[entry.index]
+              (entry) => (dataset.backgroundColor as string[])[entry.index]
             ),
             "#94a3b8",
           ]
         : dataset.backgroundColor,
       borderColor: Array.isArray(dataset.borderColor)
         ? [
-            ...topEntries.map((entry) => dataset.borderColor[entry.index]),
+            ...topEntries.map((entry) => (dataset.borderColor as unknown as string[])[entry.index]),
             "#64748b",
           ]
         : dataset.borderColor,
       hoverBackgroundColor: Array.isArray(dataset.hoverBackgroundColor)
         ? [
             ...topEntries.map(
-              (entry) => dataset.hoverBackgroundColor[entry.index]
+              (entry) => (dataset.hoverBackgroundColor as string[])[entry.index]
             ),
             "#a1a1aa",
           ]
@@ -90,7 +103,6 @@ export const PieChart: React.FC<BaseChartProps & { isDoughnut?: boolean }> = ({
     colors: string[];
   } | null>(null);
   
-  const [isDataLimited, setIsDataLimited] = useState(false);
 
   const { config, wasLimited } = useMemo(() => {
     const { labels, groupedData, seriesData } = processCSVData(chartData, csvData);
@@ -124,7 +136,7 @@ export const PieChart: React.FC<BaseChartProps & { isDoughnut?: boolean }> = ({
     if (!showAllData) {
       const result = limitPieData(labels, datasets, MAX_PIE_ENTRIES);
       finalLabels = result.labels;
-      finalDatasets = result.datasets;
+      finalDatasets = result.datasets as PieDataset[];
       wasLimited = result.wasLimited;
     } else {
       wasLimited = labels.length > MAX_PIE_ENTRIES;
@@ -151,7 +163,7 @@ export const PieChart: React.FC<BaseChartProps & { isDoughnut?: boolean }> = ({
         animation: {
           duration: finalLabels.length > 10 ? 600 : 1000,
           easing: "easeOutCubic" as const,
-          delay: (context: any) => {
+          delay: (context: { dataIndex: number }) => {
             const baseDelay = finalLabels.length > 10 ? 20 : 50;
             return context.dataIndex * baseDelay;
           },
@@ -168,7 +180,7 @@ export const PieChart: React.FC<BaseChartProps & { isDoughnut?: boolean }> = ({
           tooltip: {
             ...getCommonTooltipConfig(),
             callbacks: {
-              label: function (context: any) {
+              label: function (context: TooltipItem<'pie'>) {
                 const value = context.parsed;
                 const total = context.dataset.data.reduce(
                   (a: number, b: number) => a + b,
@@ -199,7 +211,7 @@ export const PieChart: React.FC<BaseChartProps & { isDoughnut?: boolean }> = ({
       chartInstanceRef.current.destroy();
     }
 
-    chartInstanceRef.current = new ChartJS(chartRef.current, config);
+    chartInstanceRef.current = new ChartJS(chartRef.current, config as ChartConfiguration);
 
     // Set legend data after chart is created
     if (config.data.datasets.length > 0) {
@@ -213,8 +225,6 @@ export const PieChart: React.FC<BaseChartProps & { isDoughnut?: boolean }> = ({
       });
     }
     
-    // Update data limitation status
-    setIsDataLimited(wasLimited);
     
     // Notify parent component
     if (onDataLimitedChange) {

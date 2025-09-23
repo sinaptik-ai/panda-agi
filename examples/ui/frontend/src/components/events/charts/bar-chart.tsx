@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect } from "react";
-import { Chart as ChartJS } from "chart.js";
+import { Chart as ChartJS, TooltipItem, ChartConfiguration } from "chart.js";
 import {
   BaseChartProps,
   colors,
@@ -10,9 +10,26 @@ import {
 
 const MAX_BAR_ENTRIES = 10;
 
+interface BarDataset {
+  label: string;
+  data: number[];
+  backgroundColor: string;
+  borderColor: string;
+  borderWidth: number;
+  borderRadius: number;
+  borderSkipped: boolean;
+  hoverBackgroundColor: string;
+  hoverBorderColor: string;
+  hoverBorderWidth: number;
+  shadowOffsetX: number;
+  shadowOffsetY: number;
+  shadowBlur: number;
+  shadowColor: string;
+}
+
 const limitBarData = (
   labels: string[],
-  datasets: any[],
+  datasets: BarDataset[],
   maxEntries: number
 ) => {
   if (labels.length <= maxEntries)
@@ -95,7 +112,7 @@ export const BarChart: React.FC<BaseChartProps> = ({
       const limitEntries = barChartLimit === 5 ? 5 : 10;
       const result = limitBarData(labels, datasets, limitEntries);
       finalLabels = result.labels;
-      finalDatasets = result.datasets;
+      finalDatasets = result.datasets as BarDataset[];
       wasLimited = result.wasLimited;
     } else {
       // Show all data but still track if it would have been limited
@@ -113,7 +130,7 @@ export const BarChart: React.FC<BaseChartProps> = ({
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        indexAxis: isHorizontal ? "y" : "x",
+        indexAxis: (isHorizontal ? "y" : "x") as "x" | "y",
         interaction: {
           intersect: false,
           mode: "index" as const,
@@ -121,7 +138,7 @@ export const BarChart: React.FC<BaseChartProps> = ({
         animation: {
           duration: finalLabels.length > 10 ? 600 : 1000,
           easing: "easeOutCubic" as const,
-          delay: (context: any) => {
+          delay: (context: { dataIndex: number }) => {
             const baseDelay = finalLabels.length > 10 ? 20 : 50;
             return context.dataIndex * baseDelay;
           },
@@ -142,7 +159,7 @@ export const BarChart: React.FC<BaseChartProps> = ({
               padding: 20,
               font: {
                 size: 13,
-                weight: "600" as const,
+                weight: "bold" as const,
                 family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
               },
               color: "#1e293b",
@@ -153,7 +170,7 @@ export const BarChart: React.FC<BaseChartProps> = ({
           tooltip: {
             ...getCommonTooltipConfig(),
             callbacks: {
-              label: function (context: any) {
+              label: function (context: TooltipItem<'bar'>) {
                 const value = context.parsed.y || context.parsed.x;
                 return `${context.dataset.label}: ${value.toLocaleString()}`;
               },
@@ -178,7 +195,7 @@ export const BarChart: React.FC<BaseChartProps> = ({
       chartInstanceRef.current.destroy();
     }
 
-    chartInstanceRef.current = new ChartJS(chartRef.current, config);
+    chartInstanceRef.current = new ChartJS(chartRef.current, config as ChartConfiguration);
 
     // Notify parent component about data limitation
     if (onDataLimitedChange) {
