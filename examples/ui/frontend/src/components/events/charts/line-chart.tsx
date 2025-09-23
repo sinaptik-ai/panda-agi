@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect } from "react";
-import { Chart as ChartJS } from "chart.js";
+import { Chart as ChartJS, TooltipItem, ChartConfiguration } from "chart.js";
 import {
   BaseChartProps,
   colors,
@@ -10,9 +10,33 @@ import {
 
 const MAX_LINE_ENTRIES = 25;
 
+interface LineDataset {
+  label: string;
+  data: number[];
+  backgroundColor: string;
+  borderColor: string;
+  borderWidth: number;
+  hoverBorderColor: string;
+  hoverBorderWidth: number;
+  fill: boolean;
+  tension: number;
+  pointBackgroundColor: string;
+  pointBorderColor: string;
+  pointBorderWidth: number;
+  pointHoverBackgroundColor: string;
+  pointHoverBorderColor: string;
+  pointHoverBorderWidth: number;
+  pointRadius: number;
+  pointHoverRadius: number;
+  shadowOffsetX: number;
+  shadowOffsetY: number;
+  shadowBlur: number;
+  shadowColor: string;
+}
+
 const sampleLineData = (
   labels: string[],
-  datasets: any[],
+  datasets: LineDataset[],
   maxEntries: number
 ) => {
   if (labels.length <= maxEntries)
@@ -120,7 +144,7 @@ export const LineChart: React.FC<BaseChartProps> = ({
         animation: {
           duration: finalLabels.length > 10 ? 600 : 1000,
           easing: "easeOutCubic" as const,
-          delay: (context: any) => {
+          delay: (context: { dataIndex: number }) => {
             const baseDelay = finalLabels.length > 10 ? 20 : 50;
             return context.dataIndex * baseDelay;
           },
@@ -141,7 +165,7 @@ export const LineChart: React.FC<BaseChartProps> = ({
               padding: 20,
               font: {
                 size: 13,
-                weight: "600" as const,
+                weight: "bold" as const,
                 family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
               },
               color: "#1e293b",
@@ -152,7 +176,7 @@ export const LineChart: React.FC<BaseChartProps> = ({
           tooltip: {
             ...getCommonTooltipConfig(),
             callbacks: {
-              label: function (context: any) {
+              label: function (context: TooltipItem<'line'>) {
                 const value = context.parsed.y;
                 return `${context.dataset.label}: ${value.toLocaleString()}`;
               },
@@ -176,7 +200,7 @@ export const LineChart: React.FC<BaseChartProps> = ({
       chartInstanceRef.current.destroy();
     }
 
-    chartInstanceRef.current = new ChartJS(chartRef.current, config);
+    chartInstanceRef.current = new ChartJS(chartRef.current, config as ChartConfiguration);
 
     // Notify parent component about data limitation
     if (onDataLimitedChange) {
