@@ -29,6 +29,14 @@ async def file_read(
     Returns:
         Dict containing the file content and metadata
     """
+    # Check if file exists before attempting to read
+    if not await environment.path_exists(file):
+        return {
+            "status": "error",
+            "message": f"File not found. The file {file} does not exist, therefore I cannot read file content.",
+            "file": file,
+        }
+
     # For line-specific reads, we need to handle it manually
     if start_line is not None or end_line is not None:
         try:
@@ -123,6 +131,14 @@ async def file_str_replace(
         Dict containing the operation status
     """
     try:
+        # Check if file exists before attempting to read
+        if not await environment.path_exists(file):
+            return {
+                "status": "error",
+                "message": f"File not found. The file {file} does not exist, therefore I cannot perform string replacement.",
+                "file": file,
+            }
+
         # Read the file content
         result = await environment.read_file(file)
         if result["status"] != "success":
@@ -134,7 +150,7 @@ async def file_str_replace(
         if old_str not in content:
             return {
                 "status": "error",
-                "message": f"find_str not found in file {file}. Replace operation aborted.",
+                "message": f"String not found. The text '{old_str}' was not found in file {file}, therefore the replace operation was aborted.",
                 "file": result["path"],
             }
 
@@ -178,6 +194,14 @@ async def file_find_in_content(
         Dict containing the search results
     """
     try:
+        # Check if file exists before attempting to read
+        if not await environment.path_exists(file):
+            return {
+                "status": "error",
+                "message": f"File not found. The file {file} does not exist, therefore I cannot search within file content.",
+                "file": file,
+            }
+
         # Read the file content
         result = await environment.read_file(file)
         if result["status"] != "success":
