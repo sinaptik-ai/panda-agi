@@ -81,7 +81,8 @@ def _fix_llm_xml_mistakes(content: str) -> str:
             return f'<{_pascal_to_snake_case(tag_name)}{attributes}>'
     
     # Match opening and closing tags, but exclude <?xml and similar processing instructions
-    content = re.sub(r'<([^?!][^>]*)>', replace_tag, content)
+    # Use a more specific pattern that only matches actual XML tag names (alphanumeric + underscore)
+    content = re.sub(r'<([/]?[a-zA-Z_][a-zA-Z0-9_]*(?:\s+[^>]*)?)>', replace_tag, content)
     
     print(f"Fixed LLM XML mistakes. Resulting content: {content}")
     return content
