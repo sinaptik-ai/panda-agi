@@ -46,7 +46,12 @@ const DashboardModalPreview: React.FC<DashboardModalPreviewProps> = ({
   // Suggested name state
   const [suggestedName, setSuggestedName] = useState<string>("");
 
-
+  const handleClose = () => {
+    setIsSaved(false);
+    setSavedArtifact(null);
+    setSuggestedName("");
+    onClose();
+  };
 
   // Function to check for existing saved artifact
   const checkExistingArtifact = () => {
@@ -265,7 +270,7 @@ const DashboardModalPreview: React.FC<DashboardModalPreviewProps> = ({
       removeArtifact(previewData.filename, previewData.timestamp);
     }
 
-    onClose();
+    handleClose();
   };
 
   // Handle title change
@@ -331,7 +336,7 @@ const DashboardModalPreview: React.FC<DashboardModalPreviewProps> = ({
         artifact={savedArtifact}
         onArtifactUpdated={handleArtifactUpdated}
         onArtifactDeleted={handleArtifactDeleted}
-        onClose={onClose}
+        onClose={handleClose}
         isSaved={isSaved}
         previewData={previewData}
         conversationId={conversationId}
@@ -344,7 +349,7 @@ const DashboardModalPreview: React.FC<DashboardModalPreviewProps> = ({
   return (
     <ModalWrapper
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={
         suggestedName ||
         previewData.title ||
