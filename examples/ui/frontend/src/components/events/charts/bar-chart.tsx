@@ -70,7 +70,7 @@ export const BarChart: React.FC<BaseChartProps> = ({
   chartData,
   csvData,
   chartTypeOverride,
-  showAllData = false,
+  showAllData = false, // eslint-disable-line @typescript-eslint/no-unused-vars
   onDataLimitedChange,
   barChartLimit = 10,
 }) => {
@@ -119,7 +119,8 @@ export const BarChart: React.FC<BaseChartProps> = ({
       wasLimited = labels.length >= MAX_BAR_ENTRIES;
     }
 
-    const isHorizontal = chartData.type === "horizontal_bar";
+    const effectiveType = chartTypeOverride || chartData.type;
+    const isHorizontal = effectiveType === "horizontal_bar";
 
     const config = {
       type: "bar" as const,
@@ -177,12 +178,55 @@ export const BarChart: React.FC<BaseChartProps> = ({
             },
           },
         },
-        scales: getCommonScalesConfig(),
+        scales: isHorizontal ? {
+          x: {
+            beginAtZero: true,
+            grid: {
+              display: false,
+            },
+            ticks: {
+              color: "#64748b",
+              font: {
+                size: 12,
+                weight: "bold" as const,
+                family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+              },
+              padding: 12,
+              callback: function (value: number | string) {
+                return `${value.toLocaleString()}`;
+              },
+            },
+            border: {
+              display: false,
+            },
+          },
+          y: {
+            beginAtZero: true,
+            grid: {
+              color: "rgba(148, 163, 184, 0.3)",
+              drawBorder: false,
+              drawTicks: false,
+              lineWidth: 1,
+            },
+            ticks: {
+              color: "#64748b",
+              font: {
+                size: 12,
+                weight: "normal" as const,
+                family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+              },
+              padding: 16,
+            },
+            border: {
+              display: false,
+            },
+          },
+        } : getCommonScalesConfig(),
       },
     };
 
     return { config, wasLimited };
-  }, [JSON.stringify(chartData), JSON.stringify(csvData), chartTypeOverride, showAllData, barChartLimit]);
+  }, [chartData, csvData, chartTypeOverride, barChartLimit]);
 
 
   const chartRef = useRef<HTMLCanvasElement>(null);

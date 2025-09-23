@@ -441,7 +441,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
 
   // Helper function to determine if chart type can be switched between bar and line
   const canSwitchChartType = (chartType: string) => {
-    return chartType === "bar" || chartType === "line";
+    return chartType === "bar" || chartType === "horizontal_bar" || chartType === "line";
   };
 
   // Helper function to get available chart types for switching
@@ -450,6 +450,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
 
     const types = [
       { value: "bar", label: "Bar Chart", icon: BarChart3 },
+      { value: "horizontal_bar", label: "Horizontal Bar Chart", icon: BarChart3 },
       { value: "line", label: "Line Chart", icon: TrendingUp },
     ];
 
