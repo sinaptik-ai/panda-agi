@@ -296,7 +296,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         // Create new file previews to add to existing ones (cumulative)
         const baseId = Date.now();
         const newFilePreviews = await Promise.all(
-          Array.from(validSizeFiles).map(async (file, index) => {
+          validSizeFiles.map(async (file, index) => {
             let content = undefined;
 
             // Read CSV files for preview
