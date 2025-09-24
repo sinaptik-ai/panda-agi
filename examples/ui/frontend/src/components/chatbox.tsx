@@ -267,6 +267,11 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
           (file) => !file.name.toLowerCase().endsWith(".csv")
         );
 
+        // Filter files by size (10MB limit)
+        const maxSizeInBytes = 10 * 1024 * 1024; // 10MB
+        const validSizeFiles = csvFiles.filter((file) => file.size <= maxSizeInBytes);
+        const oversizedFiles = csvFiles.filter((file) => file.size > maxSizeInBytes);
+
         // Show error message for non-CSV files
         if (nonCsvFiles.length > 0) {
           toast.error(
@@ -274,17 +279,24 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
               nonCsvFiles.length > 1 ? "s" : ""
             }: only CSV files are allowed.`
           );
+        }
 
-          // If no CSV files, return early
-          if (csvFiles.length === 0) {
-            return;
-          }
+        // Show error message for oversized files
+        if (oversizedFiles.length > 0) {
+          toast.error(
+            `The file you are uploading exceeds the maximum file size of 10 megabytes`
+          );
+        }
+
+        // If no valid files, return early
+        if (validSizeFiles.length === 0) {
+          return;
         }
 
         // Create new file previews to add to existing ones (cumulative)
         const baseId = Date.now();
         const newFilePreviews = await Promise.all(
-          Array.from(csvFiles).map(async (file, index) => {
+          validSizeFiles.map(async (file, index) => {
             let content = undefined;
 
             // Read CSV files for preview
@@ -310,7 +322,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         setUploadingFiles(true);
 
         try {
-          const uploadPromises = Array.from(files).map(async (file, index) => {
+          const uploadPromises = Array.from(validSizeFiles).map(async (file, index) => {
             const filePreviewId = newFilePreviews[index].id;
 
             try {
