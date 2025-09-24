@@ -39,7 +39,7 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
     // Use setTimeout to prevent blocking the UI
     const parseTimeout = setTimeout(() => {
       try {
-        const result = Papa.parse(content, {
+        Papa.parse(content, {
           worker: true,
           skipEmptyLines: true,
           complete: (results) => {
@@ -49,7 +49,7 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
             setParseProgress(100);
             setIsLoading(false);
           },
-          error: (error: any) => {
+          error: (error: Error) => {
             clearInterval(progressInterval);
             console.error("Error parsing CSV:", error);
             setTableData([]);
