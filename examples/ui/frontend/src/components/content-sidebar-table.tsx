@@ -40,6 +40,7 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
     const parseTimeout = setTimeout(() => {
       try {
         const result = Papa.parse(content, {
+          worker: true,
           skipEmptyLines: true,
           complete: (results) => {
             clearInterval(progressInterval);
