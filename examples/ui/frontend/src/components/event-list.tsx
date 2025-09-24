@@ -181,7 +181,7 @@ const EventList: React.FC<EventListProps> = ({
       timestamp:message.event.timestamp
     };
     return <Component {...componentProps} />;
-  } else if (!["completed_task"].includes(eventType)) {
+  } else if (!["set_idle"].includes(eventType)) {
     // Use ToolUseEvent as fallback for any unknown tool
     const toolPayload = {
       tool_name: eventType,

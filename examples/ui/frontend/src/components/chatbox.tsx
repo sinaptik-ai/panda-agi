@@ -722,7 +722,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                   // Check if conversation is completed
                   if (
                     eventData.data &&
-                    (eventData.data.tool_name === "completed_task" ||
+                    (eventData.data.tool_name === "set_idle" ||
                       ["exception", "error"].includes(
                         eventData.data.event_type
                       ))
