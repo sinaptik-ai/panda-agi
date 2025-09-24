@@ -59,7 +59,7 @@ interface ChartRendererProps {
 }
 
 
-const ChartRenderer: React.FC<ChartRendererProps> = ({
+const ChartRenderer: React.FC<ChartRendererProps> = React.memo(({
   pxmlContent,
   conversationId,
 }) => {
@@ -75,9 +75,9 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
   const [shouldShowBarDropdown, setShouldShowBarDropdown] = useState(false);
   const [barChartLimit, setBarChartLimit] = useState<5 | 10 | 'all'>(10);
 
-  // Set up Excel helpers in global context for formula evaluation
+  // Set up Excel helpers in global context for formula evaluation (only once)
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && !(window as any).__excelHelpersInitialized) {
       // Make ExcelHelpers available
       (window as any).ExcelHelpers = ExcelHelpers;
       
@@ -177,6 +177,9 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
       Object.entries(excelFunctionMap).forEach(([name, func]) => {
         (window as any)[name] = func;
       });
+      
+      // Mark as initialized to prevent re-initialization
+      (window as any).__excelHelpersInitialized = true;
     }
   }, []);
   
@@ -670,7 +673,8 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
         setIsLoading(false);
       }
     },
-    [conversationId, applyTransformations, parseChartFromPXML, pxmlContent]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conversationId, pxmlContent]
   );
 
 
@@ -680,7 +684,8 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
     if (chartData && chartData.filePath) {
       loadCSVData(chartData.filePath);
     }
-  }, [pxmlContent, conversationId, loadCSVData, parseChartFromPXML]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pxmlContent, conversationId, loadCSVData]);
 
 
 
@@ -700,7 +705,8 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
         setShouldShowBarDropdown(false);
       }
     }
-  }, [pxmlContent, chartTypeOverride, parseChartFromPXML]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pxmlContent, chartTypeOverride]);
 
   const renderChart = (chartData: ChartData) => {
     const effectiveType = chartTypeOverride || chartData.type;
@@ -969,6 +975,8 @@ const ChartRenderer: React.FC<ChartRendererProps> = ({
       )}
     </div>
   );
-};
+});
+
+ChartRenderer.displayName = 'ChartRenderer';
 
 export default ChartRenderer;

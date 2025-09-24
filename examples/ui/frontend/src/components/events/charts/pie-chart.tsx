@@ -5,6 +5,7 @@ import {
   colors,
   processCSVData,
   getCommonTooltipConfig,
+  useBaseChart,
 } from "./base-chart";
 
 const MAX_PIE_ENTRIES = 15;
@@ -89,7 +90,7 @@ const limitPieData = (
   };
 };
 
-export const PieChart: React.FC<BaseChartProps & { isDoughnut?: boolean }> = ({
+export const PieChart: React.FC<BaseChartProps & { isDoughnut?: boolean }> = React.memo(({
   chartData,
   csvData,
   chartTypeOverride,
@@ -198,22 +199,12 @@ export const PieChart: React.FC<BaseChartProps & { isDoughnut?: boolean }> = ({
     };
 
     return { config, wasLimited };
-  }, [JSON.stringify(chartData), JSON.stringify(csvData), chartTypeOverride, showAllData, isDoughnut]);
+  }, [chartData, csvData, chartTypeOverride, showAllData, isDoughnut]);
 
+  const { chartRef, chartInstanceRef } = useBaseChart(chartData, csvData, config as ChartConfiguration);
 
-  const chartRef = useRef<HTMLCanvasElement>(null);
-  const chartInstanceRef = useRef<ChartJS | null>(null);
-
+  // Set legend data after chart is created
   useEffect(() => {
-    if (!chartRef.current) return;
-
-    if (chartInstanceRef.current) {
-      chartInstanceRef.current.destroy();
-    }
-
-    chartInstanceRef.current = new ChartJS(chartRef.current, config as ChartConfiguration);
-
-    // Set legend data after chart is created
     if (config.data.datasets.length > 0) {
       const dataset = config.data.datasets[0];
       setLegendData({
@@ -224,19 +215,14 @@ export const PieChart: React.FC<BaseChartProps & { isDoughnut?: boolean }> = ({
           : [dataset.backgroundColor],
       });
     }
-    
-    
-    // Notify parent component
+  }, [config]);
+
+  // Notify parent component about data limitation
+  useEffect(() => {
     if (onDataLimitedChange) {
       onDataLimitedChange(wasLimited);
     }
-
-    return () => {
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.destroy();
-      }
-    };
-  }, [config]);
+  }, [wasLimited, onDataLimitedChange]);
 
 
   return (
@@ -273,4 +259,6 @@ export const PieChart: React.FC<BaseChartProps & { isDoughnut?: boolean }> = ({
       )}
     </>
   );
-};
+});
+
+PieChart.displayName = 'PieChart';

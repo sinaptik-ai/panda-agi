@@ -6,6 +6,7 @@ import {
   processCSVData,
   getCommonTooltipConfig,
   getCommonScalesConfig,
+  useBaseChart,
 } from "./base-chart";
 
 const MAX_LINE_ENTRIES = 25;
@@ -71,7 +72,7 @@ const sampleLineData = (
   };
 };
 
-export const LineChart: React.FC<BaseChartProps> = ({
+export const LineChart: React.FC<BaseChartProps> = React.memo(({
   chartData,
   csvData,
   chartTypeOverride,
@@ -188,35 +189,22 @@ export const LineChart: React.FC<BaseChartProps> = ({
     };
 
     return { config, wasLimited };
-  }, [JSON.stringify(chartData), JSON.stringify(csvData), chartTypeOverride, showAllData]);
+  }, [chartData, csvData, chartTypeOverride, showAllData]);
 
-  const chartRef = useRef<HTMLCanvasElement>(null);
-  const chartInstanceRef = useRef<ChartJS | null>(null);
+  const { chartRef, chartInstanceRef } = useBaseChart(chartData, csvData, config as ChartConfiguration);
 
+  // Notify parent component about data limitation
   useEffect(() => {
-    if (!chartRef.current) return;
-
-    if (chartInstanceRef.current) {
-      chartInstanceRef.current.destroy();
-    }
-
-    chartInstanceRef.current = new ChartJS(chartRef.current, config as ChartConfiguration);
-
-    // Notify parent component about data limitation
     if (onDataLimitedChange) {
       onDataLimitedChange(wasLimited);
     }
-
-    return () => {
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.destroy();
-      }
-    };
-  }, [config, wasLimited, onDataLimitedChange]);
+  }, [wasLimited, onDataLimitedChange]);
 
   return (
     <div className="relative h-64 sm:h-80">
       <canvas ref={chartRef} className="w-full h-full" />
     </div>
   );
-};
+});
+
+LineChart.displayName = 'LineChart';

@@ -297,7 +297,7 @@ export const useBaseChart = (
         chartInstanceRef.current.destroy();
       }
     };
-  }, [JSON.stringify(config)]);
+  }, [config]);
 
   return { chartRef, chartInstanceRef };
 };

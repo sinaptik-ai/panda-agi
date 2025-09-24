@@ -16,9 +16,7 @@ class DashboardCore {
    * Update dashboard metadata using data attributes for reliable targeting
    * @param {Object} metadata - Dashboard metadata object
    */
-  updateMetadata(metadata) {
-    console.log('Updating dashboard metadata:', metadata);
-    
+  updateMetadata(metadata) {    
     // Update document title (always update, even if empty)
     if (metadata.hasOwnProperty('name')) {
       const titleElement = document.querySelector('title');
@@ -32,9 +30,6 @@ class DashboardCore {
       const nameElement = document.querySelector('[data-dashboard-name]');
       if (nameElement) {
         nameElement.textContent = metadata.name || '';
-        console.log('Updated dashboard name to:', metadata.name || '(empty)');
-      } else {
-        console.warn('Dashboard name element not found');
       }
     }
     
@@ -43,9 +38,6 @@ class DashboardCore {
       const descElement = document.querySelector('[data-dashboard-description]');
       if (descElement) {
         descElement.textContent = metadata.description || '';
-        console.log('Updated dashboard description to:', metadata.description || '(empty)');
-      } else {
-        console.warn('Dashboard description element not found');
       }
     }
     
@@ -58,7 +50,6 @@ class DashboardCore {
         classesToRemove.forEach(cls => iconElement.classList.remove(cls));
         // Add the new icon class
         iconElement.classList.add(metadata.icon);
-        console.log('Updated dashboard icon to:', metadata.icon);
       } else {
         console.warn('Dashboard icon element not found');
       }
@@ -68,7 +59,6 @@ class DashboardCore {
     if (metadata.hasOwnProperty('theme') && metadata.theme) {
       document.body.className = document.body.className.replace(/theme-\w+/g, '');
       document.body.classList.add(`theme-${metadata.theme}`);
-      console.log('Updated dashboard theme to:', metadata.theme);
     }
     
     // Update filters if they exist in metadata
@@ -126,11 +116,8 @@ class DashboardCore {
     const filtersContainer = document.querySelector('section.bg-white.shadow-sm.border-b');
     
     if (hasFilters) {
-      console.log('🔄 Initializing filters with JavaScript rendering:', this.config.filters);
-      
       // Initialize dynamic filters system if not already done
       if (window.dynamicFilters && !window.dynamicFilters.initialized) {
-        console.log('🔧 Initializing dynamic filters system...');
         window.dynamicFilters.initialize(this.config);
       }
       
@@ -158,11 +145,7 @@ class DashboardCore {
         const filterHTML = window.FilterRenderer.renderFilter(filter);
         gridContainer.insertAdjacentHTML('beforeend', filterHTML);
       });
-      
-      console.log('✅ Successfully initialized', this.config.filters.length, 'filters');
     } else {
-      console.log('No filters to initialize - hiding filters section');
-      
       // Hide the filters container if it exists
       if (filtersContainer) {
         filtersContainer.style.display = 'none';
@@ -580,7 +563,6 @@ window.addEventListener("message", (event) => {
     }
   } else if (event.data.type === "update-filter-data-attributes") {
     const { filterId, config } = event.data;
-    console.log('🎯 Received update-filter-data-attributes message:', { filterId, config });
     
     // Update filter using the specific filter update system (similar to KPI/chart updates)
     try {
@@ -603,29 +585,19 @@ window.addEventListener("message", (event) => {
         for (const variation of variations) {
           filterContainer = document.getElementById(variation);
           if (filterContainer) {
-            console.log('✅ Found filter container with variation:', variation);
             break;
           }
         }
       }
-      
-      console.log('🔍 Looking for filter container with ID:', filterId);
-      console.log('🔍 Found filter container:', filterContainer);
-      
+
       if (filterContainer) {
-        console.log('✅ Found filter container:', filterId, filterContainer);
-        
         // Update the filter display text in the button (for name changes)
         const baseId = filterId.replace('_dropdown', '');
         
         // Update the display text in the button (e.g., "Select Branch" -> "Select Branchi")
         const displayElement = document.getElementById(baseId + '_display');
         if (displayElement) {
-          console.log('🔍 Found display element, updating from:', displayElement.textContent, 'to:', 'Select ' + config.name);
           displayElement.textContent = 'Select ' + config.name;
-          console.log('✅ Updated filter display to:', 'Select ' + config.name);
-        } else {
-          console.log('❌ No display element found for:', baseId + '_display');
         }
         
         // Update the main filter label (the one with class "block text-sm font-medium text-gray-700 mb-2")
@@ -636,9 +608,7 @@ window.addEventListener("message", (event) => {
         if (filterComponent) {
           mainLabel = filterComponent.querySelector('label.block.text-sm.font-medium.text-gray-700.mb-2');
           if (mainLabel) {
-            console.log('🔍 Found label in filter component, updating from:', mainLabel.textContent, 'to:', config.name);
             mainLabel.textContent = config.name;
-            console.log('✅ Updated filter component label to:', config.name);
           }
         }
         
@@ -649,9 +619,7 @@ window.addEventListener("message", (event) => {
             // Check if this label is associated with our filter by looking at nearby elements
             const parent = label.parentElement;
             if (parent && (parent.querySelector(`#${baseId}`) || parent.querySelector(`[id*="${baseId}"]`))) {
-              console.log('🔍 Found associated label, updating from:', label.textContent, 'to:', config.name);
               label.textContent = config.name;
-              console.log('✅ Updated associated label to:', config.name);
               mainLabel = label;
               break;
             }
@@ -663,9 +631,7 @@ window.addEventListener("message", (event) => {
           const allLabels = document.querySelectorAll('label');
           for (const label of allLabels) {
             if (label.textContent && (label.textContent.includes('Branch') || label.textContent.includes('Payment') || label.textContent.includes('Customer'))) {
-              console.log('🔍 Found fallback label, updating from:', label.textContent, 'to:', config.name);
               label.textContent = config.name;
-              console.log('✅ Updated fallback label to:', config.name);
               break;
             }
           }
@@ -673,7 +639,6 @@ window.addEventListener("message", (event) => {
         
         // Update dropdown values if formula changed (for formula changes)
         if (config.values_formula) {
-          console.log('🔍 Updating dropdown values with formula:', config.values_formula);
           try {
             // Try to compute new values from the formula
             let newValues = [];
@@ -694,12 +659,10 @@ window.addEventListener("message", (event) => {
               }
             }
             
-            console.log('🔍 Computed new values:', newValues);
             
             // Update the dropdown options
             const optionsContainer = document.getElementById(baseId + '_options');
             if (optionsContainer && newValues.length > 0) {
-              console.log('🔍 Updating options container with new values');
               optionsContainer.innerHTML = '';
               
               newValues.forEach((value, index) => {
@@ -722,8 +685,6 @@ window.addEventListener("message", (event) => {
                 optionDiv.appendChild(label);
                 optionsContainer.appendChild(optionDiv);
               });
-              
-              console.log('✅ Updated dropdown options with new values');
             }
           } catch (error) {
             console.warn('Error computing filter values:', error);
@@ -738,7 +699,6 @@ window.addEventListener("message", (event) => {
         // Try to reinitialize the filter with new values
         if (window.dashboard && window.dashboard.initializeFilter) {
           window.dashboard.initializeFilter(config, false);
-          console.log('Successfully reinitialized filter:', filterId);
         } else {
           // Fallback to direct filter initialization functions
           let values = [];
@@ -759,16 +719,13 @@ window.addEventListener("message", (event) => {
           } else if (config.type === 'date_range') {
             window.initializeDateRangeFilter && window.initializeDateRangeFilter(filterId, values || [], config.name);
           }
-          console.log('Reinitialized filter using fallback method:', filterId);
         }
       } else {
         console.warn('❌ Filter container not found for:', filterId);
-        console.log('🔍 Available elements with similar IDs:');
         const allElements = document.querySelectorAll('[id*="' + filterId + '"]');
         allElements.forEach(el => console.log('  -', el.id, el));
-        
+
         // Also check for all filter-related elements
-        console.log('🔍 All filter-related elements in DOM:');
         const allFilterElements = document.querySelectorAll('[id*="filter"], [class*="filter"]');
         allFilterElements.forEach(el => console.log('  -', el.id, el.className, el));
       }
@@ -778,13 +735,11 @@ window.addEventListener("message", (event) => {
    } else if (event.data.type === "update-filter-config") {
      // New JavaScript-based filter update system
      const { filterId, config } = event.data;
-     console.log('🎯 Received update-filter-config message:', { filterId, config });
      
      try {
        // Update the filter configuration using the new system
        if (window.updateFilterConfig) {
          window.updateFilterConfig(filterId, config);
-         console.log('✅ Updated filter using JavaScript rendering system:', filterId);
        } else {
          console.warn('❌ updateFilterConfig function not available, falling back to old method');
          // Fallback to old method if new system not available
@@ -795,8 +750,6 @@ window.addEventListener("message", (event) => {
      }
    } else if (event.data.type === "update-dashboard-metadata") {
     const { dashboardMetadata } = event.data;
-    console.log('📥 Received update-dashboard-metadata message:', dashboardMetadata);
-    console.log('📥 Filters in message:', dashboardMetadata.filters);
     
     // Use the robust updateMetadata method
     if (window.dashboard && window.dashboard.updateMetadata) {
@@ -821,13 +774,11 @@ window.addEventListener("message", (event) => {
           window.dynamicFilters.filterConfigs = dashboardMetadata.filters;
           // Re-initialize if not already done
           if (!window.dynamicFilters.initialized) {
-            console.log('🔧 Re-initializing dynamic filters system with new config...');
             window.dynamicFilters.initialize({ metadata: window.dashboard.config.metadata, filters: dashboardMetadata.filters });
           }
         }
         
         // Reinitialize all filters to handle additions, removals, and changes
-        console.log('🔄 Reinitializing all filters with new configuration:', dashboardMetadata.filters);
         window.dashboard.initializeFilters();
       }
     }
@@ -840,11 +791,8 @@ window.addEventListener("message", (event) => {
         console.warn('Error forcing dashboard update:', error);
       }
     }
-    
-    console.log('Dashboard metadata updated:', dashboardMetadata);
   } else if (event.data.type === "dashboard-saved") {
     const { dashboardMetadata } = event.data;
-    console.log('💾 Dashboard saved:', dashboardMetadata);
     
     // Update the dashboard configuration with the saved metadata
     if (window.dashboard && window.dashboard.config) {
@@ -861,8 +809,6 @@ window.addEventListener("message", (event) => {
         if (window.dynamicFilters) {
           window.dynamicFilters.filterConfigs = dashboardMetadata.filters;
         }
-        
-        console.log('💾 Updated dashboard config with saved filters:', window.dashboard.config.filters);
       }
     }
   } else if (event.data.type === "clear-selection") {
@@ -881,9 +827,7 @@ window.addEventListener("message", (event) => {
       // Reset any inline styles that might have been applied
       container.style.transition = '';
       container.style.borderRadius = '';
-    });
-    
-    console.log('Selection cleared from dashboard');
+    }); 
   }
 });
 
@@ -1057,7 +1001,6 @@ window.FilterRenderer = {
       if (window.dynamicFilters && window.dynamicFilters.initialized && window.dynamicFilters.computeFilterValues) {
         return window.dynamicFilters.computeFilterValues(formula);
       } else {
-        console.log('🔄 Dynamic filters not ready, using fallback for formula:', formula);
         // Fallback: try to evaluate the formula directly
         const cleanFormula = formula.replace(/^=/, '');
         if (cleanFormula.startsWith('unique(')) {
@@ -1119,8 +1062,6 @@ window.FilterRenderer = {
       if (config.type === 'number_range' && config.values_formula) {
         this.updateRangeFilterValues(baseId, config.values_formula);
       }
-      
-      console.log('✅ Updated filter using JavaScript renderer:', filterId);
     } else {
       console.warn('❌ Filter element not found for update:', baseId);
     }
@@ -1158,8 +1099,6 @@ window.FilterRenderer = {
           
           if (minValSpan) minValSpan.textContent = minVal;
           if (maxValSpan) maxValSpan.textContent = maxVal;
-          
-          console.log('✅ Updated range values:', { min: minVal, max: maxVal });
         }
       }
     } catch (error) {

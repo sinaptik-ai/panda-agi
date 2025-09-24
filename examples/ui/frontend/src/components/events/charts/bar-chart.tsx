@@ -6,6 +6,7 @@ import {
   processCSVData,
   getCommonTooltipConfig,
   getCommonScalesConfig,
+  useBaseChart,
 } from "./base-chart";
 
 const MAX_BAR_ENTRIES = 10;
@@ -66,7 +67,7 @@ const limitBarData = (
   return { labels: limitedLabels, datasets: limitedDatasets, wasLimited: true };
 };
 
-export const BarChart: React.FC<BaseChartProps> = ({
+export const BarChart: React.FC<BaseChartProps> = React.memo(({
   chartData,
   csvData,
   chartTypeOverride,
@@ -229,33 +230,20 @@ export const BarChart: React.FC<BaseChartProps> = ({
   }, [chartData, csvData, chartTypeOverride, barChartLimit]);
 
 
-  const chartRef = useRef<HTMLCanvasElement>(null);
-  const chartInstanceRef = useRef<ChartJS | null>(null);
+  const { chartRef, chartInstanceRef } = useBaseChart(chartData, csvData, config as ChartConfiguration);
 
+  // Notify parent component about data limitation
   useEffect(() => {
-    if (!chartRef.current) return;
-
-    if (chartInstanceRef.current) {
-      chartInstanceRef.current.destroy();
-    }
-
-    chartInstanceRef.current = new ChartJS(chartRef.current, config as ChartConfiguration);
-
-    // Notify parent component about data limitation
     if (onDataLimitedChange) {
       onDataLimitedChange(wasLimited);
     }
-
-    return () => {
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.destroy();
-      }
-    };
-  }, [config, wasLimited, onDataLimitedChange]);
+  }, [wasLimited, onDataLimitedChange]);
 
   return (
     <div className="relative h-64 sm:h-80">
       <canvas ref={chartRef} className="w-full h-full" />
     </div>
   );
-};
+});
+
+BarChart.displayName = 'BarChart';
