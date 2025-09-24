@@ -284,11 +284,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         // Show error message for oversized files
         if (oversizedFiles.length > 0) {
           toast.error(
-            `File${
-              oversizedFiles.length > 1 ? "s" : ""
-            } too large: ${oversizedFiles.map(f => f.name).join(", ")} ${
-              oversizedFiles.length > 1 ? "are" : "is"
-            } larger than 10MB.`
+            `The file you are uploading exceed the maximum filesize of 10 megabytes`
           );
         }
 
