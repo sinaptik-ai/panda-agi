@@ -467,15 +467,27 @@ class XMLParser:
 
         return formula
 
+    def extract_xml_declaration(self, content: str) -> str:
+        """Extract XML declaration (<?xml version="..." encoding="..."?>)"""
+        match = re.search(r"<\?pxml[^>]*\?>", content)
+        return match.group(0) if match else ""
+
     def remove_xml_declaration(self, content: str) -> str:
         """Remove any XML declaration (<?xml version="..." encoding="..."?>)"""
         return re.sub(r"<\?pxml[^>]*\?>", "", content).strip()
 
     def preprocess_xml(self, content: str) -> str:
         """Preprocess XML content to escape comparison operators in formula tags, attributes, and {{}} expressions"""
+        # Extract XML declaration before removing it
+        xml_declaration = self.extract_xml_declaration(content)
         # Remove any XML declaration (<?xml version="..." encoding="..."?>)
         file_content = self.remove_xml_declaration(content)
-        return self._preprocess_xml_content(file_content)
+        # Preprocess the content
+        processed_content = self._preprocess_xml_content(file_content)
+        # Re-add the XML declaration if it existed
+        if xml_declaration:
+            return xml_declaration + "\n" + processed_content
+        return processed_content
 
     def parse(self, file_content: str) -> Dict[str, Any]:
         try:
