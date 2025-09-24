@@ -487,7 +487,20 @@ const ChartRenderer: React.FC<ChartRendererProps> = React.memo(({
       columnMap[columnLetter] = row[index] || "";
     });
 
-    // Replace column references with values
+    // Handle Excel range references (e.g., B2:B, K2:K, I2:I)
+    // These should be replaced with the current row's value for that column
+    const rangePattern = /([A-Z]+)(\d+):([A-Z]+)/g;
+    jsExpression = jsExpression.replace(rangePattern, (match, startCol) => {
+      // For range references like B2:B, we want the current row's value for column B
+      const columnIndex = startCol.charCodeAt(0) - 65;
+      if (columnIndex >= 0 && columnIndex < headers.length) {
+        const value = row[columnIndex] || "";
+        return isNaN(Number(value)) ? `"${value}"` : value;
+      }
+      return '""';
+    });
+
+    // Replace single column references with values
     Object.keys(columnMap).forEach((columnRef) => {
       const value = columnMap[columnRef];
       const numericValue = isNaN(Number(value)) ? `"${value}"` : value;
