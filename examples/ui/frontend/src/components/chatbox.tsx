@@ -88,6 +88,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
     const [isLoading, setIsLoading] = useState(false);
     const [uploadingFiles, setUploadingFiles] = useState(false);
     const abortControllerRef = useRef<AbortController | null>(null);
+    const uploadAbortControllerRef = useRef<AbortController | null>(null);
     const [pendingFiles, setPendingFiles] = useState<UploadedFile[]>([]);
     const [uploadingFilesPreviews, setUploadingFilesPreviews] = useState<
       {
@@ -144,13 +145,24 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         abortControllerRef.current = null;
       }
 
+      // Also abort any ongoing uploads and immediately clear upload states
+      if (uploadAbortControllerRef.current) {
+        console.log("Aborting upload controller");
+        uploadAbortControllerRef.current.abort();
+        uploadAbortControllerRef.current = null;
+      }
+      
+      // Immediately clear all upload-related states
+      console.log("Clearing upload states");
+      setPendingFiles([]);
+      setUploadingFilesPreviews([]);
+      setUploadingFiles(false);
+
       // Reset all conversation state
       setIsLoading(false);
       setIsConnected(false);
       setMessages([]);
       setInputValue("");
-      setPendingFiles([]);
-      setUploadingFilesPreviews([]);
       setCurrentActivity("");
 
       // Reload credits when stream is interrupted
@@ -330,6 +342,9 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
           })
         );
 
+        // Create abort controller for uploads first
+        uploadAbortControllerRef.current = new AbortController();
+
         // Add new files to existing previews (cumulative)
         setUploadingFilesPreviews((prev) => [...prev, ...newFilePreviews]);
         setUploadingFiles(true);
@@ -370,6 +385,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
                 method: "POST",
                 headers: apiHeaders,
                 body: formData,
+                signal: uploadAbortControllerRef.current?.signal,
               });
 
               clearInterval(progressInterval);
@@ -410,6 +426,15 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
 
               return uploadedFile;
             } catch (error) {
+              // Handle aborted requests gracefully
+              if (error instanceof Error && error.name === "AbortError") {
+                // Remove this file from upload previews since it was cancelled
+                setUploadingFilesPreviews((prev) =>
+                  prev.filter((f) => f.id !== filePreviewId)
+                );
+                return null; // Don't throw error for aborted uploads
+              }
+
               // Mark this file as errored
               const errorMessage =
                 error instanceof Error ? error.message : "Upload failed";
@@ -431,6 +456,16 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         } catch (error) {
           console.error("Upload error:", error);
 
+          // Handle aborted requests gracefully - don't show error message
+          if (error instanceof Error && error.name === "AbortError") {
+            console.log("Upload process was aborted - clearing states");
+            // Clear all upload states since the entire process was cancelled
+            setUploadingFilesPreviews([]);
+            setPendingFiles([]);
+            setUploadingFiles(false);
+            return;
+          }
+
           let errorText = "Error: Unable to upload files";
           if (error instanceof Error) {
             errorText = error.message;
@@ -450,6 +485,8 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
           setMessages((prev) => [...prev, errorMessage]);
         } finally {
           setUploadingFiles(false);
+          // Clean up abort controller
+          uploadAbortControllerRef.current = null;
           // Reset the file input
           resetFileInput();
         }
