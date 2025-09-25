@@ -52,6 +52,9 @@ def file_replace(content: str, search_block: str, replace_block: str, count: int
     Replace occurrences of search_block ignoring indentation differences only.
     Returns (new_content, num_replacements).
     """
+    if not search_block:
+        return content, 0
+
     pat = block_to_indentation_flexible_pattern(search_block)
     regex = re.compile(pat, flags=re.DOTALL)
 
