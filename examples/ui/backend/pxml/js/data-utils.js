@@ -120,23 +120,106 @@ function getFilteredData() {
     });
 }
 
+// Utility function to clean numeric values by removing non-numeric characters
+function cleanNumericValue(value) {
+    // Early returns for common cases
+    if (value === null || value === undefined || value === "") return null;
+    
+    // If already a number, return it (most efficient case)
+    if (typeof value === 'number' && !isNaN(value)) return value;
+    
+    // Convert to string and trim once
+    const str = String(value).trim();
+    
+    // Early return for empty string after trim
+    if (str === '') return null;
+    
+    // Use a single regex to remove all non-numeric characters except decimal point and minus
+    let cleaned = str.replace(/[^\d.-]/g, '');
+    
+    // Early return if nothing left after cleaning
+    if (cleaned === '' || cleaned === '-' || cleaned === '.') return null;
+    
+    // Handle multiple decimal points more efficiently
+    const lastDotIndex = cleaned.lastIndexOf('.');
+    if (lastDotIndex > 0) {
+        cleaned = cleaned.substring(0, lastDotIndex).replace(/\./g, '') + cleaned.substring(lastDotIndex);
+    }
+    
+    // Handle multiple minus signs more efficiently
+    const firstMinusIndex = cleaned.indexOf('-');
+    if (firstMinusIndex > 0) {
+        cleaned = '-' + cleaned.replace(/-/g, '');
+    }
+    
+    // Convert to number and return
+    const num = Number(cleaned);
+    return isNaN(num) ? null : num;
+}
+
 // Utility functions for data processing
 function aggregateValues(values, aggregationType) {
-    const numbers = values.map(v => Number(v) || 0);
-    
     switch (aggregationType) {
-        case 'sum':
-            return numbers.reduce((a, b) => a + b, 0);
-        case 'avg':
-            return numbers.length > 0 ? numbers.reduce((a, b) => a + b, 0) / numbers.length : 0;
-        case 'count':
-            return numbers.length;
-        case 'max':
-            return Math.max(...numbers);
-        case 'min':
-            return Math.min(...numbers);
-        default:
-            return numbers.reduce((a, b) => a + b, 0);
+        case 'sum': {
+            let sum = 0;
+            for (let i = 0; i < values.length; i++) {
+                const cleaned = cleanNumericValue(values[i]);
+                if (cleaned !== null) sum += cleaned;
+            }
+            return sum;
+        }
+        case 'avg': {
+            let sum = 0;
+            let count = 0;
+            for (let i = 0; i < values.length; i++) {
+                const cleaned = cleanNumericValue(values[i]);
+                if (cleaned !== null) {
+                    sum += cleaned;
+                    count++;
+                }
+            }
+            return count > 0 ? sum / count : 0;
+        }
+        case 'count': {
+            let count = 0;
+            for (let i = 0; i < values.length; i++) {
+                const cleaned = cleanNumericValue(values[i]);
+                if (cleaned !== null) count++;
+            }
+            return count;
+        }
+        case 'max': {
+            let max = -Infinity;
+            let hasValue = false;
+            for (let i = 0; i < values.length; i++) {
+                const cleaned = cleanNumericValue(values[i]);
+                if (cleaned !== null) {
+                    max = Math.max(max, cleaned);
+                    hasValue = true;
+                }
+            }
+            return hasValue ? max : 0;
+        }
+        case 'min': {
+            let min = Infinity;
+            let hasValue = false;
+            for (let i = 0; i < values.length; i++) {
+                const cleaned = cleanNumericValue(values[i]);
+                if (cleaned !== null) {
+                    min = Math.min(min, cleaned);
+                    hasValue = true;
+                }
+            }
+            return hasValue ? min : 0;
+        }
+        default: {
+            let sum = 0;
+            for (let i = 0; i < values.length; i++) {
+                const cleaned = cleanNumericValue(values[i]);
+                if (cleaned !== null) sum += cleaned;
+            }
+            return sum;
+        }
     }
 }
 
@@ -158,13 +241,16 @@ function getUniqueValues(data, columnName) {
 }
 
 function formatValue(value, formatType) {
-    if (value === null || value === undefined || isNaN(value)) {
+    // Clean the value first to remove any non-numeric characters
+    const cleanedValue = cleanNumericValue(value);
+    
+    if (cleanedValue === null || isNaN(cleanedValue)) {
         return '--';
     }
     
     switch (formatType) {
         case 'number':
-            return new Intl.NumberFormat('en-US').format(Math.round(value));
+            return new Intl.NumberFormat('en-US').format(Math.round(cleanedValue));
         case 'currency':
         case 'currency:usd':
             return new Intl.NumberFormat('en-US', {
@@ -172,19 +258,19 @@ function formatValue(value, formatType) {
                 currency: 'USD',
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 0
-            }).format(value);
+            }).format(cleanedValue);
         case 'percentage':
             return new Intl.NumberFormat('en-US', {
                 style: 'percent',
                 minimumFractionDigits: 1,
                 maximumFractionDigits: 1
-            }).format(value / 100);
+            }).format(cleanedValue / 100);
         case 'decimal':
             return new Intl.NumberFormat('en-US', {
                 minimumFractionDigits: 1,
                 maximumFractionDigits: 1
-            }).format(value);
+            }).format(cleanedValue);
         default:
-            return value.toString();
+            return cleanedValue.toString();
     }
 }

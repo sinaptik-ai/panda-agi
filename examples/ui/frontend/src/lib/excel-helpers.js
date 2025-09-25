@@ -4,23 +4,79 @@
  */
 
 export const ExcelHelpers = {
+  // Utility function to clean numeric values by removing non-numeric characters
+  cleanNumericValue: function (value) {
+    // Early returns for common cases
+    if (value === null || value === undefined || value === "") return null;
+    
+    // If already a number, return it (most efficient case)
+    if (typeof value === 'number' && !isNaN(value)) return value;
+    
+    // Convert to string and trim once
+    const str = String(value).trim();
+    
+    // Early return for empty string after trim
+    if (str === '') return null;
+    
+    // Use a single regex to remove all non-numeric characters except decimal point and minus
+    // This is more efficient than multiple operations
+    let cleaned = str.replace(/[^\d.-]/g, '');
+    
+    // Early return if nothing left after cleaning
+    if (cleaned === '' || cleaned === '-' || cleaned === '.') return null;
+    
+    // Handle multiple decimal points more efficiently
+    const lastDotIndex = cleaned.lastIndexOf('.');
+    if (lastDotIndex > 0) {
+      // Remove all dots except the last one
+      cleaned = cleaned.substring(0, lastDotIndex).replace(/\./g, '') + cleaned.substring(lastDotIndex);
+    }
+    
+    // Handle multiple minus signs more efficiently
+    const firstMinusIndex = cleaned.indexOf('-');
+    if (firstMinusIndex > 0) {
+      // Keep only the first minus sign
+      cleaned = '-' + cleaned.replace(/-/g, '');
+    }
+    
+    // Convert to number and return
+    const num = Number(cleaned);
+    return isNaN(num) ? null : num;
+  },
+
   // Math and statistical functions
   excelSum: function (range) {
     if (!Array.isArray(range)) return 0;
-    return range
-      .filter((x) => !isNaN(x) && x !== null && x !== "")
-      .reduce((sum, val) => sum + Number(val), 0);
+    let sum = 0;
+    for (let i = 0; i < range.length; i++) {
+      const cleaned = this.cleanNumericValue(range[i]);
+      if (cleaned !== null) sum += cleaned;
+    }
+    return sum;
   },
 
   excelAvg: function (range) {
     if (!Array.isArray(range)) return 0;
-    const numbers = range.filter((x) => !isNaN(x) && x !== null && x !== "");
-    return numbers.length > 0 ? this.excelSum(numbers) / numbers.length : 0;
+    let sum = 0;
+    let count = 0;
+    for (let i = 0; i < range.length; i++) {
+      const cleaned = this.cleanNumericValue(range[i]);
+      if (cleaned !== null) {
+        sum += cleaned;
+        count++;
+      }
+    }
+    return count > 0 ? sum / count : 0;
   },
 
   excelCount: function (range) {
     if (!Array.isArray(range)) return 0;
-    return range.filter((x) => !isNaN(x) && x !== null && x !== "").length;
+    let count = 0;
+    for (let i = 0; i < range.length; i++) {
+      const cleaned = this.cleanNumericValue(range[i]);
+      if (cleaned !== null) count++;
+    }
+    return count;
   },
 
   excelCountA: function (range) {
@@ -31,39 +87,65 @@ export const ExcelHelpers = {
 
   excelMax: function (range) {
     if (!Array.isArray(range)) return 0;
-    const numbers = range
-      .filter((x) => !isNaN(x) && x !== null && x !== "")
-      .map(Number);
-    return numbers.length > 0 ? Math.max(...numbers) : 0;
+    let max = -Infinity;
+    let hasValue = false;
+    for (let i = 0; i < range.length; i++) {
+      const cleaned = this.cleanNumericValue(range[i]);
+      if (cleaned !== null) {
+        max = Math.max(max, cleaned);
+        hasValue = true;
+      }
+    }
+    return hasValue ? max : 0;
   },
 
   excelMin: function (range) {
     if (!Array.isArray(range)) return 0;
-    const numbers = range
-      .filter((x) => !isNaN(x) && x !== null && x !== "")
-      .map(Number);
-    return numbers.length > 0 ? Math.min(...numbers) : 0;
+    let min = Infinity;
+    let hasValue = false;
+    for (let i = 0; i < range.length; i++) {
+      const cleaned = this.cleanNumericValue(range[i]);
+      if (cleaned !== null) {
+        min = Math.min(min, cleaned);
+        hasValue = true;
+      }
+    }
+    return hasValue ? min : 0;
   },
 
   // Array functions (used internally by formulas)
   arraySum: function (arr) {
     if (!Array.isArray(arr)) return 0;
-    const numbers = arr
-      .filter((x) => !isNaN(x) && x !== null && x !== "")
-      .map(Number);
-    const sum = numbers.reduce((sum, val) => sum + val, 0);
+    let sum = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const cleaned = this.cleanNumericValue(arr[i]);
+      if (cleaned !== null) sum += cleaned;
+    }
     return sum;
   },
 
   arrayAvg: function (arr) {
     if (!Array.isArray(arr)) return 0;
-    const numbers = arr.filter((x) => !isNaN(x) && x !== null && x !== "");
-    return numbers.length > 0 ? arraySum(numbers) / numbers.length : 0;
+    let sum = 0;
+    let count = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const cleaned = this.cleanNumericValue(arr[i]);
+      if (cleaned !== null) {
+        sum += cleaned;
+        count++;
+      }
+    }
+    return count > 0 ? sum / count : 0;
   },
 
   arrayCount: function (arr) {
     if (!Array.isArray(arr)) return 0;
-    return arr.filter((x) => !isNaN(x) && x !== null && x !== "").length;
+    let count = 0;
+    for (let i = 0; i < arr.length; i++) {
+      const cleaned = this.cleanNumericValue(arr[i]);
+      if (cleaned !== null) count++;
+    }
+    return count;
   },
 
   arrayCountA: function (arr) {
@@ -73,18 +155,30 @@ export const ExcelHelpers = {
 
   arrayMax: function (arr) {
     if (!Array.isArray(arr)) return 0;
-    const numbers = arr
-      .filter((x) => !isNaN(x) && x !== null && x !== "")
-      .map(Number);
-    return numbers.length > 0 ? Math.max(...numbers) : 0;
+    let max = -Infinity;
+    let hasValue = false;
+    for (let i = 0; i < arr.length; i++) {
+      const cleaned = this.cleanNumericValue(arr[i]);
+      if (cleaned !== null) {
+        max = Math.max(max, cleaned);
+        hasValue = true;
+      }
+    }
+    return hasValue ? max : 0;
   },
 
   arrayMin: function (arr) {
     if (!Array.isArray(arr)) return 0;
-    const numbers = arr
-      .filter((x) => !isNaN(x) && x !== null && x !== "")
-      .map(Number);
-    return numbers.length > 0 ? Math.min(...numbers) : 0;
+    let min = Infinity;
+    let hasValue = false;
+    for (let i = 0; i < arr.length; i++) {
+      const cleaned = this.cleanNumericValue(arr[i]);
+      if (cleaned !== null) {
+        min = Math.min(min, cleaned);
+        hasValue = true;
+      }
+    }
+    return hasValue ? min : 0;
   },
 
   // Conditional functions
@@ -107,7 +201,8 @@ export const ExcelHelpers = {
     let sum = 0;
     for (let i = 0; i < Math.min(range.length, sumArray.length); i++) {
       if (ExcelHelpers.meetsCriteria(range[i], criteria)) {
-        sum += Number(sumArray[i]) || 0;
+        const cleaned = this.cleanNumericValue(sumArray[i]);
+        if (cleaned !== null) sum += cleaned;
       }
     }
     return sum;
@@ -152,8 +247,11 @@ export const ExcelHelpers = {
     let count = 0;
     for (let i = 0; i < Math.min(range.length, avgArray.length); i++) {
       if (ExcelHelpers.meetsCriteria(range[i], criteria)) {
-        sum += Number(avgArray[i]) || 0;
-        count++;
+        const cleaned = this.cleanNumericValue(avgArray[i]);
+        if (cleaned !== null) {
+          sum += cleaned;
+          count++;
+        }
       }
     }
     return count > 0 ? sum / count : 0;
@@ -850,7 +948,11 @@ export const ExcelHelpers = {
   // Statistical functions
   excelStdev: function (range) {
     if (!Array.isArray(range)) return 0;
-    const numbers = range.filter(x => !isNaN(x) && x !== null && x !== "").map(Number);
+    const numbers = [];
+    for (let i = 0; i < range.length; i++) {
+      const cleaned = this.cleanNumericValue(range[i]);
+      if (cleaned !== null) numbers.push(cleaned);
+    }
     if (numbers.length <= 1) return 0;
     
     const mean = numbers.reduce((sum, val) => sum + val, 0) / numbers.length;
@@ -860,7 +962,11 @@ export const ExcelHelpers = {
 
   excelVar: function (range) {
     if (!Array.isArray(range)) return 0;
-    const numbers = range.filter(x => !isNaN(x) && x !== null && x !== "").map(Number);
+    const numbers = [];
+    for (let i = 0; i < range.length; i++) {
+      const cleaned = this.cleanNumericValue(range[i]);
+      if (cleaned !== null) numbers.push(cleaned);
+    }
     if (numbers.length <= 1) return 0;
     
     const mean = numbers.reduce((sum, val) => sum + val, 0) / numbers.length;
@@ -869,9 +975,14 @@ export const ExcelHelpers = {
 
   excelMedian: function (range) {
     if (!Array.isArray(range)) return 0;
-    const numbers = range.filter(x => !isNaN(x) && x !== null && x !== "").map(Number).sort((a, b) => a - b);
+    const numbers = [];
+    for (let i = 0; i < range.length; i++) {
+      const cleaned = this.cleanNumericValue(range[i]);
+      if (cleaned !== null) numbers.push(cleaned);
+    }
     if (numbers.length === 0) return 0;
     
+    numbers.sort((a, b) => a - b);
     const mid = Math.floor(numbers.length / 2);
     return numbers.length % 2 === 0 
       ? (numbers[mid - 1] + numbers[mid]) / 2 
@@ -880,7 +991,11 @@ export const ExcelHelpers = {
 
   excelMode: function (range) {
     if (!Array.isArray(range)) return "#N/A";
-    const numbers = range.filter(x => !isNaN(x) && x !== null && x !== "").map(Number);
+    const numbers = [];
+    for (let i = 0; i < range.length; i++) {
+      const cleaned = this.cleanNumericValue(range[i]);
+      if (cleaned !== null) numbers.push(cleaned);
+    }
     if (numbers.length === 0) return "#N/A";
     
     const frequency = {};
@@ -1038,9 +1153,9 @@ export const ExcelHelpers = {
       }
       
       if (meetsAllCriteria) {
-        const value = Number(maxRange[i]);
-        if (!isNaN(value)) {
-          maxValue = Math.max(maxValue, value);
+        const cleaned = this.cleanNumericValue(maxRange[i]);
+        if (cleaned !== null) {
+          maxValue = Math.max(maxValue, cleaned);
           hasValidValue = true;
         }
       }
@@ -1086,9 +1201,9 @@ export const ExcelHelpers = {
       }
       
       if (meetsAllCriteria) {
-        const value = Number(minRange[i]);
-        if (!isNaN(value)) {
-          minValue = Math.min(minValue, value);
+        const cleaned = this.cleanNumericValue(minRange[i]);
+        if (cleaned !== null) {
+          minValue = Math.min(minValue, cleaned);
           hasValidValue = true;
         }
       }
@@ -1133,9 +1248,9 @@ export const ExcelHelpers = {
       }
       
       if (meetsAllCriteria) {
-        const value = Number(sumRange[i]);
-        if (!isNaN(value)) {
-          sum += value;
+        const cleaned = this.cleanNumericValue(sumRange[i]);
+        if (cleaned !== null) {
+          sum += cleaned;
         }
       }
     }
@@ -1180,9 +1295,9 @@ export const ExcelHelpers = {
       }
       
       if (meetsAllCriteria) {
-        const value = Number(averageRange[i]);
-        if (!isNaN(value)) {
-          sum += value;
+        const cleaned = this.cleanNumericValue(averageRange[i]);
+        if (cleaned !== null) {
+          sum += cleaned;
           count++;
         }
       }
@@ -1319,7 +1434,11 @@ export const ExcelHelpers = {
   excelRank: function (number, array, order = 0) {
     if (!Array.isArray(array)) return "#N/A";
     
-    const numbers = array.filter(x => !isNaN(x)).map(Number);
+    const numbers = [];
+    for (let i = 0; i < array.length; i++) {
+      const cleaned = this.cleanNumericValue(array[i]);
+      if (cleaned !== null) numbers.push(cleaned);
+    }
     const targetNum = Number(number);
     
     if (order === 0) { // Descending
@@ -1335,7 +1454,12 @@ export const ExcelHelpers = {
   excelLarge: function (array, k) {
     if (!Array.isArray(array)) return "#NUM!";
     
-    const numbers = array.filter(x => !isNaN(x)).map(Number).sort((a, b) => b - a);
+    const numbers = [];
+    for (let i = 0; i < array.length; i++) {
+      const cleaned = this.cleanNumericValue(array[i]);
+      if (cleaned !== null) numbers.push(cleaned);
+    }
+    numbers.sort((a, b) => b - a);
     const index = Number(k) - 1;
     
     return index >= 0 && index < numbers.length ? numbers[index] : "#NUM!";
@@ -1344,7 +1468,12 @@ export const ExcelHelpers = {
   excelSmall: function (array, k) {
     if (!Array.isArray(array)) return "#NUM!";
     
-    const numbers = array.filter(x => !isNaN(x)).map(Number).sort((a, b) => a - b);
+    const numbers = [];
+    for (let i = 0; i < array.length; i++) {
+      const cleaned = this.cleanNumericValue(array[i]);
+      if (cleaned !== null) numbers.push(cleaned);
+    }
+    numbers.sort((a, b) => a - b);
     const index = Number(k) - 1;
     
     return index >= 0 && index < numbers.length ? numbers[index] : "#NUM!";
