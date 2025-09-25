@@ -244,6 +244,13 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
       }
     }, [initialQuery, inputValue, isInitialLoading, hasSubmittedInitialQuery]);
 
+    // Helper function to reset file input
+    const resetFileInput = useCallback(() => {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }, []);
+
     // Handle multiple file uploads
     const handleFilesUpload = useCallback(
       async (files: File[]) => {
@@ -279,6 +286,8 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
               nonCsvFiles.length > 1 ? "s" : ""
             }: only CSV files are allowed.`
           );
+          // Reset the file input to allow same file selection again
+          resetFileInput();
         }
 
         // Show error message for oversized files
@@ -286,10 +295,14 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
           toast.error(
             `The file you are uploading exceeds the maximum file size of 10 megabytes`
           );
+          // Reset the file input to allow same file selection again
+          resetFileInput();
         }
 
         // If no valid files, return early
         if (validSizeFiles.length === 0) {
+          // Reset the file input to allow same file selection again
+          resetFileInput();
           return;
         }
 
@@ -438,9 +451,7 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         } finally {
           setUploadingFiles(false);
           // Reset the file input
-          if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-          }
+          resetFileInput();
         }
       },
       [
