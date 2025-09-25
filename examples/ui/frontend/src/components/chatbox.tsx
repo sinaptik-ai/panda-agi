@@ -147,13 +147,11 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
 
       // Also abort any ongoing uploads and immediately clear upload states
       if (uploadAbortControllerRef.current) {
-        console.log("Aborting upload controller");
         uploadAbortControllerRef.current.abort();
         uploadAbortControllerRef.current = null;
       }
       
       // Immediately clear all upload-related states
-      console.log("Clearing upload states");
       setPendingFiles([]);
       setUploadingFilesPreviews([]);
       setUploadingFiles(false);
@@ -458,7 +456,6 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
 
           // Handle aborted requests gracefully - don't show error message
           if (error instanceof Error && error.name === "AbortError") {
-            console.log("Upload process was aborted - clearing states");
             // Clear all upload states since the entire process was cancelled
             setUploadingFilesPreviews([]);
             setPendingFiles([]);
