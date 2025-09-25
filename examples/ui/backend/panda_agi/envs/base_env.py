@@ -8,6 +8,7 @@ and shell commands are executed.
 import asyncio
 import logging
 import time
+import uuid
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Union
@@ -53,6 +54,7 @@ class BaseEnv(ABC):
         base_path: Union[str, Path],
         metadata: Optional[Dict[str, Any]] = None,
         timeout: Optional[int] = 3600,
+        tmux_executor: Optional[TmuxExecutor] = None,
     ):
         """
         Initialize the environment with a base path.
@@ -64,19 +66,22 @@ class BaseEnv(ABC):
         self.base_path = Path(base_path).resolve()
         # Remove leading dot if present
         working_dir = str(base_path)
-        if working_dir.startswith("./"):
-            working_dir = working_dir[1:]
-        elif working_dir == ".":
-            working_dir = ""
+        # if working_dir.startswith("./"):
+        #     working_dir = working_dir[1:]
+        # elif working_dir == ".":
+        #     working_dir = ""
         self.working_directory = working_dir
         self.metadata = metadata
         self.timeout = timeout
 
         # Initialize TmuxExecutor for session and command management
-        self.tmux_executor: TmuxExecutor = TmuxExecutor(session_prefix="panda_agi")
+        self.tmux_executor = tmux_executor
 
         # Defer tmux initialization - will be checked when first needed
         self._tmux_initialized: bool = False
+
+        logger.info(f"Base path: {self.base_path}")
+        logger.info(f"Working directory: {self.working_directory}")
 
     @property
     def current_directory(self) -> Path:
@@ -161,6 +166,7 @@ class BaseEnv(ABC):
         """
         Ensure tmux is initialized, initializing it if necessary.
         """
+
         if not self._tmux_initialized:
             if await self.is_tmux_available():
                 self._tmux_initialized = True
@@ -177,6 +183,11 @@ class BaseEnv(ABC):
         )
         return result.success
 
+    def generate_session_id(self) -> str:
+        if self.tmux_executor:
+            return self.tmux_executor.generate_session_id()
+        return str(uuid.uuid4())
+
     async def exec_shell(
         self,
         command: str,
@@ -186,21 +197,72 @@ class BaseEnv(ABC):
         blocking: bool = True,
     ) -> ShellOutput:
         """
-        Runs a shell command inside a tmux session using TmuxExecutor.
+        Runs a shell command. Uses tmux if tmux_executor is available, otherwise executes directly.
 
         Args:
             command: Shell command to execute
+            exec_dir: Working directory for command execution
+            session_id: Optional session ID (used only with tmux)
             timeout: Optional timeout for command execution
-            capture_output: Whether to capture stdout/stderr output
-            blocking: If True, wait for completion; if False, run in background
+            blocking: If True, wait for completion; if False, run in background (tmux only)
 
         Returns:
-            Dict with execution results. For non-blocking commands, includes session_id.
+            ShellOutput with execution results
         """
+        # Handle direct execution when tmux_executor is None
+        if self.tmux_executor is None:
+            logger.info(f"Executing command directly (no tmux): {command}")
+            logger.info(f"Current working directory: {self.working_directory}")
+            logger.info(f"Executing command in directory: {exec_dir}")
+
+            result_ls = await self._run_command("pwd")
+            logger.info(f"Current directory contents: {result_ls}")
+
+            # Change to exec_dir if specified
+            if exec_dir and exec_dir != self.working_directory:
+                command = f"{command}"
+
+            try:
+                logger.info(f"Executing command: {command}")
+                result = await self._run_command(
+                    command, timeout=timeout or self.timeout or 30
+                )
+                logger.info(f"Command result: {result}")
+
+                if result.success:
+                    return ShellOutput(
+                        status="success",
+                        result={
+                            "return_code": result.exit_code,
+                            "output": result.output,
+                        },
+                    )
+                else:
+                    return ShellOutput(
+                        status="error",
+                        result={
+                            "return_code": result.exit_code,
+                            "status": "Command failed",
+                        },
+                        error=result.error,
+                    )
+
+            except Exception as e:
+                logger.error(f"Error executing command directly: {e}")
+                return ShellOutput(
+                    status="error",
+                    result={
+                        "return_code": -1,
+                        "status": "Execution failed",
+                    },
+                    error=f"Internal error while running command: {str(e)}",
+                )
+
+        # Handle tmux execution when tmux_executor is available
         await self._ensure_tmux_initialized()
 
         if session_id is None:
-            session_id = self.tmux_executor.generate_session_id()
+            session_id = self.generate_session_id()
 
         if exec_dir is None:
             exec_dir = self.working_directory
@@ -209,7 +271,14 @@ class BaseEnv(ABC):
             create_cmd = self.tmux_executor.create_session_command(session_id, exec_dir)
             create_result = await self._run_command(create_cmd)
             if create_result.exit_code != 0:
-                return create_result
+                return ShellOutput(
+                    status="error",
+                    result={
+                        "shell_session_id": session_id,
+                        "return_code": create_result.exit_code,
+                    },
+                    error=create_result.error,
+                )
 
             self.tmux_executor.register_session(session_id, self.working_directory)
             logger.info(f"session {session_id} registered")
