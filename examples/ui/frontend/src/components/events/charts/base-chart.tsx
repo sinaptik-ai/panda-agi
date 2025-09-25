@@ -93,6 +93,46 @@ export const getColumnIndex = (columnRef: string, headers: string[]): number => 
   );
 };
 
+// Utility function to clean numeric values by removing non-numeric characters
+export const cleanNumericValue = (value: unknown): number | null => {
+  // Early returns for common cases
+  if (value === null || value === undefined || value === "") return null;
+  
+  // If already a number, return it (most efficient case)
+  if (typeof value === 'number' && !isNaN(value)) return value;
+  
+  // Convert to string and trim once
+  const str = String(value).trim();
+  
+  // Early return for empty string after trim
+  if (str === '') return null;
+  
+  // Use a single regex to remove all non-numeric characters except decimal point and minus
+  // This is more efficient than multiple operations
+  let cleaned = str.replace(/[^\d.-]/g, '');
+  
+  // Early return if nothing left after cleaning
+  if (cleaned === '' || cleaned === '-' || cleaned === '.') return null;
+  
+  // Handle multiple decimal points more efficiently
+  const lastDotIndex = cleaned.lastIndexOf('.');
+  if (lastDotIndex > 0) {
+    // Remove all dots except the last one
+    cleaned = cleaned.substring(0, lastDotIndex).replace(/\./g, '') + cleaned.substring(lastDotIndex);
+  }
+  
+  // Handle multiple minus signs more efficiently
+  const firstMinusIndex = cleaned.indexOf('-');
+  if (firstMinusIndex > 0) {
+    // Keep only the first minus sign
+    cleaned = '-' + cleaned.replace(/-/g, '');
+  }
+  
+  // Convert to number and return
+  const num = Number(cleaned);
+  return isNaN(num) ? null : num;
+};
+
 export const processCSVData = (chartData: ChartData, csvData: string[][]) => {
   if (csvData.length === 0) {
     return generateMockData(chartData);
@@ -123,7 +163,7 @@ export const processCSVData = (chartData: ChartData, csvData: string[][]) => {
 
     const groupValues = groupedData.get(xValue)!;
     seriesData.forEach((series, seriesIndex) => {
-      const value = parseFloat(row[series.columnIndex] || "0");
+      const cleanedValue = cleanNumericValue(row[series.columnIndex]);
       
       switch (series.aggregation) {
         case 'count':
@@ -132,41 +172,41 @@ export const processCSVData = (chartData: ChartData, csvData: string[][]) => {
           break;
         case 'sum':
           // Sum aggregation: add values
-          if (!isNaN(value)) {
-            groupValues[seriesIndex.toString()] += value;
+          if (cleanedValue !== null) {
+            groupValues[seriesIndex.toString()] += cleanedValue;
           }
           break;
         case 'avg':
           // Average aggregation: we'll calculate this after processing all rows
-          if (!isNaN(value)) {
+          if (cleanedValue !== null) {
             // Store sum and count for later average calculation
             if (!groupValues[seriesIndex + '_count']) {
               groupValues[seriesIndex + '_count'] = 0;
             }
-            groupValues[seriesIndex.toString()] += value;
+            groupValues[seriesIndex.toString()] += cleanedValue;
             groupValues[seriesIndex + '_count'] += 1;
           }
           break;
         case 'max':
           // Max aggregation: keep track of maximum value
-          if (!isNaN(value)) {
-            if (groupValues[seriesIndex.toString()] === 0 || value > groupValues[seriesIndex.toString()]) {
-              groupValues[seriesIndex.toString()] = value;
+          if (cleanedValue !== null) {
+            if (groupValues[seriesIndex.toString()] === 0 || cleanedValue > groupValues[seriesIndex.toString()]) {
+              groupValues[seriesIndex.toString()] = cleanedValue;
             }
           }
           break;
         case 'min':
           // Min aggregation: keep track of minimum value
-          if (!isNaN(value)) {
-            if (groupValues[seriesIndex.toString()] === 0 || value < groupValues[seriesIndex.toString()]) {
-              groupValues[seriesIndex.toString()] = value;
+          if (cleanedValue !== null) {
+            if (groupValues[seriesIndex.toString()] === 0 || cleanedValue < groupValues[seriesIndex.toString()]) {
+              groupValues[seriesIndex.toString()] = cleanedValue;
             }
           }
           break;
         default:
           // Default to sum aggregation
-          if (!isNaN(value)) {
-            groupValues[seriesIndex.toString()] += value;
+          if (cleanedValue !== null) {
+            groupValues[seriesIndex.toString()] += cleanedValue;
           }
       }
     });

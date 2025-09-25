@@ -437,6 +437,46 @@ function checkForFormulaErrors(data, config) {
     return errors.length > 0 ? errors : null;
 }
 
+// Utility function to clean numeric values by removing non-numeric characters
+function cleanNumericValue(value) {
+    // Early returns for common cases
+    if (value === null || value === undefined || value === "") return null;
+    
+    // If already a number, return it (most efficient case)
+    if (typeof value === 'number' && !isNaN(value)) return value;
+    
+    // Convert to string and trim once
+    const str = String(value).trim();
+    
+    // Early return for empty string after trim
+    if (str === '') return null;
+    
+    // Use a single regex to remove all non-numeric characters except decimal point and minus
+    // This is more efficient than multiple operations
+    let cleaned = str.replace(/[^\d.-]/g, '');
+    
+    // Early return if nothing left after cleaning
+    if (cleaned === '' || cleaned === '-' || cleaned === '.') return null;
+    
+    // Handle multiple decimal points more efficiently
+    const lastDotIndex = cleaned.lastIndexOf('.');
+    if (lastDotIndex > 0) {
+        // Remove all dots except the last one
+        cleaned = cleaned.substring(0, lastDotIndex).replace(/\./g, '') + cleaned.substring(lastDotIndex);
+    }
+    
+    // Handle multiple minus signs more efficiently
+    const firstMinusIndex = cleaned.indexOf('-');
+    if (firstMinusIndex > 0) {
+        // Keep only the first minus sign
+        cleaned = '-' + cleaned.replace(/-/g, '');
+    }
+    
+    // Convert to number and return
+    const num = Number(cleaned);
+    return isNaN(num) ? null : num;
+}
+
 function processChartData(data, config) {
     const { x_axis, series_list, default_filter_conditions } = config;
     
@@ -477,35 +517,45 @@ function processChartData(data, config) {
         });
     }
     
-    // Group data by x-axis column
-    const grouped = {};
-    filteredData.forEach(row => {
-        const columnMapping = getColumnMapping();
-        const xValue = row[columnMapping[x_axis.column] || x_axis.column];
-        if (!grouped[xValue]) {
-            grouped[xValue] = [];
-        }
-        grouped[xValue].push(row);
-    });
+    // For scatter charts, don't group data - show individual points
+    let grouped = {};
+    let labels = [];
     
-    // Generate labels and datasets
-    let labels = Object.keys(grouped);
-    
-    // Format labels: capitalize first letter and replace underscores with spaces
-    labels = labels.map(label => {
-        return label.charAt(0).toUpperCase() + label.slice(1).replace(/_/g, ' ');
-    });
-    
-    // Special sorting for month names
-    const monthOrder = ['January', 'February', 'March', 'April', 'May', 'June', 
-                       'July', 'August', 'September', 'October', 'November', 'December'];
-    
-    if (labels.every(label => monthOrder.includes(label))) {
-        // Sort by month order
-        labels = labels.sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
+    if (config.chart_type === 'scatter') {
+        // For scatter charts, we don't need grouped data or labels
+        // Individual data points will be handled in the series processing
+        grouped = { 'scatter': filteredData }; // Dummy grouping for consistency
+        labels = ['scatter']; // Dummy label
     } else {
-        // Default alphabetical sort
-        labels = labels.sort();
+        // Group data by x-axis column for other chart types
+        filteredData.forEach(row => {
+            const columnMapping = getColumnMapping();
+            const xValue = row[columnMapping[x_axis.column] || x_axis.column];
+            if (!grouped[xValue]) {
+                grouped[xValue] = [];
+            }
+            grouped[xValue].push(row);
+        });
+        
+        // Generate labels and datasets
+        labels = Object.keys(grouped);
+        
+        // Format labels: capitalize first letter and replace underscores with spaces
+        labels = labels.map(label => {
+            return label.charAt(0).toUpperCase() + label.slice(1).replace(/_/g, ' ');
+        });
+        
+        // Special sorting for month names
+        const monthOrder = ['January', 'February', 'March', 'April', 'May', 'June', 
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        if (labels.every(label => monthOrder.includes(label))) {
+            // Sort by month order
+            labels = labels.sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
+        } else {
+            // Default alphabetical sort
+            labels = labels.sort();
+        }
     }
     const datasets = [];
     
@@ -674,9 +724,9 @@ function processChartData(data, config) {
             // Create individual data points (x, y) pairs
             // Ignore aggregation for scatter plots - always show raw data points
             seriesData = scatterData.map(row => ({
-                x: Number(row[xColumnName]) || 0,
-                y: Number(row[yColumnName]) || 0
-            }));
+                x: cleanNumericValue(row[xColumnName]) || 0,
+                y: cleanNumericValue(row[yColumnName]) || 0
+            })).filter(point => point.x !== 0 || point.y !== 0); // Filter out (0,0) points
         } else if (config.chart_type === 'radar') {
             // For radar charts, show individual data points without aggregation
             // Use the x_axis column for labels and current series for values
@@ -696,7 +746,7 @@ function processChartData(data, config) {
             // Ignore aggregation for radar charts - always show raw data points
             seriesData = radarData.map(row => ({
                 label: row[xColumnName] || '',
-                value: Number(row[yColumnName]) || 0
+                value: cleanNumericValue(row[yColumnName]) || 0
             }));
         } else {
             seriesData = labels.map(label => {
@@ -710,21 +760,49 @@ function processChartData(data, config) {
                 groupData = groupData.filter(row => row[filterColumnName] === filterValue);
             }
             
-            const values = groupData.map(row => Number(row[columnName]) || 0);
+            const cleanedValues = groupData.map(row => cleanNumericValue(row[columnName])).filter(val => val !== null);
             
             switch (series.aggregation) {
-                case 'sum':
-                    return values.reduce((a, b) => a + b, 0);
-                case 'avg':
-                    return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+                case 'sum': {
+                    let sum = 0;
+                    for (let i = 0; i < cleanedValues.length; i++) {
+                        sum += cleanedValues[i];
+                    }
+                    return sum;
+                }
+                case 'avg': {
+                    if (cleanedValues.length === 0) return 0;
+                    let sum = 0;
+                    for (let i = 0; i < cleanedValues.length; i++) {
+                        sum += cleanedValues[i];
+                    }
+                    return sum / cleanedValues.length;
+                }
                 case 'count':
-                    return values.length;
-                case 'max':
-                    return Math.max(...values);
-                case 'min':
-                    return Math.min(...values);
-                default:
-                    return values.reduce((a, b) => a + b, 0);
+                    return cleanedValues.length;
+                case 'max': {
+                    if (cleanedValues.length === 0) return 0;
+                    let max = cleanedValues[0];
+                    for (let i = 1; i < cleanedValues.length; i++) {
+                        max = Math.max(max, cleanedValues[i]);
+                    }
+                    return max;
+                }
+                case 'min': {
+                    if (cleanedValues.length === 0) return 0;
+                    let min = cleanedValues[0];
+                    for (let i = 1; i < cleanedValues.length; i++) {
+                        min = Math.min(min, cleanedValues[i]);
+                    }
+                    return min;
+                }
+                default: {
+                    let sum = 0;
+                    for (let i = 0; i < cleanedValues.length; i++) {
+                        sum += cleanedValues[i];
+                    }
+                    return sum;
+                }
             }
             });
         }
