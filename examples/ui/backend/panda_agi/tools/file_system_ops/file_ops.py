@@ -2,6 +2,7 @@ import fnmatch
 import logging
 import re
 from typing import Any, Dict, Optional
+import panda_agi.utils.file_replace as file_replace_utils
 
 # Import the BaseEnv base class
 from panda_agi.envs import BaseEnv
@@ -146,17 +147,16 @@ async def file_str_replace(
 
         content = result["content"]
 
+        # Perform the replacement
+        new_content, count = file_replace_utils.file_replace(content, old_str, new_str)
+
         # Check if the string exists
-        if old_str not in content:
+        if count == 0:
             return {
                 "status": "error",
                 "message": f"String not found. The text '{old_str}' was not found in file {file}, therefore the replace operation was aborted.",
                 "file": result["path"],
             }
-
-        # Perform the replacement
-        new_content = content.replace(old_str, new_str)
-        count = content.count(old_str)
 
         # Write the updated content
         write_result = await environment.write_file(file, new_content)
