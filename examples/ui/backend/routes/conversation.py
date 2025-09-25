@@ -83,10 +83,8 @@ async def get_conversation_messages(
                     logger.error(
                         f"Error fetching conversation messages: {response.status} - {error_text}"
                     )
-                    raise HTTPException(
-                        status_code=response.status,
-                        detail=f"Failed to fetch conversation messages: {error_text}",
-                    )
+                    # return empty list if conversation is not found
+                    return []
 
     except aiohttp.ClientError as e:
         logger.error(
