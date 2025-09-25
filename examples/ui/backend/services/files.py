@@ -3,6 +3,7 @@ import mimetypes
 import os
 from pathlib import Path
 
+from panda_agi.utils import file_replace
 from models.agent import ConversationMessage
 from panda_agi.envs.base_env import BaseEnv
 from utils.exceptions import FileNotFoundError, RestrictedAccessError
@@ -144,7 +145,9 @@ class FilesService:
                 new_str = tool_call["arguments"].get("replace_str", None)
 
                 if old_str and new_str:
-                    file_write_content = file_write_content.replace(old_str, new_str)
+                    file_write_content = file_replace(
+                        file_write_content, old_str, new_str
+                    )
                     logger.debug(
                         f"File replace content:  Old: {old_str}  New: {new_str}"
                     )
