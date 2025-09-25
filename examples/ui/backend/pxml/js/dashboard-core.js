@@ -1004,8 +1004,9 @@ window.FilterRenderer = {
         // Fallback: try to evaluate the formula directly
         const cleanFormula = formula.replace(/^=/, '');
         if (cleanFormula.startsWith('unique(')) {
-          // Extract column from formula like =unique(B2:B)
-          const columnMatch = cleanFormula.match(/unique\(([A-Z]+)2:[A-Z]+\)/);
+          // Extract column from formula like =unique(B2:B) or =unique(column_name)
+          const columnMatch = cleanFormula.match(/unique\(([A-Z]+)2:[A-Z]+\)/) || 
+                             cleanFormula.match(/unique\(([a-zA-Z_][a-zA-Z0-9_]*)\)/);
           if (columnMatch) {
             const column = columnMatch[1];
             if (window.dashboardData) {
@@ -1014,7 +1015,8 @@ window.FilterRenderer = {
           }
         } else if (cleanFormula.startsWith('min(') || cleanFormula.startsWith('max(')) {
           // Handle min/max formulas for range filters
-          const columnMatch = cleanFormula.match(/(min|max)\(([A-Z]+)2:[A-Z]+\)/);
+          const columnMatch = cleanFormula.match(/(min|max)\(([A-Z]+)2:[A-Z]+\)/) ||
+                             cleanFormula.match(/(min|max)\(([a-zA-Z_][a-zA-Z0-9_]*)\)/);
           if (columnMatch) {
             const column = columnMatch[2];
             if (window.dashboardData) {

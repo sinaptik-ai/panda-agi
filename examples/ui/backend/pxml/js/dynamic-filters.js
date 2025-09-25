@@ -153,6 +153,18 @@ class DynamicFilters {
             return `getCellValue("${columnName}", ${parseInt(row) - 1})`;
         });
 
+        // Pattern for direct column name references like price_tier, rating_category
+        // This handles cases where column names are used directly in formulas
+        // Look for function calls with column names as arguments
+        const functionWithColumnPattern = /(\w+)\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)/g;
+        expression = expression.replace(functionWithColumnPattern, (match, functionName, columnName) => {
+            // Check if this column exists in our data
+            if (this.columnMapping && Object.values(this.columnMapping).includes(columnName)) {
+                return `${functionName}(getColumnData("${columnName}"))`;
+            }
+            return match;
+        });
+
         return expression;
     }
 
