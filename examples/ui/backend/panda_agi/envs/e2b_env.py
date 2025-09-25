@@ -46,7 +46,9 @@ class E2BEnv(BaseEnv):
         if self.template is None:
             raise ValueError("E2B template is required")
         await self._connect(self.template, self.timeout, self._metadata)
-        await self._ensure_tmux_initialized()
+
+        if self.tmux_executor:
+            await self._ensure_tmux_initialized()
 
     async def _ensure_sandbox_connected(self):
         """Ensure sandbox is connected, connecting if necessary."""
@@ -76,7 +78,9 @@ class E2BEnv(BaseEnv):
         """Execute a raw command directly in the sandbox."""
         await self._ensure_sandbox_connected()
         try:
-            result = await self.sandbox.commands.run(command, timeout=timeout)
+            result = await self.sandbox.commands.run(
+                command, timeout=timeout, cwd=str(self.working_directory)
+            )
             return ExecutionResult(
                 output=result.stdout or "",
                 error=result.stderr or "",
@@ -100,6 +104,7 @@ class E2BEnv(BaseEnv):
         sbx = await AsyncSandbox.create(template, metadata=metadata, timeout=timeout)
         # Ensure base directory exists within sandbox
         await sbx.files.make_dir(str(self.base_path))
+        self.sandbox = sbx
         return sbx
 
     @staticmethod

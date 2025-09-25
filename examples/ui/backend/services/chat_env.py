@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Any, Dict, Optional
 
@@ -7,7 +8,9 @@ from panda_agi.envs.local_env import LocalEnv
 
 WORKSPACE_PATH = os.getenv("WORKSPACE_PATH", "./workspace")
 
-E2B_TEMPLATE = os.getenv("E2B_TEMPLATE", "ytj4es1gv3a3r7gqfyu5")
+E2B_TEMPLATE = os.getenv("E2B_TEMPLATE", "code-interpreter-v1")
+logger = logging.getLogger("ChatEnv")
+logger.setLevel(logging.INFO)
 
 
 async def get_env(metadata: Optional[Dict[str, Any]] = None, force_new: bool = False):
