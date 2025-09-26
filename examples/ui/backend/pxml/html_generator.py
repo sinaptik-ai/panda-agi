@@ -23,6 +23,7 @@ class HTMLGenerator:
         csv_data_json: str,
         column_mapping: Dict[str, str] = None,
         artifact_id: str = None,
+        remove_watermark: bool = False,
     ) -> str:
         """Generate complete dashboard HTML using modular approach"""
 
@@ -31,10 +32,10 @@ class HTMLGenerator:
         config = self.data_processor.process_dashboard_config(
             dashboard_data, csv_data_json, column_mapping
         )
-        
+
         # Add artifact ID to the configuration if provided
         if artifact_id:
-            config['artifact_id'] = artifact_id
+            config["artifact_id"] = artifact_id
 
         # Generate the complete HTML
         html = f"""<!DOCTYPE html>
@@ -74,7 +75,7 @@ class HTMLGenerator:
     </div>
     
     {self._generate_data_modal()}
-    {self._generate_watermark()}
+    {self._generate_watermark() if not remove_watermark else ""}
     {self._generate_scripts(config)}
 </body>
 </html>"""
@@ -395,23 +396,31 @@ class HTMLGenerator:
     def _generate_kpi_component(self, kpi_config: Dict[str, Any]) -> str:
         """Generate KPI container with individual data attributes for each property"""
         kpi_id = kpi_config["id"]
-        
+
         # Create individual data attributes for each KPI property
         # Properly escape quotes and special characters for HTML attributes
         def escape_html_attr(value):
             if value is None:
                 return ""
-            return str(value).replace('"', '&quot;').replace("'", '&#39;')
-        
+            return str(value).replace('"', "&quot;").replace("'", "&#39;")
+
         data_attrs = []
         data_attrs.append(f'data-component-type="kpi"')
         data_attrs.append(f'data-id="{escape_html_attr(kpi_config.get("id", ""))}"')
         data_attrs.append(f'data-name="{escape_html_attr(kpi_config.get("name", ""))}"')
-        data_attrs.append(f'data-fa-icon="{escape_html_attr(kpi_config.get("fa_icon", ""))}"')
-        data_attrs.append(f'data-value-formula="{escape_html_attr(kpi_config.get("value_formula", ""))}"')
-        data_attrs.append(f'data-format-type="{escape_html_attr(kpi_config.get("format_type", ""))}"')
-        data_attrs.append(f'data-unit="{escape_html_attr(kpi_config.get("unit", "") or "")}"')
-        
+        data_attrs.append(
+            f'data-fa-icon="{escape_html_attr(kpi_config.get("fa_icon", ""))}"'
+        )
+        data_attrs.append(
+            f'data-value-formula="{escape_html_attr(kpi_config.get("value_formula", ""))}"'
+        )
+        data_attrs.append(
+            f'data-format-type="{escape_html_attr(kpi_config.get("format_type", ""))}"'
+        )
+        data_attrs.append(
+            f'data-unit="{escape_html_attr(kpi_config.get("unit", "") or "")}"'
+        )
+
         # Note: We don't store data_params anymore - the component is fully self-contained
         # with just the basic properties above. The JS formula is already converted from Excel.
 
@@ -427,7 +436,7 @@ class HTMLGenerator:
     def _generate_chart_component(self, chart_config: Dict[str, Any]) -> str:
         """Generate chart container with data attributes for self-contained rendering"""
         chart_id = chart_config["id"]
-        
+
         # Build data attributes for chart configuration
         data_attributes = f"""
             data-component-type="chart"
@@ -588,4 +597,6 @@ class HTMLGenerator:
             return ""
         json_str = json.dumps(data)
         # Escape quotes and other special characters for HTML attributes
-        return json_str.replace('"', '&quot;').replace("'", "&#39;").replace("&", "&amp;")
+        return (
+            json_str.replace('"', "&quot;").replace("'", "&#39;").replace("&", "&amp;")
+        )

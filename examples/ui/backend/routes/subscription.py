@@ -121,12 +121,8 @@ async def create_customer_portal(request: Request, portal_request: PortalRequest
             return await resp.json()
 
 
-@router.get("/subscription")
-async def get_subscription(request: Request):
+async def get_user_subscription(api_key: str):
     """Get the current user's subscription"""
-
-    # Get API key from request state (set by AuthMiddleware)
-    api_key = getattr(request.state, "api_key", None)
 
     async with aiohttp.ClientSession() as session:
         headers = {"X-API-KEY": f"{api_key}"}
@@ -144,6 +140,29 @@ async def get_subscription(request: Request):
                 )
 
             return await resp.json()
+
+
+async def get_subscription_package(api_key: str):
+    """Get the current user's subscription package"""
+
+    subscription = await get_user_subscription(api_key)
+    subscription_package = subscription.get("subscription", {})
+
+    if subscription_package:
+        subscription_package = subscription_package.get("current_package", None)
+    else:
+        subscription_package = None
+    return subscription_package
+
+
+@router.get("/subscription")
+async def get_subscription(request: Request):
+    """Get the current user's subscription"""
+
+    # Get API key from request state (set by AuthMiddleware)
+    api_key = getattr(request.state, "api_key", None)
+
+    return await get_user_subscription(api_key)
 
 
 @router.post("/create-payment-session")
