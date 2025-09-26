@@ -51,6 +51,25 @@ ERROR_PAGE_URL = f"{PANDA_CHAT_CLIENT_URL}/404"
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
 
 
+async def get_artifact_user_plan(artifact_id: str) -> dict:
+    """Get the current user's subscription"""
+
+    async with aiohttp.ClientSession() as session:
+
+        async with session.get(
+            f"{PANDA_AGI_SERVER_URL}/artifacts/{artifact_id}/user-package",
+        ) as resp:
+            if resp.status == 404:
+                # User has no subscription
+                return {"current_package": None}
+            elif resp.status != 200:
+                raise HTTPException(
+                    status_code=resp.status, detail="Failed to fetch subscription"
+                )
+
+            return await resp.json()
+
+
 async def process_artifact_markdown_to_pdf(
     file_path: str,
     content_bytes: bytes,
@@ -615,7 +634,10 @@ async def serve_artifact_file(
                 # Check if it's a pxml file and raw mode is not requested
                 if file_path.lower().endswith((".pxml")):
                     if not raw:
-                        subscription_package = await get_subscription_package(api_key)
+                        subscription_package = await get_artifact_user_plan(artifact_id)
+                        subscription_package = subscription_package.get(
+                            "current_package"
+                        )
                         html_response = await process_artifact_pxml_to_html(
                             file_path,
                             content_bytes,

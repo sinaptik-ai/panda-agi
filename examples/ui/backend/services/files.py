@@ -3,7 +3,7 @@ import mimetypes
 import os
 from pathlib import Path
 
-from panda_agi.utils import file_replace
+from panda_agi.utils.file_replace import file_replace
 from models.agent import ConversationMessage
 from panda_agi.envs.base_env import BaseEnv
 from utils.exceptions import FileNotFoundError, RestrictedAccessError
