@@ -16,7 +16,6 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
   const [tableData, setTableData] = useState<string[][]>([]);
   const [parseProgress, setParseProgress] = useState(0);
   const [visibleRows, setVisibleRows] = useState<string[][]>([]);
-  const [scrollPosition, setScrollPosition] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   // Refs for scroll handling
@@ -55,10 +54,7 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
             setTableData(parsedData);
             
             // Initially show first 100 rows for better performance
-            const initialRows = parsedData.length > 0 ? [
-              parsedData[0], // Header row
-              ...parsedData.slice(1, 101) // First 100 data rows
-            ] : [];
+            const initialRows = constructVisibleRows(parsedData, 100);
             setVisibleRows(initialRows);
             
             setParseProgress(100);
@@ -91,6 +87,14 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
 
   const fileExtension = getFileExtension(filename);
 
+  // Helper function to construct visible rows with header
+  const constructVisibleRows = useCallback((data: string[][], endIndex?: number) => {
+    if (!data.length) return [];
+    
+    const dataRows = endIndex ? data.slice(1, endIndex + 1) : data.slice(1);
+    return [data[0], ...dataRows]; // Header + data rows
+  }, []);
+
   // Load more data when scrolling near the bottom
   const loadMoreData = useCallback(() => {
     if (isLoadingMore || !tableData.length || visibleRows.length >= tableData.length) {
@@ -103,17 +107,13 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
     setTimeout(() => {
       const currentVisibleCount = visibleRows.length - 1; // Exclude header
       const nextBatchSize = 100;
-      const nextBatch = tableData.slice(1, currentVisibleCount + nextBatchSize + 1);
+      const endIndex = currentVisibleCount + nextBatchSize;
       
-      const newVisibleRows = tableData.length > 0 ? [
-        tableData[0], // Header row
-        ...nextBatch // Data rows
-      ] : [];
-      
+      const newVisibleRows = constructVisibleRows(tableData, endIndex);
       setVisibleRows(newVisibleRows);
       setIsLoadingMore(false);
     }, 300);
-  }, [isLoadingMore, tableData, visibleRows.length]);
+  }, [isLoadingMore, tableData, visibleRows.length, constructVisibleRows]);
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
