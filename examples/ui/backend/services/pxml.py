@@ -153,6 +153,7 @@ class PXMLService:
         xml_content: str,
         get_file: Callable[[str], Tuple[bytes, str]],
         artifact_id: str = None,
+        remove_watermark: bool = False,
     ) -> str:
         """
         Compile a PXML file and return the compiled HTML file
@@ -169,7 +170,7 @@ class PXMLService:
             file_bytes, _ = await get_file(csv_file_path)
             csv_content = file_bytes.decode("utf-8")
             html_content = dashboard_compiler.compile_dashboard_with_csv(
-                dashboard_data, csv_content, artifact_id
+                dashboard_data, csv_content, artifact_id, remove_watermark
             )
             logger.info(f"TEST DEBUG: HTML content: {html_content[:100]}")
             return html_content
@@ -186,7 +187,10 @@ class PXMLService:
 
     @staticmethod
     async def compile_pxml(
-        xml_content: str, env: BaseEnv, artifact_id: str = None
+        xml_content: str,
+        env: BaseEnv,
+        artifact_id: str = None,
+        remove_watermark: bool = False,
     ) -> str:
         """
         Compile a PXML file and return the compiled data.
@@ -200,7 +204,9 @@ class PXMLService:
             async def get_file(file_path: str) -> Tuple[bytes, str]:
                 return await FilesService.get_file_from_env(file_path, env)
 
-            return await PXMLService.compile(xml_content, get_file, artifact_id)
+            return await PXMLService.compile(
+                xml_content, get_file, artifact_id, remove_watermark=remove_watermark
+            )
 
         except (PXMLParsingError, CSVFileError) as e:
             logger.exception(f"PXML compilation error: {e}")

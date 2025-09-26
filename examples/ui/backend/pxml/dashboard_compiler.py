@@ -23,8 +23,14 @@ class DashboardCompiler:
         self.formula_evaluator = FormulaEvaluator()
         self.html_generator = HTMLGenerator()
 
-    def compile_dashboard_with_csv(self, dashboard_data: dict, csv_content: str, artifact_id: str = None) -> str:
-        """Compile dashboard from XML file and CSV file"""
+    def compile_dashboard_with_csv(
+        self,
+        dashboard_data: dict,
+        csv_content: str,
+        artifact_id: str = None,
+        remove_watermark: bool = False,
+    ) -> str:
+        """Compile dashboard from XML file and CSV file. If remove_watermark is True, the watermark will be omitted from the output."""
         try:
             # Load CSV data
             self.csv_processor.load_csv_from_string(csv_content)
@@ -39,7 +45,11 @@ class DashboardCompiler:
 
             # Generate HTML dashboard
             html_content = self.html_generator.generate_dashboard_html(
-                dashboard_data, csv_data_json, column_mapping, artifact_id
+                dashboard_data,
+                csv_data_json,
+                column_mapping,
+                artifact_id,
+                remove_watermark=remove_watermark,
             )
             return html_content
         except Exception as e:

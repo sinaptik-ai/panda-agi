@@ -13,6 +13,8 @@ from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response
+
+from .subscription import get_subscription_package
 from .conversation import get_conversation_messages
 from services.pxml import PXMLService
 from utils.exceptions import RestrictedAccessError, FileNotFoundError
@@ -377,8 +379,12 @@ async def read_file(
         if file_path.lower().endswith((".pxml")):
             if not raw:
                 content_bytes = content_bytes.decode("utf-8")
-
-                html_content = await PXMLService.compile_pxml(content_bytes, local_env)
+                subscription_package = await get_subscription_package(api_key)
+                html_content = await PXMLService.compile_pxml(
+                    content_bytes,
+                    local_env,
+                    remove_watermark=subscription_package == "pro",
+                )
                 return Response(content=html_content, media_type="text/html")
             else:
                 # Return the raw PXML content

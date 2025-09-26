@@ -33,6 +33,7 @@ from services.files import FilesService
 import datetime
 from pathlib import Path
 from pxml.xml_parser import XMLParser
+from routes.subscription import get_subscription_package, get_user_subscription
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,7 @@ async def process_artifact_pxml_to_html(
     artifact_id: str,
     session: aiohttp.ClientSession,
     headers: Optional[dict],
+    remove_watermark: bool,
 ) -> Optional[Response]:
     """
     Process a PXML file from artifacts and return it as an HTML response.
@@ -163,7 +165,10 @@ async def process_artifact_pxml_to_html(
         pxml_content = content_bytes.decode("utf-8")
 
         # Use PXMLService.compile to convert PXML to HTML
-        html_content = await PXMLService.compile(pxml_content, fetch_file, artifact_id)
+
+        html_content = await PXMLService.compile(
+            pxml_content, fetch_file, artifact_id, remove_watermark=remove_watermark
+        )
 
         if html_content:
             # Convert HTML content to bytes
@@ -610,8 +615,14 @@ async def serve_artifact_file(
                 # Check if it's a pxml file and raw mode is not requested
                 if file_path.lower().endswith((".pxml")):
                     if not raw:
+                        subscription_package = await get_subscription_package(api_key)
                         html_response = await process_artifact_pxml_to_html(
-                            file_path, content_bytes, artifact_id, session, headers
+                            file_path,
+                            content_bytes,
+                            artifact_id,
+                            session,
+                            headers,
+                            subscription_package == "pro",
                         )
                         if html_response:
                             return html_response
