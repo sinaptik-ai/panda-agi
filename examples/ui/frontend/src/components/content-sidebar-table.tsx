@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Papa from "papaparse";
 import { getFileExtension } from "@/lib/utils";
 
@@ -11,17 +11,22 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
   content,
   filename,
 }) => {
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50);
+  // Scroll-based loading state
   const [isLoading, setIsLoading] = useState(false);
   const [tableData, setTableData] = useState<string[][]>([]);
   const [parseProgress, setParseProgress] = useState(0);
+  const [visibleRows, setVisibleRows] = useState<string[][]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  // Refs for scroll handling
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const loadingTriggerRef = useRef<HTMLDivElement>(null);
 
   // Parse CSV content only once when content changes
   useEffect(() => {
     if (!content) {
       setTableData([]);
+      setVisibleRows([]);
       return;
     }
 
@@ -45,7 +50,13 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
           complete: (results) => {
             clearInterval(progressInterval);
             console.log("CSV parsing completed:", results.data.length, "rows");
-            setTableData(results.data as string[][]);
+            const parsedData = results.data as string[][];
+            setTableData(parsedData);
+            
+            // Initially show first 100 rows for better performance
+            const initialRows = constructVisibleRows(parsedData, 100);
+            setVisibleRows(initialRows);
+            
             setParseProgress(100);
             setIsLoading(false);
           },
@@ -53,6 +64,7 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
             clearInterval(progressInterval);
             console.error("Error parsing CSV:", error);
             setTableData([]);
+            setVisibleRows([]);
             setParseProgress(0);
             setIsLoading(false);
           }
@@ -61,6 +73,7 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
         clearInterval(progressInterval);
         console.error("Error parsing CSV:", error);
         setTableData([]);
+        setVisibleRows([]);
         setParseProgress(0);
         setIsLoading(false);
       }
@@ -74,39 +87,59 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
 
   const fileExtension = getFileExtension(filename);
 
-  // Memoized pagination logic to prevent unnecessary recalculations
-  const paginationData = useMemo(() => {
-    const totalRows = tableData.length > 0 ? tableData.length - 1 : 0; // Exclude header row
-    const totalPages = Math.ceil(totalRows / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    const paginatedData = tableData.length > 0 ? [
-      tableData[0], // Header row
-      ...tableData.slice(1).slice(startIndex, endIndex) // Data rows
-    ] : [];
+  // Helper function to construct visible rows with header
+  const constructVisibleRows = useCallback((data: string[][], endIndex?: number) => {
+    if (!data.length) return [];
+    
+    const dataRows = endIndex ? data.slice(1, endIndex + 1) : data.slice(1);
+    return [data[0], ...dataRows]; // Header + data rows
+  }, []);
 
-    return {
-      totalRows,
-      totalPages,
-      startIndex,
-      endIndex,
-      paginatedData
+  // Load more data when scrolling near the bottom
+  const loadMoreData = useCallback(() => {
+    if (isLoadingMore || !tableData.length || visibleRows.length >= tableData.length) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    
+    // Simulate loading delay for better UX
+    setTimeout(() => {
+      const currentVisibleCount = visibleRows.length - 1; // Exclude header
+      const nextBatchSize = 100;
+      const endIndex = currentVisibleCount + nextBatchSize;
+      
+      const newVisibleRows = constructVisibleRows(tableData, endIndex);
+      setVisibleRows(newVisibleRows);
+      setIsLoadingMore(false);
+    }, 300);
+  }, [isLoadingMore, tableData, visibleRows.length, constructVisibleRows]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMoreData();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadingTriggerRef.current) {
+      observer.observe(loadingTriggerRef.current);
+    }
+
+    return () => {
+      if (loadingTriggerRef.current) {
+        observer.unobserve(loadingTriggerRef.current);
+      }
     };
-  }, [tableData, currentPage, itemsPerPage]);
+  }, [loadMoreData]);
 
-  const { totalRows, totalPages, startIndex, endIndex, paginatedData } = paginationData;
-
-  // Pagination handlers
-  const handlePageChange = (page: number) => {
-    if (isLoading) return; // Prevent page changes while loading
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-  };
-
-  const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    if (isLoading) return; // Prevent changes while loading
-    setItemsPerPage(newItemsPerPage);
-    setCurrentPage(1); // Reset to first page
-  };
+  // Calculate total rows for display
+  const totalRows = tableData.length > 0 ? tableData.length - 1 : 0; // Exclude header row
+  const visibleDataRows = visibleRows.length > 0 ? visibleRows.length - 1 : 0; // Exclude header row
 
   return (
     <div className="h-full flex flex-col">
@@ -123,8 +156,8 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
           {tableData.length > 0 && (
             <span>{tableData[0].length} columns</span>
           )}
-          {totalPages > 1 && (
-            <span>Page {currentPage} of {totalPages}</span>
+          {visibleDataRows < totalRows && (
+            <span>Showing {visibleDataRows} of {totalRows}</span>
           )}
         </div>
       </div>
@@ -145,15 +178,15 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
               <div className="text-xs text-gray-400">{Math.round(parseProgress)}% complete</div>
             </div>
           </div>
-        ) : paginatedData.length > 0 ? (
-          <div className="w-full h-full overflow-auto">
+        ) : visibleRows.length > 0 ? (
+          <div ref={tableContainerRef} className="w-full h-full overflow-auto">
             <table
               className="w-full divide-y divide-gray-200"
               style={{ minWidth: "max-content" }}
             >
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
-                  {paginatedData[0].map((header, index) => (
+                  {visibleRows[0].map((header, index) => (
                     <th
                       key={index}
                       className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 last:border-r-0 whitespace-nowrap"
@@ -170,7 +203,7 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedData.slice(1).map((row, rowIndex) => (
+                {visibleRows.slice(1).map((row, rowIndex) => (
                   <tr
                     key={rowIndex}
                     className="hover:bg-gray-50 transition-colors"
@@ -189,6 +222,22 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
                 ))}
               </tbody>
             </table>
+            
+            {/* Loading trigger for infinite scroll */}
+            {visibleDataRows < totalRows && (
+              <div ref={loadingTriggerRef} className="flex justify-center py-4">
+                {isLoadingMore ? (
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                    <span>Loading more data...</span>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-400">
+                    Scroll down to load more data
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center text-gray-500 p-8">
@@ -200,79 +249,6 @@ const ContentSidebarTable: React.FC<ContentSidebarTableProps> = ({
         )}
       </div>
 
-      {/* Pagination Controls */}
-      {!isLoading && totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t border-gray-200 flex-shrink-0">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <label htmlFor="items-per-page" className="text-sm text-gray-700">
-                Rows per page:
-              </label>
-              <select
-                id="items-per-page"
-                value={itemsPerPage}
-                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                className="px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-                <option value={200}>200</option>
-              </select>
-            </div>
-            <div className="text-sm text-gray-700">
-              Showing {startIndex + 1} to {Math.min(endIndex, totalRows)} of {totalRows} rows
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              Previous
-            </button>
-            
-            <div className="flex items-center space-x-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`px-3 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      currentPage === pageNum
-                        ? 'bg-blue-500 text-white border-blue-500'
-                        : 'border-gray-300 hover:bg-gray-100'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-            
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
