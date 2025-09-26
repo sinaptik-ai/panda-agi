@@ -30,7 +30,7 @@ class DashboardCompiler:
         artifact_id: str = None,
         remove_watermark: bool = False,
     ) -> str:
-        """Compile dashboard from XML file and CSV file"""
+        """Compile dashboard from XML file and CSV file. If remove_watermark is True, the watermark will be omitted from the output."""
         try:
             # Load CSV data
             self.csv_processor.load_csv_from_string(csv_content)
