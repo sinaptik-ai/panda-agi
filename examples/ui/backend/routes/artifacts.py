@@ -51,7 +51,7 @@ ERROR_PAGE_URL = f"{PANDA_CHAT_CLIENT_URL}/404"
 router = APIRouter(prefix="/artifacts", tags=["artifacts"])
 
 
-async def get_artifact_user_plan(artifact_id: str):
+async def get_artifact_user_plan(artifact_id: str) -> dict:
     """Get the current user's subscription"""
 
     async with aiohttp.ClientSession() as session:
