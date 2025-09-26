@@ -392,13 +392,15 @@ class CSVLoader {
         // A:A -> row['Month'], B:B -> row['Branch'], etc.
         let processedFormula = formula;
         
-        // Handle column references like A:A, B:B, etc.
-        const columnRefPattern = /([A-Z]+):([A-Z]+)/g;
-        processedFormula = processedFormula.replace(columnRefPattern, (match, startCol, endCol) => {
-            // For now, just use the start column
-            const columnName = this.columnMapping[startCol];
-            if (columnName && row[columnName] !== undefined) {
-                return `"${row[columnName]}"`;
+        // Handle column references like A:A, B:B, D2:D, etc.
+        const columnRefPattern = /([A-Z]+)(\d*):([A-Z]+)(\d*)/g;
+        processedFormula = processedFormula.replace(columnRefPattern, (match, startCol, startRow, endCol, endRow) => {
+            // For single column ranges (A:A, B:B, D2:D)
+            if (startCol === endCol) {
+                const columnName = this.columnMapping[startCol];
+                if (columnName && row[columnName] !== undefined) {
+                    return `row['${columnName}']`;
+                }
             }
             return '""';
         });
@@ -444,7 +446,10 @@ class CSVLoader {
             // Use the centralized Excel function mappings from ExcelHelpers
             if (window.ExcelHelpers) {
                 // Get all Excel functions from the centralized mapping
-                const context = window.ExcelHelpers.getFunctionMappings();
+                const context = {
+                    ...window.ExcelHelpers.getFunctionMappings(),
+                    row: row  // Add the row variable to the context
+                };
                 
                 // Evaluate the formula with Excel functions
                 const result = this.evaluateWithContext(processedFormula, context);
@@ -452,7 +457,7 @@ class CSVLoader {
             } else {
                 console.warn('ExcelHelpers not available, using fallback evaluation');
                 // Fallback to basic evaluation
-                return this.evaluateWithContext(processedFormula, {});
+                return this.evaluateWithContext(processedFormula, { row: row });
             }
         } catch (error) {
             console.warn(`Error evaluating formula '${formula}':`, error);
