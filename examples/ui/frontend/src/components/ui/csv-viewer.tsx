@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Papa from "papaparse";
-import { getFileExtension } from "@/lib/utils";
 
 interface CSVViewerProps {
   content: string;
@@ -31,8 +30,6 @@ const CSVViewer: React.FC<CSVViewerProps> = ({
   // Refs for scroll handling
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const loadingTriggerRef = useRef<HTMLDivElement>(null);
-
-  const fileExtension = getFileExtension(filename);
 
   // Helper function to construct visible rows with header
   const constructVisibleRows = useCallback((data: string[][], endIndex?: number) => {
@@ -211,7 +208,7 @@ const CSVViewer: React.FC<CSVViewerProps> = ({
   const visibleDataRows = visibleRows.length > 0 ? visibleRows.length - 1 : 0; // Exclude header row
 
   return (
-    <div className={`flex flex-col ${className}`}>
+    <div className={`flex flex-col ${maxHeight} ${className}`}>
       {/* Table Header - Matching data modal style */}
       {showHeader && (
         <div className="flex items-center justify-between p-3 border-b bg-gray-50 flex-shrink-0">
@@ -228,7 +225,7 @@ const CSVViewer: React.FC<CSVViewerProps> = ({
       )}
 
       {/* Table Content - Matching data modal style */}
-      <div >
+      <div className={maxHeight ? "flex-1 min-h-0" : "w-full"}>
         {isLoading ? (
           <div className={`flex items-center justify-center h-full min-h-[80vh]`}>
             <div className="text-center w-full max-w-md">
@@ -247,7 +244,7 @@ const CSVViewer: React.FC<CSVViewerProps> = ({
             <div className="w-full">
             <div
               ref={tableContainerRef}
-              style={maxHeight ? { maxHeight: "85vh" } : {}}
+              style={maxHeight ? { maxHeight } : {}}
             >
             <table
               className="min-w-full divide-y divide-gray-200"
