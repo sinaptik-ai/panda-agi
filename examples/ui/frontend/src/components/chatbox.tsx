@@ -196,12 +196,12 @@ const ChatBox = forwardRef<ChatBoxRef, ChatBoxProps>(
         };
 
         // For large files, read only first chunk for preview
-        if (file.size > 1024 * 1024) {
-          const blob = file.slice(0, 100000); // First 100KB
-          reader.readAsText(blob);
-        } else {
-          reader.readAsText(file);
-        }
+        // if (file.size > 1024 * 1024) {
+        //   const blob = file.slice(0, 100000); // First 100KB
+        //   reader.readAsText(blob);
+        // } else {
+        reader.readAsText(file);
+        // }
       });
     };
 

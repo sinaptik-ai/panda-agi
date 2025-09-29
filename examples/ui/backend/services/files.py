@@ -145,7 +145,7 @@ class FilesService:
                 new_str = tool_call["arguments"].get("replace_str", None)
 
                 if old_str and new_str:
-                    file_write_content = file_replace(
+                    file_write_content, _ = file_replace(
                         file_write_content, old_str, new_str
                     )
                     logger.debug(
