@@ -286,22 +286,22 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
 
       {/* Table */}
       <div className="relative overflow-x-auto">
-        <table className="w-full sm:text-sm text-xs relative z-20">
+        <table className="min-w-full divide-y divide-gray-200 relative z-20">
           {/* Headers */}
-          <thead>
-            <tr className="border-b border-slate-200/50">
+          <thead className="bg-gray-50 sticky top-0 z-10">
+            <tr>
               {displayHeaders.map((header, index) => (
                 <th
                   key={index}
-                  className="sm:px-3 sm:py-2 px-2 py-1 text-left font-medium text-slate-700 bg-slate-50/30 border-r border-slate-200/30 last:border-r-0"
+                  className="px-3 py-2 text-left text-xs font-semibold text-gray-600 bg-gray-50 border-r border-gray-200"
                 >
-                  <div className="truncate sm:max-w-32 max-w-20" title={header}>
+                  <div className="truncate" title={header} style={{ maxWidth: "200px" }}>
                     {header}
                   </div>
                 </th>
               ))}
               {hasMoreColumns && (
-                <th className="sm:px-3 sm:py-2 px-2 py-1 text-left font-medium text-slate-400 bg-slate-50/30">
+                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 bg-gray-50">
                   <div className="text-xs">
                     +{csvData.headers.length - effectiveMaxColumns} more
                   </div>
@@ -311,30 +311,24 @@ const CSVPreview: React.FC<CSVPreviewProps> = ({
           </thead>
 
           {/* Data Rows */}
-          <tbody>
+          <tbody className="bg-white divide-y divide-gray-200">
             {displayRows.map((row, rowIndex) => (
               <tr
                 key={rowIndex}
-                className={cn(
-                  "border-b border-slate-200/30 hover:bg-slate-50/50 transition-colors",
-                  rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/20"
-                )}
+                className={`hover:bg-blue-50 transition-colors duration-150 ${rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
               >
                 {displayHeaders.map((_, cellIndex) => (
                   <td
                     key={cellIndex}
-                    className="sm:px-3 sm:py-2 px-2 py-1 border-r border-slate-200/30 last:border-r-0"
+                    className="px-4 py-3 text-sm text-gray-900 border-b border-gray-100 truncate"
+                    style={{ maxWidth: "200px" }}
+                    title={row[cellIndex] || ""}
                   >
-                    <div
-                      className="truncate sm:max-w-32 max-w-16"
-                      title={row[cellIndex] || ""}
-                    >
-                      {row[cellIndex] || ""}
-                    </div>
+                    {row[cellIndex] || ""}
                   </td>
                 ))}
                 {hasMoreColumns && (
-                  <td className="sm:px-3 sm:py-2 px-2 py-1 text-slate-400">
+                  <td className="px-4 py-3 text-sm text-gray-900 border-b border-gray-100">
                     <div className="text-xs">...</div>
                   </td>
                 )}
