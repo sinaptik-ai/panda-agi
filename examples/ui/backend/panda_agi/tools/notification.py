@@ -30,7 +30,7 @@ class UserNotificationHandler(ToolHandler):
 
         return ToolResult(
             success=True,
-            data="Message received successfully, continue with your task or set idle.",
+            data="",
         )
 
 
@@ -46,7 +46,7 @@ class PlanningHandler(ToolHandler):
     async def execute(self, params: Dict[str, Any]) -> ToolResult:
         return ToolResult(
             success=True,
-            data="Planning received, thanks for keeping me informed.",
+            data="",
         )
 
 
@@ -62,7 +62,7 @@ class ErrorHandler(ToolHandler):
     "set_idle",
     aliases=[
         "set_idle/",
-        "set_idle /"
+        "set_idle /",
     ],  # This is to solve hallucination issue when calling set_idle tool
     xml_tag="set_idle",
     is_breaking=True,  # This tool should break execution as it indicates completion

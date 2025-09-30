@@ -77,8 +77,6 @@ class WebNavigationHandler(ToolHandler):
     try:
 
         async def execute(self, params: Dict[str, Any]) -> ToolResult:
-            print("Executing web_visit_page tool...")
-
             # parallelize the navigation
             tasks = [beautiful_soup_navigation(url=url) for url in params["urls"]]
             results = await asyncio.gather(*tasks)

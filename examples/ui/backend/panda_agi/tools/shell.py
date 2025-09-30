@@ -255,7 +255,13 @@ class ExecuteScriptHandler(ToolHandler):
                 exec_dir=self.environment.working_directory,
             )
 
-            return result.to_tool_result()
+            tool_result = result.to_tool_result()
+            tool_result.data = f"""Execution of python script result:
+```
+{tool_result.data}
+```
+"""
+            return tool_result
 
         finally:
             # Clean up temporary file
