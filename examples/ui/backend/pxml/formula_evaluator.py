@@ -47,6 +47,8 @@ class FormulaEvaluator:
             "YEAR": "arrayMapYear",
             "TEXT": "excelText",
             "CHOOSE": "excelChoose",
+            "SPLIT": "excelSplit",
+            "LEN": "excelLen",
         }
 
     def convert_formula_to_js(

@@ -91,7 +91,7 @@ class DynamicFilters {
                 return [];
             }
         } catch (error) {
-            console.error(`[DynamicFilters] Error computing filter values for formula: ${formula}`, error);
+            //
             return [];
         }
     }
@@ -269,8 +269,7 @@ class DynamicFilters {
             const func = new Function(...Object.keys(context), `return ${code}`);
             return func(...Object.values(context));
         } catch (error) {
-            console.error('[DynamicFilters] safeEval error for code:', code);
-            console.error('[DynamicFilters] Error:', error);
+            //
             throw error;
         }
     }

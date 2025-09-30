@@ -72,7 +72,7 @@ class CSVLoader {
             
             return this.csvData;
         } catch (error) {
-            console.error('Error loading CSV data:', error);
+            //
             this.csvData = [];
             this.columnMapping = {};
             throw error;
@@ -120,7 +120,7 @@ class CSVLoader {
             
             return csvData;
         } catch (error) {
-            console.error('Error fetching CSV from server:', error);
+            //
             throw error;
         }
     }
@@ -441,6 +441,13 @@ class CSVLoader {
             }
             return '""';
         });
+
+        // Replace Excel-style operators for JS evaluation
+        // 1) Not equal: <> -> !=
+        processedFormula = processedFormula.replace(/<>/g, '!=');
+        // 2) Equality inside conditions: convert single = to == when comparing row[...] or literals
+        //    This targets common patterns produced above like: row['Col'] = "X"
+        processedFormula = processedFormula.replace(/(row\['[^']+'\])\s*=\s*([^),]+)/g, (m, left, right) => `${left} == ${right}`);
 
         try {
             // Use the centralized Excel function mappings from ExcelHelpers

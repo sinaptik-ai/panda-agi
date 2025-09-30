@@ -541,6 +541,12 @@ export const ExcelHelpers = {
     return str;
   },
 
+  excelSplit: function (text, delimiter) {
+    const textStr = String(text);
+    const delimiterStr = String(delimiter);
+    return textStr.split(delimiterStr);
+  },
+
   excelRept: function (text, numTimes) {
     return String(text).repeat(Math.max(0, Number(numTimes)));
   },

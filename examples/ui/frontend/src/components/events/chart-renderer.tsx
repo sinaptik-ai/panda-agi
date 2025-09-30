@@ -89,7 +89,8 @@ const ChartRenderer: React.FC<ChartRendererProps> = React.memo(({
         SUM: ExcelHelpers.excelSum,
         AVERAGE: ExcelHelpers.excelAvg,
         AVG: ExcelHelpers.excelAvg, // Alias
-        COUNT: ExcelHelpers.excelCount,
+        // Map COUNT to COUNTA semantics (non-empty)
+        COUNT: ExcelHelpers.excelCountA,
         COUNTA: ExcelHelpers.excelCountA,
         MAX: ExcelHelpers.excelMax,
         MIN: ExcelHelpers.excelMin,
@@ -116,6 +117,7 @@ const ChartRenderer: React.FC<ChartRendererProps> = React.memo(({
         RIGHT: ExcelHelpers.excelRight,
         MID: ExcelHelpers.excelMid,
         LEN: ExcelHelpers.excelLen,
+        SPLIT: ExcelHelpers.excelSplit,
         UPPER: ExcelHelpers.excelUpper,
         LOWER: ExcelHelpers.excelLower,
         TRIM: ExcelHelpers.excelTrim,

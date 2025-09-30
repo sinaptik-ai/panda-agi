@@ -269,8 +269,7 @@ function renderChartCard(chartId, config, isLoading = false) {
         registerChart(chartId, config);
     }
     
-    // Debug: Log that chart card was rendered
-    console.log('Chart card rendered for:', chartId, 'Container exists:', !!container);
+    // Chart card rendered
 }
 
 function registerChart(chartId, config) {
@@ -480,41 +479,141 @@ function cleanNumericValue(value) {
 function processChartData(data, config) {
     const { x_axis, series_list, default_filter_conditions } = config;
     
+    // Check if we're dealing with categorical series (multiple series with same column/aggregation but different names)
+    // This indicates a stacked chart where each series represents a different category
+    let isCategoricalChart = false;
+    let categoricalColumn = null;
+    
+    if (series_list.length > 1) {
+        // Check if all series use the same column and aggregation (typical for categorical charts)
+        const firstSeries = series_list[0];
+        const allSameColumn = series_list.every(s => s.column === firstSeries.column);
+        const allSameAggregation = series_list.every(s => s.aggregation === firstSeries.aggregation);
+        const allSameColumnAggregation = series_list.every(s => s.column === firstSeries.column && s.aggregation === firstSeries.aggregation);
+        
+        // Check if series names suggest different categories (not just "Series 1", "Series 2", etc.)
+        const hasDescriptiveNames = series_list.some(s => s.name && !s.name.match(/^Series\s*\d+$/i));
+        
+        if (allSameColumnAggregation && hasDescriptiveNames) {
+            isCategoricalChart = true;
+            categoricalColumn = firstSeries.column;
+            console.log(`Detected categorical chart with ${series_list.length} series using column ${categoricalColumn}`);
+        }
+    }
+    
     // Apply default filter conditions if they exist
     let filteredData = data;
     if (default_filter_conditions && Array.isArray(default_filter_conditions)) {
-        filteredData = data.filter(row => {
-            return default_filter_conditions.every(condition => {
-                // Handle range conditions like "user_gender2:user_gender=\"Male\""
-                const rangeConditionMatch = condition.match(/^([^:]+)2:([^=]+)=(.+)$/);
-                if (rangeConditionMatch) {
-                    const [, , columnName, value] = rangeConditionMatch;
-                    const rowValue = row[columnName.trim()];
-                    // Remove quotes and unescape escaped quotes
-                    const compareValue = value.trim().replace(/\\"/g, '"').replace(/^["']|["']$/g, '');
-                    return rowValue == compareValue;
-                }
-                
-                // Parse simple condition like "error_code>0"
-                const conditionMatch = condition.match(/^([^><=!]+)\s*([><=!]+)\s*(.+)$/);
-                if (conditionMatch) {
-                    const [, columnName, operator, value] = conditionMatch;
-                    const rowValue = row[columnName.trim()];
-                    const compareValue = isNaN(value) ? value.trim() : Number(value);
-                    
-                    switch (operator) {
-                        case '>': return Number(rowValue) > compareValue;
-                        case '>=': return Number(rowValue) >= compareValue;
-                        case '<': return Number(rowValue) < compareValue;
-                        case '<=': return Number(rowValue) <= compareValue;
-                        case '=': return rowValue == compareValue;
-                        case '!=': return rowValue != compareValue;
-                        default: return true;
-                    }
-                }
-                return true;
+        // If we're dealing with a categorical chart, be careful about default filters
+        if (isCategoricalChart) {
+            console.log('Detected categorical chart, checking default filter compatibility');
+            console.log('Default filter conditions:', default_filter_conditions);
+            
+            // For categorical charts, default filters that restrict the categorical column
+            // should be ignored to allow all categories to be shown
+            const columnMapping = getColumnMapping();
+            const categoricalColumnName = columnMapping[categoricalColumn] || categoricalColumn;
+            
+            const conflictingDefaultFilter = default_filter_conditions.some(condition => {
+                // Check if the condition filters the categorical column
+                return condition.includes(`${categoricalColumn}2:${categoricalColumn}=`) || 
+                       condition.includes(`${categoricalColumnName}2:${categoricalColumnName}=`);
             });
-        });
+            
+            console.log('Conflicting default filter detected:', conflictingDefaultFilter);
+            
+            if (conflictingDefaultFilter) {
+                console.log('Found conflicting default filter, ignoring it for categorical chart');
+                // Don't apply the default filter for this chart
+                filteredData = data;
+            } else {
+                // Apply default filters normally
+                filteredData = data.filter(row => {
+                    return default_filter_conditions.every(condition => {
+                        // Handle range conditions like "user_gender2:user_gender=\"Male\""
+                        const rangeConditionMatch = condition.match(/^([^:]+)2:([^=]+)=(.+)$/);
+                        if (rangeConditionMatch) {
+                            const [, , columnName, value] = rangeConditionMatch;
+                            const rowValue = row[columnName.trim()];
+                            // Remove quotes and unescape escaped quotes
+                            const compareValue = value.trim().replace(/\\"/g, '"').replace(/^["']|["']$/g, '');
+                            return rowValue == compareValue;
+                        }
+                        
+                        // Parse simple condition like "error_code>0"
+                        const conditionMatch = condition.match(/^([^><=!]+)\s*([><=!]+)\s*(.+)$/);
+                        if (conditionMatch) {
+                            const [, columnName, operator, value] = conditionMatch;
+                            const rowValue = row[columnName.trim()];
+                            const compareValue = isNaN(value) ? value.trim() : Number(value);
+                            
+                            switch (operator) {
+                                case '>': return Number(rowValue) > compareValue;
+                                case '>=': return Number(rowValue) >= compareValue;
+                                case '<': return Number(rowValue) < compareValue;
+                                case '<=': return Number(rowValue) <= compareValue;
+                                case '=': return rowValue == compareValue;
+                                case '!=': return rowValue != compareValue;
+                                default: return true;
+                            }
+                        }
+                        return true;
+                    });
+                });
+            }
+        } else {
+            // Apply default filters normally when not auto-generating categorical filters
+            filteredData = data.filter(row => {
+                return default_filter_conditions.every(condition => {
+                    // Handle range conditions like "user_gender2:user_gender=\"Male\""
+                    const rangeConditionMatch = condition.match(/^([^:]+)2:([^=]+)=(.+)$/);
+                    if (rangeConditionMatch) {
+                        const [, , columnName, value] = rangeConditionMatch;
+                        const rowValue = row[columnName.trim()];
+                        // Remove quotes and unescape escaped quotes
+                        const compareValue = value.trim().replace(/\\"/g, '"').replace(/^["']|["']$/g, '');
+                        return rowValue == compareValue;
+                    }
+                    
+                    // Parse simple condition like "error_code>0"
+                    const conditionMatch = condition.match(/^([^><=!]+)\s*([><=!]+)\s*(.+)$/);
+                    if (conditionMatch) {
+                        const [, columnName, operator, value] = conditionMatch;
+                        const rowValue = row[columnName.trim()];
+                        const compareValue = isNaN(value) ? value.trim() : Number(value);
+                        
+                        switch (operator) {
+                            case '>': return Number(rowValue) > compareValue;
+                            case '>=': return Number(rowValue) >= compareValue;
+                            case '<': return Number(rowValue) < compareValue;
+                            case '<=': return Number(rowValue) <= compareValue;
+                            case '=': return rowValue == compareValue;
+                            case '!=': return rowValue != compareValue;
+                            default: return true;
+                        }
+                    }
+                    return true;
+                });
+            });
+        }
+    }
+    
+    // Debug: Log data information
+    //
+    
+    // Debug: Check what store class values actually exist in the data
+    if (config.name && config.name.includes('Store Class Distribution')) {
+        const columnMapping = getColumnMapping();
+        const storeClassColumn = columnMapping['B'] || 'B';
+        
+        if (filteredData.length > 0) {
+            const storeClassValues = [...new Set(filteredData.map(row => row[storeClassColumn]))].filter(v => v !== null && v !== undefined);
+            
+            // Check a few sample rows
+            //
+        } else {
+            //
+        }
     }
     
     // For scatter charts, don't group data - show individual points
@@ -540,21 +639,29 @@ function processChartData(data, config) {
         // Generate labels and datasets
         labels = Object.keys(grouped);
         
-        // Format labels: capitalize first letter and replace underscores with spaces
-        labels = labels.map(label => {
-            return label.charAt(0).toUpperCase() + label.slice(1).replace(/_/g, ' ');
-        });
-        
-        // Special sorting for month names
-        const monthOrder = ['January', 'February', 'March', 'April', 'May', 'June', 
-                           'July', 'August', 'September', 'October', 'November', 'December'];
-        
-        if (labels.every(label => monthOrder.includes(label))) {
-            // Sort by month order
-            labels = labels.sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
+        // Check if we have any valid labels
+        if (labels.length === 0) {
+            console.warn('No labels generated from grouped data, using empty array');
+            labels = [];
         } else {
-            // Default alphabetical sort
-            labels = labels.sort();
+            // Format labels: capitalize first letter and replace underscores with spaces
+            labels = labels.map(label => {
+                return label.charAt(0).toUpperCase() + label.slice(1).replace(/_/g, ' ');
+            });
+        }
+        
+        // Special sorting for month names (only if we have labels)
+        if (labels.length > 0) {
+            const monthOrder = ['January', 'February', 'March', 'April', 'May', 'June', 
+                               'July', 'August', 'September', 'October', 'November', 'December'];
+            
+            if (labels.every(label => monthOrder.includes(label))) {
+                // Sort by month order
+                labels = labels.sort((a, b) => monthOrder.indexOf(a) - monthOrder.indexOf(b));
+            } else {
+                // Default alphabetical sort
+                labels = labels.sort();
+            }
         }
     }
     const datasets = [];
@@ -581,6 +688,52 @@ function processChartData(data, config) {
         } else {
             // Primary axis is x for horizontal, y for vertical
             series.axis = config.chart_type === 'horizontal_bar' ? 'x' : 'y';
+        }
+        
+        // Auto-generate filter conditions for categorical series
+        if (!series.filter_condition && isCategoricalChart && series.name) {
+            const columnMapping = getColumnMapping();
+            const categoricalColumnName = columnMapping[categoricalColumn] || categoricalColumn;
+            
+            // Extract the category value from the series name
+            // This is a general approach that tries to infer the category from the series name
+            let categoryValue = null;
+            
+            // Try to extract the category from common patterns
+            const seriesName = series.name.toLowerCase();
+            
+            // Look for common category patterns
+            if (seriesName.includes('red')) {
+                categoryValue = 'Red';
+            } else if (seriesName.includes('blue')) {
+                categoryValue = 'Blue';
+            } else if (seriesName.includes('flagship')) {
+                categoryValue = 'Flagship';
+            } else if (seriesName.includes('green')) {
+                categoryValue = 'Green';
+            } else if (seriesName.includes('yellow')) {
+                categoryValue = 'Yellow';
+            } else if (seriesName.includes('orange')) {
+                categoryValue = 'Orange';
+            } else if (seriesName.includes('purple')) {
+                categoryValue = 'Purple';
+            } else if (seriesName.includes('pink')) {
+                categoryValue = 'Pink';
+            } else if (seriesName.includes('brown')) {
+                categoryValue = 'Brown';
+            } else if (seriesName.includes('black')) {
+                categoryValue = 'Black';
+            } else if (seriesName.includes('white')) {
+                categoryValue = 'White';
+            } else if (seriesName.includes('gray') || seriesName.includes('grey')) {
+                categoryValue = 'Gray';
+            }
+            
+            // If we found a category value, create the filter condition
+            if (categoryValue) {
+                series.filter_condition = `${categoricalColumnName}=${categoryValue}`;
+                console.log(`Auto-generated filter condition for ${series.name}: ${series.filter_condition}`);
+            }
         }
         
         const columnMapping = getColumnMapping();
@@ -749,18 +902,41 @@ function processChartData(data, config) {
                 value: cleanNumericValue(row[yColumnName]) || 0
             }));
         } else {
+            // Ensure labels is defined and is an array before calling map
+            if (!labels || !Array.isArray(labels)) {
+                console.warn('Labels is undefined or not an array, using empty array');
+                labels = [];
+            }
             seriesData = labels.map(label => {
             let groupData = grouped[label];
             
+            // Ensure groupData exists and is an array
+            if (!groupData || !Array.isArray(groupData)) {
+                console.warn(`No data found for label: ${label}`);
+                return 0;
+            }
+            
             // Apply filter condition if specified
             if (series.filter_condition) {
+                //
                 const [filterColumn, filterValue] = series.filter_condition.split('=');
                 const columnMapping = getColumnMapping();
                 const filterColumnName = columnMapping[filterColumn] || filterColumn;
+                //
+                
+                // Debug: Check what values exist in this group before filtering
+                if (groupData.length > 0) {
+                    const uniqueValues = [...new Set(groupData.map(row => row[filterColumnName]))].filter(v => v !== null && v !== undefined);
+                }
+                
                 groupData = groupData.filter(row => row[filterColumnName] === filterValue);
+                //
             }
             
-            const cleanedValues = groupData.map(row => cleanNumericValue(row[columnName])).filter(val => val !== null);
+            const rawValues = groupData.map(row => row[columnName]);
+            const cleanedValues = rawValues
+                .map(val => cleanNumericValue(val))
+                .filter(val => val !== null);
             
             switch (series.aggregation) {
                 case 'sum': {
@@ -778,8 +954,17 @@ function processChartData(data, config) {
                     }
                     return sum / cleanedValues.length;
                 }
-                case 'count':
-                    return cleanedValues.length;
+                case 'count': {
+                    // Count non-empty values regardless of numeric content
+                    let count = 0;
+                    for (let i = 0; i < rawValues.length; i++) {
+                        const v = rawValues[i];
+                        if (v !== null && v !== undefined && v !== '') {
+                            count++;
+                        }
+                    }
+                    return count;
+                }
                 case 'max': {
                     if (cleanedValues.length === 0) return 0;
                     let max = cleanedValues[0];

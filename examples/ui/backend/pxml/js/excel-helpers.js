@@ -541,6 +541,12 @@ const ExcelHelpers = {
     return str;
   },
 
+  excelSplit: function (text, delimiter) {
+    const textStr = String(text);
+    const delimiterStr = String(delimiter);
+    return textStr.split(delimiterStr);
+  },
+
   excelRept: function (text, numTimes) {
     return String(text).repeat(Math.max(0, Number(numTimes)));
   },
@@ -1588,7 +1594,8 @@ window.OFFSET = ExcelHelpers.excelOffset;
 // Expose all Excel functions with their standard names
 window.SUM = ExcelHelpers.excelSum;
 window.AVERAGE = ExcelHelpers.excelAvg;
-window.COUNT = ExcelHelpers.excelCount;
+// Map COUNT to COUNTA semantics (count non-empty) to better match expected behavior on text columns
+window.COUNT = ExcelHelpers.excelCountA;
 window.COUNTA = ExcelHelpers.excelCountA;
 window.MAX = ExcelHelpers.excelMax;
 window.MIN = ExcelHelpers.excelMin;
@@ -1689,6 +1696,62 @@ window.AGGREGATE = ExcelHelpers.excelAggregate;
 // Also expose the ExcelHelpers object itself for internal function calls
 window.ExcelHelpers = ExcelHelpers;
 
+// Provide lightweight access to column mapping used across the dashboard runtime
+function __getColumnMapping() {
+  try {
+    if (window.csvLoader && typeof window.csvLoader.isLoaded === 'function' && window.csvLoader.isLoaded()) {
+      return window.csvLoader.getColumnMapping();
+    }
+    if (window.columnMapping && typeof window.columnMapping === 'object') {
+      return window.columnMapping;
+    }
+  } catch (e) {
+    // no-op
+  }
+  return {};
+}
+
+// Provide a safe wrapper around getColumnData if available in the runtime
+function __getColumnDataByLetter(letter) {
+  const mapping = __getColumnMapping();
+  const mappedName = mapping[letter] || letter;
+  try {
+    if (typeof window.getColumnData === 'function') {
+      // Start from row 2 by default to skip header when supported
+      return window.getColumnData(mappedName, 2);
+    }
+  } catch (e) {
+    // no-op
+  }
+  // Fallback: try to read from current data context if present
+  if (Array.isArray(window._currentData)) {
+    const firstRow = window._currentData[0] || {};
+    // If we have an object row, map by property
+    const maybe = firstRow[mappedName];
+    if (maybe !== undefined) {
+      return window._currentData.map(row => row[mappedName]);
+    }
+  }
+  return [];
+}
+
+// Create dynamic globals for A..Z to support Excel-like shorthand COUNT(B)
+// This avoids ReferenceError: B is not defined when formulas use bare letters
+(() => {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  letters.forEach((letter) => {
+    if (!(letter in window)) {
+      Object.defineProperty(window, letter, {
+        configurable: true,
+        enumerable: false,
+        get() {
+          return __getColumnDataByLetter(letter);
+        }
+      });
+    }
+  });
+})();
+
 // Create a mapped version with standard Excel function names for easy consumption
 window.ExcelHelpers.getFunctionMappings = function() {
   return {
@@ -1720,7 +1783,8 @@ window.ExcelHelpers.getFunctionMappings = function() {
     SUM: this.excelSum,
     AVERAGE: this.excelAvg,
     AVG: this.excelAvg, // Alias for AVERAGE
-    COUNT: this.excelCount,
+    // Map COUNT to COUNTA semantics (non-empty)
+    COUNT: this.excelCountA,
     COUNTA: this.excelCountA,
     MAX: this.excelMax,
     MIN: this.excelMin,
@@ -1763,6 +1827,7 @@ window.ExcelHelpers.getFunctionMappings = function() {
     SEARCH: this.excelSearch,
     REPLACE: this.excelReplace,
     SUBSTITUTE: this.excelSubstitute,
+    SPLIT: this.excelSplit,
     REPT: this.excelRept,
     REPEAT: this.excelRept, // Alias for REPT
     REVERSE: this.excelReverse,

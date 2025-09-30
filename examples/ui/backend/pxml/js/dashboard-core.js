@@ -241,6 +241,13 @@ class DashboardCore {
       this.initializeComponent(component);
     });
 
+    // Initialize standalone charts if present
+    if (this.config.charts) {
+      this.config.charts.forEach((chart) => {
+        this.initializeComponent(chart);
+      });
+    }
+
     // Re-render all components from their data attributes
     // This ensures components are self-contained and can be updated independently
     if (window.reRenderAllKPIComponents) {
@@ -264,6 +271,13 @@ class DashboardCore {
     this.config.components.forEach((component) => {
       this.initializeComponent(component, true);
     });
+
+    // Initialize standalone charts with skeleton loading if present
+    if (this.config.charts) {
+      this.config.charts.forEach((chart) => {
+        this.initializeComponent(chart, true);
+      });
+    }
   }
 
   /**
@@ -279,6 +293,13 @@ class DashboardCore {
     this.config.components.forEach((component) => {
       this.initializeComponent(component, false);
     });
+
+    // Transition standalone charts if present
+    if (this.config.charts) {
+      this.config.charts.forEach((chart) => {
+        this.initializeComponent(chart, false);
+      });
+    }
 
     // Re-render all components from their data attributes
     if (window.reRenderAllKPIComponents) {
