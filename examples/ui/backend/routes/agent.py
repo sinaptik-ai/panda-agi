@@ -34,12 +34,16 @@ async def run_agent(query_data: AgentQuery, request: Request):
         api_key = getattr(request.state, "api_key", None)
 
         return StreamingResponse(
-            event_stream(query_data.query, query_data.conversation_id, api_key),
+            event_stream(
+                query_data.query,
+                query_data.conversation_id,
+                query_data.file_names,
+                api_key,
+            ),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
             },
         )
     except Exception as e:

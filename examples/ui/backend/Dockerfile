@@ -15,8 +15,8 @@ RUN apt-get update && apt-get install -y \
     libcairo2-dev \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
-    libgdk-pixbuf-2.0-0 \
-    libgdk-pixbuf2.0-dev \
+    libgdk-pixbuf-2.0-dev \
+    libgdk-pixbuf-xlib-2.0-dev \
     libffi-dev \
     libxml2-dev \
     libxslt-dev \

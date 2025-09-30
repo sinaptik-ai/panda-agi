@@ -23,7 +23,7 @@ export const GridView: React.FC<GridViewProps> = ({ items, className }) => {
           onClick={item.onClick}
           className={
             item.className ??
-            "bg-white/70 backdrop-blur-sm hover:bg-white/90 border border-gray-200 rounded-xl p-4 text-left transition-all hover:shadow-md"
+            "bg-white/70 backdrop-blur-sm hover:bg-white/90 border border-slate-200/60 rounded-xl p-4 text-left transition-all hover:shadow-md hover:border-slate-300/60"
           }
         >
           <h4
@@ -35,7 +35,7 @@ export const GridView: React.FC<GridViewProps> = ({ items, className }) => {
             {item.icon}
             {item.title}
           </h4>
-          <p className="text-sm text-gray-600">{item.description}</p>
+          <p className="text-sm text-slate-600">{item.description}</p>
         </button>
       ))}
     </div>

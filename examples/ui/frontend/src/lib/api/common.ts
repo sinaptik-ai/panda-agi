@@ -27,3 +27,12 @@ export const getApiHeaders = async (includeContentType: boolean = true) => {
     
     return headers;
 };
+
+export const getApiOptions = async (includeContentType: boolean = true) => {
+    const headers = await getApiHeaders(includeContentType);
+    
+    return {
+        headers,
+        credentials: 'include' as const, // Include cookies in requests
+    };
+};

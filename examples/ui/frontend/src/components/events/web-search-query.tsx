@@ -17,25 +17,23 @@ const WebSearchEvent: React.FC<WebSearchEventProps> = ({ payload, onPreviewClick
     <MessageCard
       content={
         <div>
-          <div className="flex items-center space-x-2 mb-2">
-            <Globe className="w-4 h-4 text-orange-500" />
-            <span className="font-medium text-sm text-gray-900">
-              Searching on the web...
+          <div className="flex items-center space-x-2 mb-3">
+            <Globe className="w-4 h-4 text-orange-600" />
+            <span className="font-medium text-sm text-slate-900">
+              Searching the web
             </span>
           </div>
-          <div className="mt-3">
-            <div className="flex items-center p-2 bg-white border border-gray-300 rounded-lg shadow-sm">
-              <Search className="w-4 h-4 text-gray-500 mr-2" />
-              <div className="flex-grow">
-                <MarkdownRenderer onPreviewClick={onPreviewClick}>
-                  {payload.query}
-                </MarkdownRenderer>
-              </div>
+          <div className="flex items-center p-3 bg-slate-50/80 rounded-xl border border-slate-200/50">
+            <Search className="w-4 h-4 text-slate-500 mr-2" />
+            <div className="flex-grow text-sm font-medium text-slate-700">
+              <MarkdownRenderer onPreviewClick={onPreviewClick}>
+                {payload.query}
+              </MarkdownRenderer>
             </div>
           </div>
         </div>
       }
-      color="bg-orange-50 border-orange-300"
+      color="bg-orange-50/90 border border-orange-200/50"
     />
   );
 };

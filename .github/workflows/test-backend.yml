@@ -1,0 +1,61 @@
+name: Test Backend
+
+on:
+  pull_request:
+    paths:
+      - "examples/ui/backend/**"
+      - ".github/workflows/test-backend.yml"
+  push:
+    paths:
+      - "examples/ui/backend/**"
+      - ".github/workflows/test-backend.yml"
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: [3.11]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('examples/ui/backend/test-requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+
+      - name: Install dependencies
+        run: |
+          cd examples/ui/backend
+          python -m pip install --upgrade pip
+          pip install -r test-requirements.txt
+
+      - name: Run tests
+        run: |
+          cd examples/ui/backend
+          pytest tests/ -v --cov=services --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: examples/ui/backend/coverage.xml
+          flags: backend-tests
+          name: backend-coverage
+          fail_ci_if_error: false
+
+      - name: Test with Make commands
+        run: |
+          cd examples/ui/backend
+          make test-files
+          make test-coverage

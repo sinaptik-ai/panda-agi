@@ -1,0 +1,343 @@
+import { useRef, useEffect } from "react";
+import { Chart as ChartJS, ChartConfiguration } from "chart.js";
+
+export interface Transformation {
+  name: string;
+  formula: string;
+}
+
+export interface ChartData {
+  type: string;
+  name: string;
+  filePath: string;
+  xAxis: {
+    name: string;
+    column: string;
+  };
+  series: Array<{
+    name: string;
+    column: string;
+    aggregation?: string;
+  }>;
+  transformations?: Transformation[];
+}
+
+export interface BaseChartProps {
+  chartData: ChartData;
+  csvData: string[][];
+  chartTypeOverride?: string | null;
+  showAllData?: boolean;
+  onDataLimitedChange?: (isLimited: boolean) => void;
+  barChartLimit?: 5 | 10 | 'all';
+}
+
+export const colors = [
+  {
+    bg: "rgba(59, 130, 246, 0.8)",
+    border: "rgb(59, 130, 246)",
+    hover: "rgba(59, 130, 246, 0.9)",
+    gradient: "linear-gradient(135deg, rgba(59, 130, 246, 0.8) 0%, rgba(37, 99, 235, 0.8) 100%)",
+  },
+  {
+    bg: "rgba(34, 197, 94, 0.8)",
+    border: "rgb(34, 197, 94)",
+    hover: "rgba(34, 197, 94, 0.9)",
+    gradient: "linear-gradient(135deg, rgba(34, 197, 94, 0.8) 0%, rgba(22, 163, 74, 0.8) 100%)",
+  },
+  {
+    bg: "rgba(251, 146, 60, 0.8)",
+    border: "rgb(251, 146, 60)",
+    hover: "rgba(251, 146, 60, 0.9)",
+    gradient: "linear-gradient(135deg, rgba(251, 146, 60, 0.8) 0%, rgba(249, 115, 22, 0.8) 100%)",
+  },
+  {
+    bg: "rgba(244, 63, 94, 0.8)",
+    border: "rgb(244, 63, 94)",
+    hover: "rgba(244, 63, 94, 0.9)",
+    gradient: "linear-gradient(135deg, rgba(244, 63, 94, 0.8) 0%, rgba(225, 29, 72, 0.8) 100%)",
+  },
+  {
+    bg: "rgba(14, 165, 233, 0.8)",
+    border: "rgb(14, 165, 233)",
+    hover: "rgba(14, 165, 233, 0.9)",
+    gradient: "linear-gradient(135deg, rgba(14, 165, 233, 0.8) 0%, rgba(2, 132, 199, 0.8) 100%)",
+  },
+  {
+    bg: "rgba(236, 72, 153, 0.8)",
+    border: "rgb(236, 72, 153)",
+    hover: "rgba(236, 72, 153, 0.9)",
+    gradient: "linear-gradient(135deg, rgba(236, 72, 153, 0.8) 0%, rgba(219, 39, 119, 0.8) 100%)",
+  },
+  {
+    bg: "rgba(16, 185, 129, 0.8)",
+    border: "rgb(16, 185, 129)",
+    hover: "rgba(16, 185, 129, 0.9)",
+    gradient: "linear-gradient(135deg, rgba(16, 185, 129, 0.8) 0%, rgba(15, 118, 110, 0.8) 100%)",
+  },
+  {
+    bg: "rgba(245, 158, 11, 0.8)",
+    border: "rgb(245, 158, 11)",
+    hover: "rgba(245, 158, 11, 0.9)",
+    gradient: "linear-gradient(135deg, rgba(245, 158, 11, 0.8) 0%, rgba(217, 119, 6, 0.8) 100%)",
+  },
+];
+
+export const getColumnIndex = (columnRef: string, headers: string[]): number => {
+  if (columnRef.length === 1 && /[A-Z]/.test(columnRef)) {
+    return columnRef.charCodeAt(0) - "A".charCodeAt(0);
+  }
+  return headers.findIndex(
+    (header) =>
+      header.toLowerCase().includes(columnRef.toLowerCase()) ||
+      header === columnRef
+  );
+};
+
+// Utility function to clean numeric values by removing non-numeric characters
+export const cleanNumericValue = (value: unknown): number | null => {
+  // Early returns for common cases
+  if (value === null || value === undefined || value === "") return null;
+  
+  // If already a number, return it (most efficient case)
+  if (typeof value === 'number' && !isNaN(value)) return value;
+  
+  // Convert to string and trim once
+  const str = String(value).trim();
+  
+  // Early return for empty string after trim
+  if (str === '') return null;
+  
+  // Use a single regex to remove all non-numeric characters except decimal point and minus
+  // This is more efficient than multiple operations
+  let cleaned = str.replace(/[^\d.-]/g, '');
+  
+  // Early return if nothing left after cleaning
+  if (cleaned === '' || cleaned === '-' || cleaned === '.') return null;
+  
+  // Handle multiple decimal points more efficiently
+  const lastDotIndex = cleaned.lastIndexOf('.');
+  if (lastDotIndex > 0) {
+    // Remove all dots except the last one
+    cleaned = cleaned.substring(0, lastDotIndex).replace(/\./g, '') + cleaned.substring(lastDotIndex);
+  }
+  
+  // Handle multiple minus signs more efficiently
+  const firstMinusIndex = cleaned.indexOf('-');
+  if (firstMinusIndex > 0) {
+    // Keep only the first minus sign
+    cleaned = '-' + cleaned.replace(/-/g, '');
+  }
+  
+  // Convert to number and return
+  const num = Number(cleaned);
+  return isNaN(num) ? null : num;
+};
+
+export const processCSVData = (chartData: ChartData, csvData: string[][]) => {
+  if (csvData.length === 0) {
+    return generateMockData(chartData);
+  }
+
+  const headers = csvData[0];
+  const dataRows = csvData.slice(1);
+
+  const xAxisColumnIndex = getColumnIndex(chartData.xAxis.column, headers);
+  const seriesData = chartData.series.map((series) => ({
+    ...series,
+    columnIndex: getColumnIndex(series.column, headers),
+  }));
+
+  const groupedData = new Map<string, { [key: string]: number }>();
+
+  dataRows.forEach((row) => {
+    const xValue = row[xAxisColumnIndex] || "";
+    if (!xValue) return;
+
+    if (!groupedData.has(xValue)) {
+      const initialValues: { [key: string]: number } = {};
+      seriesData.forEach((_, index) => {
+        initialValues[index.toString()] = 0;
+      });
+      groupedData.set(xValue, initialValues);
+    }
+
+    const groupValues = groupedData.get(xValue)!;
+    seriesData.forEach((series, seriesIndex) => {
+      const cleanedValue = cleanNumericValue(row[series.columnIndex]);
+      
+      switch (series.aggregation) {
+        case 'count':
+          // Count aggregation: increment counter for each row
+          groupValues[seriesIndex.toString()] += 1;
+          break;
+        case 'sum':
+          // Sum aggregation: add values
+          if (cleanedValue !== null) {
+            groupValues[seriesIndex.toString()] += cleanedValue;
+          }
+          break;
+        case 'avg':
+          // Average aggregation: we'll calculate this after processing all rows
+          if (cleanedValue !== null) {
+            // Store sum and count for later average calculation
+            if (!groupValues[seriesIndex + '_count']) {
+              groupValues[seriesIndex + '_count'] = 0;
+            }
+            groupValues[seriesIndex.toString()] += cleanedValue;
+            groupValues[seriesIndex + '_count'] += 1;
+          }
+          break;
+        case 'max':
+          // Max aggregation: keep track of maximum value
+          if (cleanedValue !== null) {
+            if (groupValues[seriesIndex.toString()] === 0 || cleanedValue > groupValues[seriesIndex.toString()]) {
+              groupValues[seriesIndex.toString()] = cleanedValue;
+            }
+          }
+          break;
+        case 'min':
+          // Min aggregation: keep track of minimum value
+          if (cleanedValue !== null) {
+            if (groupValues[seriesIndex.toString()] === 0 || cleanedValue < groupValues[seriesIndex.toString()]) {
+              groupValues[seriesIndex.toString()] = cleanedValue;
+            }
+          }
+          break;
+        default:
+          // Default to sum aggregation
+          if (cleanedValue !== null) {
+            groupValues[seriesIndex.toString()] += cleanedValue;
+          }
+      }
+    });
+  });
+
+  // Post-process average aggregations
+  groupedData.forEach((groupValues) => {
+    seriesData.forEach((series, seriesIndex) => {
+      if (series.aggregation === 'avg') {
+        const count = groupValues[seriesIndex + '_count'] || 0;
+        if (count > 0) {
+          groupValues[seriesIndex.toString()] = groupValues[seriesIndex.toString()] / count;
+        }
+        // Clean up the temporary count field
+        delete groupValues[seriesIndex + '_count'];
+      }
+    });
+  });
+
+  const labels = Array.from(groupedData.keys());
+  return { labels, groupedData, seriesData };
+};
+
+const generateMockData = (chartData: ChartData) => {
+  const categories = ["Branch A", "Branch B", "Branch C", "Branch D"];
+  const groupedData = new Map<string, { [key: string]: number }>();
+  
+  categories.forEach(category => {
+    const values: { [key: string]: number } = {};
+    chartData.series.forEach((_, index) => {
+      values[index.toString()] = Math.floor(Math.random() * 100000) + 10000;
+    });
+    groupedData.set(category, values);
+  });
+
+  return {
+    labels: categories,
+    groupedData,
+    seriesData: chartData.series.map((series, index) => ({ ...series, columnIndex: index }))
+  };
+};
+
+export const getCommonTooltipConfig = () => ({
+  backgroundColor: "rgba(17, 24, 39, 0.95)",
+  titleColor: "#f9fafb",
+  bodyColor: "#f9fafb",
+  borderColor: "rgba(99, 102, 241, 0.3)",
+  borderWidth: 1,
+  cornerRadius: 12,
+  displayColors: true,
+  padding: 12,
+  titleFont: {
+    size: 13,
+    weight: "bold" as const,
+    family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  },
+  bodyFont: {
+    size: 12,
+    weight: "normal" as const,
+    family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  },
+});
+
+export const getCommonScalesConfig = () => ({
+  x: {
+    beginAtZero: true,
+    grid: {
+      display: false,
+    },
+    ticks: {
+      color: "#64748b",
+      font: {
+        size: 12,
+        weight: "bold" as const,
+        family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      },
+      padding: 12,
+    },
+    border: {
+      display: false,
+    },
+  },
+  y: {
+    beginAtZero: true,
+    grid: {
+      color: "rgba(148, 163, 184, 0.3)",
+      drawBorder: false,
+      drawTicks: false,
+      lineWidth: 1,
+    },
+    ticks: {
+      color: "#64748b",
+      font: {
+        size: 12,
+        weight: "normal" as const,
+        family: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      },
+      padding: 16,
+      callback: function (value: number | string) {
+        return `${value.toLocaleString()}`;
+      },
+    },
+    border: {
+      display: false,
+    },
+  },
+});
+
+export const useBaseChart = (
+  chartData: ChartData,
+  csvData: string[][],
+  config: ChartConfiguration
+) => {
+  const chartRef = useRef<HTMLCanvasElement>(null);
+  const chartInstanceRef = useRef<ChartJS | null>(null);
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.destroy();
+    }
+
+    chartInstanceRef.current = new ChartJS(chartRef.current, config);
+
+    return () => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.destroy();
+      }
+    };
+  }, [config]);
+
+  return { chartRef, chartInstanceRef };
+};

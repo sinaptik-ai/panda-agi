@@ -1,21 +1,32 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  X,
-  ExternalLink,
-  FileCode,
-  FileText,
-  FileImage,
-  File,
-  Globe,
-  Download,
-} from "lucide-react";
+import { FileImage, File } from "lucide-react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import MarkdownRenderer from "./ui/markdown-renderer";
-import { getBackendServerURL } from "@/lib/server";
+import MarkdownEditor from "./markdown-editor";
+import { markdownToHtml, htmlToMarkdown } from "./artifact-viewer";
+import { updateArtifactFile, suggestArtifactName } from "@/lib/api/artifacts";
+import SaveArtifactButton from "./save-artifact-button";
+import { Button } from "./ui/button";
+import ResizableSidebar from "./ui/resizable-sidebar";
+import FileIcon from "./ui/file-icon";
+import ExcelViewer from "./excel-viewer";
+import IframeRenderer from "./ui/iframe-renderer";
 import { getApiHeaders } from "@/lib/api/common";
+import { config } from "@/lib/config";
 import { toast } from "react-hot-toast";
-import { downloadWithCheck } from "@/lib/utils";
+import {
+  isExcelFile,
+  validateContentType,
+  getFileUrl,
+  getArtifactFileUrl,
+  getFileType,
+} from "@/lib/utils";
+import ArtifactActions from "./artifact-actions";
+import { ArtifactData } from "@/types/artifact";
+import { useSavedArtifacts } from "@/contexts/saved-artifacts-context";
+import DashboardEditor from "./editor/dashboard-editor";
+import ChartRenderer from "./events/chart-renderer";
+import ContentSidebarTable from "./content-sidebar-table";
 
 export interface PreviewData {
   title?: string;
@@ -23,6 +34,7 @@ export interface PreviewData {
   url?: string;
   content?: string;
   type?: string;
+  timestamp?: string;
 }
 
 interface ContentSidebarProps {
@@ -42,104 +54,17 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
   onResize,
   conversationId,
 }) => {
-  // State for sidebar width - use props if provided, otherwise default to 900
-  const [sidebarWidth, setSidebarWidth] = useState(width || 900);
-
-  // Update internal state when width prop changes
-  useEffect(() => {
-    if (width && width !== sidebarWidth) {
-      setSidebarWidth(width);
-    }
-  }, [width, sidebarWidth]);
+  // Define iframe-like content types that should be treated similarly
+  const IFRAME_LIKE_TYPES = ["iframe", "pxml"] as const;
   
-  const [isResizing, setIsResizing] = useState(false);
-  const minWidth = 400;
-  const maxWidth = 1050;
-  const resizeRef = useRef<HTMLDivElement>(null);
-
-  // Add resize event listeners with improved handling
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-
-      // Calculate new width based on mouse position
-      let newWidth = window.innerWidth - e.clientX;
-
-      // Apply constraints with smoothing
-      newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
-
-      // Always update width when resizing for smoother experience
-      setSidebarWidth(newWidth);
-
-      // Notify parent component about width changes if callback is provided
-      if (onResize) {
-        onResize(newWidth);
-      }
-
-      // Prevent text selection during resize
-      e.preventDefault();
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-      document.body.style.cursor = "default";
-      document.body.style.userSelect = "auto";
-    };
-
-    // Handle cases where mouse moves outside the window
-    const handleMouseLeave = () => {
-      if (isResizing) {
-        setIsResizing(false);
-        document.body.style.cursor = "default";
-        document.body.style.userSelect = "auto";
-      }
-    };
-
-    if (isResizing) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      document.addEventListener("mouseleave", handleMouseLeave);
-    }
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.removeEventListener("mouseleave", handleMouseLeave);
-    };
-  }, [isResizing, minWidth, maxWidth, onResize]);
-
-  // Start resizing
-  const startResizing = () => {
-    setIsResizing(true);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  };
-
-  // Apply sidebar open class to body for main content shrinking
-  useEffect(() => {
-    if (isOpen) {
-      document.body.classList.add("sidebar-open");
-      // Add specific class to app container element for better targeting
-      const appContainer = document.querySelector("#root > div");
-      if (appContainer) {
-        appContainer.classList.add("content-shrink");
-      }
-    } else {
-      document.body.classList.remove("sidebar-open");
-      const appContainer = document.querySelector("#root > div");
-      if (appContainer) {
-        appContainer.classList.remove("content-shrink");
-      }
-    }
-
-    return () => {
-      document.body.classList.remove("sidebar-open");
-      const appContainer = document.querySelector("#root > div");
-      if (appContainer) {
-        appContainer.classList.remove("content-shrink");
-      }
-    };
-  }, [isOpen]);
+  // Get saved artifacts context (now includes suggested names functionality)
+  const { 
+    saveArtifact: saveArtifactToContext, 
+    getArtifact, 
+    removeArtifact,
+    saveSuggestedName: saveSuggestedNameToContext, 
+    getSuggestedName: getSuggestedNameFromContext 
+  } = useSavedArtifacts();
   
   // Utility function to normalize filenames (remove leading './' or '/' if present)
   const normalizeFilename = (filename: string): string => {
@@ -153,11 +78,207 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     return filename;
   };
 
+  // Helper function to save suggested name to context if conditions are met
+  const saveSuggestedNameIfValid = (name: string) => {
+    if (conversationId && previewData?.filename) {
+      saveSuggestedNameToContext(name, previewData.filename, conversationId);
+    }
+  };
+
   // State for normalized filename and content
   const [normalizedFilename, setNormalizedFilename] = useState("");
-  const [fileContent, setFileContent] = useState<string | null>(null);
+  const [fileContent, setFileContent] = useState<string | ArrayBuffer | null>(
+    null
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+
+  // Saved state management
+  const [isSaved, setIsSaved] = useState(false);
+  const [savedArtifact, setSavedArtifact] = useState<ArtifactData | null>(null);
+
+  // Markdown editor state
+  const [editorContent, setEditorContent] = useState("");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+
+  // State to trigger SaveArtifactButton dialog programmatically
+  const [shouldOpenSaveDialog, setShouldOpenSaveDialog] = useState(false);
+  const saveArtifactButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Suggested name state
+  const [suggestedName, setSuggestedName] = useState<string>("");
+
+  // State to trigger title editing from ArtifactActions
+  const [shouldTriggerEdit, setShouldTriggerEdit] = useState(false);
+
+  // Ref for triggering title edit from ArtifactActions
+  const onEditTitleRef = useRef<(() => void) | null>(null);
+
+  // Reset saved state when sidebar closes
+  // Reusable function to reset sidebar state
+  const resetSidebarState = () => {
+    setIsSaved(false);
+    setSavedArtifact(null);
+    setHasUnsavedChanges(false);
+    setIsSaving(false);
+    setJustSaved(false);
+    setFileContent(null);
+    setSuggestedName("");
+    setShouldTriggerEdit(false);
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      resetSidebarState();
+    }
+  }, [isOpen]);
+
+  const onSidebarClose = () => {
+    resetSidebarState();
+    onClose();
+  };
+
+  // Function to check for existing saved artifact
+  const checkExistingArtifact = () => {
+    if (!previewData?.filename || !previewData?.timestamp) {
+      return;
+    }
+
+    const existingArtifact = getArtifact(previewData.filename, previewData.timestamp);
+    if (existingArtifact) {
+      setSavedArtifact(existingArtifact);
+      setIsSaved(true);
+      setSuggestedName(existingArtifact.name);
+      return existingArtifact; // Found existing artifact
+    }
+    return; // No existing artifact
+    
+  };
+
+  // Function to check for existing suggested name
+  const checkExistingSuggestedName = () => {
+    if (!previewData?.filename) {
+      return;
+    }
+
+    const existingSuggestedName = getSuggestedNameFromContext(previewData.filename);
+    if (existingSuggestedName) {
+      setSuggestedName(existingSuggestedName);
+      return existingSuggestedName; // Found existing suggested name
+    }
+    return; // No existing suggested name
+  };
+
+  // Function to get suggested name
+  const getSuggestedName = async () => {
+    if (
+      !conversationId ||
+      !previewData?.type ||
+      (!previewData?.url && !previewData?.filename)
+    ) {
+      return;
+    }
+
+    try {
+      const response = await suggestArtifactName(
+        conversationId,
+        {
+          type: previewData.type,
+          filepath: previewData.filename || previewData.url || "",
+          content: (fileContent as string || "").substring(
+            0,
+            config.markdown.maxContentLength
+          ),
+        }
+      );
+
+      if (response.suggested_name) {
+        setSuggestedName(response.suggested_name);
+        
+        // Save suggested name to context for future use
+        if (previewData.filename) {
+          saveSuggestedNameToContext(
+            response.suggested_name,
+            previewData.filename,
+            conversationId
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Name suggestion error:", error);
+      // Don't show error toast for name suggestion failures - just use default
+    }
+  };
+
+  // Check for existing artifact and get suggested name when sidebar opens
+  useEffect(() => {
+    if (isOpen && previewData) {
+      // First check if there's an existing saved artifact
+      const hasExistingArtifact = checkExistingArtifact();
+      
+      // If no existing artifact, check for existing suggested name
+      if (fileContent && ["markdown", "pxml"].includes(previewData?.type || "") && conversationId) {
+        const hasExistingSuggestedName = checkExistingSuggestedName();
+        
+        // If no existing suggested name and we have the required data, get suggested name from API
+        if (!hasExistingSuggestedName) {
+          getSuggestedName();
+        }
+      }
+    }
+  }, [isOpen, previewData, fileContent, conversationId]);
+
+
+
+  // Convert markdown content to HTML for editor
+  useEffect(() => {
+    if (fileContent && previewData?.type === "markdown") {
+      const convertContent = async () => {
+        try {
+          const htmlContent = await markdownToHtml(fileContent as string);
+          setEditorContent(htmlContent);
+          setHasUnsavedChanges(false);
+        } catch (error) {
+          console.error("Error converting markdown to HTML:", error);
+          setEditorContent(fileContent as string);
+          setHasUnsavedChanges(false);
+        }
+      };
+
+      convertContent();
+    }
+
+    
+  }, [fileContent, previewData?.type]);
+
+  // Effect to trigger SaveArtifactButton click when shouldOpenSaveDialog becomes true
+  useEffect(() => {
+    if (shouldOpenSaveDialog && saveArtifactButtonRef.current) {
+      // Use setTimeout to ensure the button is rendered before clicking
+      setTimeout(() => {
+        if (saveArtifactButtonRef.current) {
+          saveArtifactButtonRef.current.click();
+          setShouldOpenSaveDialog(false);
+        }
+      }, 100);
+    }
+  }, [shouldOpenSaveDialog]);
+
+  // Effect to trigger title editing when shouldTriggerEdit becomes true
+  useEffect(() => {
+    if (shouldTriggerEdit && onEditTitleRef.current) {
+      // Use setTimeout to ensure the dropdown closes before focusing
+      setTimeout(() => {
+        if (onEditTitleRef.current) {
+          onEditTitleRef.current();
+        }
+        setShouldTriggerEdit(false);
+      }, 150);
+    }
+  }, [shouldTriggerEdit]);
 
   // Fetch file content when previewData changes
   useEffect(() => {
@@ -165,14 +286,31 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       return;
     }
 
-    if (previewData.filename) {
-      const normalized = normalizeFilename(previewData.filename);
+
+    let filename = previewData.filename || "index.html";
+
+    if (!previewData.filename && previewData.type === "iframe" && previewData.url) {
+      // Extract the path from the URL and use it as filename
+      const url = new URL(previewData.url);
+      const path = url.pathname;
+
+      if (path && path !== "/") {
+        // Remove leading slash and use as filename
+        filename = path.startsWith("/") ? path.substring(1) : path;
+      }
+    }
+
+    if (filename) {
+      const normalized = normalizeFilename(filename);
       setNormalizedFilename(normalized);
 
-      // Only fetch content if it's not an image and we don't already have content
+      // Check if there's an existing saved artifact first
+      const existingArtifact = checkExistingArtifact();
+      
+  
       const fileType = previewData.type || "text";
-      if (fileType !== "image" && !previewData.content) {
-        fetchFileContent(normalized);
+      if (fileType !== "image" && !previewData.content ) {
+        fetchFileContent(filename, existingArtifact || null);
       } else if (previewData.content) {
         // If content was provided directly, use it
         setFileContent(previewData.content);
@@ -187,15 +325,116 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   }, [previewData]);
 
+  // Handle editor content changes
+  const handleEditorChange = (html: string, hasChanges: boolean) => {
+    setEditorContent(html);
+    setHasUnsavedChanges(hasChanges);
+    if (hasChanges) {
+      setJustSaved(false);
+    }
+  };
+
+  /**
+   * UNIFIED SAVE WORKFLOW FOR MARKDOWN EDITOR
+   *
+   * This function handles saving markdown content with different behaviors based on whether
+   * the content has been saved as a creation before or not.
+   *
+   * WORKFLOW SCENARIOS:
+   *
+   * 1. FIRST TIME SAVE (No creation exists):
+   *    - User clicks "Save" → Opens creation dialog (SaveArtifactButton)
+   *    - User enters name and confirms
+   *    - handleArtifactSaved is called with the new creation
+   *    - If user had unsaved changes, handleArtifactSaved automatically updates the creation
+   *      with the current editor content via updateArtifactFile
+   *
+   * 2. SUBSEQUENT SAVES (Creation already exists):
+   *    - User clicks "Save" → Directly updates existing creation
+   *    - Calls updateArtifactFile API to update the creation content
+   *    - No dialog shown, immediate save operation
+   *
+   * SAVE BUTTON VISIBILITY:
+   * - Shows when: hasUnsavedChanges OR !isSaved (never been saved)
+   * - This allows saving original content as creation even without modifications
+   */
+  const handleSaveContent = async (directContent?: string) => {
+    if (isSaving) return;
+
+    // Skip if already saved and no changes
+    if (!directContent && !hasUnsavedChanges && savedArtifact) return;
+
+    // FIRST TIME SAVE: No creation exists yet
+    if (!isSaved || !savedArtifact) {
+      // Update preview data with current editor content before opening dialog
+      if (previewData) {
+
+        const savedContent =
+          getFileType(previewData.filename as string) === "markdown"
+            ? await htmlToMarkdown(editorContent)
+            : fileContent || "";
+  
+        previewData.content = savedContent as string;
+
+        // Trigger the SaveArtifactButton dialog to create new creation
+        // Note: handleArtifactSaved will handle any unsaved changes after creation
+        setShouldOpenSaveDialog(true);
+      }
+      return;
+    }
+
+    // SUBSEQUENT SAVES: Update existing creation directly
+    setIsSaving(true);
+    try {
+      // Convert HTML back to markdown
+      let savedContent = "";
+      if (directContent) {
+        savedContent = directContent
+      } else {
+        savedContent = (getFileType(savedArtifact.filepath) === "markdown"
+          ? await htmlToMarkdown(editorContent)
+          : fileContent || "") as string;
+      }
+      // Update the existing creation file
+      await updateArtifactFile(
+        savedArtifact.id,
+        savedArtifact.filepath,
+        savedContent
+      );
+
+      setFileContent(savedContent);
+      setHasUnsavedChanges(false);
+      setJustSaved(true);
+      toast.success("Creation updated successfully");
+
+      // Reset the "just saved" state after 2 seconds
+      setTimeout(() => {
+        setJustSaved(false);
+      }, 2000);
+    } catch (err) {
+      console.error("Error saving content:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to save content";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Function to fetch file content
-  const fetchFileContent = async (filename: string) => {
+  const fetchFileContent = async (filename: string, existingArtifact: null | ArtifactData) => {
+    if (!conversationId) {
+      return;
+    }
     setIsLoading(true);
     setError(null);
 
     try {
-      const fileUrl = getBackendServerURL(
-        `/${conversationId}/files/${encodeURIComponent(filename)}`
-      );
+      // Use getArtifactFileUrl if we have a saved artifact, otherwise use getFileUrl
+      const fileUrl = existingArtifact && existingArtifact?.id
+        ? getArtifactFileUrl(existingArtifact.filepath, existingArtifact.id, true)
+        : getFileUrl(filename, conversationId, true, previewData?.timestamp);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const apiHeaders: any = await getApiHeaders();
@@ -204,10 +443,20 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
 
       if (!response.ok) {
         const errorMessage = await response.json();
-        throw new Error(errorMessage?.detail || `Failed to fetch file: ${response.status}!`);
+        throw new Error(
+          errorMessage?.detail || `Failed to fetch file: ${response.status}!`
+        );
       }
 
-      const content = await response.text();
+      let content: string | ArrayBuffer;
+      // Check if it's an Excel file using reusable function
+      if (isExcelFile(filename)) {
+        const excelContent = await response.arrayBuffer();
+        content = excelContent;
+      } else {
+        content = await response.text();
+      }
+
       setFileContent(content);
     } catch (err) {
       console.error("Error fetching file content:", err);
@@ -217,7 +466,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   };
 
-  if (!isOpen || !previewData) return null;
+  if (!previewData) return null;
 
   // Get language for syntax highlighting
   const getLanguage = (filename: string): string => {
@@ -259,8 +508,9 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
       type === "code" ||
       type === "html" ||
       type === "text" ||
-      type === "iframe" ||
-      type === "table"
+      IFRAME_LIKE_TYPES.includes(type as typeof IFRAME_LIKE_TYPES[number]) ||
+      type === "table" ||
+      type === "markdown"
     );
   };
 
@@ -302,216 +552,101 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   `;
 
-  // CSV Parser function
-  const parseCSV = (csvText: string): string[][] => {
-    if (!csvText) return [];
-
-    const lines = csvText.trim().split("\n");
-    const result: string[][] = [];
-
-    for (const line of lines) {
-      const row: string[] = [];
-      let current = "";
-      let inQuotes = false;
-
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === ";" && !inQuotes) {
-          row.push(current.trim());
-          current = "";
-        } else {
-          current += char;
-        }
-      }
-
-      // Add the last field
-      row.push(current.trim());
-      result.push(row);
-    }
-
-    return result;
-  };
 
   // Render content based on type
   const renderContent = () => {
     const type = previewData.type || "text";
     const content = fileContent || previewData.content || "";
+    const currentFilename = normalizedFilename || previewData.url || "";
 
-    // Show loading state
-    if (isLoading) {
+    // Validate content type using reusable function
+    const validation = validateContentType(content, currentFilename);
+    if (!validation.isValid) {
       return (
         <div className="flex items-center justify-center h-full">
-          <div className="flex flex-col text-center items-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
-            <p className="text-gray-600">Loading file content...</p>
+          <div className="text-center">
+            <div className="text-2xl mb-3">⚠️</div>
+            <p className="font-medium text-destructive">
+              Content validation failed
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              {validation.error}
+            </p>
           </div>
         </div>
       );
     }
 
-    // Show error state
-    if (error) {
-      return (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center text-red-500">
-            <div className="text-4xl mb-4">⚠️</div>
-            <p className="font-medium">Error loading file</p>
-            <p className="text-sm mt-2">{error}</p>
-          </div>
-        </div>
-      );
-    }
 
     switch (type) {
       case "iframe":
-        return (
-          <div className="h-full">
-            <iframe
-              src={previewData.url}
-              className="w-full h-full border-0"
-              title={previewData.title}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-            />
-          </div>
-        );
+        return <IframeRenderer url={previewData.url!} title={previewData.title} />;
+      case "pxml":
+        // Check if this is a chart PXML file
+        const pxmlContent = content as string;
+        if (pxmlContent && pxmlContent.trim().startsWith('<chart')) {
+          return (
+            <div className="h-full p-4 overflow-auto">
+              <ChartRenderer pxmlContent={pxmlContent} conversationId={conversationId} />
+            </div>
+          );
+        }
+        // Render DashboardEditor if artifact exists, otherwise render iframe
+        if (savedArtifact && fileContent) {
+            return (
+              <DashboardEditor
+                content={fileContent as string}
+                artifact={savedArtifact}
+                onSave={handleSaveContent}
+              />
+            );
+           
+        }
+        
+        // For non-chart PXML files without saved artifact, use iframe
+        return <IframeRenderer url={previewData.url!} title={previewData.title} />;
       case "markdown":
         return (
-          <div className="prose prose-sm max-w-none">
-            <MarkdownRenderer>{content}</MarkdownRenderer>
-          </div>
+          <MarkdownEditor
+            content={editorContent}
+            onChange={handleEditorChange}
+            onSave={handleSaveContent}
+            hasUnsavedChanges={hasUnsavedChanges}
+            isSaving={isSaving}
+            justSaved={justSaved}
+          />
         );
       case "table":
-        const tableFilename = normalizedFilename || previewData.url || "";
-        const tableExtension = tableFilename.split(".").pop()?.toLowerCase() || "";
-        const tableData = parseCSV(content);
+        // Check if it's an Excel file
+        if (isExcelFile(currentFilename)) {
+          return (
+            <ExcelViewer
+              fileName={normalizedFilename}
+              content={content as ArrayBuffer}
+            />
+          );
+        }
 
+        // Handle CSV files with the new table component
         return (
-          <div className="h-full flex flex-col">
-            {/* Table Header */}
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200 flex-shrink-0">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium text-gray-700">
-                  {tableFilename.split("/").pop()}
-                </span>
-              </div>
-              <div className="flex items-center space-x-3 text-xs text-gray-500">
-                <span>{tableExtension.toUpperCase()}</span>
-                <span>{tableData.length} rows</span>
-                {tableData.length > 0 && (
-                  <span>{tableData[0].length} columns</span>
-                )}
-              </div>
-            </div>
-
-            {/* Table Content */}
-            <div className="flex-1 overflow-hidden">
-              {tableData.length > 0 ? (
-                <div className="w-full h-full overflow-auto">
-                  <table
-                    className="w-full divide-y divide-gray-200"
-                    style={{ minWidth: "max-content" }}
-                  >
-                    <thead className="bg-gray-50 sticky top-0 z-10">
-                      <tr>
-                        {tableData[0].map((header, index) => (
-                          <th
-                            key={index}
-                            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 last:border-r-0 whitespace-nowrap"
-                            style={{ minWidth: "150px" }}
-                          >
-                            <div
-                              className="truncate"
-                              title={header || `Column ${index + 1}`}
-                            >
-                              {header || `Column ${index + 1}`}
-                            </div>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {tableData.slice(1).map((row, rowIndex) => (
-                        <tr
-                          key={rowIndex}
-                          className="hover:bg-gray-50 transition-colors"
-                        >
-                          {row.map((cell, cellIndex) => (
-                            <td
-                              key={cellIndex}
-                              className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200 last:border-r-0 whitespace-nowrap"
-                              style={{ minWidth: "150px", maxWidth: "400px" }}
-                              title={cell}
-                            >
-                              <div className="truncate">{cell}</div>
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 p-8">
-                  <div className="text-lg mb-2">No data available</div>
-                  <div className="text-sm">
-                    The file appears to be empty or could not be parsed.
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <ContentSidebarTable
+            content={content as string}
+            filename={currentFilename}
+          />
         );
       case "html":
-        const htmlFilename = normalizedFilename || previewData.url || "";
-        return (
-          <div className="editor-container bg-gray-900 text-gray-100 rounded overflow-hidden h-full flex flex-col">
-            {/* Editor Header - same style as other code files */}
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-800 border-b border-gray-700 flex-shrink-0">
-              <div className="flex items-center space-x-2">
-                <div className="flex space-x-1">
-                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                </div>
-                <span className="text-xs text-gray-300 ml-2">
-                  {htmlFilename.split("/").pop()}
-                </span>
-              </div>
-              <div className="flex items-center space-x-3 text-xs text-gray-400">
-                <span>HTML</span>
-                <span>{content.split("\n").length} lines</span>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-auto">
-              <SyntaxHighlighter
-                language="html"
-                style={vscDarkPlus}
-                showLineNumbers={true}
-                lineNumberStyle={getLineNumberStyle()}
-                customStyle={getCommonStyle()}
-                className="syntax-highlighter"
-                codeTagProps={{
-                  style: {
-                    fontFamily:
-                      'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-                  },
-                }}
-              >
-                {content}
-              </SyntaxHighlighter>
-            </div>
-          </div>
-        );
+        // Render HTML content in iframe instead of showing code
+        return <IframeRenderer url={content as string} title={previewData.title} />;
       case "image":
+        if (!normalizedFilename || !conversationId) {
+          return null;
+        }
         // For images, construct the URL from the filename
-        const imageUrl = getBackendServerURL(
-          `/${conversationId}/files/${encodeURIComponent(normalizedFilename)}`
-        );
-
+        // Use getArtifactFileUrl if we have a saved artifact, otherwise use getFileUrl
+        const imageUrl = savedArtifact?.id 
+          ? getArtifactFileUrl(normalizedFilename, savedArtifact.id, false)
+          : getFileUrl(normalizedFilename, conversationId, false, previewData?.timestamp);
+        
         return (
           <div className="flex justify-center">
             <img
@@ -562,7 +697,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
                     PDF Content (if readable)
                   </span>
                   <span className="text-xs text-gray-400">
-                    {content.split("\n").length} lines
+                    {(content as string).split("\n").length} lines
                   </span>
                 </div>
                 <div className="flex-1 overflow-auto">
@@ -574,7 +709,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
                     customStyle={getCommonStyle()}
                     className="syntax-highlighter"
                   >
-                    {content}
+                    {content as string}
                   </SyntaxHighlighter>
                 </div>
               </div>
@@ -616,7 +751,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
               </div>
               <div className="flex items-center space-x-3 text-xs text-gray-400">
                 <span>{language}</span>
-                <span>{content.split("\n").length} lines</span>
+                <span>{(content as string).split("\n").length} lines</span>
               </div>
             </div>
 
@@ -636,7 +771,7 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
                   },
                 }}
               >
-                {content}
+                {content as string}
               </SyntaxHighlighter>
             </div>
           </div>
@@ -654,145 +789,295 @@ const ContentSidebar: React.FC<ContentSidebarProps> = ({
     }
   };
 
-  // Get file type icon
-  const getFileIcon = () => {
-    const type = previewData.type || "text";
 
-    switch (type) {
-      case "code":
-        return <FileCode className="w-4 h-4 text-blue-500 mr-1" />;
-      case "table":
-        return <FileText className="w-4 h-4 text-green-600 mr-1" />;
-      case "image":
-        return <FileImage className="w-4 h-4 text-green-500 mr-1" />;
-      case "pdf":
-        return <File className="w-4 h-4 text-red-500 mr-1" />;
-      case "markdown":
-        return <FileText className="w-4 h-4 text-purple-500 mr-1" />;
-      case "html":
-        return <FileCode className="w-4 h-4 text-orange-500 mr-1" />;
-      case "iframe":
-        return <Globe className="w-4 h-4 text-blue-500 mr-1" />;
-      default:
-        return <FileText className="w-4 h-4 text-gray-500 mr-1" />;
+
+  /**
+   * HANDLES COMPLETION OF FIRST-TIME SAVE WORKFLOW
+   *
+   * This function is called after the SaveArtifactButton successfully creates a new creation.
+   * It handles the critical case where users made changes BEFORE saving the creation for the first time.
+   *
+   * WORKFLOW:
+   * 1. Creation is initially saved with original file content (via SaveArtifactButton)
+   * 2. This function checks if user had unsaved changes in the editor
+   * 3. If yes, immediately sends a second request to update the creation with editor content
+   * 4. This ensures user changes are never lost, regardless of when they made them
+   *
+   * SCENARIOS HANDLED:
+   * - User opens file → clicks Save → creation saved with original content
+   * - User opens file → makes changes → clicks Save → creation saved + updated with changes
+   */
+  const handleArtifactSaved = async (artifactData: {
+    artifact: ArtifactData;
+    detail: string;
+  }) => {
+    setIsSaved(true);
+    setSavedArtifact(artifactData.artifact);
+    setSuggestedName(artifactData.artifact.name);
+
+    // Save artifact to context for global access
+    if (conversationId && previewData?.filename && previewData?.timestamp) {
+      saveArtifactToContext(
+        artifactData.artifact,
+        previewData.filename,
+        previewData.timestamp,
+        conversationId
+      );
+    }
+
+    // Save suggested name to context
+    saveSuggestedNameIfValid(artifactData.artifact.name);
+
+    // CRITICAL: Check if user made changes before first save
+    // If yes, we need to update the creation with current editor content
+    if (hasUnsavedChanges) {
+      try {
+        // Convert current editor content to markdown
+        const markdownContent = await htmlToMarkdown(editorContent);
+
+        // Send immediate update to the newly created artifact
+        await updateArtifactFile(
+          artifactData.artifact.id,
+          artifactData.artifact.filepath,
+          markdownContent
+        );
+
+        setFileContent(markdownContent);
+        setHasUnsavedChanges(false);
+        setJustSaved(true);
+        toast.success("Creation saved and updated with your changes");
+      } catch (error) {
+        console.error("Error updating artifact with changes:", error);
+        toast.error("Creation saved but failed to update with your changes");
+        // Keep hasUnsavedChanges true so user can manually retry
+        return;
+      }
+    } else {
+      // No changes were made, just mark as saved
+      setHasUnsavedChanges(false);
+      setJustSaved(true);
+      toast.success("Creation saved successfully");
+    }
+
+    // Reset the "just saved" state after 2 seconds
+    setTimeout(() => {
+      setJustSaved(false);
+    }, 2000);
+  };
+
+  // Handle artifact updated
+  const handleArtifactUpdated = (updatedArtifact: ArtifactData) => {
+    setSavedArtifact(updatedArtifact);
+    
+    // Update artifact in context
+    if (conversationId && previewData?.filename && previewData?.timestamp) {
+      saveArtifactToContext(
+        updatedArtifact,
+        previewData.filename,
+        previewData.timestamp,
+        conversationId
+      );
     }
   };
 
-  // Handle file download
-  const handleFileDownload = async () => {
-    if (!normalizedFilename || !conversationId) {
-      toast.error("Missing file information");
-      return;
+  // Handle artifact deleted
+  const handleArtifactDeleted = () => {
+    setIsSaved(false);
+    setSavedArtifact(null);
+    
+    // Remove artifact from context
+    if (previewData?.filename && previewData?.timestamp) {
+      removeArtifact(previewData.filename, previewData.timestamp);
     }
     
-    try {
-      const downloadUrl = getBackendServerURL(
-        `/${conversationId}/files/download?file_path=${encodeURIComponent(
-          normalizedFilename
-        )}`
-      );
-      try {
-        await downloadWithCheck(downloadUrl, normalizedFilename.split("/").pop() || "download");
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Download failed: File not found or access denied";
-        toast.error(errorMessage);
-      }
+    onSidebarClose();
+  };
 
-    } catch (error) {
-      console.error("Download error:", error);
-      if (error instanceof Error) {
-        toast.error(`Download failed: ${error.message}`);
-      } else {
-        toast.error("Download failed: Unknown error");
+  // Handle edit name - trigger title editing in ResizableSidebar
+  const handleEditName = () => {
+    setShouldTriggerEdit(true);
+  };
+
+  // Handle title change - update both suggestedName and potentially the saved artifact
+  const handleTitleChange = async (newTitle: string) => {
+    setSuggestedName(newTitle);
+
+    // Save suggested name to context
+    saveSuggestedNameIfValid(newTitle);
+    
+    // If we have a saved artifact, update it as well
+    if (savedArtifact) {
+      try {
+        const { updateArtifact } = await import("@/lib/api/artifacts");
+        const updatedArtifact = await updateArtifact(savedArtifact.id, {
+          name: newTitle,
+        });
+        
+        // Update the saved artifact state
+        const updatedArtifactData = {
+          ...savedArtifact,
+          name: updatedArtifact.name,
+        };
+        setSavedArtifact(updatedArtifactData);
+        
+        // Update artifact in context
+        if (conversationId && previewData?.filename && previewData?.timestamp) {
+          saveArtifactToContext(
+            updatedArtifactData,
+            previewData.filename,
+            previewData.timestamp,
+            conversationId
+          );
+        }
+        
+        toast.success("Creation name updated successfully");
+      } catch (error) {
+        console.error("Failed to update artifact name:", error);
+        if (error instanceof Error) {
+          toast.error(`Failed to update creation name: ${error.message}`);
+        } else {
+          toast.error("Failed to update creation name");
+        }
       }
     }
   };
 
-  return (
-    <div
-      className="fixed right-0 top-0 h-full bg-white border-l border-gray-200 shadow-lg z-50 flex flex-col"
-      style={{
-        width: `${sidebarWidth}px`,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ["--sidebar-width" as any]: `${sidebarWidth}px`,
-      }}
-    >
-      {/* Resize handle */}
-      <div
-        ref={resizeRef}
-        className="absolute left-0 top-0 w-1 h-full cursor-col-resize hover:bg-blue-500 hover:opacity-50 z-50"
-        onMouseDown={startResizing}
+  // Create header actions
+  const headerActions = (
+    <>
+      {/* Save button for markdown editor - show when there are unsaved changes OR creation has never been saved */}
+      {previewData.type === "markdown" && (hasUnsavedChanges || !isSaved) && (
+        <Button
+          onClick={(e) => {
+            e.preventDefault();
+            handleSaveContent();
+          }}
+          disabled={isSaving}
+          size="sm"
+          variant="default"
+          title={!isSaved ? "Save as creation" : "Update creation"}
+        >
+          {isSaving && (
+            <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+          )}
+          <span>{isSaving ? "Saving..." : "Save"}</span>
+        </Button>
+      )}
+      {/* Just saved indicator */}
+      {previewData.type === "markdown" && justSaved && !hasUnsavedChanges && (
+        <span className="text-sm text-green-600 dark:text-green-400 px-3 py-1">
+          Saved
+        </span>
+      )}
+      {/* Hidden SaveArtifactButton for first-time saves - only for markdown files */}
+      {previewData.type === "markdown" && !isSaved && (
+        <div
+          style={{
+            position: "absolute",
+            visibility: "hidden",
+            pointerEvents: "none",
+            left: "-9999px",
+          }}
+        >
+          <SaveArtifactButton
+            ref={saveArtifactButtonRef}
+            conversationId={conversationId}
+            previewData={{
+              type: previewData.type,
+              url: previewData.url,
+              filename: previewData.filename,
+              content: previewData.content || (fileContent as string) || "",
+              timestamp: previewData.timestamp,
+            }}
+            suggestedName={suggestedName}
+            onSave={handleArtifactSaved}
+          />
+        </div>
+      )}
+      {/* Save artifact button - only show for iframe-like content when not saved */}
+      {(previewData.type && IFRAME_LIKE_TYPES.includes(previewData.type as typeof IFRAME_LIKE_TYPES[number])) && !isSaved && (
+        <SaveArtifactButton
+          conversationId={conversationId}
+          previewData={{
+            type: previewData.type,
+            url: previewData.url,
+            filename: previewData.filename,
+            content: previewData.content || (fileContent as string) || "",
+          }}
+          suggestedName={suggestedName}
+          onSave={handleArtifactSaved}
+        />
+      )}
+      {/* Artifact actions - unified download/share/ellipsis */}
+      <ArtifactActions
+        artifact={savedArtifact}
+        onArtifactUpdated={handleArtifactUpdated}
+        onArtifactDeleted={handleArtifactDeleted}
+        onClose={onSidebarClose}
+        isSaved={isSaved}
+        previewData={previewData}
+        conversationId={conversationId}
+        onEditName={
+          savedArtifact && suggestedName
+            ? handleEditName
+            : null
+        }
       />
-      {/* Inject custom styles */}
+    </>
+  );
+
+  const subtitleHref =
+    previewData.url ||
+    (normalizedFilename && conversationId
+      ? savedArtifact?.id 
+        ? getArtifactFileUrl(normalizedFilename, savedArtifact.id, false, previewData?.timestamp)
+        : getFileUrl(normalizedFilename, conversationId, false, previewData?.timestamp)
+      : undefined);
+
+  return (
+    <>
+      {/* Inject custom styles for syntax highlighter */}
       <style dangerouslySetInnerHTML={{ __html: customSyntaxStyles }} />
 
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-medium text-gray-900 truncate flex items-center">
-            {getFileIcon()}
-            {previewData.title}
-          </h3>
-          {(normalizedFilename || previewData.url) && (
-            <a
-              href={
-                previewData.url ||
-                getBackendServerURL(
-                  `/${conversationId}/files/${encodeURIComponent(
-                    normalizedFilename
-                  )}`
-                )
+      <ResizableSidebar
+        isOpen={isOpen}
+        onClose={onSidebarClose}
+        title={suggestedName || previewData.title}
+        subtitle={
+           normalizedFilename || previewData.url
+            ? {
+                text: normalizedFilename || previewData.url || "",
+                href: subtitleHref,
               }
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:underline flex items-center space-x-1 mt-1"
-            >
-              <span className="truncate">
-                {normalizedFilename || previewData.url}
-              </span>
-              <ExternalLink className="w-3 h-3 flex-shrink-0" />
-            </a>
-          )}
-        </div>
-        <div className="flex items-center space-x-2">
-          {/* Download button - only show for actual files, not iframes */}
-          {(normalizedFilename || previewData.url) &&
-            previewData.type !== "iframe" && (
-              <button
-                onClick={handleFileDownload}
-                className="p-1 hover:bg-gray-200 rounded transition-colors"
-                title={`Download as ${((normalizedFilename || previewData.url || "")
-                  .split(".")
-                  .pop() || "")
-                  .replace("md", "pdf")
-                  .toUpperCase()}`}
-              >
-                <Download className="w-4 h-4 text-gray-500" />
-              </button>
-            )}
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-200 rounded transition-colors"
-            title="Close preview"
-          >
-            <X className="w-4 h-4 text-gray-500" />
-          </button>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div
-        className={`flex-1 min-h-0 ${
-          isFullHeightContent() ? "" : "overflow-y-auto p-4"
-        }`}
+            : undefined
+        }
+        icon={
+          <FileIcon
+            type={previewData.type}
+            filepath={normalizedFilename}
+            className="w-4 h-4 text-blue-500 mr-2"
+          />
+        }
+        actions={headerActions}
+        width={width}
+        onResize={onResize}
+        loading={isLoading}
+        error={error}
+        className={isFullHeightContent() ? "[&>div:last-child]:p-0" : ""}
+        editableTitle={!!(suggestedName)}
+        onTitleChange={handleTitleChange}
+        onEditTitle={(triggerEdit) => {
+          onEditTitleRef.current = triggerEdit;
+        }}
       >
         {isFullHeightContent() ? (
-          <div className="h-full p-4">{renderContent()}</div>
+          <div className="h-full">{renderContent()}</div>
         ) : (
           renderContent()
         )}
-      </div>
-    </div>
+      </ResizableSidebar>
+
+    </>
   );
 };
 
@@ -832,7 +1117,6 @@ const globalStyles = `
 // Inject the global styles
 if (typeof document !== "undefined") {
   const styleEl = document.createElement("style");
-  styleEl.type = "text/css";
   styleEl.innerHTML = globalStyles;
   document.head.appendChild(styleEl);
 }

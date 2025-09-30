@@ -122,54 +122,152 @@
 }
 
 
-/* Custom styles for the chat interface */
+/* Enhanced animations for the chat interface */
 .animate-slide-up {
-  animation: slideUp 0.3s ease-out;
+  animation: slideUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px) scale(0.98);
+    filter: blur(2px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
   }
 }
 
-/* Glass morphism header effect */
+/* Smooth hover animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Subtle pulse for status indicators */
+@keyframes subtle-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+.animate-subtle-pulse {
+  animation: subtle-pulse 2s ease-in-out infinite;
+}
+
+/* Dynamic particle burst animation */
+@keyframes particleBurst {
+  0% {
+    transform: translate(-50%, -50%) translateX(0px);
+    opacity: 1;
+    scale: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) translateX(16px);
+    opacity: 0;
+    scale: 0.3;
+  }
+}
+
+/* Gradient wave animation for thinking text */
+@keyframes gradientWave {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.animate-gradient-wave {
+  animation: gradientWave 2s linear infinite;
+}
+
+/* Slower, more elegant gradient wave animation */
+@keyframes gradientWaveSlow {
+  0% {
+    background-position: -300% center;
+  }
+  100% {
+    background-position: 300% center;
+  }
+}
+
+.animate-gradient-wave-slow {
+  animation: gradientWaveSlow 4s ease-in-out infinite;
+}
+
+/* Optimized text wave animation using opacity - much smoother */
+@keyframes textWave {
+  0%, 100% {
+    opacity: 0.4;
+    color: rgb(148 163 184); /* slate-400 */
+  }
+  50% {
+    opacity: 1;
+    color: rgb(71 85 105); /* slate-600 */
+  }
+}
+
+.animate-text-wave {
+  animation: textWave 3s ease-in-out infinite;
+  will-change: opacity, color;
+}
+
+/* Unified glass morphism header effect */
 .glass-header {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
 }
 
 /* Fallback for browsers that don't support backdrop-filter */
-@supports not (backdrop-filter: blur(24px)) {
+@supports not (backdrop-filter: blur(40px)) {
   .glass-header {
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
   }
 }
 
 @layer base {
   body {
-    @apply bg-gray-50 font-sans;
+    @apply bg-slate-50 font-sans antialiased;
+    background-image: 
+      radial-gradient(circle at 25% 25%, rgba(148, 163, 184, 0.1) 0%, transparent 25%),
+      radial-gradient(circle at 75% 75%, rgba(148, 163, 184, 0.08) 0%, transparent 25%);
+    background-size: 100px 100px;
+    background-position: 0 0, 50px 50px;
   }
 }
 
 @layer components {
   .chat-message {
-    @apply p-4 rounded-lg shadow-sm border transition-all duration-200 hover:shadow-md;
+    @apply p-5 rounded-2xl shadow-sm border border-slate-200/60 transition-all duration-300 hover:shadow-lg hover:border-slate-300/60 bg-white/80 backdrop-blur-sm;
   }
 
   .event-card {
-    @apply bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all duration-200;
+    @apply bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200/50 p-5 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-slate-300/50;
   }
 
   .event-badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide;
   }
 
   .scrollbar-hide {
@@ -179,5 +277,14 @@
 
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Enhanced button styles */
+  .btn-primary {
+    @apply bg-slate-900 hover:bg-slate-800 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply bg-white/80 hover:bg-white text-slate-900 font-semibold px-6 py-3 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md border border-slate-200/60 hover:border-slate-300/60 backdrop-blur-sm;
   }
 }

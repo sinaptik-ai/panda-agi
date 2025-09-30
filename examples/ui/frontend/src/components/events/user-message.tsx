@@ -1,20 +1,12 @@
 import React from "react";
-import {
-  AlertCircle,
-  Eye,
-  Download,
-  FileText,
-  Image,
-  File,
-  Code,
-  Globe,
-  ExternalLink,
-} from "lucide-react";
+import { AlertCircle, Eye, Globe, ExternalLink } from "lucide-react";
 import MarkdownRenderer from "../ui/markdown-renderer";
-import { formatTimestamp } from "@/lib/date";
 import { getBackendServerURL } from "@/lib/server";
 import { toast } from "react-hot-toast";
 import { downloadWithCheck } from "@/lib/utils";
+import { PLATFORM_MODE } from "@/lib/config";
+import { useSavedArtifacts } from "@/contexts/saved-artifacts-context";
+import AttachmentItem from "./attachment-item";
 
 interface PreviewData {
   url: string;
@@ -22,18 +14,20 @@ interface PreviewData {
   type: string;
 }
 export interface UserMessagePayload {
-    text?: string;
-    message?: string;
-    error?: string;
-    attachments?: string[];
+  text?: string;
+  message?: string;
+  error?: string;
+  isUpgradeErrorMessage?: boolean;
+  attachments?: string[];
 }
 
 export interface UserMessageEventProps {
   payload?: UserMessagePayload;
   onPreviewClick?: (previewData: PreviewData) => void;
   conversationId?: string;
-  onFileClick?: (filename: string) => void;
+  onFileClick?: (filename: string, timestamp?: string) => void;
   timestamp?: string;
+  openUpgradeModal?: () => void;
 }
 
 const UserMessageEvent: React.FC<UserMessageEventProps> = ({
@@ -42,14 +36,18 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
   conversationId,
   onFileClick,
   timestamp,
+  openUpgradeModal,
 }) => {
+  // Get saved artifacts context - must be called before any conditional returns
+  const { getArtifact } = useSavedArtifacts();
+
   if (!payload) return null;
 
   const isError = !!payload.error;
 
   const handleFileClick = (filename: string) => {
     if (onFileClick) {
-      onFileClick(filename);
+      onFileClick(filename, timestamp);
     }
   };
 
@@ -67,12 +65,17 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
       );
 
       try {
-        await downloadWithCheck(downloadUrl, filename.split("/").pop() || "download");
+        await downloadWithCheck(
+          downloadUrl,
+          filename.split("/").pop() || "download"
+        );
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Download failed: File not found or access denied";
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Download failed: File not found or access denied";
         toast.error(errorMessage);
       }
-      
     } catch (error) {
       console.error("Download error:", error);
       if (error instanceof Error) {
@@ -87,7 +90,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
     if (onPreviewClick) {
       onPreviewClick({
         url: url,
-        title: `Server URL: ${url}`,
+        title: url,
         type: "iframe",
       });
     }
@@ -125,77 +128,44 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
     return Array.from(urls);
   };
 
-  // Get file icon based on extension
-  const getFileIcon = (filename: string | undefined) => {
-    if (!filename) return <File className="w-4 h-4 text-gray-500" />;
-
-    const extension = filename.split(".").pop()?.toLowerCase();
-
-    if (
-      extension && 
-      ["jpg", "jpeg", "png", "gif", "svg", "webp", "bmp"].includes(extension)
-    ) {
-      return <Image className="w-4 h-4 text-green-500" />;
-    }
-    if (
-      extension &&
-      [
-        "js",
-        "jsx",
-        "ts",
-        "tsx",
-        "py",
-        "java",
-        "c",
-        "cpp",
-        "go",
-        "rb",
-        "php",
-        "css",
-        "scss",
-        "json",
-        "xml",
-        "html",
-        "htm",
-      ].includes(extension)
-    ) {
-      return <Code className="w-4 h-4 text-blue-500" />;
-    }
-    if (extension && ["md", "markdown", "txt"].includes(extension)) {
-      return <FileText className="w-4 h-4 text-purple-500" />;
-    }
-    if (extension && ["csv", "xlsx", "xls"].includes(extension)) {
-      return <FileText className="w-4 h-4 text-green-600" />;
-    }
-    if (extension === "pdf") {
-      return <File className="w-4 h-4 text-red-500" />;
-    }
-    if (extension && ["txt", "doc", "docx"].includes(extension)) {
-      return <FileText className="w-4 h-4 text-gray-500" />;
-    }
-
-    return <File className="w-4 h-4 text-gray-500" />;
-  };
-
   const renderErrorContent = () => {
     return (
       <div>
         <div className="flex items-start">
-          <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+          <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5 mr-3 flex-shrink-0" />
           <div className="flex-1">
             <h4 className="font-semibold text-gray-900 text-sm">Error</h4>
-            <div className="text-sm text-gray-700 mt-1 leading-relaxed">
-              <MarkdownRenderer onPreviewClick={onPreviewClick}>
-                {payload.error || "An error occurred"}
-              </MarkdownRenderer>
-            </div>
+            <MarkdownRenderer onPreviewClick={onPreviewClick}>
+              {payload.error as string}
+            </MarkdownRenderer>
+
+            {payload.isUpgradeErrorMessage && (
+              <div className="text-sm text-gray-700 mt-1 leading-relaxed">
+                {!PLATFORM_MODE ? (
+                  <a
+                    className="text-blue-500 hover:cursor-pointer"
+                    onClick={() =>
+                      window.open(
+                        "https://agi.pandas-ai.com/upgrade",
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                  >
+                    Upgrade your plan
+                  </a>
+                ) : (
+                  <a
+                    className="text-blue-500 hover:cursor-pointer"
+                    onClick={openUpgradeModal}
+                  >
+                    Upgrade your plan
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
-        {timestamp && (
-          <p className="text-xs text-gray-400 mt-3 text-right font-medium">
-            {formatTimestamp(timestamp)}
-          </p>
-        )}
       </div>
     );
   };
@@ -207,19 +177,13 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
         <MarkdownRenderer onPreviewClick={onPreviewClick}>
           {replacedContent as string}
         </MarkdownRenderer>
-
-        {timestamp && (
-          <p className="text-xs text-gray-400 mt-3 text-right font-medium">
-            {formatTimestamp(timestamp)}
-          </p> 
-        )}
       </div>
     );
   };
 
   const cardColor = isError
-    ? "bg-red-50 border-red-200/60"
-    : "bg-white border-gray-200";
+    ? "bg-orange-50/80 border-orange-200/50"
+    : "bg-white/90 border-slate-200/50";
   const content = isError ? renderErrorContent() : renderStandardContent();
 
   // Detect hosted URLs in the notification text
@@ -227,16 +191,30 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
 
   // TODO - Temporary fix for attachments
   let attachments: string[] = [];
-  if (payload.attachments && typeof payload.attachments === "string") {
-    const attachmentsString = payload.attachments as string;
-    attachments = attachmentsString.split(",");
+  if (payload.attachments && Array.isArray(payload.attachments)) {
+    attachments = payload.attachments as string[];
   }
+
+  const getAttachmentName = (filename: string): string => {
+    // Check if there's a saved artifact for this filename and timestamp
+    if (timestamp) {
+      const artifact = getArtifact(filename, timestamp);
+      if (artifact) {
+        return artifact.name;
+      }
+    }
+
+    // Return the original filename if no saved artifact found
+    return filename;
+  };
 
   return (
     <>
       {/* Main Card */}
-      <div className="flex justify-start">
-        <div className={`event-card min-w-80 max-w-2xl ${cardColor} relative`}>
+      <div className="flex justify-start mb-2">
+        <div
+          className={`px-4 py-3 rounded-2xl shadow-sm min-w-80 max-w-2xl ${cardColor} relative`}
+        >
           {content}
         </div>
       </div>
@@ -254,7 +232,7 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
                 <div className="flex-1 min-w-0">
                   <button
                     onClick={() => handleLocalhostPreview(hostedUrls[0])}
-                    className="text-left w-full group-hover:text-orange-800 transition-colors"
+                    className="text-left w-full group-hover:text-orange-800 transition-colors cursor-pointer"
                   >
                     <p className="text-sm font-medium text-gray-900 truncate group-hover:text-orange-900">
                       Preview website
@@ -266,15 +244,15 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
               <div className="flex items-center space-x-2 flex-shrink-0">
                 <button
                   onClick={() => handleLocalhostPreview(hostedUrls[0])}
-                  className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-orange-200 hover:border-orange-300 text-orange-600 hover:text-orange-700 transition-all duration-200 hover:shadow-sm"
+                  className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-orange-200 hover:border-orange-300 text-orange-600 hover:text-orange-700 transition-all duration-200 hover:shadow-sm cursor-pointer"
                   title="Preview in sidebar"
                 >
                   <Eye className="w-4 h-4" />
                 </button>
 
                 <button
-                  onClick={() => window.open(hostedUrls[0], '_blank')}
-                  className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-orange-200 hover:border-orange-300 text-orange-600 hover:text-orange-700 transition-all duration-200 hover:shadow-sm"
+                  onClick={() => window.open(hostedUrls[0], "_blank")}
+                  className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-orange-200 hover:border-orange-300 text-orange-600 hover:text-orange-700 transition-all duration-200 hover:shadow-sm cursor-pointer"
                   title="Open in sidebar"
                 >
                   <ExternalLink className="w-4 h-4" />
@@ -286,66 +264,22 @@ const UserMessageEvent: React.FC<UserMessageEventProps> = ({
       )}
 
       {/* Attachments outside the card - only show if no hosted URLs to preview */}
-      {attachments &&
-        attachments.length > 0 &&
-        hostedUrls.length === 0 && (
-          <div className="mt-3 space-y-3">
-            <div className="space-y-2">
-              {attachments.map((attachment, index) => {
-                const filename = attachment.split("/").pop() || "";
-                const extension = filename.split(".").pop()?.toLowerCase();
-
-                return (
-                  <div key={index} className="flex justify-start">
-                    <div className="group flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 hover:shadow-md min-w-80 max-w-2xl">
-                      <div className="flex items-center space-x-3 flex-1 min-w-0">
-                        <div className="flex-shrink-0">
-                          {getFileIcon(attachment)}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <button
-                            onClick={() => handleFileClick(attachment)}
-                            className="text-left w-full group-hover:text-blue-800 transition-colors"
-                          >
-                            <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-900">
-                              {filename}
-                            </p>
-                            {extension && (
-                              <p className="text-xs text-gray-500 uppercase font-mono">
-                                {extension} file
-                              </p>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2 flex-shrink-0">
-                        <button
-                          onClick={() => handleFileClick(attachment)}
-                          className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-blue-200 hover:border-blue-300 text-blue-600 hover:text-blue-700 transition-all duration-200 hover:shadow-sm"
-                          title="Preview file"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            handleFileDownload(attachment);
-                          }}
-                          className="flex items-center justify-center w-8 h-8 rounded-full bg-white/80 hover:bg-white border border-blue-200 hover:border-blue-300 text-blue-600 hover:text-blue-700 transition-all duration-200 hover:shadow-sm"
-                          title="Download file"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+      {attachments && attachments.length > 0 && hostedUrls.length === 0 && (
+        <div className="mt-3 space-y-3">
+          <div className="space-y-2">
+            {attachments.map((attachment, index) => (
+              <AttachmentItem
+                key={index}
+                attachment={attachment}
+                conversationId={conversationId}
+                timestamp={timestamp}
+                onFileClick={handleFileClick}
+                getAttachmentName={getAttachmentName}
+              />
+            ))}
           </div>
-        )}
+        </div>
+      )}
     </>
   );
 };

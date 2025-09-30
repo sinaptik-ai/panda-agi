@@ -9,5 +9,18 @@ matplotlib>=3.7.0
 numpy>=1.24.0
 plotly>=5.15.0
 kaleido>=0.2.1
-panda-agi>=0.6.2
 aiohttp
+openai>=1.0.0
+charset-normalizer>=3.0.0
+
+# Dependencies for panda-agi-sdk
+pydantic>=2.0.0
+docker
+beautifulsoup4
+requests
+markdownify
+httpx
+tavily-python
+e2b-code-interpreter>=1.0.0,<2.0.0
+cloudscraper
+sentry-sdk[fastapi]>=1.40.0

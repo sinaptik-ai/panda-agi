@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "react-hot-toast";
+import ClientLayout from "./client-layout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Panda AGI",
-  description: "AI Agent that does everything",
+  title: "Annie",
+  description: "Your personal AI assistant for data analysis and insights",
 };
 
 export default function RootLayout({
@@ -28,30 +28,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-            success: {
-              duration: 3000,
-              style: {
-                background: '#10b981',
-              },
-            },
-            error: {
-              duration: 3000,
-              style: {
-                background: '#fff',
-                color: '#000',
-              },
-            },
-          }}
-        />
+        <ClientLayout>
+          {children}
+        </ClientLayout>
       </body>
     </html>
   );
