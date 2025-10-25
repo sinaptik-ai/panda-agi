@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "./client-layout";
+import { generateMetadata } from "./metadata";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,10 +14,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Annie",
-  description: "Your personal AI assistant for data analysis and insights",
-};
+export const metadata: Metadata = generateMetadata('home');
 
 export default function RootLayout({
   children,
